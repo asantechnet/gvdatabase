@@ -36,7 +36,6 @@ class VisaCaseWorkspaceTest extends TestCase
     {
         $contract = $this->createBuiltInContract('scholarship', ['name' => 'Lined Case']);
         $caseId = (int) $contract['applicant_id'];
-        $this->seedApplicantDocuments($caseId);
 
         $historyBefore = ApplicantStageHistory::query()->where('applicant_id', $caseId)->count();
         $stageBefore = (int) Applicant::query()->findOrFail($caseId)->current_stage_id;
@@ -56,11 +55,10 @@ class VisaCaseWorkspaceTest extends TestCase
     public function test_an_unlined_case_keeps_the_case_level_writer(): void
     {
         $case = $this->postJson('/api/applicants', ['name' => 'Unlined Case'])->assertCreated()->json('data');
-        $this->seedApplicantDocuments((int) $case['id']);
 
         $this->postJson("/api/applicants/{$case['id']}/change-stage", [
             'stage_id' => $this->stageId('consultation'),
-            'note' => 'Documents checked',
+            'note' => 'Moved at intake',
         ])
             ->assertOk()
             ->assertJsonPath('data.current_stage.key', 'consultation');
@@ -76,7 +74,6 @@ class VisaCaseWorkspaceTest extends TestCase
         ]);
 
         $line = ApplicantContract::query()->where('contract_id', $contract['id'])->sole();
-        $this->seedApplicantDocuments((int) $line->applicant_id);
 
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
             'stage_id' => $this->stageId('consultation'),

@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import LeaveRequestApi, { type LeaveRequest, type LeaveRequestStatus } from '@/api/leaveRequests'
-import { apiErrorMessage } from '@/utils/apiErrors'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
@@ -95,7 +94,7 @@ async function load() {
     allowances.value = result.allowances ?? {}
     usage.value = result.usage ?? {}
   }
-  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToLoad'))) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
   finally { loading.value = false }
 }
 
@@ -123,7 +122,7 @@ async function grantSelected(forceOffDay = false) {
     approvalNote.value = ''
     await load()
   }
-  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToGrant'))) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
   finally { loading.value = false }
 }
 
@@ -149,7 +148,7 @@ async function printReport() {
     ])
     await printDocument({ bodyClass: 'printing-table-leave-requests', pageStyle: 'size: A4 landscape; margin: 12mm;' })
   }
-  catch (error) { toast.error(apiErrorMessage(error, $t('pages.leaveRequests.unableToLoad'))) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
 }
 watch([year, statusFilter], () => {
   page.value = 1

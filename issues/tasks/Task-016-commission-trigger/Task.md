@@ -11,6 +11,9 @@
 - Source plan/version: `hr-issues/issues/HR-006-commission-trigger-contract-vs-case.md`; `fin-issues/issues/FIN-010-commission-pluralization.md`; `fin-issues/README.md` cross-module note; validated in `issues/tasks/VALIDATION.md`
 - Requirement / behavior IDs: `HR-006`, `FIN-010`
 
+## Decision — approved 2026-11-04
+**The authoritative trigger is case completion.** The product owner selected case completion on 2026-11-04. This supersedes the HR review quotation that commission is earned when a contract completes: a contract marked completed on an in-progress case earns nothing, and completing the case accrues for its eligible contract lines. The existing `CommissionService::syncForApplicant()` gate is therefore the approved rule, and the page copy (subtitle, reconcile action) naming completed cases is correct. No observer, contract-status hook or trigger change is required.
+
 ## Objective
 Commission accrual fires on the event the business actually uses, and every commission screen and toast states that event and its counts in correct language.
 

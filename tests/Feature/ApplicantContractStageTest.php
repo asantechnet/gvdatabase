@@ -64,12 +64,7 @@ class ApplicantContractStageTest extends TestCase
             'class_id' => AcademyClass::create(['name' => 'Class A', 'is_active' => true])->id,
         ])->assertCreated()->json('data.id');
 
-        $contract = Contract::findOrFail($id);
-        // A sold service line has a labeled document; the stage gate checks it
-        // before the line leaves its first stage.
-        $this->seedApplicantDocuments((int) $contract->applicant_id);
-
-        return $contract;
+        return Contract::findOrFail($id);
     }
 
     private function stageId(string $service, string $key): int

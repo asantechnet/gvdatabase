@@ -142,7 +142,6 @@ const loadAnnouncements = async () => {
     announcements.value = await getAnnouncements()
   }
   catch (error: any) {
-    toast.error(apiErrorMessage(error, translate('pages.announcements.couldNotLoad')))
   }
   finally {
     loading.value = false
@@ -155,7 +154,6 @@ const loadAudienceOptions = async () => {
     audienceOptions.value = await getAnnouncementAudienceOptions()
   }
   catch (error: any) {
-    toast.error(apiErrorMessage(error, translate('pages.announcements.couldNotLoad')))
   }
   finally {
     audienceLoading.value = false

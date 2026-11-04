@@ -52,6 +52,7 @@ export interface ApplicantStage {
   university_id?: number | null
   sort_order?: number
   is_terminal?: boolean
+  is_locked?: boolean
   allowed_next_keys?: string[]
   is_active?: boolean
 }
@@ -159,14 +160,13 @@ export interface PipelineColumn extends ApplicantStage {
 }
 
 /**
- * One card on a service pipeline. A contracted service line is the card once
- * it exists; before that the case itself stands in, still placed on its
- * service's own stage list so new work never disappears from the board.
+ * One card on a service pipeline: always one non-cancelled contracted service
+ * line. A party without a line for this service is not a case and has no card.
  */
 export interface PipelineCard {
   id: string
-  source: 'line' | 'applicant'
-  line_id: number | null
+  source: 'line'
+  line_id: number
   applicant_id: number
   name: string | null
   service: BuiltInService
@@ -189,9 +189,8 @@ export interface PipelineResponse {
   stages: PipelineColumn[]
   cards: PipelineCard[]
   totals: { active: number, closed: number, all: number }
-  // Columns count cards (a service line, or a case without that line), while
-  // totals count cases.
-  counts?: { unit: string, cards: number, columns: number }
+  // Every number on the board counts service-case lines of this service.
+  counts?: { unit: 'service_case', cards: number, columns: number }
 }
 
 const clean = (params: ApplicantListParams = {}) => {

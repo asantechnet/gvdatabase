@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Services\ApplicantStageContext;
 use App\Support\BuiltInService;
 use App\Support\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * An applicant is the single customer-facing record: it carries the shared
@@ -63,6 +65,30 @@ class Applicant extends Model
         'profile_data' => 'array',
         'profile_completed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        // The applicant's stage is a mirror of its service lines once they
+        // exist, and the stage of an unlined case is its workflow position.
+        // Either way a move may only land on a stage that applies to this
+        // applicant's service, test and destination. Initial creation is not
+        // blocked: the service detail row may be written after this row.
+        static::updating(function (self $applicant): void {
+            if (! $applicant->isDirty('current_stage_id') || $applicant->current_stage_id === null) {
+                return;
+            }
+
+            $stage = ApplicantStage::query()->find($applicant->current_stage_id);
+            if (! $stage) {
+                return;
+            }
+
+            $service = $applicant->service ?? BuiltInService::SCHOLARSHIP;
+            if (! app(ApplicantStageContext::class)->appliesTo($applicant, $stage, $service)) {
+                throw ValidationException::withMessages(['stage_id' => ['business.applicant_stage_context_mismatch']]);
+            }
+        });
+    }
 
     /**
      * The root of a shared billing party. Was `applicants.customer_id` when a

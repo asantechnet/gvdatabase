@@ -144,7 +144,7 @@ const printList = async () => {
     // Leave the table showing the page the operator was on.
     await load()
   }
-  catch (cause) { toast.error(apiErrorMessage(cause)) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
 }
 const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.value = true }
 const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
@@ -189,7 +189,7 @@ async function markPaid(row: Contract) {
     await load()
     toast.success(t('serviceContracts.markedPaid'))
   }
-  catch (cause) { toast.error(apiErrorMessage(cause)) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
   finally { markingPaid.value = null }
 }
 
@@ -205,7 +205,7 @@ async function confirmCancel() {
     await load()
     toast.success(t('serviceContracts.cancelledDone'))
   }
-  catch (cause) { toast.error(apiErrorMessage(cause)) }
+  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
   finally { cancelling.value = false; cancelTarget.value = null }
 }
 const resetFilters = () => { search.value = ''; status.value = null; dateFrom.value = ''; dateTo.value = ''; page.value = 1; void load() }

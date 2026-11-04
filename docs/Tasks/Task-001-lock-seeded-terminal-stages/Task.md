@@ -59,15 +59,7 @@ The stage editor is `resources/ts/pages/applicant-stages.vue`, the only stage ed
 - Files/modules this task must not modify: `app/Http/Controllers/ApplicantController.php`, `app/Http/Controllers/ApplicantContractStageController.php`, `app/Models/ApplicantContract.php`, `app/Support/CommissionService.php`, `app/Support/ContractTaskService.php`, `routes/api.php`, the two existing seed migrations, and `resources/ts/pages/applicant-pipeline.vue`.
 
 ## Exclusive file ownership
-- `app/Models/ApplicantStage.php` — owns the lock predicate, the cast and the model-level guard.
-- `app/Http/Controllers/ApplicantStageController.php` — owns the update/destroy refusal and the locked field on reads.
-- `database/migrations/2026_11_02_000001_add_is_locked_to_applicant_stages.php` — new column plus the seeded-terminal backfill and its rollback.
-- `resources/ts/api/applicants.ts` — adds `is_locked` to the `ApplicantStage` type only.
-- `resources/ts/pages/applicant-stages.vue` — table indicator, suppressed controls and the locked-row message.
-- `resources/ts/plugins/i18n/locales/en.json` — new stage-lock strings.
-- `resources/ts/plugins/i18n/locales/fa-AF.json` — the same keys in Dari.
-- `resources/ts/plugins/i18n/locales/ps-AF.json` — the same keys in Pashto.
-- `tests/Feature/ApplicantStageCatalogTest.php` — locked/unlocked coverage for the catalogue API.
+- None — this task is delivered and in review. Forward ownership of the stage catalogue, stage editor, typed stage field and stage catalogue test moved to the service-stage-scope task in `issues/tasks` on `2026-11-04`. The lock predicate and its 409 refusal remain this task's delivery record, but no file is held open for parallel writes.
 
 ## Acceptance criteria
 - [ ] Given the seeded terminal stages for scholarship, private, test_offer and academy, when the catalogue is read with `all=1`, then each of those rows reports `is_locked: true` and every user-created or non-terminal stage reports `is_locked: false`.

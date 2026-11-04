@@ -4,9 +4,9 @@
 - Status: `Review`
 - Owner: `Buffy (erp-task-implementer)`
 - Last updated: `2026-10-31`
-- Current focus: `Shared primitives are implemented and typecheck clean; page adoption and viewport/RTL visual verification remain.`
-- Blocker: `None for the shared primitives. Runtime evidence at 390/768/1280 px in LTR, RTL and dark mode was not captured in this run.`
-- Next action: `Reviewer/page tasks adopt: pass "pagination", "mobile-fields" and the sticky props, and remove any page-level second paginator (Task-011).`
+- Current focus: `Shared primitives are implemented, typecheck clean, and the first operational pages now opt into the single footer and mobile decision fields.`
+- Blocker: `No code blocker. Runtime evidence at 390/768/1280 px in LTR, RTL and dark mode was not captured in this run.`
+- Next action: `Reviewer runs the viewport/RTL/dark pass; remaining pages adopt "pagination" + "mobile-fields" as they are next touched.`
 
 ## Acceptance criteria progress
 - [ ] Given a table with more columns than fit at 1280 px, when it renders with sticky actions enabled, then the key identifier column and the action column remain visible while the middle columns scroll, and a visible affordance indicates more content. — Evidence: implemented in `responsiveDataTable.ts` (sticky actions default when the last header is an action column; `stickyKeyColumn` defaults to the same state; `responsive-data-table--sticky-first/last` CSS already existed in `resources/styles/styles.scss`) plus `TableScrollAffordance.vue` (shown only when `scrollWidth > clientWidth`). No 1280 px runtime capture yet — verification pending.
@@ -21,6 +21,7 @@
 - Added `resources/ts/components/TableScrollAffordance.vue`: visible overflow hint with two named controls; hidden unless the wrapper actually overflows.
 - Extended `responsiveDataTable.ts` with `mobileFields`, `pagination`, `pageSizes`, `showScrollAffordance`, `stickyKeyColumn` and `stickyActionColumn`, overflow detection (passive scroll listener + `ResizeObserver`), RTL-aware programmatic scrolling, and a single opt-in footer.
 - Mobile cards now always show the configured decision fields; the disclosure only contains the remaining fields, and the header toggle is only a button when there is something to expand.
+- Page adoption started without forking the primitives: `/commissions` (both accrual and settlement registers) now passes `pagination`, `mobile-cards` and `mobile-fields`; `/pending-transactions` passes `mobile-fields` alongside its existing `pagination`, and its page-level second paginator is gone (Task-011 handoff confirmed by source search).
 - Regenerated `resources/ts/plugins/iconify/icons.css` with `npm run build:icons` so the new chevron icons render.
 
 ## Files changed and why
@@ -58,3 +59,4 @@
 - `2026-10-31` Claimed by `Buffy (erp-task-implementer)`, status → `In Progress`.
 - `2026-10-31` Added footer, scroll affordance and mobile field props; regenerated icons; `npm run typecheck` and `npm run build:icons` pass. Status → `Review` with runtime/visual verification outstanding.
 - `2026-10-31` Local Playwright run of `/contracts/scholarship` confirmed the scroll affordance appears on an overflowing table with a named, enabled "Next" control. Viewport, sticky-column and dark/RTL checks remain outstanding.
+- `2026-11-04` Confirmed `/pending-transactions` has exactly one paginator (its `pagination` table footer; no `VPagination`/range row remains) and added its mobile decision fields. Adopted the same single-footer + mobile-field contract on `/commissions`. `npm run typecheck` exits 0. The 390/768/1280 px LTR/RTL light/dark pass is still outstanding.

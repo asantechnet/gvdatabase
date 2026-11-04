@@ -131,7 +131,7 @@ if (self::$hasUnreadAuditColumn !== true) {
 ## ISSUE-3 — Stale production deploy workflow
 
 **Severity:** Medium.
-**Status:** Open (owner confirmed the pipeline is unused; deployment is manual).
+**Status:** Resolved 2026-11-04 — the workflow now triggers only on `workflow_dispatch`, so a push to `main` cannot deploy production. Deployment remains manual as the owner confirmed.
 
 `.github/workflows/deploy.yaml` still triggers on:
 

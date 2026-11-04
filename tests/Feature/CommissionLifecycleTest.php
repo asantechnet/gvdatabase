@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Applicant;
+use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\CommissionAccrual;
 use App\Models\CommissionSettlement;
@@ -71,6 +72,21 @@ class CommissionLifecycleTest extends TestCase
      */
     private function advanceCase(Applicant $applicant, string $target): Applicant
     {
+        // A case with contracted service lines moves through each line's own
+        // service workflow (Task-027); the applicant's stage mirrors the latest
+        // line move, which is what `isCaseCompleted()` reads.
+        $applicant->loadMissing('contracts.applicantContracts');
+
+        foreach ($applicant->contracts->flatMap->applicantContracts as $line) {
+            $this->advanceLine($applicant, $line, $target);
+        }
+
+        return $applicant->fresh();
+    }
+
+    /** Walk one service line up its service workflow to the target key. */
+    private function advanceLine(Applicant $applicant, ApplicantContract $line, string $target): void
+    {
         // Leaving the first stage needs a labeled document. The workflow under
         // test is the transition and its commission effect, not the upload.
         if ($applicant->attachments()->doesntExist()) {
@@ -78,21 +94,26 @@ class CommissionLifecycleTest extends TestCase
         }
 
         for ($step = 0; $step < 30; $step++) {
-            $current = $applicant->fresh()->currentStage;
+            $current = $line->fresh()->currentStage;
             if ($current?->key === $target) {
-                return $applicant->fresh();
+                return;
             }
 
-            $this->assertNotNull($current, 'the case has no current stage');
+            $this->assertNotNull($current, 'the service line has no current stage');
+            $service = $line->serviceKey() ?? $applicant->service;
             $forward = collect($current->allowed_next_keys ?? [])
-                ->map(fn (string $key) => ApplicantStage::query()->where('key', $key)->where('is_active', true)->first())
+                ->map(fn (string $key) => ApplicantStage::query()
+                    ->where('service', $service)
+                    ->where('key', $key)
+                    ->where('is_active', true)
+                    ->first())
                 ->filter()
                 ->first(fn (ApplicantStage $stage) => $stage->key === $target
                     || ! in_array($stage->key, ApplicantStage::EXIT_KEYS, true));
 
             $this->assertNotNull($forward, "no forward transition from {$current->key}");
 
-            $this->postJson("/api/applicants/{$applicant->id}/change-stage", [
+            $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
                 'stage_id' => $forward->id,
                 'note' => "Advance to {$forward->key}",
             ])->assertOk();
@@ -147,8 +168,12 @@ class CommissionLifecycleTest extends TestCase
 
         // Reach the last open stage, then close the case instead of completing it.
         $applicant = $this->advanceCase($contract->applicant, 'visa_approved');
-        $cancelled = ApplicantStage::query()->where('key', 'cancelled')->firstOrFail();
-        $this->postJson("/api/applicants/{$applicant->id}/change-stage", [
+        $line = $contract->applicantContracts()->firstOrFail();
+        $cancelled = ApplicantStage::query()
+            ->where('service', $line->serviceKey())
+            ->where('key', 'cancelled')
+            ->firstOrFail();
+        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
             'stage_id' => $cancelled->id,
             'note' => 'Family withdrew the application',
         ])->assertOk();

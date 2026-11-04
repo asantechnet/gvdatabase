@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import PermissionApi, { type Permission } from '@/api/permission'
 import RoleApi from '@/api/role'
-import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
+import { apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
 
 // Extend internal type representation to match the new API payload
@@ -214,7 +214,6 @@ const loadAll = async () => {
     roles.value = rolesResponse as unknown as AppRole[]
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, tr('unableToLoad')))
   }
   finally {
     loading.value = false
@@ -322,7 +321,6 @@ const confirmDeleteRole = async () => {
     toast.success(tr('roleDeleted'))
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, tr('unableToDelete')))
   }
 }
 

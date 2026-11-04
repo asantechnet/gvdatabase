@@ -74,3 +74,4 @@
 ## Activity log (append-only)
 - `2026-11-02` Implemented the lined-case guard, line money/identity payload, timeline identity, per-line terminal reason, mirror labelling, finance balances and document note; tests, typecheck and i18n green.
 - `2026-11-02` Completed the remaining criteria: shared stage grant, task line/succession/closed-case explanation, task completion pre-flight counts, service-scoped stage strip with deep-link service adoption, note/university copy and accessible names; tests 9 passed, typecheck and i18n green, validator green. Status `Review` with the viewport pass open.
+- `2026-11-04` Forward ownership of the case workspace, stage controllers, stage guard, case API types and the two case test suites transferred to Task-028. Task-028 supersedes this task's unified service-workflow ledger and its labeled-document gate; the rest of Task-027's delivery record and its `Review` status stay unchanged.

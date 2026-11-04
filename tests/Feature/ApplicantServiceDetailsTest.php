@@ -190,9 +190,6 @@ class ApplicantServiceDetailsTest extends TestCase
             'country_id' => $country->id, 'is_active' => true,
         ]);
 
-        // The stage gate needs a labeled document before the case moves forward.
-        $this->seedApplicantDocuments($applicant);
-
         $this->postJson("/api/applicants/{$applicant->id}/change-stage", ['stage_id' => $stage->id])
             ->assertOk()->assertJsonPath('data.current_stage_id', $stage->id);
 
@@ -215,15 +212,19 @@ class ApplicantServiceDetailsTest extends TestCase
         $this->assertSame($historyBefore, ApplicantStageHistory::count());
     }
 
-    public function test_service_filter_is_shared_by_list_and_pipeline(): void
+    public function test_service_filter_is_shared_by_the_list_and_the_line_only_pipeline(): void
     {
         $this->postJson('/api/applicants', ['name' => 'Scholarship Applicant'])->assertCreated();
         $this->postJson('/api/applicants', ['name' => 'Academy Applicant', 'service' => 'academy'])->assertCreated();
 
         $this->getJson('/api/applicants?service=academy')->assertOk()
             ->assertJsonPath('data.total', 1)->assertJsonPath('data.data.0.service', 'academy');
+
+        // The list is the party/intake directory. A party without a sold service
+        // line is not a service case, so the pipeline has no card for it.
         $this->getJson('/api/applicants-pipeline?service=academy')->assertOk()
-            ->assertJsonPath('data.totals.all', 1);
+            ->assertJsonPath('data.totals.all', 0)
+            ->assertJsonPath('data.cards', []);
     }
 
     public function test_a_failed_detail_write_rolls_back_identity_changes_on_update(): void

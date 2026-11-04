@@ -1,16 +1,16 @@
 # Task Set Index
 
 - **Plan source/version:** User request on 2026-11-02 — "make the Stages section's seeded terminal stages immutable"; repository baseline `main` at 2026-11-02
-- **Last updated:** `2026-11-02`
+- **Last updated:** `2026-11-04`
 - **Status:** `Validated`
 - **Validation command:** `python3 docs/Tasks/scripts/validate_tasks.py docs/Tasks`
-- **Last validation result:** PASS on 2026-11-02 — 1 task, 0 errors, 0 warnings
+- **Last validation result:** PASS on 2026-11-04 — 1 task, 0 errors, 0 warnings
 
 ## Tasks
 
 | Task ID | Folder | Outcome | Status | Dependencies | Exclusive owner / file area | Validation status |
 |---|---|---|---|---|---|---|
-| Task-001 | `Task-001-lock-seeded-terminal-stages/` | Seeded terminal applicant stages cannot be edited or deleted; the stage editor shows and explains the lock | Ready | None | `app/Models/ApplicantStage.php`; `app/Http/Controllers/ApplicantStageController.php`; `database/migrations/2026_11_02_000001_add_is_locked_to_applicant_stages.php`; `resources/ts/api/applicants.ts`; `resources/ts/pages/applicant-stages.vue`; `resources/ts/plugins/i18n/locales/en.json`; `resources/ts/plugins/i18n/locales/fa-AF.json`; `resources/ts/plugins/i18n/locales/ps-AF.json`; `tests/Feature/ApplicantStageCatalogTest.php` | PASS 2026-11-02 |
+| Task-001 | `Task-001-lock-seeded-terminal-stages/` | Seeded terminal applicant stages cannot be edited or deleted; the stage editor shows and explains the lock | Review | None | None (delivered; forward ownership of the stage catalogue, stage editor, typed stage field and stage test moved to the service-stage-scope task on 2026-11-04) | PASS 2026-11-02 |
 
 ## Dependency layers
 - **Layer 0:** Task-001 — no upstream task; it only reads existing seeded stages and the existing stage controller.
@@ -40,3 +40,5 @@ Append date, command, result, issue/error count and follow-up owner after each v
 - `2026-11-02` — Task set created; validator not run yet.
 - `2026-11-02` — `python3 docs/Tasks/scripts/validate_tasks.py docs/Tasks` → `PASS: 1 task(s); required files/sections, statuses, dependencies, cycles, exclusive ownership and INDEX.md are valid.` (exit 0, 0 errors, 0 warnings). Validator shipped at `docs/Tasks/scripts/validate_tasks.py` (Python 3.14.4). Structural pass only; behaviour still requires implementation and review.
 - `2026-11-02` — Dependency/ownership review: single task, no dependencies or cycles, no cross-task file overlap. Business policy is not invented: the immutability scope and marker name are recorded as assumptions in `Task-001`, and the seeded terminal set is derived from the two existing seed migrations.
+- `2026-11-04` — Implemented on `feat/remaining-task-closure`: additive `is_locked` migration + backfill, model predicate/mutation guard, controller 409 before validation, typed client field, editor lock chip and suppressed controls, three-locale copy, seven catalogue tests. `ApplicantStageCatalogTest` 7 tests / 59 assertions and `npm run typecheck` pass; status → `Review` pending the viewport/RTL browser pass and the MySQL migrate step.
+- `2026-11-04` — Forward ownership of the stage catalogue, stage editor, typed stage field and stage catalogue test moved to the new service-stage-scope task in `issues/tasks` so canonical terminal sets and test scoping have one writer. Task-001 remains `Review`; no product code changed by the handoff.

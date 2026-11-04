@@ -403,8 +403,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('applicants/{applicant}/attachments/{attachment}/download', [ApplicantAttachmentController::class, 'download'])->middleware('permission:view_applicants');
     Route::delete('applicants/{applicant}/attachments/{attachment}', [ApplicantAttachmentController::class, 'destroy'])->middleware('permission:edit_applicants');
     Route::post('applicants/{applicant}/change-stage', [ApplicantController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
-    // Per-service workflow: each contracted line moves through its own service's
-    // stage list independently of the applicant's other services.
+    // Per-service workflow: each contracted line is its own case and moves
+    // through its own service's stage list independently of the applicant's
+    // other services. The read sits beside the writer so both stay line-scoped.
+    Route::get('applicant-contracts/{line}', [ApplicantContractStageController::class, 'show'])->middleware('permission:view_applicants');
     Route::post('applicant-contracts/{line}/change-stage', [ApplicantContractStageController::class, 'changeStage'])->middleware('permission:change_applicant_stage');
     Route::get('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'index'])->middleware('permission:view_applicants');
     Route::post('applicants/{applicant}/universities', [ApplicantUniversityController::class, 'store'])->middleware('permission:edit_applicants');

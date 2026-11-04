@@ -9,7 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, type BuiltInService, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
@@ -88,17 +88,6 @@ const transitionOptions = computed(() => {
 // never mistaken for a regular step.
 const openTransitions = computed(() => transitionOptions.value.filter(stage => !stage.is_terminal))
 const terminalTransitions = computed(() => transitionOptions.value.filter(stage => stage.is_terminal))
-// The server refuses a forward move out of the case's first stage until a
-// labeled document exists. The UI says so before the user tries, and disables
-// only the blocked (non-terminal) target rather than the whole control.
-const initialStageKey = computed(() => [...stages.value]
-  .filter(stage => !stage.is_terminal)
-  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))[0]?.key ?? null)
-const documentsMissing = computed(() => !!initialStageKey.value
-  && applicant.value?.current_stage?.key === initialStageKey.value
-  && applicantAttachments.value.length === 0)
-const selectedStage = computed(() => transitionOptions.value.find(stage => stage.id === Number(selected.value)) ?? null)
-const documentBlocked = computed(() => documentsMissing.value && !!selectedStage.value && !selectedStage.value.is_terminal)
 const transitionItems = computed<Array<Record<string, unknown>>>(() => {
   const items: Array<Record<string, unknown>> = [...openTransitions.value]
   if (openTransitions.value.length && terminalTransitions.value.length)
@@ -264,65 +253,11 @@ async function load() {
   selected.value = null
   notesDraft.value = applicant.value.notes ?? ''
   applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
-  await loadLineStages()
 }
 
-// Per-service workflow: each contracted line tracks its own service's stage.
-const lineStageOptions = ref<Record<string, ApplicantStage[]>>({})
-const lineStageSelection = ref<Record<number, number | null>>({})
-const lineStageNotes = ref<Record<number, string>>({})
-const movingLine = ref<number | null>(null)
-// One grant decides whether any stage write is offered. The case-level panel and
-// the per-service rows share this check, so a viewer never submits a move the
-// server will refuse with 403.
+// One grant decides whether the case-level writer is offered. A lined applicant
+// has no writer here: each service case is moved from its own page.
 const canMoveStage = computed(() => canAccess('change_applicant_stage'))
-const lineStageLabel = (stage?: { name: string; key: string } | null) => stage ? translateApplicantStage(stage) : '—'
-const lineNextStages = (line: { service?: BuiltInService | null; current_stage?: { allowed_next_keys?: string[] } | null }) => {
-  const options = lineStageOptions.value[line.service ?? ''] ?? []
-  // A line with no stage yet is seated from its service's whole live list; a
-  // seated line only offers its configured next stages.
-  if (!line.current_stage)
-    return options
-
-  const allowed = line.current_stage.allowed_next_keys ?? []
-
-  return options.filter(stage => allowed.includes(stage.key))
-}
-// A terminal target needs the same written reason the server requires. The
-// field appears with the choice instead of after a rejected save.
-const lineNextStage = (line: { id: number; service?: BuiltInService | null; current_stage?: { allowed_next_keys?: string[] } | null }) =>
-  lineNextStages(line).find(stage => stage.id === Number(lineStageSelection.value[line.id])) ?? null
-const lineNeedsReason = (line: { id: number; service?: BuiltInService | null; current_stage?: { allowed_next_keys?: string[] } | null }) =>
-  lineNextStage(line)?.is_terminal === true
-async function loadLineStages() {
-  const services = [...new Set((applicant.value?.services ?? []).map(line => line.service).filter((service): service is BuiltInService => !!service))]
-  await Promise.all(services.map(async service => {
-    // Active stages only: an inactive stage must never be offered as a target.
-    if (!lineStageOptions.value[service])
-      lineStageOptions.value[service] = await ApplicantApi.stages({ service })
-  }))
-}
-async function moveLine(line: { id: number }) {
-  const stageId = Number(lineStageSelection.value[line.id])
-  if (!Number.isSafeInteger(stageId))
-    return
-  const note = lineStageNotes.value[line.id]?.trim() || undefined
-  if (lineNeedsReason(line) && !note)
-    return
-  movingLine.value = line.id
-  try {
-    await ApplicantApi.changeLineStage(line.id, stageId, note)
-    lineStageNotes.value[line.id] = ''
-    await load()
-    toast.success(t('educational.caseUi.stageRecorded'))
-  }
-  catch {
-    // The shared API error notifier shows the server's message.
-  }
-  finally {
-    movingLine.value = null
-  }
-}
 
 async function uploadApplicantAttachment() { const file = Array.isArray(attachmentFile.value) ? attachmentFile.value[0] : attachmentFile.value; if (!applicant.value || !file || !attachmentLabel.value.trim()) return; uploadingApplicantAttachment.value = true; try { applicantAttachments.value.unshift(await ApplicantAttachmentApi.upload(applicant.value.id, file, attachmentLabel.value.trim())); attachmentFile.value = null; attachmentLabel.value = ''; toast.success(t('educational.caseUi.documentAdded')) } catch { toast.error(t('educational.caseUi.documentAddFailed')) } finally { uploadingApplicantAttachment.value = false } }
 async function removeApplicantAttachment(id: number) { if (!applicant.value) return; await ApplicantAttachmentApi.remove(applicant.value.id, id); applicantAttachments.value = applicantAttachments.value.filter(item => item.id !== id) }
@@ -352,12 +287,6 @@ async function move() {
   // be submitted after the case or workflow data has been refreshed.
   if (!target || !transitionOptions.value.some(stage => stage.id === stageId))
     return
-
-  if (documentsMissing.value && !target.is_terminal) {
-    toast.error(t('educational.caseUi.documentRequiredBeforeMove'))
-
-    return
-  }
 
   // Terminal moves (cancel, reject, withdraw, complete) must carry a reason
   // for the audit trail — the history row is permanent.
@@ -800,11 +729,10 @@ onMounted(async () => {
       <div class="visa-case-stage-panel">
       <VChip color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ t('educational.caseUi.openTasks', { count: n(openTasks.length) }) }}</VChip>
-      <VAlert v-if="applicant.services?.length" type="info" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.stageMirrorNote') }}</VAlert>
-      <!-- A case with a contracted line has one writer: the service row below.
-           The case-level control stays only for an unlined case, and a viewer
-           without the grant gets a statement instead of a dead control. -->
-      <VAlert v-if="!canMoveStage" type="warning" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.stageMovePermission') }}</VAlert>
+      <!-- A lined applicant is a party profile: every contracted service is a
+           separate case with its own page. The case-level writer stays only
+           for an intake record that has not bought a service yet. -->
+      <VAlert v-if="!applicant.services?.length && !canMoveStage" type="warning" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.stageMovePermission') }}</VAlert>
       <template v-if="!applicant.services?.length && canMoveStage">
       <VAlert v-if="caseIsClosed && !transitionOptions.length" :type="caseCompleted ? 'success' : 'warning'" variant="tonal" density="compact" class="mt-5 mb-0">
         <div>{{ t('educational.caseUi.caseClosedFinal', { stage: translateApplicantStage(applicant.current_stage) }) }}</div>
@@ -812,7 +740,6 @@ onMounted(async () => {
       </VAlert>
       <template v-else>
         <VAlert v-if="caseIsClosed" type="info" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.caseClosedReopen', { stage: translateApplicantStage(applicant.current_stage) }) }}</VAlert>
-        <VAlert v-if="documentsMissing && openTransitions.length" type="warning" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.documentRequiredBeforeMove') }}</VAlert>
         <VSelect
           v-model="selected"
           :items="transitionItems"
@@ -827,7 +754,7 @@ onMounted(async () => {
           </template>
         </VSelect>
         <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
-        <VBtn color="primary" :loading="moving" :disabled="documentBlocked" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+        <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
       </template>
       </template>
       </div>
@@ -837,34 +764,35 @@ onMounted(async () => {
           <ApplicantSummary :applicant="applicant" />
           <div v-if="guardianSummary.length" class="case-detail-grid mt-4"><div v-for="row in guardianSummary" :key="row.key"><span>{{ row.label }}</span><strong>{{ row.value }}</strong></div></div>
         </section>
-        <section class="case-section case-section--workflow">
-          <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.serviceWorkflow') }}</h3></div></div>
-          <div v-for="line in applicant.services" :key="line.id" class="case-service-line">
-            <div class="d-flex flex-wrap align-center ga-2">
-              <strong>{{ line.type ?? line.service }}</strong>
-              <span v-if="line.contract_number" class="text-caption text-medium-emphasis">{{ line.contract_number }}</span>
-              <span v-if="line.parent_contract_number" class="text-caption text-medium-emphasis">({{ line.parent_contract_number }})</span>
-              <VChip v-if="line.is_extension" size="x-small" variant="tonal" color="info">{{ t('serviceContracts.extension') }}</VChip>
-              <VChip size="small" color="primary">{{ lineStageLabel(line.current_stage) }}</VChip>
+        <section class="case-section case-section--cases">
+          <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.serviceCases') }}</h3></div></div>
+          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.serviceCasesHint') }}</p>
+          <div v-for="line in applicant.services" :key="line.id" class="case-case-row">
+            <div class="case-case-row__identity">
+              <div class="d-flex flex-wrap align-center ga-2">
+                <strong>{{ line.type ?? line.service }}</strong>
+                <span v-if="line.contract_number" class="text-caption text-medium-emphasis">{{ line.contract_number }}</span>
+                <span v-if="line.parent_contract_number" class="text-caption text-medium-emphasis">({{ line.parent_contract_number }})</span>
+                <VChip v-if="line.is_extension" size="x-small" variant="tonal" color="info">{{ t('serviceContracts.extension') }}</VChip>
+              </div>
+              <p class="text-caption text-medium-emphasis mb-0 mt-1">
+                {{ t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') }) }}
+              </p>
+            </div>
+            <div class="case-case-row__meta">
+              <VChip size="small" color="primary">{{ translateApplicantStage(line.current_stage) }}</VChip>
               <VChip size="x-small" variant="tonal">{{ translateBackendValue(line.status ?? '') }}</VChip>
               <VChip size="x-small" variant="tonal" :color="line.payment_status === 'paid' ? 'success' : line.payment_status === 'partially_paid' ? 'warning' : 'secondary'">
                 {{ translateBackendValue(line.payment_status ?? 'unpaid') }}
               </VChip>
             </div>
-            <p class="text-caption text-medium-emphasis mb-0 mt-1">
-              {{ t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') }) }}
-            </p>
-            <template v-if="canMoveStage && lineNextStages(line).length">
-              <VSelect v-model="lineStageSelection[line.id]" :items="lineNextStages(line).map(s => ({ title: translateApplicantStage(s), value: s.id }))" density="compact" hide-details :aria-label="`${t('educational.caseUi.moveStage')}: ${line.contract_number ?? line.type ?? line.service}`" :placeholder="t('educational.caseUi.moveStage')"/>
-              <VTextarea v-if="lineNeedsReason(line)" v-model="lineStageNotes[line.id]" :label="t('educational.caseUi.lineStageNote')" density="compact" rows="2" class="mt-2" hide-details />
-              <VBtn size="small" color="primary" class="mt-2" :disabled="!lineStageSelection[line.id] || (lineNeedsReason(line) && !lineStageNotes[line.id]?.trim())" :loading="movingLine === line.id" @click="moveLine(line)">{{ t('educational.caseUi.recordStage') }}</VBtn>
-            </template>
+            <VBtn size="small" variant="tonal" color="primary" :to="{ name: 'service-case', params: { line: line.id } }" :aria-label="`${t('educational.caseUi.openServiceCase')}: ${line.contract_number ?? line.type ?? line.service}`">{{ t('educational.caseUi.openServiceCase') }}</VBtn>
           </div>
-          <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.serviceWorkflowHint') }}</p>
+          <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.serviceCasesEmpty') }}</p>
         </section>
       </div>
 
-      <section class="case-section case-section--timeline mt-5">
+      <section v-if="!applicant.services?.length" class="case-section case-section--timeline mt-5">
         <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.timeline') }}</h3></div></div>
         <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage ? translateApplicantStage(item.old_stage) : t('educational.caseUi.started'), to: translateApplicantStage(item.new_stage) })" :subtitle="stageSubtitle(item)" /></VList>
       </section>
@@ -899,9 +827,9 @@ onMounted(async () => {
         </section>
 
         <section class="case-section case-section--documents">
-          <div class="case-section__heading"><div><h3>{{ t('educational.caseUi.documents') }}</h3><p class="text-caption text-medium-emphasis mb-0">{{ applicantAttachments.length ? t('educational.caseUi.applicantDocumentsReady', { count: applicantAttachments.length }) : t('educational.caseUi.applicantDocumentsNeeded') }}</p></div><VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn></div>
+          <div class="case-section__heading"><div><h3>{{ t('educational.caseUi.documents') }}</h3><p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.profileDocumentCount', { count: applicantAttachments.length }) }}</p></div><VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn></div>
           <h4>{{ t('educational.caseUi.applicantDocuments') }}</h4>
-          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.documentGateNote') }}</p>
+          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.profileDocumentsHint') }}</p>
           <VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :aria-label="`${t('educational.caseUi.download')}: ${file.label}`" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" :aria-label="`${t('common.actions.remove')}: ${file.label}`" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList>
           <div v-if="canEditCase" class="case-document-upload"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details/><VFileInput v-model="attachmentFile" density="compact" hide-details/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div>
           <VDivider class="my-4" />
@@ -1106,7 +1034,7 @@ onMounted(async () => {
 }
 
 .case-section--details,
-.case-section--workflow {
+.case-section--cases {
   min-block-size: 100%;
 }
 
@@ -1158,16 +1086,28 @@ onMounted(async () => {
   font-size: 0.75rem;
 }
 
-.case-service-line {
+.case-case-row {
   align-items: center;
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: minmax(8rem, 1fr) auto minmax(11rem, 1fr) auto;
+  grid-template-columns: minmax(10rem, 1fr) auto auto;
   padding-block: 0.75rem;
 }
 
-.case-service-line + .case-service-line {
+.case-case-row + .case-case-row {
   border-block-start: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
+}
+
+.case-case-row__identity {
+  min-inline-size: 0;
+}
+
+.case-case-row__meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .case-section :deep(.v-list) {
@@ -1223,7 +1163,7 @@ onMounted(async () => {
     padding: 1rem;
   }
 
-  .case-service-line,
+  .case-case-row,
   .case-document-upload {
     grid-template-columns: 1fr;
   }

@@ -13,7 +13,6 @@ import VisitorApi, { type CreateVisitorData, type UpdateVisitorData, type Visito
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { printDocument } from '@/utils/printDocument'
-import { apiErrorMessage } from '@/utils/apiErrors'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
@@ -248,7 +247,6 @@ const printTable = async () => {
   }
   catch (error) {
     console.error('Error preparing visitor report:', error)
-    toast.error(apiErrorMessage(error))
   }
 }
 
@@ -276,7 +274,6 @@ const addNewVisitor = async () => {
   }
   catch (error) {
     console.error('Error creating visitor:', error)
-    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -306,7 +303,6 @@ const editVisitor = async () => {
   }
   catch (error) {
     console.error('Error updating visitor:', error)
-    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -356,7 +352,6 @@ const deleteVisitor = async () => {
   }
   catch (error) {
     console.error('Error deleting visitor:', error)
-    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false
@@ -375,7 +370,6 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
     toast.success(translate(followUp ? 'pages.contracts.visitor.visitor.markedForFollowUp' : 'pages.contracts.visitor.visitor.removedFromFollowUp'))
   }
   catch (error) {
-    toast.error(apiErrorMessage(error, translate('pages.contracts.visitor.visitor.followUpUpdateFailed')))
   }
   finally {
     isSaving.value = false
@@ -412,7 +406,6 @@ const saveConsultantReview = async () => {
     toast.success(translate('pages.contracts.visitor.visitor.consultantReviewSaved'))
   }
   catch (error) {
-    toast.error(apiErrorMessage(error))
   }
   finally {
     isSaving.value = false

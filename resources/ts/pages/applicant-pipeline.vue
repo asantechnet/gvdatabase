@@ -53,14 +53,25 @@ const activeCountries = computed(() => countries.value.filter(c => c.is_active))
 const activeUniversities = computed(() => universities.value.filter(u => u.is_active && (!filters.value.country_id || u.country_id === filters.value.country_id)))
 const activeLevels = computed(() => levels.value.filter(l => l.is_active))
 
-// A university selected for one country must not silently filter everything
-// out after the country changes.
-watch(() => filters.value.country_id, () => {
-  const stillVisible = activeUniversities.value.some(u => u.id === filters.value.university_id)
+// Destination is part of the board's stage catalogue, not just a row filter:
+// a country or university adds its own stages to the columns. Reload as soon
+// as either changes so the columns and the cards describe one context.
+watch(
+  [() => filters.value.country_id, () => filters.value.university_id],
+  () => {
+    const stillVisible = activeUniversities.value.some(u => u.id === filters.value.university_id)
 
-  if (!stillVisible)
-    filters.value.university_id = null
-})
+    // A university from the previous country no longer applies; the null write
+    // re-runs this watcher once with the corrected context.
+    if (filters.value.university_id && !stillVisible) {
+      filters.value.university_id = null
+
+      return
+    }
+
+    void load()
+  },
+)
 
 // A different service is a different stage list, so switch the board at once.
 watch(() => filters.value.service, () => {
@@ -209,12 +220,9 @@ async function moveCard(card: PipelineCard, target: PipelineColumn) {
   try {
     const note = t('educational.pipelineMoveNote', { stage: translateApplicantStage(target) })
 
-    // A contracted line moves its own workflow; a case that has not bought the
-    // service yet moves through the applicant-level stage until the line exists.
-    if (card.line_id)
-      await ApplicantApi.changeLineStage(card.line_id, target.id, note)
-    else
-      await ApplicantApi.changeStage(card.applicant_id, target.id, note)
+    // Every card is a contracted service line; the line endpoint is the only
+    // writer, so one move can never touch a sibling case.
+    await ApplicantApi.changeLineStage(card.line_id, target.id, note)
 
     toast.success(t('educational.messages.stageMoved', { stage: translateApplicantStage(target) }))
     await load()
@@ -238,8 +246,19 @@ function applyFilters() {
   void load()
 }
 
-function openCase(id: number) {
-  router.push({ name: 'applicant-case', params: { id } })
+function openCase(lineId: number) {
+  router.push({ name: 'service-case', params: { line: lineId } })
+}
+
+// The applications page must open on the same destination context, or its
+// stage tabs would not match the column that was clicked here.
+function stageListQuery(stageKey: string) {
+  return {
+    service: filters.value.service,
+    stage: stageKey,
+    ...(filters.value.country_id ? { country_id: filters.value.country_id } : {}),
+    ...(filters.value.university_id ? { university_id: filters.value.university_id } : {}),
+  }
 }
 
 onMounted(async () => {
@@ -293,7 +312,7 @@ onMounted(async () => {
                 <div class="text-caption">{{ serviceOptions.find(option => option.value === card.service)?.title }}<span v-if="card.country">{{ ` · ${card.country}` }}</span><span v-if="card.university">{{ ` · ${card.university}` }}</span></div>
                 <div class="text-caption text-medium-emphasis">{{ card.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
                 <div class="d-flex gap-1 mt-2">
-                  <VBtn size="x-small" variant="text" @click="openCase(card.applicant_id)">{{ $t('educational.openCase') }}</VBtn>
+                  <VBtn size="x-small" variant="text" @click="openCase(card.line_id)">{{ $t('educational.openCase') }}</VBtn>
                   <VMenu v-if="canMove && allowedTargets(card).length">
                     <template #activator="{ props }"><VBtn size="x-small" variant="text" color="primary" v-bind="props">{{ $t('educational.move') }}</VBtn></template>
                     <VList density="compact">
@@ -305,7 +324,7 @@ onMounted(async () => {
               </VCardText>
             </VCard>
             <div v-if="!(cards[stage.key] || []).length" class="text-caption text-medium-emphasis text-center py-4">{{ $t('educational.dropAllowedCases') }}</div>
-            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: { service: filters.service, stage: stage.key } }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
+            <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: stageListQuery(stage.key) }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
           </VCardText>
         </VCard>
       </div>
