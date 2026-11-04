@@ -111,18 +111,28 @@ function apply(clear = false) {
   display: grid;
   gap: 16px;
 }
-.date-filter-trigger,
+.date-filter-trigger {
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
 .date-filter-clear {
-  color: rgb(var(--v-theme-on-surface)) !important;
+  background-color: rgba(var(--v-theme-primary), 0.12) !important;
+  color: rgb(var(--v-theme-primary)) !important;
 }
 .date-filter-trigger {
-  background-color: rgba(var(--v-theme-primary), 0.14) !important;
+  background-color: rgb(var(--v-theme-primary)) !important;
 }
+.date-filter-trigger.v-btn--disabled,
+.date-filter-trigger.v-btn--disabled :deep(.v-btn__content),
+.date-filter-trigger.v-btn--disabled :deep(.v-icon) { color: rgb(var(--v-theme-on-primary)) !important; }
 .date-filter-trigger:hover,
-.date-filter-trigger:focus-visible,
-.date-filter-clear:hover,
-.date-filter-clear:focus-visible {
+.date-filter-trigger:focus-visible {
   background-color: rgb(var(--v-theme-primary)) !important;
   color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.date-filter-clear:hover,
+.date-filter-clear:focus-visible {
+  background-color: rgba(var(--v-theme-primary), 0.2) !important;
+  color: rgb(var(--v-theme-primary)) !important;
 }
 </style>

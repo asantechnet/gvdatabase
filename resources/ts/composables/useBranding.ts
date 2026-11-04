@@ -4,17 +4,14 @@ import { useTheme } from 'vuetify'
 // component, which turns `logoUrl` into an object. `<img :src>` then renders
 // "[object Object]" and the masked brand mark gets `url([object Object])`,
 // which the browser rejects, leaving a solid, blank rectangle.
-import fallbackLogo from '@images/logo.svg?url'
 import SettingApi from '@/api/setting'
 import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
-const logoUrl = ref(fallbackLogo)
+const logoUrl = ref<string | null>(null)
 const hasCompanyLogo = ref(false)
 const logoFailed = ref(false)
 const isLogoSquare = ref<boolean | null>(null)
-// Only the packaged mark is a `currentColor` vector. The layouts render it as a
-// theme-coloured mask; an uploaded logo is always shown exactly as uploaded.
-const isMonochromeLogo = ref(true)
+const isMonochromeLogo = ref(false)
 const shortCompanyName = ref('Educational Visa')
 const originalCompanyName = ref('Educational Visa Services')
 let brandingRequest: Promise<void> | null = null
@@ -87,10 +84,13 @@ export const useBranding = () => {
 
   const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
     hasCompanyLogo.value = Boolean(branding.website_logo_url)
-    logoUrl.value = branding.website_logo_url || fallbackLogo
+    logoUrl.value = branding.website_logo_url || null
     logoFailed.value = false
-    isMonochromeLogo.value = !branding.website_logo_url
-    detectLogoShape(logoUrl.value)
+    isMonochromeLogo.value = false
+    if (logoUrl.value)
+      detectLogoShape(logoUrl.value)
+    else
+      isLogoSquare.value = null
     updateFavicon(branding.website_logo_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
     originalCompanyName.value = branding.original_company_name || branding.website_title || originalCompanyName.value

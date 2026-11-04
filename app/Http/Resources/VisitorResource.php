@@ -21,6 +21,8 @@ class VisitorResource extends JsonResource
             'service_key' => BuiltInService::isValid($this->service) ? $this->service : null,
             'service_label' => BuiltInService::isValid($this->service) ? BuiltInService::label($this->service) : $this->service,
             'service_label_key' => BuiltInService::isValid($this->service) ? BuiltInService::labelKey($this->service) : null,
+            'country_id' => $this->country_id,
+            'country' => $this->whenLoaded('country', fn () => $this->country?->only(['id', 'name', 'code'])),
             'education_level_id' => $this->education_level_id,
             'education_level' => $this->whenLoaded('educationLevel', fn () => $this->educationLevel?->only(['id', 'name'])),
             'age' => $this->age,

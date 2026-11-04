@@ -72,10 +72,6 @@ export function persistThemeColors(colors: Partial<Record<ThemeColorField, strin
         localStorage.removeItem(storageKeys[field])
     })
 
-    // The static loading screen renders before Vue has mounted.
-    const primary = colors.primary_color
-    if (isThemeColor(primary))
-      localStorage.setItem('vuexy-initial-loader-color', primary)
   }
   catch {
     // Browser storage is an optional fast-path; API values are still applied.

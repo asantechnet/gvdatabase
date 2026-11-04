@@ -61,8 +61,8 @@ const contracts: Record<string, Schema> = {
   'PUT /incomes/:id': { applicant_contract_id: ['nullable', 'integer'], applicant_id: ['nullable', 'integer'], type: ['string', 'max:255'], description: ['nullable', 'string', 'max:65535'], amount: ['numeric', 'gt:0'], quantity: ['integer', 'min:1'], currency_id: [], rate: ['numeric', 'gt:0'], date: ['date'] },
   'POST /currencies': { name: ['required', 'string', 'max:255'], code: ['required', 'string', 'max:5'], symbol: ['nullable', 'string', 'max:5'], rate: ['required', 'numeric', 'gt:0'], decimal_places: ['required', 'integer', 'between:0,6'], is_active: ['boolean'], is_base: ['boolean'] },
   'PUT /currencies/:id': { name: ['string', 'max:255'], code: ['string', 'max:5'], symbol: ['nullable', 'string', 'max:5'], rate: ['numeric', 'gt:0'], decimal_places: ['integer', 'between:0,6'], is_active: ['boolean'], is_base: ['boolean'] },
-  'POST /visitors': { name: ['required', 'string', 'max:255'], contact: ['required', 'string', 'max:255'], service: ['required', 'string', 'max:255'], date: ['required', 'date'] },
-  'PUT /visitors/:id': { name: ['string', 'max:255'], contact: ['string', 'max:255'], service: ['string', 'max:255'], date: ['date'] },
+  'POST /visitors': { name: ['required', 'string', 'max:255'], contact: ['required', 'string', 'max:255'], service: ['required', 'string', 'max:255'], country_id: ['nullable', 'integer'], date: ['required', 'date'] },
+  'PUT /visitors/:id': { name: ['string', 'max:255'], contact: ['string', 'max:255'], service: ['string', 'max:255'], country_id: ['nullable', 'integer'], date: ['date'] },
 
   'PATCH /crm/visitor/:id/notes': { notes: ['nullable', 'string', 'max:10000'] },
 

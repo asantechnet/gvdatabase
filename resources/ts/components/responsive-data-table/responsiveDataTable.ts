@@ -144,6 +144,18 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    // A CRM record is a compact profile, so callers can show every field on
+    // the phone card immediately instead of making the user open each card.
+    mobileExpandAll: Boolean,
+    // Preserve an in-cell VMenu on phone cards for pages that already expose
+    // one clean actions menu on desktop.
+    mobileActionsAsMenu: Boolean,
+    // Keep table headers visible while a page fetches rows and fill the body
+    // with row-shaped placeholders instead of replacing the whole table.
+    skeletonRows: {
+      type: Number,
+      default: 0,
+    },
 
     // These opt-in hooks keep the generic table useful for operational grids
     // without forcing sticky cells onto short or form-oriented tables.
@@ -336,7 +348,17 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       const hasExpandedRow = Boolean(slots['expanded-row']) || body.columns.some(column => column.key === 'data-table-expand')
       const expandable = hasExpandedRow || detailFields.length > 0
       const isExpanded = expandable
-        && (expandedCards.value.has(key) || Boolean(hasExpandedRow && internalItem && body.isExpanded(internalItem)))
+        && (props.mobileExpandAll || expandedCards.value.has(key) || Boolean(hasExpandedRow && internalItem && body.isExpanded(internalItem)))
+
+      const actionProps: DataTableSlotProps | null = actionColumn
+        ? {
+            ...titleProps,
+            value: getValue(item, actionColumn.key),
+          }
+        : null
+      const mobileMenuAction = props.mobileActionsAsMenu && actionColumn && actionProps
+        ? collectActionNodes(slots[`item.${actionColumn.key}`]?.(actionProps as any)).find(node => /VMenu/i.test(componentName(node)))
+        : undefined
 
       const toggleCard = () => {
         if (!expandable)
@@ -414,7 +436,9 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
                 class: 'responsive-data-table__card-title text-body-1 font-weight-medium',
               }, { default: () => titleContent }),
               append: () => h('div', { class: 'd-flex align-center' }, [
-                actionColumn
+                mobileMenuAction
+                  ? cloneVNode(mobileMenuAction, { key: `menu-${key}` })
+                  : actionColumn
                   ? h(VBtn, {
                     'icon': true,
                     'size': 'small',
@@ -487,6 +511,44 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         ]),
       ])
     }
+
+    const skeletonColumns = (columns: DataTableColumn[]) => columns.filter(column => !isSpecialColumn(column))
+
+    const skeletonPlaceholder = (secondary = false) => h('span', {
+      class: [
+        'responsive-data-table__skeleton-bar',
+        secondary && 'responsive-data-table__skeleton-bar--secondary',
+      ],
+    })
+
+    const renderDesktopSkeleton = (body: TableBodySlotProps) => Array.from(
+      { length: Math.max(1, props.skeletonRows) },
+      (_, rowIndex) => h('tr', { class: 'responsive-data-table__skeleton-row', key: `skeleton-${rowIndex}` },
+        skeletonColumns(body.columns).map(column => h('td', { key: column.key }, [
+          skeletonPlaceholder(),
+        ])),
+      ),
+    )
+
+    const renderMobileSkeleton = (body: TableBodySlotProps) => h('tr', { class: 'responsive-data-table__mobile-row' }, [
+      h('td', { colspan: body.columns.length }, [
+        h('div', { class: 'responsive-data-table__cards d-flex flex-column ga-4' }, Array.from(
+          { length: Math.max(1, props.skeletonRows) },
+          (_, rowIndex) => h(VCard, {
+            key: `mobile-skeleton-${rowIndex}`,
+            class: 'responsive-data-table__card responsive-data-table__skeleton-card',
+            variant: 'outlined',
+            elevation: 0,
+          }, {
+            default: () => h(VCardText, { class: 'responsive-data-table__skeleton-card-content' }, [
+              skeletonPlaceholder(),
+              skeletonPlaceholder(true),
+              skeletonPlaceholder(),
+            ]),
+          }),
+        )),
+      ]),
+    ])
 
     const renderDesktopBody = (body: TableBodySlotProps) => h(VDataTableRows as any, {
       items: body.groupedItems || [],
@@ -575,9 +637,11 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     return () => {
       const tableSlots: Record<string, any> = {
         ...slots,
-        body: (body: TableBodySlotProps) => slots.body
-          ? slots.body(body as any)
-          : mobile.value ? renderMobileBody(body) : renderDesktopBody(body),
+        body: (body: TableBodySlotProps) => attrs.loading && props.skeletonRows > 0
+          ? (mobile.value ? renderMobileSkeleton(body) : renderDesktopSkeleton(body))
+          : slots.body
+            ? slots.body(body as any)
+            : mobile.value ? renderMobileBody(body) : renderDesktopBody(body),
       }
 
       if (props.pagination) {
@@ -607,8 +671,15 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         }
       }
 
+      // The row-shaped loader below replaces Vuetify's default progress
+      // indicator. Do not pass `loading` through in that mode, otherwise the
+      // table renders both loading treatments at once.
+      const tableAttrs = { ...attrs }
+      if (props.skeletonRows > 0)
+        delete tableAttrs.loading
+
       const table = h(TableComponent, {
-        ...attrs,
+        ...tableAttrs,
         class: [
           'responsive-data-table',
           mobile.value && 'responsive-data-table--mobile-cards',

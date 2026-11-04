@@ -273,8 +273,10 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
   .v-badge__badge {
     /* stylelint-disable-next-line liberty/use-logical-spec */
     min-width: 16px;
-    padding: 4px;
-    block-size: 16px;
+    padding: 2px;
+    block-size: 20px;
+    font-size: 10px;
+    padding-inline: 4px;
   }
 }
 </style>

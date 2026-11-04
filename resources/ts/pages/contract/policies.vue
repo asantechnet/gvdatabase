@@ -275,7 +275,7 @@ const archiveVersion = async (version: ContractTemplateVersion) => {
 const activateVersion = async (version: ContractTemplateVersion) => {
   if (!templateId.value || version.is_current)
     return
-  const confirmed = await confirmActionWarning({ key: `activate-template-version-${version.id}`, title: tr('versions.activateTitle'), message: tr('versions.activateMessage', { version: version.version_number }), confirmText: t('common.actions.confirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-circle-check' })
+  const confirmed = await confirmActionWarning({ key: `activate-template-version-${version.id}`, title: tr('versions.activateTitle'), message: tr('versions.activateMessage', { version: version.version_number }), confirmText: t('common.actions.confirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-circle-check', tone: 'success' })
   if (!confirmed)
     return
   activatingVersionId.value = version.id
@@ -381,6 +381,7 @@ const selectTemplate = async (value: number | null) => {
       confirmText: t('common.actionWarnings.discardConfirm'),
       cancelText: t('common.actionWarnings.keepEditing'),
       icon: 'tabler-file-alert',
+      tone: 'primary',
     })
 
     if (!confirmed)

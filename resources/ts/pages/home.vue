@@ -326,7 +326,9 @@ onMounted(loadDashboard)
           class="text-caption text-medium-emphasis d-none d-sm-inline"
         >{{ t('header.updated', { time: formatLocalizedDate(refreshedAt, 'time') }) }}</span>
         <VBtn
-          variant="outlined"
+          class="dashboard-refresh-button"
+          variant="flat"
+          size="small"
           color="primary"
           prepend-icon="tabler-refresh"
           :loading="isLoading"
@@ -876,6 +878,9 @@ onMounted(loadDashboard)
 .period-segment { min-height: 34px; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), .68); font: inherit; font-size: .78rem; font-weight: 650; line-height: 1.15; white-space: nowrap; cursor: pointer; transition: background .18s ease, color .18s ease, box-shadow .18s ease; }
 .period-segment:hover { background: rgba(var(--v-theme-primary), .08); color: rgb(var(--v-theme-primary)); }
 .period-segment--active { background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); box-shadow: 0 2px 8px rgba(var(--v-theme-primary), .28); }
+.dashboard-refresh-button { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.dashboard-refresh-button:hover, .dashboard-refresh-button:focus-visible { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.dashboard-refresh-button :deep(.v-icon), .dashboard-refresh-button.v-btn--disabled, .dashboard-refresh-button.v-btn--disabled :deep(.v-icon) { color: rgb(var(--v-theme-on-primary)) !important; }
 .dashboard-range-card { border-radius: 14px; }
 @media (max-width: 700px) { .dashboard-controls { justify-content: flex-start !important; margin-inline-start: 0; width: 100%; } .period-segments { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } .period-segment { white-space: normal; } }
 .tracking-tight { letter-spacing: -.035em !important; }

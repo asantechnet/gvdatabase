@@ -20,7 +20,7 @@ onMounted(() => { void loadBranding() })
           <p v-if="!hasCompanyLogo || logoFailed" class="auth-shell__brand-name">{{ originalCompanyName }}</p>
           <img
             v-else
-            :src="logoUrl"
+            :src="logoUrl || undefined"
             :alt="shortCompanyName"
             class="auth-shell__logo"
             @load="handleLogoLoad"
