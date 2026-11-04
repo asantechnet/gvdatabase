@@ -12,7 +12,7 @@ import AuthApi from '@/api/auth'
 import { clearAuthTokens, getRefreshToken } from '@/utils/authStorage'
 import { clearPermissions } from '@/utils/authorization'
 
-const { logoUrl, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
+const { logoUrl, hasCompanyLogo, logoFailed, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, handleLogoError, loadBranding } = useBranding()
 const router = useRouter()
 const userData = useCookie<{ name?: string; avatar?: string } | null>('userData')
 const loggingOut = ref(false)
@@ -43,13 +43,15 @@ onMounted(loadBranding)
     <header class="applicant-portal-header">
       <RouterLink to="/my-case" class="applicant-portal-brand">
         <AppBrandMark
+          v-if="hasCompanyLogo && logoUrl && !logoFailed"
           :src="logoUrl"
           :alt="shortCompanyName"
           :monochrome="isMonochromeLogo"
           class="applicant-portal-brand__logo"
           @load="handleLogoLoad"
+          @error="handleLogoError"
         />
-        <span v-if="isLogoSquare" class="applicant-portal-brand__name">{{ shortCompanyName }}</span>
+        <span v-if="!hasCompanyLogo || logoFailed || isLogoSquare" class="applicant-portal-brand__name">{{ shortCompanyName }}</span>
       </RouterLink>
 
       <VSpacer />

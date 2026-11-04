@@ -17,10 +17,13 @@ import { useLayoutConfigStore } from "@layouts/stores/config";
 
 const {
   logoUrl,
+  hasCompanyLogo,
+  logoFailed,
   isLogoSquare,
   isMonochromeLogo,
   shortCompanyName,
   handleLogoLoad,
+  handleLogoError,
   loadBranding,
 } = useBranding();
 const layoutConfigStore = useLayoutConfigStore();
@@ -45,13 +48,15 @@ onMounted(async () => {
         :class="{ 'vertical-nav-brand--wide': isLogoSquare === false }"
       >
         <AppBrandMark
+          v-if="hasCompanyLogo && logoUrl && !logoFailed"
           :src="logoUrl"
           :alt="shortCompanyName"
           :monochrome="isMonochromeLogo"
           class="vertical-nav-brand__logo"
           @load="handleLogoLoad"
+          @error="handleLogoError"
         />
-        <span v-if="isLogoSquare" class="app-title vertical-nav-brand__name">{{
+        <span v-if="!hasCompanyLogo || logoFailed || isLogoSquare" class="app-title vertical-nav-brand__name">{{
           shortCompanyName
         }}</span>
       </RouterLink>
@@ -107,8 +112,8 @@ onMounted(async () => {
           :languages="themeConfig.app.i18n.langConfig"
         />
         <NavbarPreferences />
-        <NavBarAuditLogs class="me-1" />
-        <NavBarNotifications class="me-1" />
+        <NavBarAuditLogs/>
+        <NavBarNotifications class="me-3" />
         <UserProfile />
       </div>
     </template>
@@ -123,17 +128,17 @@ onMounted(async () => {
 
 <style scoped>
 .vertical-nav-brand {
-  min-inline-size: 0;
   overflow: hidden;
+  min-inline-size: 0;
 }
 
 .vertical-nav-brand__logo {
   display: block;
   flex: 0 0 auto;
-  inline-size: auto;
   block-size: 2.5rem;
-  max-inline-size: 10rem;
+  inline-size: auto;
   max-block-size: 2.5rem;
+  max-inline-size: 10rem;
   object-fit: contain;
 }
 
@@ -144,17 +149,13 @@ onMounted(async () => {
 }
 
 :global(
-  .layout-vertical-nav-collapsed
-    .layout-vertical-nav:not(.hovered)
-    .vertical-nav-brand
+.layout-vertical-nav-collapsed .layout-vertical-nav:not(.hovered) .vertical-nav-brand
 ) {
   display: none;
 }
 
 :global(
-  .layout-vertical-nav-collapsed
-    .layout-vertical-nav:not(.hovered)
-    .vertical-nav-collapse-toggle
+.layout-vertical-nav-collapsed .layout-vertical-nav:not(.hovered) .vertical-nav-collapse-toggle
 ) {
   margin-inline: auto !important;
 }

@@ -17,6 +17,8 @@ export interface Visitor {
   service_key: BuiltInService | null
   service_label: string
   service_label_key: string | null
+  country_id: number | null
+  country: (VisitorPerson & { code?: string }) | null
   education_level_id: number | null
   education_level: VisitorPerson | null
   age: number | null
@@ -43,7 +45,9 @@ export interface VisitorParams {
   page?: number
   perPage?: number
   search?: string
+  service?: BuiltInService | null
   consultant_employee_id?: number | null
+  country_id?: number | null
   education_level_id?: number | null
   province_id?: number | null
   english_level_id?: number | null
@@ -59,6 +63,7 @@ export interface CreateVisitorData {
   contact: string
   email?: string | null
   service: BuiltInService
+  country_id?: number | null
   education_level_id?: number | null
   age?: number | null
   grade_score?: number | string | null
@@ -79,6 +84,7 @@ export interface VisitorFormData {
   contact: string
   email: string
   service: BuiltInService | ''
+  country_id: number | null
   education_level_id: number | null
   age: number | string | null
   grade_score: number | string | null

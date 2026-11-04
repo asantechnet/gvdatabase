@@ -49,7 +49,7 @@ const minHeight = computed(() => typeof props.minHeight === 'number'
 
 .table-empty-state__icon {
   align-items: center;
-  background: rgb(var(--v-theme-primary) / 0.1);
+  background: rgba(var(--v-theme-primary), 0.1);
   border-radius: 999px;
   color: rgb(var(--v-theme-primary));
   display: inline-flex;

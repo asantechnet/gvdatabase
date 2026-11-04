@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 
 export type ActionWarningKey = 'discard-form-changes' | 'move-kanban-card' | `activate-template-version-${number}`
+export type ActionWarningTone = 'error' | 'warning' | 'success' | 'info' | 'primary'
 
 export interface ActionWarningRequest {
   key: ActionWarningKey
@@ -9,6 +10,7 @@ export interface ActionWarningRequest {
   confirmText: string
   cancelText: string
   icon?: string
+  tone?: ActionWarningTone
 }
 
 interface QueuedWarning {

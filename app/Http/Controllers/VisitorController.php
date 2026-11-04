@@ -30,7 +30,9 @@ class VisitorController extends Controller
         $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
         $request->validate([
             'follow_up' => ['nullable', 'boolean'],
+            'service' => ['nullable', 'string', Rule::in(BuiltInService::ALL)],
             'consultant_employee_id' => ['nullable', 'integer'],
+            'country_id' => ['nullable', 'integer'],
             'education_level_id' => ['nullable', 'integer'],
             'province_id' => ['nullable', 'integer'],
             'english_level_id' => ['nullable', 'integer'],
@@ -39,7 +41,7 @@ class VisitorController extends Controller
         $search = $request->input('search');
 
         $query = Visitor::query()
-            ->with(['consultant', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute'])
+            ->with(['consultant', 'country', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute'])
             ->when(! $request->boolean('include_converted'), fn ($query) => $query->whereNull('converted_at'));
 
         // The visitor surface is split into two lists on one page: the Visitors
@@ -58,7 +60,11 @@ class VisitorController extends Controller
             });
         }
 
-        foreach (['consultant_employee_id', 'education_level_id', 'province_id', 'english_level_id', 'acquisition_route_id'] as $field) {
+        if ($request->filled('service')) {
+            $query->where('service', $request->string('service')->toString());
+        }
+
+        foreach (['consultant_employee_id', 'country_id', 'education_level_id', 'province_id', 'english_level_id', 'acquisition_route_id'] as $field) {
             if ($request->integer($field)) {
                 $query->where($field, $request->integer($field));
             }
@@ -91,6 +97,7 @@ class VisitorController extends Controller
             // The four built-in services are the CRM's shared vocabulary: a
             // typo here would fragment case and report groupings forever.
             'service' => ['required', 'string', Rule::in(BuiltInService::ALL)],
+            'country_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
             'age' => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -136,6 +143,7 @@ class VisitorController extends Controller
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
             'service' => ['sometimes', 'required', 'string', Rule::in(BuiltInService::ALL)],
+            'country_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
             'age' => ['nullable', 'integer', 'min:1', 'max:120'],
@@ -232,7 +240,7 @@ class VisitorController extends Controller
 
     private function relations(): array
     {
-        return ['consultant', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute', 'interactions.creator'];
+        return ['consultant', 'country', 'educationLevel', 'province', 'englishLevel', 'acquisitionRoute', 'interactions.creator'];
     }
 
     private function isConsultant(Request $request): bool

@@ -35,6 +35,7 @@ const { logoUrl, originalCompanyName } = useBranding()
     <header class="education-print-report__header">
       <div class="education-print-report__brand">
         <img
+          v-if="logoUrl"
           :src="logoUrl"
           :alt="originalCompanyName"
           class="education-print-report__logo"

@@ -2,26 +2,18 @@
 /**
  * Company brand mark, rendered by every layout that shows the logo.
  *
- * The packaged fallback (`resources/images/logo.svg`) is a single-colour vector
- * drawn with `currentColor`. An SVG loaded through `<img>` has no inherited
- * colour, so `currentColor` resolves to black and the mark becomes invisible on
- * a dark header. Rendering the same asset as a CSS mask paints the shape with
- * the surrounding text colour, so one asset stays legible in light and dark
- * theme without inventing a second, unapproved logo.
- *
- * An uploaded logo may be full colour, so it is never masked: it renders as an
- * image exactly as uploaded and keeps the company's own colours.
+ * Uploaded logos render exactly as supplied. Layouts show the company name
+ * when no logo exists or its image cannot be loaded.
  */
 withDefaults(defineProps<{
   src: string
   alt: string
-  /** True only for the packaged single-colour mark. */
   monochrome?: boolean
 }>(), { monochrome: false })
 
 defineOptions({ inheritAttrs: false })
 
-defineEmits<{ load: [event: Event] }>()
+defineEmits<{ load: [event: Event], error: [event: Event] }>()
 </script>
 
 <template>
@@ -40,6 +32,7 @@ defineEmits<{ load: [event: Event] }>()
     :alt="alt"
     class="app-brand-mark"
     @load="$emit('load', $event)"
+    @error="$emit('error', $event)"
   >
 </template>
 

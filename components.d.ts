@@ -27,7 +27,6 @@ declare module 'vue' {
     ApplicantSelect: typeof import('./resources/ts/components/income/ApplicantSelect.vue')['default']
     ApplicantServiceFields: typeof import('./resources/ts/components/ApplicantServiceFields.vue')['default']
     ApplicantSummary: typeof import('./resources/ts/components/erp/ApplicantSummary.vue')['default']
-    AppLoadingIndicator: typeof import('./resources/ts/components/AppLoadingIndicator.vue')['default']
     AppPricing: typeof import('./resources/ts/components/AppPricing.vue')['default']
     AppSearchHeader: typeof import('./resources/ts/components/AppSearchHeader.vue')['default']
     AppSelect: typeof import('./resources/ts/@core/components/app-form-elements/AppSelect.vue')['default']
@@ -78,6 +77,7 @@ declare module 'vue' {
     ErpDateRange: typeof import('./resources/ts/components/erp/ErpDateRange.vue')['default']
     ErpField: typeof import('./resources/ts/components/erp/ErpField.vue')['default']
     ErpPageHeader: typeof import('./resources/ts/components/erp/ErpPageHeader.vue')['default']
+    ErpSearchField: typeof import('./resources/ts/components/erp/ErpSearchField.vue')['default']
     ErrorHeader: typeof import('./resources/ts/components/ErrorHeader.vue')['default']
     ExpenseFormDialog: typeof import('./resources/ts/components/forms/ExpenseFormDialog.vue')['default']
     FinanceTypesPage: typeof import('./resources/ts/components/setup/FinanceTypesPage.vue')['default']
@@ -139,7 +139,6 @@ declare module 'vue' {
     UserInfoEditDialog: typeof import('./resources/ts/components/dialogs/UserInfoEditDialog.vue')['default']
     UserUpgradePlanDialog: typeof import('./resources/ts/components/dialogs/UserUpgradePlanDialog.vue')['default']
     VisitorProfileFields: typeof import('./resources/ts/components/crm/VisitorProfileFields.vue')['default']
-    VueApexCharts: typeof import('vue3-apexcharts')['default']
     WhatsappMessageEditor: typeof import('./resources/ts/components/whatsapp/WhatsappMessageEditor.vue')['default']
     WorkdayControl: typeof import('./resources/ts/components/workday/WorkdayControl.vue')['default']
   }

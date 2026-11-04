@@ -84,6 +84,7 @@ const discardWarning = () => confirmActionWarning({
   confirmText: t('common.actionWarnings.discardConfirm'),
   cancelText: t('common.actionWarnings.keepEditing'),
   icon: 'tabler-file-alert',
+  tone: 'primary',
 })
 
 const replayCancellation = async (button: HTMLElement, forms: HTMLFormElement[]) => {

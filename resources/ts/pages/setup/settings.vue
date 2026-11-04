@@ -98,7 +98,7 @@ const form = ref<SettingForm>(defaultForm())
 const persistedForm = ref<SettingForm>(defaultForm())
 const savedSetting = ref<Setting | null>(null)
 const settingId = ref<number | null>(null)
-const logoPreview = ref<string | null>('/images/logo.png')
+const logoPreview = ref<string | null>(null)
 const signaturePreview = ref<string | null>(null)
 const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
@@ -350,7 +350,7 @@ function applySavedSetting(setting: Setting) {
   form.value = savedForm
   setAutomaticAttendanceEnabled(setting.automatic_attendance_enabled)
   persistedForm.value = { ...savedForm }
-  logoPreview.value = setting.website_logo_url || setting.website_logo || '/images/logo.png'
+  logoPreview.value = setting.website_logo_url || setting.website_logo || null
   signaturePreview.value = setting.company_signature_url
   letterheadPreview.value = setting.contract_letterhead_url
   coverDesignPreview.value = setting.contract_cover_design_url
@@ -893,7 +893,7 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
   else {
     form.value = defaultForm()
     settingId.value = null
-    logoPreview.value = '/images/logo.png'
+    logoPreview.value = null
     signaturePreview.value = null
     letterheadPreview.value = null
     coverDesignPreview.value = null
