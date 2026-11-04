@@ -2572,7 +2572,7 @@
           "age": "Age",
           "province": "Province",
           "englishLevel": "English level",
-          "acquisitionRoute": "Acquisition route",
+          "acquisitionRoute": "How they found us",
           "acquisitionRouteHint": "How the visitor found out about the firm.",
           "consultant": "Consultant",
           "consultantReview": "Counselor review",
@@ -2582,7 +2582,27 @@
           "followUpEmpty": "No visitor is marked for follow-up yet. Star a visitor in the Visitors list to move it here.",
           "ageHint": "Between 1 and 120 years old.",
           "consultantReviewSaved": "Counselor review saved.",
-          "review": "Counselor review"
+          "review": "Counselor review",
+          "visitorDetails": "Visitor details",
+          "notes": "Notes",
+          "noVisitorRecords": "No visitor records found",
+          "noVisitorRecordsDescription": "No visitor entries match the selected filters.",
+          "placeholders": {
+            "name": "e.g. Ahmad Safi",
+            "contact": "e.g. +93 78 123 4567",
+            "email": "e.g. ahmad.safi{'@'}example.com",
+            "service": "e.g. Scholarship",
+            "educationLevel": "e.g. Bachelor",
+            "age": "e.g. 22",
+            "gradeScore": "e.g. 85",
+            "province": "e.g. Kabul",
+            "englishLevel": "e.g. B2",
+            "acquisitionRoute": "e.g. Referral",
+            "consultant": "e.g. Fatima Ahmadi",
+            "country": "e.g. Germany",
+            "consultantReview": "e.g. Good",
+            "notes": "e.g. Needs a study plan"
+          }
         }
       },
       "contractform": {
@@ -5681,7 +5701,7 @@
       "inUse": "This record is in use and cannot be removed.",
       "provinces": "Provinces",
       "englishLevels": "English levels",
-      "acquisitionRoutes": "Acquisition routes"
+      "acquisitionRoutes": "How visitors found us"
     },
     "pendingUi": {
       "customerEmployee": "Customer / employee",

@@ -194,7 +194,7 @@ const printReport = () => {
     </div>
 
     <div class="print-container">
-      <div class="timesheet-company"><img :src="logoUrl" :alt="originalCompanyName"><strong>{{ originalCompanyName }}</strong></div>
+      <div class="timesheet-company"><img v-if="logoUrl" :src="logoUrl" :alt="originalCompanyName"><strong>{{ originalCompanyName }}</strong></div>
       <div
         v-for="(page, index) in calendarPages"
         :key="index"

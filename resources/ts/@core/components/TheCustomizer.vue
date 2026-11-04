@@ -1,5 +1,4 @@
 <script setup lang="tsx">
-import { useStorage } from '@vueuse/core'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useTheme } from 'vuetify'
 import { staticPrimaryColor, staticPrimaryDarkenColor } from '@/plugins/vuetify/theme'
@@ -7,7 +6,7 @@ import { Direction, Layout, Skins, Theme } from '@core/enums'
 import { useConfigStore } from '@core/stores/config'
 import horizontalLight from '@images/customizer-icons/horizontal-light.svg'
 import { AppContentLayoutNav, ContentWidth } from '@layouts/enums'
-import { cookieRef, namespaceConfig } from '@layouts/stores/config'
+import { cookieRef } from '@layouts/stores/config'
 import { themeConfig } from '@themeConfig'
 
 import borderSkin from '@images/customizer-icons/border-light.svg'
@@ -56,7 +55,6 @@ const setPrimaryColor = useDebounceFn((color: { main: string; darken: string }) 
   cookieRef<string | null>(`${vuetifyTheme.name.value}ThemePrimaryDarkenColor`, null).value = color.darken
 
   // ℹ️ Update initial loader color
-  useStorage<string | null>(namespaceConfig('initial-loader-color'), null).value = color.main
 }, 100)
 
 // 👉 Mode
@@ -243,7 +241,6 @@ const resetCustomizer = async () => {
     configStore.appContentWidth = themeConfig.app.contentWidth
     configStore.isAppRTL = isActiveLangRTL.value
     configStore.isVerticalNavCollapsed = themeConfig.verticalNav.isVerticalNavCollapsed
-    useStorage<string | null>(namespaceConfig('initial-loader-color'), null).value = staticPrimaryColor
     currentLayout.value = themeConfig.app.contentLayoutNav
 
     cookieRef('lightThemePrimaryColor', null).value = null

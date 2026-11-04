@@ -37,7 +37,11 @@ const app = createApp(App)
 
 // Register plugins
 registerPlugins(app)
-app.use(Toast, { timeout: 5000, closeOnClick: true })
+app.use(Toast, {
+  timeout: 3000,
+  closeOnClick: true,
+  transition: 'Vue-Toastification__slideBlurred',
+})
 
 // Every locale except `en` is loaded on demand, so make sure the persisted
 // locale and its fallback chain are present before the first paint. If a chunk

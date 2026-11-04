@@ -153,6 +153,8 @@ const handleNavScroll = (evt: Event) => {
 
 // 👉 Vertical Nav
 .layout-vertical-nav {
+  --vertical-nav-transition-duration: 320ms;
+
   position: fixed;
   z-index: variables.$layout-vertical-nav-z-index;
   display: flex;
@@ -162,9 +164,10 @@ const handleNavScroll = (evt: Event) => {
   inset-block-start: 0;
   inset-inline-start: 0;
   transition:
-    inline-size 0.25s ease-in-out,
-    box-shadow 0.25s ease-in-out;
-  will-change: transform, inline-size;
+    inline-size var(--vertical-nav-transition-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--vertical-nav-transition-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow var(--vertical-nav-transition-duration) ease;
+  will-change: transform, inline-size, box-shadow;
 
   .nav-header {
     display: flex;
@@ -189,13 +192,27 @@ const handleNavScroll = (evt: Event) => {
   }
 
   .nav-items {
-    block-size: 100%;
+    // Consume only the space left after the header/footer slots. A fixed
+    // 100% block size adds the header height on top of the viewport and makes
+    // PerfectScrollbar report overflow even when all links fit.
+    flex: 1 1 auto;
+    min-block-size: 0;
+    block-size: auto;
 
     // ℹ️ We no loner needs this overflow styles as perfect scrollbar applies it
     // overflow-x: hidden;
 
     // // ℹ️ We used `overflow-y` instead of `overflow` to mitigate overflow x. Revert back if any issue found.
     // overflow-y: auto;
+  }
+
+  // PerfectScrollbar still renders its rails in the DOM when the container
+  // does not overflow. Keep those inactive rails out of the layout entirely;
+  // active rails remain available when the menu actually needs scrolling.
+  .nav-items.ps:not(.ps--active-y) > .ps__rail-y,
+  .nav-items.ps:not(.ps--active-x) > .ps__rail-x {
+    display: none !important;
+    pointer-events: none;
   }
 
   .nav-link,
@@ -221,15 +238,20 @@ const handleNavScroll = (evt: Event) => {
 // Small screen vertical nav transition
 @media (max-width: 959px) {
   .layout-vertical-nav {
+    // Compositing the drawer prevents a repaint of the navigation list on
+    // every frame, which was the source of the rough mobile slide.
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    transition: transform 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+    will-change: transform;
+
     &:not(.visible) {
-      transform: translateX(-#{variables.$layout-vertical-nav-width});
+      transform: translate3d(-#{variables.$layout-vertical-nav-width}, 0, 0);
 
       @include mixins.rtl {
-        transform: translateX(variables.$layout-vertical-nav-width);
+        transform: translate3d(variables.$layout-vertical-nav-width, 0, 0);
       }
     }
-
-    transition: transform 0.25s ease-in-out;
   }
 }
 </style>

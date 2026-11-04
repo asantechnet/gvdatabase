@@ -23,7 +23,7 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
 <template>
   <section class="list-print-report">
     <header>
-      <img :src="logoUrl" :alt="originalCompanyName" class="list-print-logo">
+      <img v-if="logoUrl" :src="logoUrl" :alt="originalCompanyName" class="list-print-logo">
       <p class="list-print-company">{{ originalCompanyName }}</p>
       <h1>{{ title }}</h1>
       <p v-if="subtitle">

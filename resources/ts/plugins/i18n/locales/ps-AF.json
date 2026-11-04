@@ -2911,7 +2911,7 @@
           "age": "عمر",
           "province": "ولایت",
           "englishLevel": "د انګلیسي کچه",
-          "acquisitionRoute": "د پېژندنې لاره",
+          "acquisitionRoute": "څنګه له موږ سره بلد شو",
           "acquisitionRouteHint": "لیدونکی د شرکت په اړه څنګه پوه شو.",
           "consultant": "سلاکار",
           "consultantReview": "د سلاکار بیاکتنه",
@@ -2921,7 +2921,27 @@
           "followUpEmpty": "لا تر اوسه هیڅ لیدونکی د تعقیب لپاره نښه شوی نه دی. په لیدونکو کې یو لیدونکی ستوری کړئ ترڅو دلته راشي.",
           "ageHint": "د ۱ او ۱۲۰ کلونو ترمنځ.",
           "consultantReviewSaved": "د سلاکار بیاکتنه خوندي شوه.",
-          "review": "د سلاکار بیاکتنه"
+          "review": "د سلاکار بیاکتنه",
+          "visitorDetails": "د لیدونکي جزئیات",
+          "notes": "یادښتونه",
+          "noVisitorRecords": "د لیدونکي هېڅ ریکارډ ونه موندل شو",
+          "noVisitorRecordsDescription": "له ټاکل شویو فلټرونو سره د لیدونکي هېڅ ریکارډ برابر نه دی.",
+          "placeholders": {
+            "name": "بېلګه: احمد صافي",
+            "contact": "بېلګه: +۹۳ ۷۸ ۱۲۳ ۴۵۶۷",
+            "email": "بېلګه: ahmad.safi{'@'}example.com",
+            "service": "بېلګه: بورس",
+            "educationLevel": "بېلګه: لیسانس",
+            "age": "بېلګه: ۲۲",
+            "gradeScore": "بېلګه: ۸۵",
+            "province": "بېلګه: کابل",
+            "englishLevel": "بېلګه: B2",
+            "acquisitionRoute": "بېلګه: پېژندنه",
+            "consultant": "بېلګه: فاطمه احمدي",
+            "country": "بېلګه: جرمني",
+            "consultantReview": "بېلګه: ښه",
+            "notes": "بېلګه: د زده کړو پلان ته اړتیا لري"
+          }
         }
       },
       "contractform": {
@@ -4701,7 +4721,7 @@
       "inUse": "دا ریکارډ کارول کېږي او لرې کېدای نه شي.",
       "provinces": "ولایتونه",
       "englishLevels": "د انګلیسي کچې",
-      "acquisitionRoutes": "د پېژندنې لارې"
+      "acquisitionRoutes": "لیدونکي څنګه له موږ سره بلد شول"
     },
     "pendingUi": {
       "customerEmployee": "پېرودونکی / کارکوونکی",

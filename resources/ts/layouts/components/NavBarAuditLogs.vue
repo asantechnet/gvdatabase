@@ -51,7 +51,7 @@ const { start: startHeartbeat } = useAuditHeartbeat((batch) => {
     (audit) => audit.audit_state === "pending",
   ).length;
   toast.info($t("pages.audits.realtimeBody", { count: batch.length }), {
-    timeout: 5_000,
+    timeout: 3_000,
   });
 });
 

@@ -1,20 +1,166 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { VTextField, VSelect, VTextarea } from 'vuetify/components'
+import { computed, useId } from 'vue'
+import { VAutocomplete, VSelect, VTextField, VTextarea } from 'vuetify/components'
 import { useI18n } from 'vue-i18n'
 
 defineOptions({ inheritAttrs: false })
-const props = defineProps<{ label: string; kind?: 'text' | 'select' | 'textarea'; required?: boolean; rules?: Array<(value: any) => boolean | string> }>()
+const props = withDefaults(defineProps<{
+  label: string
+  kind?: 'text' | 'select' | 'autocomplete' | 'textarea'
+  required?: boolean
+  rules?: Array<(value: unknown) => boolean | string>
+  /**
+   * Some forms show their own errors after Save. Keep the required marker in
+   * those forms without asking Vuetify to validate while the user is typing.
+   */
+  showRequiredRule?: boolean
+  validateOn?: string
+}>(), {
+  kind: 'text',
+  required: false,
+  showRequiredRule: true,
+  // Keep a quiet form while people are entering information. Forms can still
+  // validate on their Save/submit action, without showing random empty-field
+  // messages simply because a control lost focus.
+  validateOn: 'submit',
+})
 const model = defineModel<any>()
 const { t } = useI18n()
-const input = computed(() => props.kind === 'select' ? VSelect : props.kind === 'textarea' ? VTextarea : VTextField)
+const fieldId = useId()
+const input = computed(() => {
+  if (props.kind === 'select')
+    return VSelect
+  if (props.kind === 'autocomplete')
+    return VAutocomplete
+  if (props.kind === 'textarea')
+    return VTextarea
+
+  return VTextField
+})
 const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined && String(value).trim() !== '') || t('erp.required')
 </script>
 
 <template>
   <div class="erp-field">
-    <label class="erp-field-label">{{ label }} <span v-if="required" class="text-error" aria-hidden="true">*</span>
-      <component :is="input" v-model="model" v-bind="$attrs" :aria-label="label" :aria-required="required || undefined" :required="required" :rules="[...(rules ?? []), ...(required ? [requiredRule] : [])]" variant="outlined" density="compact" hide-details="auto" class="mt-1" />
+    <label
+      class="erp-field-label"
+      :for="fieldId"
+    >
+      {{ label }} <span
+        v-if="required"
+        class="erp-field-required"
+        aria-hidden="true"
+      >*</span>
     </label>
+    <component
+      :is="input"
+      :id="fieldId"
+      v-model="model"
+      v-bind="$attrs"
+      :aria-label="label"
+      :aria-required="required || undefined"
+      :required="required && showRequiredRule"
+      :rules="[...(rules ?? []), ...(required && showRequiredRule ? [requiredRule] : [])]"
+      :validate-on="validateOn"
+      variant="outlined"
+      density="compact"
+      hide-details="auto"
+      class="erp-field-control"
+    />
   </div>
 </template>
+
+<style>
+.erp-field .v-input {
+  /* Vuetify sets 40px directly on .v-input--density-compact. Override that
+     local variable here; setting it only on the outer wrapper has no effect. */
+  --v-input-control-height: 38px;
+}
+
+.erp-field .v-input.v-input--density-compact {
+  --v-input-control-height: 38px !important;
+}
+
+.erp-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-block-end: 6px;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.erp-field-required {
+  color: rgb(var(--v-theme-error));
+}
+
+.erp-field .v-field {
+  --v-field-input-padding-top: 4px;
+  --v-field-input-padding-bottom: 4px;
+  /* `.app-form .v-field` previously forced these visitor controls to 48px.
+     Keep the reusable single-line control at its intended compact height. */
+  min-block-size: 38px !important;
+  block-size: 38px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  outline: 3px solid transparent;
+  outline-offset: 0;
+  transition: background-color 0.2s ease, outline-color 0.2s ease;
+}
+
+.erp-field .v-field__outline {
+  --v-field-border-opacity: 0.32;
+}
+
+.erp-field .v-field--focused {
+  outline-color: rgba(var(--v-theme-primary), 0.2);
+}
+
+.erp-field .v-field--focused .v-field__outline {
+  --v-field-border-opacity: 1;
+  color: rgb(var(--v-theme-primary));
+  transition: color 0.2s ease;
+}
+
+.erp-field .v-field__input {
+  align-items: center;
+  color: inherit;
+  column-gap: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  letter-spacing: 0.009375em;
+  opacity: var(--v-high-emphasis-opacity);
+  min-height: 38px !important;
+  min-width: 0;
+  padding-block: var(--v-field-input-padding-top) var(--v-field-input-padding-bottom);
+  padding-inline: var(--v-field-padding-start) var(--v-field-padding-end);
+  position: relative;
+  width: 100%;
+}
+
+.erp-field .v-field--error {
+  outline-color: rgba(var(--v-theme-error), 0.24);
+}
+
+@media (max-width: 600px) {
+  .erp-field .v-input {
+    --v-input-control-height: 36px;
+  }
+
+  .erp-field .v-input.v-input--density-compact {
+    --v-input-control-height: 36px !important;
+  }
+
+  .erp-field .v-field__input {
+    min-height: 36px !important;
+  }
+
+  .erp-field .v-field {
+    min-block-size: 36px !important;
+    block-size: 36px;
+    border-radius: 8px;
+  }
+}
+</style>

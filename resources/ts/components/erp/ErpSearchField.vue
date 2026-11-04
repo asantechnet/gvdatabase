@@ -1,0 +1,61 @@
+<script setup lang="ts">
+defineOptions({ inheritAttrs: false })
+
+const model = defineModel<string>({ default: '' })
+
+defineProps<{
+  placeholder: string
+}>()
+</script>
+
+<template>
+  <VTextField
+    v-model="model"
+    v-bind="$attrs"
+    class="erp-search-field"
+    prepend-inner-icon="tabler-search"
+    :placeholder="placeholder"
+    variant="outlined"
+    density="compact"
+    clearable
+    hide-details
+  />
+</template>
+
+<style>
+.erp-search-field {
+  --v-input-control-height: 38px;
+  inline-size: min(420px, 100%);
+}
+
+.erp-search-field .v-field {
+  --v-field-input-padding-top: 4px;
+  --v-field-input-padding-bottom: 4px;
+  min-block-size: 38px;
+  block-size: 38px;
+  border-radius: 8px;
+  background-color: rgb(var(--v-theme-surface));
+  transition: background-color 0.2s ease, outline-color 0.2s ease;
+}
+
+.erp-search-field .v-field__input { min-height: 38px; }
+
+.erp-search-field .v-field--focused {
+  outline: 3px solid rgba(var(--v-theme-primary), 0.2);
+}
+
+.erp-search-field .v-field--focused .v-field__outline {
+  --v-field-border-opacity: 1;
+  color: rgb(var(--v-theme-primary));
+}
+
+@media (max-width: 599px) {
+  .erp-search-field {
+    --v-input-control-height: 36px;
+    inline-size: 100%;
+  }
+
+  .erp-search-field .v-field { min-block-size: 36px; block-size: 36px; }
+  .erp-search-field .v-field__input { min-height: 36px; }
+}
+</style>

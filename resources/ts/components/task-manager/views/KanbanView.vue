@@ -97,6 +97,7 @@ const commitPendingCardMove = async () => {
       confirmText: translate('common.actionWarnings.moveCardConfirm'),
       cancelText: translate('common.actionWarnings.keepCard'),
       icon: 'tabler-arrows-move',
+      tone: 'info',
     })
 
     if (!confirmed) {

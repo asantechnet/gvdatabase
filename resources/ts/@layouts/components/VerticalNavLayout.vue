@@ -143,7 +143,7 @@ const verticalNavAttrs = computed(() => {
     flex-direction: column;
     flex-grow: 1;
     min-block-size: 100dvh;
-    transition: padding-inline-start 0.2s ease-in-out;
+    transition: padding-inline-start 320ms cubic-bezier(0.22, 1, 0.36, 1);
     will-change: padding-inline-start;
 
     @media screen and (min-width: 960px) {
@@ -197,13 +197,26 @@ const verticalNavAttrs = computed(() => {
     inset: 0;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease-in-out;
-    will-change: opacity;
+    transition: opacity 320ms ease, backdrop-filter 320ms ease;
+    backdrop-filter: blur(0);
+    will-change: opacity, backdrop-filter;
 
     &.visible {
       opacity: 1;
       pointer-events: auto;
+      backdrop-filter: blur(2px);
     }
+  }
+
+  @media (max-width: 959px) {
+    // Backdrop blur is costly while a fixed drawer is moving on lower-power
+    // phones. Opacity still gives the same clear focus without dropped frames.
+    .layout-overlay {
+      backdrop-filter: none;
+      transition: opacity 280ms ease;
+    }
+
+    .layout-overlay.visible { backdrop-filter: none; }
   }
 
   // Adjust right column pl when vertical nav is collapsed

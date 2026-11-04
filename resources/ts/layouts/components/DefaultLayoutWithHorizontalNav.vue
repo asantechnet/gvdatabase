@@ -17,7 +17,7 @@ import HeaderPageGuide from "@/layouts/components/HeaderPageGuide.vue";
 import UserProfile from "@/layouts/components/UserProfile.vue";
 import { useBranding } from "@/composables/useBranding";
 
-const { logoUrl, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, loadBranding } = useBranding()
+const { logoUrl, hasCompanyLogo, logoFailed, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, handleLogoError, loadBranding } = useBranding()
 
 onMounted(async () => {
   await loadBranding();
@@ -33,15 +33,17 @@ onMounted(async () => {
         class="app-logo d-flex align-center gap-x-3 navbar-brand"
       >
         <AppBrandMark
+          v-if="hasCompanyLogo && logoUrl && !logoFailed"
           :src="logoUrl"
           :alt="shortCompanyName"
           :monochrome="isMonochromeLogo"
           class="navbar-logo"
           @load="handleLogoLoad"
+          @error="handleLogoError"
         />
 
         <h1
-          v-if="isLogoSquare"
+          v-if="!hasCompanyLogo || logoFailed || isLogoSquare"
           class="app-title font-weight-bold leading-normal text-xl text-capitalize"
         >
           {{ shortCompanyName }}
@@ -82,10 +84,10 @@ onMounted(async () => {
 <style scoped>
 .navbar-logo {
   display: block;
-  inline-size: auto;
   block-size: 2.5rem;
-  max-inline-size: 10rem;
+  inline-size: auto;
   max-block-size: 2.5rem;
+  max-inline-size: 10rem;
   object-fit: contain;
 }
 
