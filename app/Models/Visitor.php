@@ -19,6 +19,7 @@ class Visitor extends Model
         'contact',
         'email',
         'service',
+        'country_id',
         'education_level_id',
         'age',
         'grade_score',
@@ -54,6 +55,12 @@ class Visitor extends Model
     public function educationLevel(): BelongsTo
     {
         return $this->belongsTo(EducationLevel::class);
+    }
+
+    /** The country the visitor is interested in going to. */
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Country::class);
     }
 
     public function province(): BelongsTo

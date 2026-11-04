@@ -91,7 +91,6 @@ const _syncInitialLoaderTheme = () => {
 }
 
 const initCore = () => {
-  _syncInitialLoaderTheme()
   _handleSkinChanges()
 
   // ℹ️ We don't want to trigger i18n in SK

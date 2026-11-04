@@ -3,7 +3,8 @@ import { translate, translateBackendValue } from '@/utils/localization'
 import { BUILT_IN_SERVICES, type BuiltInService, type ConsultantReview } from '@/api/applicants'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAbility } from '@casl/vue'
 import { useToast } from 'vue-toastification'
@@ -14,10 +15,9 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
-import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import { useCookie } from '@core/composable/useCookie'
 
 const visitors = ref<Visitor[]>([])
@@ -37,17 +37,46 @@ const route = useRoute()
 // deep-linkable and print their own report title.
 const isFollowUpList = computed(() => route.query.list === 'follow-up')
 const filterConsultantId = ref<number | null>(/^\d+$/.test(String(route.query.consultant_employee_id ?? '')) ? Number(route.query.consultant_employee_id) || null : null)
+const filterCountryId = ref<number | null>(null)
+const filterService = ref<BuiltInService | ''>('')
+const filterMenuOpen = ref(false)
+const filterDraft = reactive({
+  dateFrom: '',
+  dateTo: '',
+  consultantId: null as number | null,
+  countryId: null as number | null,
+  service: '' as BuiltInService | '',
+})
 const isAddNewVisitorDialogVisible = ref(false)
 const isEditVisitorDialogVisible = ref(false)
 const isDeleteVisitorDialogVisible = ref(false)
+const isVisitorDetailsDialogVisible = ref(false)
 const selectedVisitor = ref<Visitor | null>(null)
+const visitorDetails = ref<Visitor | null>(null)
 const isTableLoading = ref(false)
 const isSaving = ref(false)
 const consultantDirectory = ref<Employee[]>([])
-const catalogs = ref<Partial<Record<'education-levels' | 'provinces' | 'english-levels' | 'acquisition-routes', MasterDataRecord[]>>>({})
+const catalogs = ref<Partial<Record<'countries' | 'education-levels' | 'provinces' | 'english-levels' | 'acquisition-routes', MasterDataRecord[]>>>({})
 const toast = useToast()
 const ability = useAbility()
 const canReview = computed(() => ability.can('read', 'review_visitors'))
+const hasActiveFilters = computed(() => Boolean(
+  filterConsultantId.value
+  || filterCountryId.value
+  || filterService.value
+  || dateFrom.value
+  || dateTo.value,
+))
+const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
+  title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
+  value: service,
+})))
+const activeCountries = computed(() => (catalogs.value.countries ?? [])
+  .filter(country => country.is_active)
+  .map(country => ({ title: country.name, value: country.id })))
+const activeProvinces = computed(() => (catalogs.value.provinces ?? [])
+  .filter(province => province.is_active)
+  .map(province => ({ title: province.name, value: province.id })))
 
 // A consultant creating a visitor owns that visitor: the consultant field is
 // pre-filled with the signed-in employee and locked so the case cannot be
@@ -63,6 +92,7 @@ const emptyVisitorForm = (): VisitorFormData => ({
   contact: '',
   email: '',
   service: '',
+  country_id: null,
   education_level_id: null,
   age: null,
   grade_score: null,
@@ -144,12 +174,50 @@ const validateForm = () => {
 }
 
 const consultantLabel = (record: Pick<Visitor, 'consultant'>) => record.consultant?.name || translate('educational.unassigned')
+const reviewColor = (review: ConsultantReview | null): 'error' | 'warning' | 'success' | undefined => {
+  const colors: Record<ConsultantReview, 'error' | 'warning' | 'success'> = {
+    bad: 'error',
+    good: 'warning',
+    great: 'success',
+  }
+
+  return review ? colors[review] : undefined
+}
+
+const openVisitorDetails = (visitor: Visitor) => {
+  visitorDetails.value = visitor
+  isVisitorDetailsDialogVisible.value = true
+}
+
+const visitorDetailFields = computed(() => {
+  const visitor = visitorDetails.value
+  if (!visitor)
+    return []
+
+  return [
+    { key: 'name', label: translate('common.messages.visitorName'), value: visitor.name, icon: 'tabler-user' },
+    { key: 'contact', label: translate('common.messages.contactPhone'), value: visitor.contact, icon: 'tabler-phone' },
+    { key: 'email', label: translate('common.fields.email'), value: visitor.email, icon: 'tabler-mail' },
+    { key: 'service', label: translate('common.messages.service'), value: serviceLabel(visitor), icon: 'tabler-briefcase' },
+    { key: 'country', label: translate('common.fields.country'), value: visitor.country?.name, icon: 'tabler-world' },
+    { key: 'education', label: translate('educational.educationLevel'), value: visitor.education_level?.name, icon: 'tabler-school' },
+    { key: 'age', label: translate('pages.contracts.visitor.visitor.age'), value: visitor.age, icon: 'tabler-user' },
+    { key: 'grade-score', label: translate('pages.contracts.visitor.visitor.gradeScoreLabel'), value: visitor.grade_score == null || visitor.grade_score === '' ? null : `${visitor.grade_score}%`, icon: 'tabler-percentage' },
+    { key: 'province', label: translate('pages.contracts.visitor.visitor.province'), value: visitor.province?.name, icon: 'tabler-map-pin' },
+    { key: 'english', label: translate('pages.contracts.visitor.visitor.englishLevel'), value: visitor.english_level?.name, icon: 'tabler-language' },
+    { key: 'acquisition-route', label: translate('pages.contracts.visitor.visitor.acquisitionRoute'), value: visitor.acquisition_route?.name, icon: 'tabler-speakerphone' },
+    { key: 'consultant', label: translate('pages.contracts.visitor.visitor.consultant'), value: consultantLabel(visitor), icon: 'tabler-user-star' },
+    { key: 'review', label: translate('pages.contracts.visitor.visitor.review'), value: visitor.consultant_review ? translateBackendValue(visitor.consultant_review) : null, icon: 'tabler-message' },
+    { key: 'date', label: translate('common.fields.date'), value: visitor.date, icon: 'tabler-calendar' },
+  ]
+})
 
 const profilePayload = (): Omit<CreateVisitorData, 'date' | 'name' | 'contact' | 'service'> => ({
   email: visitorData.value.email || null,
+  country_id: visitorData.value.country_id,
   education_level_id: visitorData.value.education_level_id,
-  age: visitorData.value.age === '' ? null : Number(visitorData.value.age),
-  grade_score: visitorData.value.grade_score === '' ? null : visitorData.value.grade_score,
+  age: visitorData.value.age === '' || visitorData.value.age == null ? null : Number(visitorData.value.age),
+  grade_score: visitorData.value.grade_score === '' || visitorData.value.grade_score == null ? null : visitorData.value.grade_score,
   province_id: visitorData.value.province_id,
   english_level_id: visitorData.value.english_level_id,
   acquisition_route_id: visitorData.value.acquisition_route_id,
@@ -163,8 +231,42 @@ const listParams = () => ({
   date_to: dateTo.value || undefined,
   search: search.value || undefined,
   consultant_employee_id: filterConsultantId.value || undefined,
+  country_id: filterCountryId.value || undefined,
+  service: filterService.value || undefined,
   follow_up: (isFollowUpList.value ? 1 : 0) as 0 | 1,
 })
+
+const syncFilterDraft = () => {
+  filterDraft.dateFrom = dateFrom.value
+  filterDraft.dateTo = dateTo.value
+  filterDraft.consultantId = filterConsultantId.value
+  filterDraft.countryId = filterCountryId.value
+  filterDraft.service = filterService.value
+}
+
+const applyFilters = () => {
+  if (filterDraft.dateFrom && filterDraft.dateTo && filterDraft.dateFrom > filterDraft.dateTo)
+    return
+
+  dateFrom.value = filterDraft.dateFrom
+  dateTo.value = filterDraft.dateTo
+  filterConsultantId.value = filterDraft.consultantId
+  filterCountryId.value = filterDraft.countryId
+  filterService.value = filterDraft.service
+  filterMenuOpen.value = false
+  reload()
+}
+
+const resetFilters = () => {
+  dateFrom.value = ''
+  dateTo.value = ''
+  filterConsultantId.value = null
+  filterCountryId.value = null
+  filterService.value = ''
+  syncFilterDraft()
+  filterMenuOpen.value = false
+  reload()
+}
 
 const fetchVisitors = async () => {
   try {
@@ -214,10 +316,8 @@ const headers = computed(() => [
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
   { title: translate('common.fields.email'), key: 'email', sortable: true },
   { title: translate('common.messages.service'), key: 'service', sortable: true },
+  { title: translate('common.fields.country'), key: 'country', sortable: false },
   { title: translate('educational.educationLevel'), key: 'education', sortable: false },
-  { title: translate('pages.contracts.visitor.visitor.province'), key: 'province', sortable: false },
-  { title: translate('pages.contracts.visitor.visitor.englishLevel'), key: 'english', sortable: false },
-  { title: translate('pages.contracts.visitor.visitor.acquisitionRoute'), key: 'acquisition', sortable: false },
   { title: translate('pages.contracts.visitor.visitor.consultant'), key: 'consultant', sortable: true },
   { title: translate('pages.contracts.visitor.visitor.review'), key: 'review', sortable: false },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
@@ -229,10 +329,8 @@ const visitorReportRow = (visitor: Visitor): string[] => [
   visitor.contact,
   visitor.email || '—',
   serviceLabel(visitor),
+  visitor.country?.name || '—',
   visitor.education_level?.name || '—',
-  visitor.province?.name || '—',
-  visitor.english_level?.name || '—',
-  visitor.acquisition_route?.name || '—',
   consultantLabel(visitor),
   visitor.consultant_review ? translateBackendValue(visitor.consultant_review) : '—',
   visitor.date,
@@ -268,9 +366,13 @@ const addNewVisitor = async () => {
       ...profilePayload(),
     }
 
-    await VisitorApi.create(data)
-    // A new visitor belongs on the first page of the current list.
-    reload()
+    const created = await VisitorApi.create(data)
+    // Keep the list responsive after saving instead of replacing every row
+    // with a full-table loading state.
+    if (!isFollowUpList.value) {
+      visitors.value = [created, ...visitors.value].slice(0, perPage.value)
+      total.value += 1
+    }
     isAddNewVisitorDialogVisible.value = false
     resetForm()
   }
@@ -299,8 +401,10 @@ const editVisitor = async () => {
       ...profilePayload(),
     }
 
-    await VisitorApi.update(selectedVisitor.value.id, data)
-    await fetchVisitors()
+    const updated = await VisitorApi.update(selectedVisitor.value.id, data)
+    const index = visitors.value.findIndex(visitor => visitor.id === updated.id)
+    if (index !== -1)
+      visitors.value[index] = updated
     isEditVisitorDialogVisible.value = false
     resetForm()
   }
@@ -322,6 +426,7 @@ const openEditDialog = (visitor: Visitor) => {
     // Only canonical keys are selectable; a legacy free-text service has to be
     // re-chosen from the four built-ins before the visitor can be saved again.
     service: visitor.service_key ?? '',
+    country_id: visitor.country_id,
     education_level_id: visitor.education_level_id,
     age: visitor.age,
     grade_score: visitor.grade_score,
@@ -347,11 +452,8 @@ const deleteVisitor = async () => {
   try {
     isSaving.value = true
     await VisitorApi.delete(selectedVisitor.value.id)
-    // The deleted row was the last one on this page, so step back instead of
-    // showing an empty page.
-    if (page.value > 1 && visitors.value.length === 1)
-      page.value -= 1
-    await fetchVisitors()
+    visitors.value = visitors.value.filter(visitor => visitor.id !== selectedVisitor.value?.id)
+    total.value = Math.max(0, total.value - 1)
     isDeleteVisitorDialogVisible.value = false
   }
   catch (error) {
@@ -370,8 +472,10 @@ const setFollowUp = async (visitor: Visitor, followUp: boolean) => {
   try {
     isSaving.value = true
     await VisitorApi.setFollowUp(visitor.id, followUp)
-    // The record left this list, so the page is refilled from the server.
-    await fetchVisitors()
+    // The record leaves the active list. Removing only that row keeps the
+    // other records usable while the action finishes.
+    visitors.value = visitors.value.filter(row => row.id !== visitor.id)
+    total.value = Math.max(0, total.value - 1)
     toast.success(translate(followUp ? 'pages.contracts.visitor.visitor.markedForFollowUp' : 'pages.contracts.visitor.visitor.removedFromFollowUp'))
   }
   catch (error) {
@@ -386,8 +490,8 @@ const reviewDialog = ref(false)
 const reviewVisitor = ref<Visitor | null>(null)
 const consultantReview = ref<ConsultantReview | ''>('')
 const reviewOptions = computed(() => [
-  { title: translate('common.statuses.good'), value: 'good' },
   { title: translate('common.statuses.bad'), value: 'bad' },
+  { title: translate('common.statuses.good'), value: 'good' },
   { title: translate('common.statuses.great'), value: 'great' },
 ])
 
@@ -420,11 +524,16 @@ const saveConsultantReview = async () => {
 }
 
 watch(() => route.query.list, reload)
+watch(filterMenuOpen, open => {
+  if (open)
+    syncFilterDraft()
+})
 
 onMounted(async () => {
   fetchVisitors()
-  const [consultants, educationLevels, provinces, englishLevels, acquisitionRoutes] = await Promise.allSettled([
+  const [consultants, countries, educationLevels, provinces, englishLevels, acquisitionRoutes] = await Promise.allSettled([
     EmployeeApi.getAssignmentOptions('counselor'),
+    MasterDataApi.list('countries'),
     MasterDataApi.list('education-levels'),
     MasterDataApi.list('provinces'),
     MasterDataApi.list('english-levels'),
@@ -435,6 +544,7 @@ onMounted(async () => {
   else
     console.error(consultants.reason)
   catalogs.value = {
+    countries: countries.status === 'fulfilled' ? countries.value : [],
     'education-levels': educationLevels.status === 'fulfilled' ? educationLevels.value : [],
     provinces: provinces.status === 'fulfilled' ? provinces.value : [],
     'english-levels': englishLevels.status === 'fulfilled' ? englishLevels.value : [],
@@ -457,46 +567,50 @@ onMounted(async () => {
       >
         <VCol
           cols="12"
-          md="7"
+          md="8"
         >
-          <VTextField
+          <ErpSearchField
             v-model="search"
-            class="data-table-search"
-            prepend-inner-icon="tabler-search"
             :placeholder="$t('pages.contracts.visitor.visitor.searchVisitors')"
-            density="compact"
-            clearable
-            hide-details
             @input="debouncedSearch"
           />
         </VCol>
         <VCol
           cols="12"
-          md="5"
+          md="4"
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
-            :active="Boolean(filterConsultantId || dateFrom || dateTo)"
-            @reset="filterConsultantId = null; dateFrom = ''; dateTo = ''; reload()"
+            v-model="filterMenuOpen"
+            :active="hasActiveFilters"
+            :show-reset="false"
           >
-            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="fetchVisitors" />
-            <VSelect
-              v-model="filterConsultantId"
+            <ErpDateRange v-model:from="filterDraft.dateFrom" v-model:to="filterDraft.dateTo" :show-apply="false" />
+            <ErpField
+              v-model="filterDraft.consultantId"
+              kind="autocomplete"
               :items="consultantDirectory"
               item-title="name"
               item-value="id"
               :label="$t('pages.contracts.visitor.visitor.consultant')"
-              density="compact"
               clearable
-              hide-details
-              @update:model-value="fetchVisitors"
             />
+            <ErpField v-model="filterDraft.countryId" kind="select" :items="activeCountries" :label="$t('common.fields.country')" clearable />
+            <ErpField v-model="filterDraft.service" kind="select" :items="serviceOptions" :label="$t('common.messages.service')" clearable />
+            <template #actions>
+              <VBtn class="visitor-filter-reset" variant="flat" @click="resetFilters">
+                {{ $t('common.messages.reset') }}
+              </VBtn>
+              <VBtn color="primary" variant="flat" class="visitor-filter-apply" @click="applyFilters">
+                {{ $t('educational.apply') }}
+              </VBtn>
+            </template>
           </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
-            variant="text"
+            variant="tonal"
+            class="visitor-toolbar-icon"
             :aria-label="$t('common.actions.print')"
-            :loading="isTableLoading"
             @click="printTable"
           />
           <!-- The Follow-up list is a curated list: visitors enter it from the
@@ -516,18 +630,7 @@ onMounted(async () => {
       </VRow>
     </VCardText>
 
-    <TableLoadingSkeleton
-      v-if="isTableLoading"
-      :columns="headers.length"
-      :label="$t('common.messages.loading')"
-    />
-    <TableEmptyState
-      v-else-if="!total"
-      :icon="isFollowUpList ? 'tabler-list-check' : 'tabler-walk'"
-      :description="isFollowUpList ? $t('pages.contracts.visitor.visitor.followUpEmpty') : $t('common.messages.noRecordsFound')"
-    />
     <ResponsiveDataTableServer
-      v-else
       :headers="headers"
       :items="visitors"
       :items-length="total"
@@ -538,60 +641,57 @@ onMounted(async () => {
       class="crm-responsive-table"
       mobile-breakpoint="sm"
       mobile-cards
+      mobile-expand-all
+      mobile-actions-as-menu
+      :sticky-key-column="false"
+      :sticky-action-column="false"
+      :skeleton-rows="5"
+      :show-scroll-affordance="false"
+      :loading="isTableLoading"
+      pagination
       mobile-title-key="name"
       mobile-action-key="actions"
       @update:options="updateTableOptions"
     >
-      <!-- Quick contact belongs to the Follow-up list: unqualified visitors are
-           shown as plain contact details until somebody marks them for follow-up. -->
       <template #item.contact="{ item }">
-        <ContactActionMenu
-          v-if="isFollowUpList"
-          kind="phone"
-          :value="item.contact"
-          contactable-type="visitor"
-          :contactable-id="item.id"
-          audience="visitor"
-          :context="item"
-        />
-        <span v-else>{{ item.contact }}</span>
+        <div dir="ltr" class="visitor-contact-value">
+          <ContactActionMenu
+            v-if="item.contact"
+            kind="phone"
+            :value="item.contact"
+            contactable-type="visitor"
+            :contactable-id="item.id"
+            audience="visitor"
+            :context="item"
+          />
+          <span v-else class="text-medium-emphasis">—</span>
+        </div>
       </template>
 
       <template #item.email="{ item }">
-        <ContactActionMenu
-          v-if="isFollowUpList && item.email"
-          kind="email"
-          :value="item.email"
-          contactable-type="visitor"
-          :contactable-id="item.id"
-        />
-        <span
-          v-else
-          class="text-medium-emphasis"
-        >{{ item.email || '—' }}</span>
+        <div dir="ltr" class="visitor-contact-value">
+          <ContactActionMenu
+            v-if="item.email"
+            kind="email"
+            :value="item.email"
+            contactable-type="visitor"
+            :contactable-id="item.id"
+            :context="item"
+          />
+          <span v-else class="text-medium-emphasis">—</span>
+        </div>
       </template>
 
       <template #item.service="{ item }">
         {{ serviceLabel(item) }}
       </template>
 
+      <template #item.country="{ item }">
+        <span class="text-medium-emphasis">{{ item.country?.name || '—' }}</span>
+      </template>
+
       <template #item.education="{ item }">
-        <div class="d-flex flex-column">
-          <span>{{ item.education_level?.name || '—' }}</span>
-          <span v-if="item.grade_score !== null && item.grade_score !== ''" class="text-caption text-medium-emphasis">{{ item.grade_score }}%</span>
-        </div>
-      </template>
-
-      <template #item.province="{ item }">
-        <span class="text-medium-emphasis">{{ item.province?.name || '—' }}</span>
-      </template>
-
-      <template #item.english="{ item }">
-        <span class="text-medium-emphasis">{{ item.english_level?.name || '—' }}</span>
-      </template>
-
-      <template #item.acquisition="{ item }">
-        <span class="text-medium-emphasis">{{ item.acquisition_route?.name || '—' }}</span>
+        <span>{{ item.education_level?.name || '—' }}<template v-if="item.grade_score !== null && item.grade_score !== ''"> - {{ item.grade_score }}%</template></span>
       </template>
 
       <template #item.consultant="{ item }">
@@ -610,112 +710,113 @@ onMounted(async () => {
         </div>
       </template>
 
-      <template #item.review="{ item }"><span class="text-medium-emphasis">{{ item.consultant_review ? translateBackendValue(item.consultant_review) : '—' }}</span></template>
+      <template #item.review="{ item }">
+        <VChip
+          v-if="item.consultant_review"
+          size="small"
+          :color="reviewColor(item.consultant_review)"
+          variant="tonal"
+          class="visitor-review-chip"
+        >
+          {{ translateBackendValue(item.consultant_review) }}
+        </VChip>
+        <span v-else class="text-medium-emphasis">—</span>
+      </template>
 
       <template #item.actions="{ item }">
-        <div class="d-flex justify-end gap-1">
-          <!-- Mark for follow-up: the only promotion path into the Follow-up list. -->
+        <VMenu location="bottom end" :close-on-content-click="false">
+          <template #activator="{ props: menuProps }">
+            <VBtn
+              v-bind="menuProps"
+              icon="tabler-dots-vertical"
+              variant="tonal"
+              size="small"
+              class="visitor-actions-trigger"
+              :aria-label="$t('common.messages.actions')"
+            />
+          </template>
+
+          <VList class="visitor-actions-menu" density="compact" min-width="220">
+            <VListItem
+              prepend-icon="tabler-address-book"
+              :title="$t('common.actions.viewFullDetails')"
+              @click="openVisitorDetails(item)"
+            />
+            <VListItem
+              v-if="!isFollowUpList"
+              prepend-icon="tabler-star"
+              :title="$t('pages.contracts.visitor.visitor.markForFollowUp')"
+              :disabled="isSaving"
+              @click="setFollowUp(item, true)"
+            />
+            <VListItem
+              v-else
+              prepend-icon="tabler-star-off"
+              :title="$t('pages.contracts.visitor.visitor.removeFromFollowUp')"
+              :disabled="isSaving"
+              @click="setFollowUp(item, false)"
+            />
+            <template v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
+              <VDivider class="my-1" />
+              <VMenu location="end top">
+                <template #activator="{ props: contractProps }">
+                  <VListItem
+                    v-bind="contractProps"
+                    prepend-icon="tabler-file-plus"
+                    append-icon="tabler-chevron-right"
+                    :title="$t('serviceContracts.create')"
+                  />
+                </template>
+                <VList class="visitor-contract-menu" density="compact" min-width="220">
+                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
+                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
+                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
+                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-contracts', query: { visitor: item.id } }" />
+                </VList>
+              </VMenu>
+            </template>
+            <VDivider class="my-1" />
+            <VListItem
+              v-if="canReview"
+              prepend-icon="tabler-message"
+              :title="$t('pages.contracts.visitor.visitor.consultantReview')"
+              :disabled="isSaving"
+              @click="openConsultantReview(item)"
+            />
+            <VListItem
+              prepend-icon="tabler-edit"
+              :title="$t('pages.contracts.visitor.visitor.editVisitor')"
+              :disabled="isSaving"
+              @click="openEditDialog(item)"
+            />
+            <VListItem
+              prepend-icon="tabler-trash"
+              class="visitor-actions-menu__delete"
+              :title="$t('pages.contracts.visitor.visitor.deleteVisitor')"
+              :disabled="isSaving"
+              @click="openDeleteDialog(item)"
+            />
+          </VList>
+        </VMenu>
+      </template>
+
+      <template #no-data>
+        <div class="visitor-empty-state">
+          <TableEmptyState
+            icon="tabler-users-group"
+            :min-height="0"
+            :title="$t('pages.contracts.visitor.visitor.noVisitorRecords')"
+            :description="$t('pages.contracts.visitor.visitor.noVisitorRecordsDescription')"
+          />
           <VBtn
             v-if="!isFollowUpList"
-            icon="tabler-star"
-            :aria-label="$t('pages.contracts.visitor.visitor.markForFollowUp')"
-            variant="text"
-            size="small"
-            color="warning"
-            :loading="isSaving"
-            @click="setFollowUp(item, true)"
+            color="primary"
+            variant="tonal"
+            class="visitor-empty-state__action"
+            @click="openAddDialog"
           >
-            <VIcon icon="tabler-star" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              {{ $t('pages.contracts.visitor.visitor.markForFollowUp') }}
-            </VTooltip>
-          </VBtn>
-          <VMenu v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
-            <template #activator="{ props: menuProps }">
-              <VBtn v-bind="menuProps" icon="tabler-file-plus" variant="text" size="small" :aria-label="$t('serviceContracts.create')"><VIcon icon="tabler-file-plus" /><VTooltip activator="parent">{{ $t('serviceContracts.create') }}</VTooltip></VBtn>
-            </template>
-            <VList>
-              <VListItem :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
-              <VListItem :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
-              <VListItem :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
-              <VListItem :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-contracts', query: { visitor: item.id } }" />
-            </VList>
-          </VMenu>
-          <CrmRelationshipDetails
-            v-if="isFollowUpList"
-            :id="item.id"
-            type="visitor"
-            :title="item.name"
-          />
-          <!-- The Follow-up list takes the visitor back off the list again, so the
-               move stays reversible. -->
-          <VBtn
-            v-if="isFollowUpList"
-            icon="tabler-star-off"
-            :aria-label="$t('pages.contracts.visitor.visitor.removeFromFollowUp')"
-            variant="text"
-            size="small"
-            color="warning"
-            :loading="isSaving"
-            @click="setFollowUp(item, false)"
-          >
-            <VIcon icon="tabler-star-off" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              {{ $t('pages.contracts.visitor.visitor.removeFromFollowUp') }}
-            </VTooltip>
-          </VBtn>
-          <VBtn
-            v-if="canReview"
-            icon="tabler-message"
-            :aria-label="$t('pages.contracts.visitor.visitor.consultantReview')"
-            variant="text"
-            size="small"
-            color="success"
-            :loading="isSaving"
-            @click="openConsultantReview(item)"
-          >
-            <VIcon icon="tabler-message" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              {{ $t('pages.contracts.visitor.visitor.consultantReview') }}
-            </VTooltip>
-          </VBtn>
-          <VBtn
-            icon="tabler-edit"
-            variant="text"
-            size="small"
-            color="medium-emphasis"
-            :aria-label="$t('pages.contracts.visitor.visitor.editVisitor')"
-            :loading="isSaving"
-            @click="openEditDialog(item)"
-          >
-            <VIcon icon="tabler-edit" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              {{ $t('pages.contracts.visitor.visitor.editVisitor') }}
-            </VTooltip>
-          </VBtn>
-          <VBtn
-            icon="tabler-trash"
-            variant="text"
-            size="small"
-            color="error"
-            :aria-label="$t('pages.contracts.visitor.visitor.deleteVisitor')"
-            :loading="isSaving"
-            @click="openDeleteDialog(item)"
-          >
-            <VIcon icon="tabler-trash" /><VTooltip
-              activator="parent"
-              location="top"
-            >
-              {{ $t('pages.contracts.visitor.visitor.deleteVisitor') }}
-            </VTooltip>
+            <VIcon icon="tabler-plus" class="me-1" />
+            {{ $t('pages.contracts.visitor.visitor.addVisitor') }}
           </VBtn>
         </div>
       </template>
@@ -731,16 +832,26 @@ onMounted(async () => {
   <!-- Add New Visitor Dialog -->
   <VDialog
     v-model="isAddNewVisitorDialogVisible"
-    max-width="1000"
-    class="erp-form"
+    max-width="1180"
+    content-class="visitor-form-dialog"
     scrollable
   >
-    <VCard>
-      <VCardTitle class="pa-4">
-        <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.addNewVisitor') }}</span>
+    <VCard class="visitor-form-card">
+      <VCardTitle class="visitor-dialog-title px-5 py-5">
+        <span class="text-h5 visitor-dialog-heading visitor-dialog-heading--primary">{{ $t('pages.contracts.visitor.visitor.addNewVisitor') }}</span>
+        <VSpacer />
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="visitor-dialog-close"
+          :aria-label="$t('common.actions.close')"
+          :disabled="isSaving"
+          @click="isAddNewVisitorDialogVisible = false; resetForm()"
+        />
       </VCardTitle>
 
-      <VCardText>
+      <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
         <VForm
           class="app-form"
           @submit.prevent="addNewVisitor"
@@ -756,11 +867,12 @@ onMounted(async () => {
         </VForm>
       </VCardText>
 
-      <VCardActions class="pa-4">
+      <VCardActions class="visitor-dialog-actions px-5 py-4">
         <VSpacer />
         <VBtn
-          variant="outlined"
-          color="secondary"
+          variant="flat"
+          color="error"
+          class="visitor-dialog-cancel"
           :disabled="isSaving"
           @click="isAddNewVisitorDialogVisible = false; resetForm()"
         >
@@ -768,6 +880,8 @@ onMounted(async () => {
         </VBtn>
         <VBtn
           color="primary"
+          variant="flat"
+          class="visitor-dialog-submit"
           :loading="isSaving"
           @click="addNewVisitor"
         >
@@ -777,16 +891,106 @@ onMounted(async () => {
     </VCard>
   </VDialog>
 
-  <VDialog v-model="reviewDialog" max-width="640">
-    <VCard>
-      <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
-      <VCardText>
-        <VSelect v-model="consultantReview" :items="reviewOptions" :label="$t('pages.contracts.visitor.visitor.consultantReview')" clearable />
-      </VCardText>
-      <VCardActions>
+  <VDialog
+    v-model="isVisitorDetailsDialogVisible"
+    max-width="920"
+    content-class="visitor-form-dialog visitor-details-dialog"
+    scrollable
+  >
+    <VCard class="visitor-form-card">
+      <VCardTitle class="visitor-dialog-title px-5 py-5">
+        <div>
+          <div class="visitor-details-dialog__eyebrow">{{ $t('pages.contracts.visitor.visitor.visitorDetails') }}</div>
+          <div class="visitor-dialog-heading">{{ visitorDetails?.name }}</div>
+        </div>
         <VSpacer />
-        <VBtn variant="outlined" @click="reviewDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="isSaving" @click="saveConsultantReview">{{ $t('common.actions.save') }}</VBtn>
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="visitor-dialog-close"
+          :aria-label="$t('common.actions.close')"
+          @click="isVisitorDetailsDialogVisible = false"
+        />
+      </VCardTitle>
+
+      <VCardText class="visitor-dialog-body visitor-details-dialog__body pa-5 pa-sm-6">
+        <div class="visitor-details-grid">
+          <div v-for="field in visitorDetailFields" :key="field.key" class="visitor-detail-tile">
+            <VIcon :icon="field.icon" size="19" class="visitor-detail-tile__icon" />
+            <div class="visitor-detail-tile__content">
+              <span class="visitor-detail-tile__label">{{ field.label }}</span>
+              <div v-if="field.key === 'contact' && visitorDetails?.contact" dir="ltr" class="visitor-contact-value">
+                <ContactActionMenu
+                  kind="phone"
+                  :value="visitorDetails.contact"
+                  contactable-type="visitor"
+                  :contactable-id="visitorDetails.id"
+                  audience="visitor"
+                  :context="visitorDetails"
+                />
+              </div>
+              <div v-else-if="field.key === 'email' && visitorDetails?.email" dir="ltr" class="visitor-contact-value">
+                <ContactActionMenu
+                  kind="email"
+                  :value="visitorDetails.email"
+                  contactable-type="visitor"
+                  :contactable-id="visitorDetails.id"
+                  :context="visitorDetails"
+                />
+              </div>
+              <span v-else class="visitor-detail-tile__value">{{ field.value ?? '—' }}</span>
+            </div>
+          </div>
+          <div class="visitor-detail-tile visitor-detail-tile--notes">
+            <VIcon icon="tabler-notes" size="19" class="visitor-detail-tile__icon" />
+            <div class="visitor-detail-tile__content">
+              <span class="visitor-detail-tile__label">{{ $t('pages.contracts.visitor.visitor.notes') }}</span>
+              <span class="visitor-detail-tile__value">{{ visitorDetails?.notes || '—' }}</span>
+            </div>
+          </div>
+        </div>
+      </VCardText>
+    </VCard>
+  </VDialog>
+
+  <VDialog
+    v-model="reviewDialog"
+    max-width="460"
+    content-class="visitor-form-dialog visitor-review-dialog"
+  >
+    <VCard class="visitor-form-card">
+      <VCardTitle class="visitor-dialog-title px-5 py-4">
+        <span class="visitor-dialog-heading">{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</span>
+        <VSpacer />
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="visitor-dialog-close"
+          :aria-label="$t('common.actions.close')"
+          :disabled="isSaving"
+          @click="reviewDialog = false"
+        />
+      </VCardTitle>
+      <VCardText class="visitor-dialog-body pa-5">
+        <ErpField
+          v-model="consultantReview"
+          kind="select"
+          :items="reviewOptions"
+          :label="$t('pages.contracts.visitor.visitor.consultantReview')"
+          :placeholder="$t('pages.contracts.visitor.visitor.placeholders.consultantReview')"
+          clearable
+        />
+      </VCardText>
+      <VCardActions class="visitor-dialog-actions px-5 py-4">
+        <VSpacer />
+        <VBtn class="visitor-dialog-cancel" variant="flat" color="error" :disabled="isSaving" @click="reviewDialog = false">
+          {{ $t('common.actions.cancel') }}
+        </VBtn>
+        <VBtn class="visitor-dialog-submit" color="primary" variant="flat" :loading="isSaving" @click="saveConsultantReview">
+          {{ $t('common.actions.save') }}
+        </VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -794,16 +998,26 @@ onMounted(async () => {
   <!-- Edit Visitor Dialog -->
   <VDialog
     v-model="isEditVisitorDialogVisible"
-    max-width="1000"
-    class="erp-form"
+    max-width="1180"
+    content-class="visitor-form-dialog"
     scrollable
   >
-    <VCard>
-      <VCardTitle class="pa-4">
-        <span class="text-h5">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</span>
+    <VCard class="visitor-form-card">
+      <VCardTitle class="visitor-dialog-title px-5 py-5">
+        <span class="text-h5 visitor-dialog-heading">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</span>
+        <VSpacer />
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="visitor-dialog-close"
+          :aria-label="$t('common.actions.close')"
+          :disabled="isSaving"
+          @click="isEditVisitorDialogVisible = false; resetForm()"
+        />
       </VCardTitle>
 
-      <VCardText>
+      <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
         <VForm
           class="app-form"
           @submit.prevent="editVisitor"
@@ -819,11 +1033,12 @@ onMounted(async () => {
         </VForm>
       </VCardText>
 
-      <VCardActions class="pa-4">
+      <VCardActions class="visitor-dialog-actions px-5 py-4">
         <VSpacer />
         <VBtn
-          variant="outlined"
-          color="secondary"
+          variant="flat"
+          color="error"
+          class="visitor-dialog-cancel"
           :disabled="isSaving"
           @click="isEditVisitorDialogVisible = false; resetForm()"
         >
@@ -831,6 +1046,8 @@ onMounted(async () => {
         </VBtn>
         <VBtn
           color="primary"
+          variant="flat"
+          class="visitor-dialog-submit"
           :loading="isSaving"
           @click="editVisitor"
         >
@@ -843,29 +1060,32 @@ onMounted(async () => {
   <!-- Delete Visitor Dialog -->
   <VDialog
     v-model="isDeleteVisitorDialogVisible"
-    max-width="500"
+    max-width="480"
+    class="visitor-delete-overlay"
   >
-    <VCard>
-      <VCardTitle class="text-h5 pa-4">
-        {{ $t('common.confirmations.areYouSureYouWantToDeleteThisVisitor') }}
-      </VCardTitle>
-
-      <VCardText>
-        {{ $t('common.confirmations.thisActionCannotBeUndoneTheVisitorRecordWillBePermanentlyRemovedFromTh') }}
+    <VCard class="visitor-delete-dialog">
+      <VCardText class="visitor-delete-dialog__content">
+        <div class="visitor-delete-dialog__icon" aria-hidden="true">
+          <VIcon icon="tabler-trash" size="30" />
+        </div>
+        <h2 class="visitor-delete-dialog__title">
+          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisVisitor') }}
+        </h2>
+        <p class="visitor-delete-dialog__description">
+          {{ $t('common.confirmations.thisActionCannotBeUndoneTheVisitorRecordWillBePermanentlyRemovedFromTh') }}
+        </p>
       </VCardText>
 
-      <VCardActions class="pa-4">
-        <VSpacer />
+      <VCardActions class="visitor-delete-dialog__actions">
         <VBtn
-          variant="outlined"
-          color="secondary"
+          class="visitor-delete-dialog__button visitor-delete-dialog__button--cancel"
           :disabled="isSaving"
           @click="isDeleteVisitorDialogVisible = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
-          color="error"
+          class="visitor-delete-dialog__button visitor-delete-dialog__button--delete"
           :loading="isSaving"
           @click="deleteVisitor"
         >
@@ -877,6 +1097,369 @@ onMounted(async () => {
   </div>
 </template>
 
-<style>
+<style lang="scss">
 @media (max-width: 1279px) { .table-toolbar-actions { justify-content: flex-start; } }
+
+.crm-responsive-table .v-table__wrapper > table {
+  min-inline-size: 1240px;
+}
+
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th,
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td {
+  white-space: nowrap;
+}
+
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(1),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(1) { min-inline-size: 11rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(2),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 9rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(3),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 9rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 8rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(5),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 10rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(6),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 8rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(7),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(7) { min-inline-size: 10rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(8),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(8) { min-inline-size: 11rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(9),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(9) { min-inline-size: 9rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(10),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(10) { min-inline-size: 8rem; }
+.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(11),
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(11) { min-inline-size: 4.5rem; }
+
+.crm-responsive-table .v-table__wrapper > table > tbody > tr:hover > td {
+  background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
+}
+
+.crm-responsive-table .v-table__wrapper:has(.visitor-empty-state) {
+  overflow-x: hidden;
+}
+
+.crm-responsive-table .v-table__wrapper > table:has(.visitor-empty-state) {
+  min-inline-size: 100%;
+  table-layout: fixed;
+}
+
+/* A wide row needs column minimums, but an empty table needs its headers to
+   fit the card. Let only this no-data state release those row constraints. */
+.crm-responsive-table .v-table__wrapper > table:has(.visitor-empty-state) > thead > tr > th,
+.crm-responsive-table .v-table__wrapper > table:has(.visitor-empty-state) > tbody > tr > td {
+  min-inline-size: 0 !important;
+  white-space: normal;
+}
+
+.crm-responsive-table .v-table__wrapper > table > tbody > tr:has(.visitor-empty-state):hover > td {
+  background-color: transparent !important;
+}
+
+.visitor-actions-trigger {
+  border-radius: 999px !important;
+  background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
+  color: rgba(var(--v-theme-on-surface), 0.72) !important;
+}
+
+.visitor-actions-trigger:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.08) !important;
+}
+
+.visitor-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
+
+.visitor-empty-state {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  justify-content: center;
+  min-block-size: 17rem;
+  padding: 1.25rem 1.25rem 2rem;
+}
+
+.visitor-empty-state .table-empty-state {
+  min-block-size: 0 !important;
+  padding-block: 1rem;
+}
+
+.crm-responsive-table .v-table__wrapper > table > tbody > tr:has(.visitor-empty-state) > td {
+  padding: 0 !important;
+}
+
+.visitor-empty-state__action {
+  margin-block-start: -0.25rem;
+  background-color: rgba(var(--v-theme-primary), 0.12) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.visitor-empty-state__action:hover { background-color: rgba(var(--v-theme-primary), 0.18) !important; }
+
+@media (max-width: 959px) {
+  .crm-responsive-table.responsive-data-table--mobile-cards .v-table__wrapper > table > tbody > tr:hover > td {
+    background-color: transparent !important;
+  }
+
+  .crm-responsive-table.responsive-data-table--mobile-cards .responsive-data-table__field + .responsive-data-table__field {
+    border-block-start-color: rgba(var(--v-theme-on-surface), 0.08);
+  }
+
+  .crm-responsive-table.responsive-data-table--mobile-cards .responsive-data-table__field-value > .d-flex {
+    justify-content: flex-end;
+  }
+}
+
+.visitor-filter-reset {
+  background-color: rgba(var(--v-theme-primary), 0.12) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.visitor-filter-reset:hover { background-color: rgba(var(--v-theme-primary), 0.2) !important; }
+
+.visitor-form-dialog .visitor-form-card {
+  overflow: hidden;
+}
+
+.visitor-form-dialog .visitor-dialog-title,
+.visitor-form-dialog .visitor-dialog-actions {
+  display: flex;
+  align-items: center;
+  /* A near-surface tint separates these areas without the heavy dark block
+     produced by Vuetify's surface-variant token. It works in both themes. */
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  border-style: solid;
+  border-width: 0;
+}
+
+.visitor-form-dialog .visitor-dialog-heading {
+  font-size: 1.625rem;
+  font-weight: 700;
+}
+
+.visitor-form-dialog .visitor-dialog-heading--primary {
+  font-size: 2rem;
+}
+
+/* This blur is scoped to the visitor form overlay, not the global dialog
+   scrim, so other popups keep their own visual treatment. */
+.v-overlay:has(.visitor-form-dialog) .v-overlay__scrim {
+  backdrop-filter: blur(4px);
+  background-color: rgba(var(--v-theme-on-surface), 0.24);
+}
+
+.visitor-form-dialog .visitor-dialog-title {
+  border-block-end-width: 1px;
+}
+
+.visitor-form-dialog .visitor-dialog-actions {
+  border-block-start-width: 1px;
+}
+
+.visitor-form-dialog .visitor-dialog-body {
+  background-color: rgb(var(--v-theme-surface));
+}
+
+.visitor-form-dialog .visitor-dialog-close {
+  inline-size: 36px;
+  block-size: 36px;
+  border: 1px solid rgba(var(--v-theme-error), 0.38);
+  border-radius: 50%;
+  color: rgb(var(--v-theme-error));
+}
+
+.visitor-form-dialog .visitor-dialog-close:hover {
+  background-color: rgba(var(--v-theme-error), 0.18) !important;
+}
+
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn {
+  border: 1px solid rgba(var(--v-theme-error), 0.62) !important;
+  background-color: rgba(var(--v-theme-error), 0.12) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:hover {
+  border-color: rgb(var(--v-theme-error));
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-on-error)) !important;
+}
+
+.visitor-form-dialog .visitor-dialog-submit {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.visitor-form-dialog .visitor-dialog-submit:hover {
+  filter: brightness(0.9);
+}
+
+.visitor-details-dialog__eyebrow {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visitor-details-grid {
+  display: grid;
+  gap: 0.875rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.visitor-detail-tile {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.75rem;
+  min-block-size: 5.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(var(--v-border-color), 0.42);
+  border-radius: 12px;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%);
+}
+
+.visitor-detail-tile__icon {
+  flex: none;
+  margin-block-start: 0.15rem;
+  color: rgb(var(--v-theme-primary));
+}
+
+.visitor-detail-tile__content {
+  display: grid;
+  gap: 0.25rem;
+  min-inline-size: 0;
+}
+
+.visitor-detail-tile__label {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.visitor-detail-tile__value {
+  overflow-wrap: anywhere;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.visitor-detail-tile--notes { grid-column: 1 / -1; }
+
+.visitor-delete-overlay .v-overlay__scrim {
+  background: rgba(var(--v-theme-on-surface), 0.3) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
+}
+
+.visitor-delete-dialog {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-border-color), 0.2) !important;
+  border-radius: 16px !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18) !important;
+  text-align: center;
+}
+
+.visitor-delete-dialog__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 2rem 1.25rem !important;
+}
+
+.visitor-delete-dialog__icon {
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  margin-block-end: 1.25rem;
+  border-radius: 50%;
+  place-items: center;
+  background: rgba(var(--v-theme-error), 0.14);
+  color: rgb(var(--v-theme-error));
+}
+
+.visitor-delete-dialog__title {
+  margin: 0;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.visitor-delete-dialog__description {
+  max-width: 24rem;
+  margin: 0.65rem 0 0;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  line-height: 1.65;
+  text-align: center;
+}
+
+.visitor-delete-dialog__actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0 2rem 2rem !important;
+}
+
+.visitor-delete-dialog__button {
+  min-height: 2.85rem;
+  border-radius: 10px !important;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+
+  &--cancel {
+    border: 1px solid rgba(var(--v-theme-secondary), 0.52) !important;
+    background: rgba(var(--v-theme-secondary), 0.13) !important;
+    color: rgb(var(--v-theme-secondary)) !important;
+
+    &:hover {
+      background: rgb(var(--v-theme-secondary)) !important;
+      color: rgb(var(--v-theme-on-secondary)) !important;
+    }
+  }
+
+  &--delete {
+    background: rgb(var(--v-theme-error)) !important;
+    color: rgb(var(--v-theme-on-error)) !important;
+
+    &:hover {
+      filter: brightness(0.88);
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .visitor-details-grid { grid-template-columns: 1fr; }
+
+  .visitor-detail-tile--notes { grid-column: auto; }
+
+  .visitor-delete-dialog__content { padding-inline: 1.25rem !important; }
+
+  .visitor-delete-dialog__actions { padding-inline: 1.25rem !important; }
+
+  .visitor-form-dialog .visitor-dialog-title {
+    padding: 16px !important;
+  }
+
+  .visitor-form-dialog .visitor-dialog-body {
+    padding: 16px !important;
+  }
+
+  .visitor-form-dialog .visitor-dialog-actions {
+    padding: 12px 16px !important;
+  }
+
+  .visitor-form-dialog .visitor-dialog-close {
+    inline-size: 34px;
+    block-size: 34px;
+  }
+
+  .visitor-form-dialog .visitor-dialog-heading--primary {
+    font-size: 1.75rem;
+  }
+}
 </style>

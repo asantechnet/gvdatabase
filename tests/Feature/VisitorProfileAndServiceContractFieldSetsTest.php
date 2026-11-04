@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcquisitionRoute;
 use App\Models\Contract;
+use App\Models\Country;
 use App\Models\Currency;
 use App\Models\EducationLevel;
 use App\Models\Employee;
@@ -35,10 +36,12 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         $english = EnglishLevel::create(['name' => 'B2 Upper Intermediate', 'is_active' => true]);
         $route = AcquisitionRoute::create(['name' => 'Referral', 'is_active' => true]);
         $education = EducationLevel::create(['name' => 'Bachelor', 'is_active' => true]);
+        $country = Country::create(['name' => 'Germany', 'code' => 'DE', 'is_active' => true]);
 
         $id = $this->postJson('/api/visitors', [
             'name' => 'Profile Visitor', 'contact' => '0701234567', 'email' => 'visitor@example.test',
             'service' => 'scholarship', 'date' => '2026-10-20',
+            'country_id' => $country->id,
             'education_level_id' => $education->id, 'age' => 22, 'grade_score' => 88.5,
             'province_id' => $province->id, 'english_level_id' => $english->id,
             'acquisition_route_id' => $route->id,
@@ -47,12 +50,16 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
             ->assertJsonPath('data.english_level.name', 'B2 Upper Intermediate')
             ->assertJsonPath('data.acquisition_route.name', 'Referral')
             ->assertJsonPath('data.education_level.name', 'Bachelor')
+            ->assertJsonPath('data.country.name', 'Germany')
             ->assertJsonPath('data.age', 22)
             ->assertJsonPath('data.consultant_review', null)
             ->json('data.id');
 
-        $this->putJson("/api/visitors/{$id}", ['province_id' => null, 'grade_score' => 91])
-            ->assertOk()->assertJsonPath('data.province', null)->assertJsonPath('data.grade_score', '91.00');
+        $this->putJson("/api/visitors/{$id}", ['province_id' => null, 'country_id' => null, 'grade_score' => 91])
+            ->assertOk()
+            ->assertJsonPath('data.province', null)
+            ->assertJsonPath('data.country', null)
+            ->assertJsonPath('data.grade_score', '91.00');
     }
 
     public function test_consultant_reviews_are_editable_by_their_dedicated_permission(): void

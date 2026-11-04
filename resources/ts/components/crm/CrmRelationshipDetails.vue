@@ -68,6 +68,7 @@ const detailItems = computed(() => {
     { key: 'contact', icon: 'tabler-phone', label: t('common.crmDetails.fields.contact'), value: item.contact },
     { key: 'email', icon: 'tabler-mail', label: t('common.crmDetails.fields.email'), value: item.email },
     { key: 'service', icon: 'tabler-briefcase', label: t('common.crmDetails.fields.service'), value: item.service || item.service_interest },
+    { key: 'country', icon: 'tabler-world', label: t('common.fields.country'), value: item.country?.name },
     { key: 'owner', icon: 'tabler-user-check', label: t('common.crmDetails.fields.owner'), value: item.responsible_employee?.name ?? item.owner?.name },
     { key: 'stage', icon: 'tabler-progress-check', label: t('common.crmDetails.fields.stage'), value: item.current_stage?.name ?? item.stage },
     { key: 'probability', icon: 'tabler-percentage', label: t('common.crmDetails.fields.probability'), value: item.probability == null ? null : `${item.probability}%` },

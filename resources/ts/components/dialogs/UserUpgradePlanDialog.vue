@@ -95,6 +95,7 @@ const dialogModelValueUpdate = (val: boolean) => {
         confirm-msg="Your subscription cancelled successfully."
         confirmation-question="Are you sure to cancel your subscription?"
         cancel-msg="Unsubscription Cancelled!!"
+        tone="error"
       />
     </VCard>
   </VDialog>

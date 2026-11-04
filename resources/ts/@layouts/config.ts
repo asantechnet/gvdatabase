@@ -11,7 +11,7 @@ import type { LayoutConfig } from "@layouts/types";
 export const layoutConfig: LayoutConfig = {
   app: {
     title: "my-layout",
-    logo: h("img", { src: "/src/assets/logo.svg" }),
+    logo: h("span"),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
     // Keep the permanent sidebar from the md breakpoint onward. The overlay

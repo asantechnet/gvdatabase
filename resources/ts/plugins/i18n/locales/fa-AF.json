@@ -2553,7 +2553,7 @@
           "age": "سن",
           "province": "ولایت",
           "englishLevel": "سطح انگلیسی",
-          "acquisitionRoute": "راه آشنایی",
+          "acquisitionRoute": "چگونه با ما آشنا شد",
           "acquisitionRouteHint": "مراجعه‌کننده چطور با شرکت آشنا شد.",
           "consultant": "مشاور",
           "consultantReview": "بررسی مشاور",
@@ -2563,7 +2563,27 @@
           "followUpEmpty": "هنوز هیچ بازدیدکنندهای برای پیگیری علامتگذاری نشده است. یک بازدیدکننده را در فهرست بازدیدکنندگان ستاره کنید تا به اینجا منتقل شود.",
           "ageHint": "بین ۱ تا ۱۲۰ سال.",
           "consultantReviewSaved": "بررسی مشاور ذخیره شد.",
-          "review": "بررسی مشاور"
+          "review": "بررسی مشاور",
+          "visitorDetails": "جزئیات بازدیدکننده",
+          "notes": "یادداشت‌ها",
+          "noVisitorRecords": "هیچ بازدیدکننده‌ای پیدا نشد",
+          "noVisitorRecordsDescription": "هیچ بازدیدکننده‌ای با فیلترهای انتخاب‌شده هم‌خوانی ندارد.",
+          "placeholders": {
+            "name": "مثال: احمد صافی",
+            "contact": "مثال: +۹۳ ۷۸ ۱۲۳ ۴۵۶۷",
+            "email": "مثال: ahmad.safi{'@'}example.com",
+            "service": "مثال: بورسیه",
+            "educationLevel": "مثال: لیسانس",
+            "age": "مثال: ۲۲",
+            "gradeScore": "مثال: ۸۵",
+            "province": "مثال: کابل",
+            "englishLevel": "مثال: B2",
+            "acquisitionRoute": "مثال: معرفی",
+            "consultant": "مثال: فاطمه احمدی",
+            "country": "مثال: آلمان",
+            "consultantReview": "مثال: خوب",
+            "notes": "مثال: به برنامه تحصیلی نیاز دارد"
+          }
         }
       },
       "contractform": {
@@ -5689,7 +5709,7 @@
       "inUse": "این مورد در استفاده است و حذف نمی‌شود.",
       "provinces": "ولایات",
       "englishLevels": "سطح‌های انگلیسی",
-      "acquisitionRoutes": "راه‌های آشنایی"
+      "acquisitionRoutes": "چگونه مراجعه‌کنندگان با ما آشنا شدند"
     },
     "pendingUi": {
       "customerEmployee": "مشتری / کارمند",

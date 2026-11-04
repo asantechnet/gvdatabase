@@ -59,60 +59,65 @@ const changePageSize = (value: number | null) => {
 
 <template>
   <div class="table-pagination-footer">
-    <VSelect
-      class="table-pagination-footer__size"
-      density="compact"
-      hide-details
-      variant="plain"
-      :aria-label="itemsPerPageLabel"
-      :items="pageSizeItems"
-      :model-value="itemsPerPage"
-      @update:model-value="changePageSize"
-    />
+    <div class="table-pagination-footer__size-group">
+      <span class="text-caption text-medium-emphasis">{{ itemsPerPageLabel }}</span>
+      <VSelect
+        class="table-pagination-footer__size"
+        density="compact"
+        hide-details
+        variant="plain"
+        :aria-label="itemsPerPageLabel"
+        :items="pageSizeItems"
+        :model-value="itemsPerPage"
+        @update:model-value="changePageSize"
+      />
+    </div>
 
-    <span class="table-pagination-footer__range text-caption text-medium-emphasis">{{ rangeText }}</span>
+    <div class="table-pagination-footer__navigation">
+      <span class="table-pagination-footer__range text-caption text-medium-emphasis">{{ rangeText }}</span>
 
-    <div class="table-pagination-footer__controls">
-      <VBtn
-        icon
-        size="small"
-        variant="text"
-        :disabled="!canGoPrevious"
-        :aria-label="firstLabel"
-        @click="goTo(1)"
-      >
-        <VIcon icon="tabler-chevrons-left" size="18" />
-      </VBtn>
-      <VBtn
-        icon
-        size="small"
-        variant="text"
-        :disabled="!canGoPrevious"
-        :aria-label="previousLabel"
-        @click="goTo(page - 1)"
-      >
-        <VIcon icon="tabler-chevron-left" size="18" />
-      </VBtn>
-      <VBtn
-        icon
-        size="small"
-        variant="text"
-        :disabled="!canGoNext"
-        :aria-label="nextLabel"
-        @click="goTo(page + 1)"
-      >
-        <VIcon icon="tabler-chevron-right" size="18" />
-      </VBtn>
-      <VBtn
-        icon
-        size="small"
-        variant="text"
-        :disabled="!canGoNext"
-        :aria-label="lastLabel"
-        @click="goTo(maxPage)"
-      >
-        <VIcon icon="tabler-chevrons-right" size="18" />
-      </VBtn>
+      <div class="table-pagination-footer__controls">
+        <VBtn
+          icon
+          size="small"
+          variant="text"
+          :disabled="!canGoPrevious"
+          :aria-label="firstLabel"
+          @click="goTo(1)"
+        >
+          <VIcon icon="tabler-chevrons-left" size="18" />
+        </VBtn>
+        <VBtn
+          icon
+          size="small"
+          variant="text"
+          :disabled="!canGoPrevious"
+          :aria-label="previousLabel"
+          @click="goTo(page - 1)"
+        >
+          <VIcon icon="tabler-chevron-left" size="18" />
+        </VBtn>
+        <VBtn
+          icon
+          size="small"
+          variant="text"
+          :disabled="!canGoNext"
+          :aria-label="nextLabel"
+          @click="goTo(page + 1)"
+        >
+          <VIcon icon="tabler-chevron-right" size="18" />
+        </VBtn>
+        <VBtn
+          icon
+          size="small"
+          variant="text"
+          :disabled="!canGoNext"
+          :aria-label="lastLabel"
+          @click="goTo(maxPage)"
+        >
+          <VIcon icon="tabler-chevrons-right" size="18" />
+        </VBtn>
+      </div>
     </div>
   </div>
 </template>
@@ -121,10 +126,15 @@ const changePageSize = (value: number | null) => {
 .table-pagination-footer {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding: 0.5rem 0.75rem;
+}
+
+.table-pagination-footer__size-group,
+.table-pagination-footer__navigation {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .table-pagination-footer__size {
@@ -155,7 +165,13 @@ const changePageSize = (value: number | null) => {
 
 @media (max-width: 599px) {
   .table-pagination-footer {
-    justify-content: center;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .table-pagination-footer__navigation {
+    justify-content: space-between;
   }
 }
 </style>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Country extends Model
@@ -22,5 +23,10 @@ class Country extends Model
     public function applicants()
     {
         return $this->hasManyThrough(Applicant::class, ScholarshipApplicantDetail::class, 'country_id', 'id', 'id', 'applicant_id')->where('applicants.service', 'scholarship');
+    }
+
+    public function visitors(): HasMany
+    {
+        return $this->hasMany(Visitor::class);
     }
 }

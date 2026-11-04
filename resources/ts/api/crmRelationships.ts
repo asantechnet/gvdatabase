@@ -22,6 +22,7 @@ export interface Relationship {
   tax_number?: string | null
   service?: string | null
   service_interest?: string | null
+  country?: { id: number; name: string; code?: string } | null
   stage?: string
   probability?: number | null
   estimated_value?: number | string | null
