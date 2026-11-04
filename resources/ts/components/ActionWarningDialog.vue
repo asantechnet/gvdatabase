@@ -174,7 +174,7 @@ const warningTone = computed(() => actionWarningState.request?.tone || 'warning'
 
   &--confirm {
     background: var(--warning-color) !important;
-    color: var(--warning-on-color) !important;
+    color: #fff !important;
 
     &:hover {
       filter: brightness(0.88);

@@ -35,7 +35,6 @@ function apply(clear = false) {
 <template>
   <VMenu
     v-model="open"
-    persistent
     :close-on-content-click="false"
     location="bottom end"
     :max-width="336"

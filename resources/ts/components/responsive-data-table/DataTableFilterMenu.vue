@@ -28,7 +28,7 @@ const open = defineModel<boolean>({ default: false })
       <VBtn
         v-bind="menuProps"
         icon="tabler-filter"
-        variant="tonal"
+        :variant="active ? 'flat' : 'tonal'"
         size="small"
         class="data-table-filter-menu__trigger"
         :color="active ? 'primary' : undefined"
@@ -81,5 +81,9 @@ const open = defineModel<boolean>({ default: false })
   justify-content: flex-end;
   gap: 0.5rem;
   margin-block-start: 1rem;
+}
+
+.data-table-filter-menu__trigger.v-btn--variant-flat {
+  color: rgb(var(--v-theme-on-primary));
 }
 </style>

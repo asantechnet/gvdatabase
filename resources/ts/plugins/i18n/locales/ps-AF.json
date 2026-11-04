@@ -1043,6 +1043,11 @@
       "logConversation": "خبرې ثبت کړئ",
       "conversationTitle": "د خبرو سرلیک",
       "conversationNotes": "د خبرو یادښتونه",
+      "contactPlaceholders": {
+        "followUp": "بېلګه: ۲۰۲۶-۱۱-۳۰ ۱۰:۰۰",
+        "title": "بېلګه: د بورس پوښتنې",
+        "notes": "بېلګه: د خدمت معلومات ولېږل شول."
+      },
       "conversationHint": "پرېکړې، اړتیاوې، خنډونه او راتلونکی ګام ثبت کړئ.",
       "followUp": "تعقیب (اختیاري)",
       "visitorNotes": "د لیدونکي یادښتونه",
@@ -1090,6 +1095,13 @@
       "category": "ډله",
       "notesOutcome": "یادښتونه او پایله",
       "contactedAt": "د اړیکې وخت",
+      "conversationPlaceholders": {
+        "category": "بېلګه: زنګ",
+        "title": "بېلګه: د بورس پوښتنې",
+        "notes": "بېلګه: د خدمت معلومات ولېږل شول.",
+        "contactedAt": "بېلګه: ۲۰۲۶-۱۱-۳۰ ۱۰:۰۰",
+        "followUp": "بېلګه: ۲۰۲۶-۱۲-۰۲ ۱۰:۰۰"
+      },
       "saveConversation": "خبرې خوندي کړئ",
       "deleteConfirm": "«{title}» حذف شي؟",
       "notesSaved": "د اړیکې یادښتونه خوندي شول",
@@ -2916,7 +2928,7 @@
           "consultant": "سلاکار",
           "consultantReview": "د سلاکار بیاکتنه",
           "consultantReviewHint": "د سلاکار ارزونه وټاکئ: غوره، ښه یا بد.",
-          "gradeScoreLabel": "د وړتیا نمره (۰–۱۰۰)",
+          "gradeScoreLabel": "د نمرو سلنه (۰–۱۰۰)",
           "gradeScoreHint": "د غوښتونکي د وړتیا فیصدي له ۰ څخه تر ۱۰۰ پورې ولیکئ.",
           "followUpEmpty": "لا تر اوسه هیڅ لیدونکی د تعقیب لپاره نښه شوی نه دی. په لیدونکو کې یو لیدونکی ستوری کړئ ترڅو دلته راشي.",
           "ageHint": "د ۱ او ۱۲۰ کلونو ترمنځ.",

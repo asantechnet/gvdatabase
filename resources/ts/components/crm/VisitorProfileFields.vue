@@ -52,6 +52,8 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
     <VCol cols="12" sm="6" md="3">
       <ErpField
         v-model="model.contact"
+        dir="ltr"
+        inputmode="tel"
         :label="$t('common.messages.contactPhone')"
         :placeholder="$t('pages.contracts.visitor.visitor.placeholders.contact')"
         :error-messages="errors?.contact"

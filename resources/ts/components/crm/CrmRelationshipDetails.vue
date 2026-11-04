@@ -4,14 +4,18 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import CrmApi, { type EntityType, type Channel, type Interaction, type Relationship } from '@/api/crmRelationships'
+import ErpField from '@/components/erp/ErpField.vue'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const props = withDefaults(defineProps<{
   type: EntityType
   id: number
   title?: string
   mobileAction?: boolean
+  menuAction?: boolean
 }>(), {
   mobileAction: false,
+  menuAction: false,
 })
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -24,6 +28,7 @@ const channelFilter = ref<Channel | 'all'>('all')
 const interactionDialog = ref(false)
 const editingInteractionId = ref<number | null>(null)
 const notesDraft = ref('')
+const interactionErrors = ref({ title: '' })
 
 const form = ref<{ channel: Channel; title: string; notes: string; contacted_at: string; follow_up_at: string | null }>({
   channel: 'note', title: '', notes: '', contacted_at: '', follow_up_at: null,
@@ -69,6 +74,14 @@ const detailItems = computed(() => {
     { key: 'email', icon: 'tabler-mail', label: t('common.crmDetails.fields.email'), value: item.email },
     { key: 'service', icon: 'tabler-briefcase', label: t('common.crmDetails.fields.service'), value: item.service || item.service_interest },
     { key: 'country', icon: 'tabler-world', label: t('common.fields.country'), value: item.country?.name },
+    { key: 'education-level', icon: 'tabler-school', label: t('educational.educationLevel'), value: item.education_level?.name },
+    { key: 'age', icon: 'tabler-user', label: t('pages.contracts.visitor.visitor.age'), value: item.age },
+    { key: 'grade-score', icon: 'tabler-percentage', label: t('pages.contracts.visitor.visitor.gradeScoreLabel'), value: item.grade_score == null ? null : `${item.grade_score}%` },
+    { key: 'province', icon: 'tabler-map-pin', label: t('pages.contracts.visitor.visitor.province'), value: item.province?.name },
+    { key: 'english-level', icon: 'tabler-language', label: t('pages.contracts.visitor.visitor.englishLevel'), value: item.english_level?.name },
+    { key: 'acquisition-route', icon: 'tabler-speakerphone', label: t('pages.contracts.visitor.visitor.acquisitionRoute'), value: item.acquisition_route?.name },
+    { key: 'consultant', icon: 'tabler-user-star', label: t('pages.contracts.visitor.visitor.consultant'), value: item.consultant?.name },
+    { key: 'consultant-review', icon: 'tabler-message', label: t('pages.contracts.visitor.visitor.consultantReview'), value: item.consultant_review },
     { key: 'owner', icon: 'tabler-user-check', label: t('common.crmDetails.fields.owner'), value: item.responsible_employee?.name ?? item.owner?.name },
     { key: 'stage', icon: 'tabler-progress-check', label: t('common.crmDetails.fields.stage'), value: item.current_stage?.name ?? item.stage },
     { key: 'probability', icon: 'tabler-percentage', label: t('common.crmDetails.fields.probability'), value: item.probability == null ? null : `${item.probability}%` },
@@ -128,12 +141,13 @@ const saveProfileNotes = async () => {
 }
 
 const startInteraction = (interaction?: Interaction) => {
+  interactionErrors.value.title = ''
   editingInteractionId.value = interaction?.id ?? null
   form.value = interaction
     ? {
         channel: interaction.channel,
         title: interaction.title,
-        notes: interaction.notes,
+        notes: interaction.notes ?? '',
         contacted_at: pickerDate(interaction.contacted_at),
         follow_up_at: interaction.follow_up_at ? pickerDate(interaction.follow_up_at) : null,
       }
@@ -148,7 +162,8 @@ const startInteraction = (interaction?: Interaction) => {
 }
 
 const saveInteraction = async () => {
-  if (!form.value.title.trim() || !form.value.notes.trim())
+  interactionErrors.value.title = form.value.title.trim() ? '' : t('erp.required')
+  if (interactionErrors.value.title)
     return
 
   saving.value = true
@@ -173,7 +188,16 @@ const saveInteraction = async () => {
 }
 
 const removeInteraction = async (interaction: Interaction) => {
-  if (!window.confirm(t('common.crmDetails.deleteConfirm', { title: interaction.title })))
+  const confirmed = await confirmActionWarning({
+    key: 'delete-crm-interaction',
+    title: t('common.crmDetails.deleteConfirm', { title: interaction.title }),
+    message: t('common.crmDetails.deleteConfirm', { title: interaction.title }),
+    confirmText: t('common.actions.delete'),
+    cancelText: t('common.actions.cancel'),
+    icon: 'tabler-trash',
+    tone: 'error',
+  })
+  if (!confirmed)
     return
 
   try {
@@ -189,17 +213,17 @@ const removeInteraction = async (interaction: Interaction) => {
 
 <template>
   <VBtn
-    :icon="!props.mobileAction"
+    :icon="!props.mobileAction && !props.menuAction"
     :block="props.mobileAction"
     variant="text"
-    size="small"
-    color="primary"
-    :class="{ 'crm-relationship-details__mobile-action': props.mobileAction }"
+    :size="props.menuAction ? undefined : 'small'"
+    :color="props.menuAction ? undefined : 'primary'"
+    :class="{ 'crm-relationship-details__mobile-action': props.mobileAction, 'crm-relationship-details__menu-action': props.menuAction }"
     :aria-label="$t('common.crmDetails.relationshipDetails')"
     @click.stop="show"
   >
     <VIcon icon="tabler-address-book" />
-    <span v-if="props.mobileAction" class="ms-2">
+    <span v-if="props.mobileAction || props.menuAction" class="ms-2">
       {{ $t('common.crmDetails.relationshipDetails') }}
     </span>
     <VTooltip
@@ -213,6 +237,7 @@ const removeInteraction = async (interaction: Interaction) => {
   <VDialog
     v-model="open"
     max-width="980"
+    class="relationship-dialog-overlay"
   >
     <VCard class="relationship-dialog">
       <VCardText class="relationship-hero pa-5 pa-sm-6">
@@ -249,29 +274,6 @@ const removeInteraction = async (interaction: Interaction) => {
             :aria-label="$t('common.actions.close')"
             @click="open = false"
           />
-        </div>
-        <div class="d-flex flex-wrap ga-2 mt-5">
-          <VChip
-            v-if="record?.contact"
-            prepend-icon="tabler-phone"
-            variant="outlined"
-          >
-            {{ record.contact }}
-          </VChip>
-          <VChip
-            v-if="record?.email"
-            prepend-icon="tabler-mail"
-            variant="outlined"
-          >
-            {{ record.email }}
-          </VChip>
-          <VChip
-            v-if="record?.service || record?.service_interest"
-            prepend-icon="tabler-briefcase"
-            variant="outlined"
-          >
-            {{ record.service || record.service_interest }}
-          </VChip>
         </div>
       </VCardText>
       <VDivider />
@@ -646,64 +648,82 @@ const removeInteraction = async (interaction: Interaction) => {
   <VDialog
     v-model="interactionDialog"
     max-width="620"
+    class="relationship-interaction-dialog"
   >
-    <VCard :title="$t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation')">
-      <VCardText>
-        <VSelect
+    <VCard class="relationship-interaction-card">
+      <VCardTitle class="relationship-interaction-card__title px-5 py-5">
+        <span class="relationship-interaction-card__heading">{{ $t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation') }}</span>
+        <VSpacer />
+        <VBtn icon="tabler-x" variant="tonal" color="error" class="relationship-interaction-card__close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="interactionDialog = false" />
+      </VCardTitle>
+      <VCardText class="relationship-interaction-card__body pa-5 pa-sm-6">
+        <div class="relationship-interaction-card__fields">
+          <ErpField
           v-model="form.channel"
+          kind="select"
           :items="channels"
           item-title="label"
           item-value="value"
           :label="$t('common.crmDetails.category')"
-          class="mb-3"
+          :placeholder="$t('common.crmDetails.conversationPlaceholders.category')"
+          required
+          :show-required-rule="false"
         />
-        <VTextField
+        <ErpField
           v-model="form.title"
           :label="$t('common.crmUi.conversationTitle')"
-          class="mb-3"
+          :placeholder="$t('common.crmDetails.conversationPlaceholders.title')"
+          :error-messages="interactionErrors.title"
+          required
+          :show-required-rule="false"
           autofocus
         />
-        <VTextarea
+        <ErpField
           v-model="form.notes"
+          kind="textarea"
           :label="$t('common.crmDetails.notesOutcome')"
+          :placeholder="$t('common.crmDetails.conversationPlaceholders.notes')"
           rows="5"
-          class="mb-3"
+          auto-grow
         />
         <VRow>
           <VCol
             cols="12"
             sm="6"
           >
-            <AppDateTimePicker
-              v-model="form.contacted_at"
-              :label="$t('common.crmDetails.contactedAt')"
-              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: compactCalendar }"
-            />
+            <div class="erp-field">
+              <label class="erp-field-label">{{ $t('common.crmDetails.contactedAt') }}</label>
+              <AppDateTimePicker v-model="form.contacted_at" class="erp-field-control" :placeholder="$t('common.crmDetails.conversationPlaceholders.contactedAt')" :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'auto', onOpen: compactCalendar }" />
+            </div>
           </VCol>
           <VCol
             cols="12"
             sm="6"
           >
-            <AppDateTimePicker
-              v-model="form.follow_up_at"
-              :label="$t('common.crmUi.followUp')"
-              clearable
-              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: compactCalendar }"
-            />
+            <div class="erp-field">
+              <label class="erp-field-label">{{ $t('common.crmUi.followUp') }}</label>
+              <AppDateTimePicker v-model="form.follow_up_at" clearable class="erp-field-control" :placeholder="$t('common.crmDetails.conversationPlaceholders.followUp')" :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'auto', onOpen: compactCalendar }" />
+            </div>
           </VCol>
         </VRow>
+        </div>
       </VCardText>
-      <VCardActions>
+      <VCardActions class="relationship-interaction-card__actions px-5 py-4">
         <VSpacer />
         <VBtn
-          variant="text"
+          variant="flat"
+          color="error"
+          class="relationship-interaction-card__cancel"
+          :disabled="saving"
           @click="interactionDialog = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
+          color="primary"
+          variant="flat"
+          class="relationship-interaction-card__save"
           :loading="saving"
-          :disabled="!form.title.trim() || !form.notes.trim()"
           @click="saveInteraction"
         >
           {{ $t('common.crmDetails.saveConversation') }}
@@ -712,6 +732,15 @@ const removeInteraction = async (interaction: Interaction) => {
     </VCard>
   </VDialog>
 </template>
+
+<style>
+.relationship-dialog-overlay .v-overlay__scrim,
+.relationship-interaction-dialog .v-overlay__scrim {
+  background: rgba(var(--v-theme-on-surface), 0.26) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
+}
+</style>
 
 <style scoped>
 .relationship-dialog {
@@ -743,7 +772,45 @@ const removeInteraction = async (interaction: Interaction) => {
 .interaction-card { transition: border-color .18s ease, transform .18s ease; }
 .interaction-card:hover { border-color: rgba(var(--v-theme-primary), .45) !important; transform: translateY(-1px); }
 .crm-relationship-details__mobile-action { justify-content: flex-start; }
+.crm-relationship-details__menu-action {
+  justify-content: flex-start;
+  inline-size: 100%;
+  min-height: 40px;
+  padding-inline: 16px;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.crm-relationship-details__menu-action :deep(.v-btn__content),
+.crm-relationship-details__menu-action :deep(.v-icon) {
+  color: inherit !important;
+}
 .min-w-0 { min-width: 0; }
+
+.relationship-interaction-card { overflow: hidden; }
+.relationship-interaction-card__title,
+.relationship-interaction-card__actions {
+  display: flex;
+  align-items: center;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  border-style: solid;
+  border-width: 0;
+}
+.relationship-interaction-card__title { border-block-end-width: 1px; }
+.relationship-interaction-card__actions { border-block-start-width: 1px; }
+.relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 700; }
+.relationship-interaction-card__close { border: 1px solid rgba(var(--v-theme-error), .34) !important; border-radius: 50% !important; }
+.relationship-interaction-card__fields { display: grid; gap: 12px; }
+.relationship-interaction-card__cancel {
+  border: 1px solid rgb(var(--v-theme-error)) !important;
+  background: rgba(var(--v-theme-error), .12) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+.relationship-interaction-card__cancel:hover,
+.relationship-interaction-card__cancel:focus-visible { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.relationship-interaction-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 @media (max-height: 650px) {
   .relationship-dialog { max-block-size: calc(100dvh - 16px); }

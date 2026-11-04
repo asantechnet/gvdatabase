@@ -49,11 +49,12 @@ export interface VisitorParams {
   consultant_employee_id?: number | null
   country_id?: number | null
   education_level_id?: number | null
-  province_id?: number | null
   english_level_id?: number | null
   acquisition_route_id?: number | null
   date_from?: string
   date_to?: string
+  sort_by?: 'name' | 'contact' | 'email' | 'service' | 'date'
+  sort_direction?: 'asc' | 'desc'
   /** 1 = only follow-up worthy visitors, 0 = only the rest. Omit for every visitor. */
   follow_up?: 0 | 1
 }

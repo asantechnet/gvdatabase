@@ -614,6 +614,11 @@
       "logConversation": "Log conversation",
       "conversationTitle": "Conversation title",
       "conversationNotes": "Conversation notes",
+      "contactPlaceholders": {
+        "followUp": "e.g. 2026-11-30 10:00",
+        "title": "e.g. Scholarship questions",
+        "notes": "e.g. Sent service details."
+      },
       "conversationHint": "Capture decisions, needs, objections, and the promised next step.",
       "followUp": "Follow-up (optional)",
       "visitorNotes": "Visitor notes",
@@ -732,6 +737,13 @@
       "category": "Category",
       "notesOutcome": "Notes and outcome",
       "contactedAt": "Contacted at",
+      "conversationPlaceholders": {
+        "category": "e.g. Call",
+        "title": "e.g. Scholarship questions",
+        "notes": "e.g. Sent service details.",
+        "contactedAt": "e.g. 2026-11-30 10:00",
+        "followUp": "e.g. 2026-12-02 10:00"
+      },
       "saveConversation": "Save conversation",
       "deleteConfirm": "Delete “{title}”?",
       "notesSaved": "Relationship notes saved",

@@ -7,6 +7,7 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 import type { WhatsappAudience, WhatsappPlaceholderField, WhatsappTemplate } from '@/api/whatsappTemplates'
 import { activeWhatsappTemplates, whatsappPlaceholderFields } from '@/composables/useWhatsappTemplates'
 import { buildWhatsappUrl, renderWhatsappMessage, whatsappPhoneDigits } from '@/utils/whatsappTemplates'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{
   kind: 'phone' | 'email'
@@ -38,6 +39,7 @@ onMounted(() => {
 const pendingAction = ref<ContactAction | null>(null)
 const saving = ref(false)
 const form = ref({ title: '', notes: '', follow_up_at: null as string | null })
+const formErrors = ref({ title: '' })
 const whatsappTemplates = ref<WhatsappTemplate[]>([])
 const placeholderFields = ref<WhatsappPlaceholderField[]>([])
 
@@ -71,6 +73,7 @@ const sendWhatsappTemplate = (template: WhatsappTemplate, event: MouseEvent | Ke
 
   pendingAction.value = { label: template.title, icon: 'tabler-brand-whatsapp', href: '' }
   form.value = { title: `${template.title} conversation`, notes: '', follow_up_at: null }
+  formErrors.value.title = ''
   dialog.value = true
 }
 
@@ -87,6 +90,7 @@ const begin = (action: ContactAction, event: MouseEvent | KeyboardEvent) => {
   event.preventDefault()
   pendingAction.value = action
   form.value = { title: `${action.label} conversation`, notes: '', follow_up_at: null }
+  formErrors.value.title = ''
   dialog.value = true
 
   // Launch the user's communication app from the original click so browser
@@ -98,7 +102,8 @@ const begin = (action: ContactAction, event: MouseEvent | KeyboardEvent) => {
 }
 
 const saveConversation = async () => {
-  if (!pendingAction.value || !props.contactableType || !props.contactableId || !form.value.title.trim() || !form.value.notes.trim())
+  formErrors.value.title = form.value.title.trim() ? '' : t('erp.required')
+  if (!pendingAction.value || !props.contactableType || !props.contactableId || formErrors.value.title)
     return
   saving.value = true
   try {
@@ -283,50 +288,53 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
     </VList>
   </VMenu>
 
-  <VDialog
-    v-model="dialog"
-    max-width="560"
-  >
-    <VCard>
-      <VCardTitle class="d-flex align-center gap-2">
-        <VIcon
-          icon="tabler-message-circle"
-          color="primary"
-        />{{ $t('common.crmUi.logConversation') }}
+  <VDialog v-model="dialog" max-width="560" class="contact-log-dialog">
+    <VCard class="contact-log-card">
+      <VCardTitle class="contact-log-card__title px-5 py-5">
+        <span class="contact-log-card__heading">{{ $t('common.crmUi.logConversation') }}</span>
+        <VSpacer />
+        <VBtn icon="tabler-x" variant="tonal" color="error" class="contact-log-card__close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="dialog = false" />
       </VCardTitle>
-      <VCardText>
-        <AppDateTimePicker
-          v-model="form.follow_up_at"
-          :label="$t('common.crmUi.followUp')"
-          clearable
-          class="mb-3"
-          :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: offsetFollowUpCalendar }"
-        />
-        <VTextField
+      <VCardText class="contact-log-card__body pa-5 pa-sm-6">
+        <div class="contact-log-card__fields">
+          <div class="erp-field">
+            <label class="erp-field-label">{{ $t('common.crmUi.followUp') }}</label>
+            <AppDateTimePicker
+              v-model="form.follow_up_at"
+              :placeholder="$t('common.crmUi.contactPlaceholders.followUp')"
+              clearable
+              class="erp-field-control"
+              :config="{ enableTime: true, dateFormat: 'Y-m-d H:i', static: false, position: 'below', onOpen: offsetFollowUpCalendar }"
+            />
+          </div>
+          <ErpField
           v-model="form.title"
           :label="$t('common.crmUi.conversationTitle')"
+          :placeholder="$t('common.crmUi.contactPlaceholders.title')"
+          :error-messages="formErrors.title"
+          required
+          :show-required-rule="false"
           autofocus
-          class="mb-3"
-        />
-        <VTextarea
+          />
+          <ErpField
           v-model="form.notes"
+          kind="textarea"
           :label="$t('common.crmUi.conversationNotes')"
+          :placeholder="$t('common.crmUi.contactPlaceholders.notes')"
           rows="5"
-          :hint="$t('common.crmUi.conversationHint')"
-          persistent-hint
-          class="mb-3"
-        />
+          auto-grow
+          />
+        </div>
       </VCardText>
-      <VCardActions>
-        <VSpacer /><VBtn
-          variant="text"
+      <VCardActions class="contact-log-card__actions px-5 py-4">
+        <VSpacer />
+        <VBtn variant="flat" color="error" class="contact-log-card__cancel" :disabled="saving"
           @click="dialog = false"
         >
           {{ $t('common.actions.cancel') }}
-        </VBtn><VBtn
-          prepend-icon="tabler-device-floppy"
+        </VBtn>
+        <VBtn color="primary" variant="flat" class="contact-log-card__save"
           :loading="saving"
-          :disabled="!form.title.trim() || !form.notes.trim()"
           @click="saveConversation"
         >
           {{ $t('common.actions.save') }}
@@ -339,6 +347,12 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
 <style>
 .flatpickr-calendar.open {
   z-index: 9999 !important;
+}
+
+.contact-log-dialog .v-overlay__scrim {
+  background: rgba(var(--v-theme-on-surface), 0.26) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
 }
 
 </style>
@@ -367,6 +381,30 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
 .contact-action-menu__value {
   min-inline-size: 0;
 }
+
+.contact-log-card { overflow: hidden; }
+.contact-log-card__title,
+.contact-log-card__actions {
+  display: flex;
+  align-items: center;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  border-style: solid;
+  border-width: 0;
+}
+.contact-log-card__title { border-block-end-width: 1px; }
+.contact-log-card__actions { border-block-start-width: 1px; }
+.contact-log-card__heading { font-size: 1.35rem; font-weight: 700; }
+.contact-log-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
+.contact-log-card__fields { display: grid; gap: 12px; }
+.contact-log-card__cancel {
+  border: 1px solid rgb(var(--v-theme-error)) !important;
+  background: rgba(var(--v-theme-error), 0.12) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+.contact-log-card__cancel:hover,
+.contact-log-card__cancel:focus-visible { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.contact-log-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 .contact-action-menu__value {
   overflow: hidden;

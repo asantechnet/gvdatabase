@@ -614,6 +614,11 @@
       "logConversation": "ثبت گفتگو",
       "conversationTitle": "عنوان گفتگو",
       "conversationNotes": "یادداشت گفتگو",
+      "contactPlaceholders": {
+        "followUp": "مثلاً ۲۰۲۶-۱۱-۳۰ ۱۰:۰۰",
+        "title": "مثلاً پرسش‌های بورسیه",
+        "notes": "مثلاً جزئیات خدمات فرستاده شد."
+      },
       "conversationHint": "تصمیم‌ها، نیازها، موانع و گام بعدی را ثبت کنید.",
       "followUp": "پیگیری (اختیاری)",
       "visitorNotes": "یادداشت بازدیدکننده",
@@ -732,6 +737,13 @@
       "category": "دسته",
       "notesOutcome": "یادداشت و نتیجه",
       "contactedAt": "زمان تماس",
+      "conversationPlaceholders": {
+        "category": "مثلاً تماس",
+        "title": "مثلاً پرسش‌های بورسیه",
+        "notes": "مثلاً جزئیات خدمات فرستاده شد.",
+        "contactedAt": "مثلاً ۲۰۲۶-۱۱-۳۰ ۱۰:۰۰",
+        "followUp": "مثلاً ۲۰۲۶-۱۲-۰۲ ۱۰:۰۰"
+      },
       "saveConversation": "ذخیره گفتگو",
       "deleteConfirm": "«{title}» حذف شود؟",
       "notesSaved": "یادداشت‌های رابطه ذخیره شد",
@@ -2558,7 +2570,7 @@
           "consultant": "مشاور",
           "consultantReview": "بررسی مشاور",
           "consultantReviewHint": "ارزیابی مشاور را انتخاب کنید: عالی، خوب یا بد.",
-          "gradeScoreLabel": "نمره صلاحیت (۰–۱۰۰)",
+          "gradeScoreLabel": "فیصدی نمرات (۰–۱۰۰)",
           "gradeScoreHint": "فیصدی صلاحیت متقاضی را از ۰ تا ۱۰۰ وارد کنید.",
           "followUpEmpty": "هنوز هیچ بازدیدکنندهای برای پیگیری علامتگذاری نشده است. یک بازدیدکننده را در فهرست بازدیدکنندگان ستاره کنید تا به اینجا منتقل شود.",
           "ageHint": "بین ۱ تا ۱۲۰ سال.",

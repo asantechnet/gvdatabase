@@ -18,6 +18,7 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { useCookie } from '@core/composable/useCookie'
 
 const visitors = ref<Visitor[]>([])
@@ -39,6 +40,8 @@ const isFollowUpList = computed(() => route.query.list === 'follow-up')
 const filterConsultantId = ref<number | null>(/^\d+$/.test(String(route.query.consultant_employee_id ?? '')) ? Number(route.query.consultant_employee_id) || null : null)
 const filterCountryId = ref<number | null>(null)
 const filterService = ref<BuiltInService | ''>('')
+const sortBy = ref<'name' | 'contact' | 'email' | 'service' | 'date'>('date')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 const filterMenuOpen = ref(false)
 const filterDraft = reactive({
   dateFrom: '',
@@ -74,10 +77,6 @@ const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
 const activeCountries = computed(() => (catalogs.value.countries ?? [])
   .filter(country => country.is_active)
   .map(country => ({ title: country.name, value: country.id })))
-const activeProvinces = computed(() => (catalogs.value.provinces ?? [])
-  .filter(province => province.is_active)
-  .map(province => ({ title: province.name, value: province.id })))
-
 // A consultant creating a visitor owns that visitor: the consultant field is
 // pre-filled with the signed-in employee and locked so the case cannot be
 // attributed to somebody else from the form.
@@ -233,6 +232,8 @@ const listParams = () => ({
   consultant_employee_id: filterConsultantId.value || undefined,
   country_id: filterCountryId.value || undefined,
   service: filterService.value || undefined,
+  sort_by: sortBy.value,
+  sort_direction: sortDirection.value,
   follow_up: (isFollowUpList.value ? 1 : 0) as 0 | 1,
 })
 
@@ -287,12 +288,21 @@ const fetchVisitors = async () => {
   }
 }
 
-function updateTableOptions(options: { page: number; itemsPerPage: number }) {
-  if (page.value === options.page && perPage.value === options.itemsPerPage)
+function updateTableOptions(options: { page: number; itemsPerPage: number; sortBy?: Array<{ key: string; order?: 'asc' | 'desc' }> }) {
+  const requestedSort = options.sortBy?.[0]
+  const sortableFields = ['name', 'contact', 'email', 'service', 'date'] as const
+  const nextSortBy = requestedSort && sortableFields.includes(requestedSort.key as typeof sortableFields[number])
+    ? requestedSort.key as typeof sortableFields[number]
+    : 'date'
+  const nextDirection = requestedSort?.order === 'asc' ? 'asc' : 'desc'
+
+  if (page.value === options.page && perPage.value === options.itemsPerPage && sortBy.value === nextSortBy && sortDirection.value === nextDirection)
     return
 
   page.value = options.page
   perPage.value = options.itemsPerPage
+  sortBy.value = nextSortBy
+  sortDirection.value = nextDirection
   fetchVisitors()
 }
 
@@ -314,11 +324,11 @@ const serviceLabel = (visitor: Visitor) => visitor.service_label_key ? translate
 const headers = computed(() => [
   { title: translate('common.fields.name'), key: 'name', sortable: true },
   { title: translate('common.messages.contact'), key: 'contact', sortable: true },
-  { title: translate('common.fields.email'), key: 'email', sortable: true },
+  ...(isFollowUpList.value ? [{ title: translate('common.fields.email'), key: 'email', sortable: true }] : []),
   { title: translate('common.messages.service'), key: 'service', sortable: true },
   { title: translate('common.fields.country'), key: 'country', sortable: false },
   { title: translate('educational.educationLevel'), key: 'education', sortable: false },
-  { title: translate('pages.contracts.visitor.visitor.consultant'), key: 'consultant', sortable: true },
+  { title: translate('pages.contracts.visitor.visitor.consultant'), key: 'consultant', sortable: false },
   { title: translate('pages.contracts.visitor.visitor.review'), key: 'review', sortable: false },
   { title: translate('common.fields.date'), key: 'date', sortable: true },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
@@ -327,7 +337,7 @@ const headers = computed(() => [
 const visitorReportRow = (visitor: Visitor): string[] => [
   visitor.name,
   visitor.contact,
-  visitor.email || '—',
+  ...(isFollowUpList.value ? [visitor.email || '—'] : []),
   serviceLabel(visitor),
   visitor.country?.name || '—',
   visitor.education_level?.name || '—',
@@ -567,7 +577,7 @@ onMounted(async () => {
       >
         <VCol
           cols="12"
-          md="8"
+          md="7"
         >
           <ErpSearchField
             v-model="search"
@@ -577,7 +587,7 @@ onMounted(async () => {
         </VCol>
         <VCol
           cols="12"
-          md="4"
+          md="5"
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
@@ -638,7 +648,7 @@ onMounted(async () => {
       :items-per-page="perPage"
       :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
-      class="crm-responsive-table"
+      :class="['crm-responsive-table', { 'crm-responsive-table--with-email': isFollowUpList }]"
       mobile-breakpoint="sm"
       mobile-cards
       mobile-expand-all
@@ -737,7 +747,15 @@ onMounted(async () => {
           </template>
 
           <VList class="visitor-actions-menu" density="compact" min-width="220">
+            <CrmRelationshipDetails
+              v-if="isFollowUpList"
+              type="visitor"
+              :id="item.id"
+              :title="item.name"
+              menu-action
+            />
             <VListItem
+              v-if="!isFollowUpList"
               prepend-icon="tabler-address-book"
               :title="$t('common.actions.viewFullDetails')"
               @click="openVisitorDetails(item)"
@@ -1101,7 +1119,7 @@ onMounted(async () => {
 @media (max-width: 1279px) { .table-toolbar-actions { justify-content: flex-start; } }
 
 .crm-responsive-table .v-table__wrapper > table {
-  min-inline-size: 1240px;
+  min-inline-size: 1180px;
 }
 
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th,
@@ -1110,27 +1128,40 @@ onMounted(async () => {
 }
 
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(1),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(1) { min-inline-size: 11rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(1) { min-inline-size: 10rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(2),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 9rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 10rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(3),
 .crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 9rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 8rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 9rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(5),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 10rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 9rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(6),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 8rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 11rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(7),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(7) { min-inline-size: 10rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(7) { min-inline-size: 11rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(8),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(8) { min-inline-size: 11rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(8) { min-inline-size: 8rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(9),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(9) { min-inline-size: 9rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(9) { min-inline-size: 5rem; }
 .crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(10),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(10) { min-inline-size: 8rem; }
-.crm-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(11),
-.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(11) { min-inline-size: 4.5rem; }
+.crm-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(10) { min-inline-size: 5rem; }
+
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(3),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 13rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(4),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 9rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(5),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 9rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(6),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 11rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(7),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(7) { min-inline-size: 11rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(8),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(8) { min-inline-size: 8rem; }
+.crm-responsive-table--with-email .v-table__wrapper > table > thead > tr > th:nth-child(9),
+.crm-responsive-table--with-email .v-table__wrapper > table > tbody > tr > td:nth-child(9) { min-inline-size: 8rem; }
 
 .crm-responsive-table .v-table__wrapper > table > tbody > tr:hover > td {
   background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
@@ -1215,7 +1246,19 @@ onMounted(async () => {
   color: rgb(var(--v-theme-primary)) !important;
 }
 
-.visitor-filter-reset:hover { background-color: rgba(var(--v-theme-primary), 0.2) !important; }
+.visitor-filter-reset:hover,
+.visitor-filter-reset:focus-visible,
+.visitor-filter-apply,
+.visitor-filter-apply:hover,
+.visitor-filter-apply:focus-visible {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.visitor-contact-value {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
 
 .visitor-form-dialog .visitor-form-card {
   overflow: hidden;
