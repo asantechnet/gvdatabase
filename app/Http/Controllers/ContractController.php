@@ -61,8 +61,11 @@ class ContractController extends Controller
             'counterparty' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'],
+            'contract_template_version_id' => ['nullable', 'integer', Rule::exists('contract_template_versions', 'id')],
             'only_cancelled' => ['nullable', 'boolean'],
             'expiring' => ['nullable', 'boolean'],
+            'sort_by' => ['nullable', Rule::in(['contract_number', 'counterparty', 'start_date', 'status', 'created_at'])],
+            'sort_direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'service_id' => ['prohibited'], 'service_ids' => ['prohibited'],
             'without_service' => ['prohibited'],
         ]);
@@ -86,6 +89,9 @@ class ContractController extends Controller
         }
         if (! empty($data['status'])) {
             $query->where('status', $data['status']);
+        }
+        if (! empty($data['contract_template_version_id'])) {
+            $query->where('contract_template_version_id', $data['contract_template_version_id']);
         }
         // Same definition as the dashboard's contracts-requiring-attention tile:
         // an active, non-cancelled contract whose end date is on or before 30
@@ -112,8 +118,11 @@ class ContractController extends Controller
         $query->when(! empty($data['date_from']), fn ($q) => $q->whereDate('start_date', '>=', $data['date_from']))
             ->when(! empty($data['date_to']), fn ($q) => $q->whereDate('start_date', '<=', $data['date_to']));
         ContractAccess::scopeVisibleTo($query, $request->user());
-        // Newest agreements first, matching every other record list.
-        $query->orderByDesc('created_at')->orderByDesc('id');
+        // Keep the register ascending until the operator changes a table
+        // header. Only validated column names are used here.
+        $sortBy = $data['sort_by'] ?? 'start_date';
+        $sortDirection = $data['sort_direction'] ?? 'asc';
+        $query->orderBy($sortBy, $sortDirection)->orderBy('id', $sortDirection);
 
         if ($this->requestedPerPage($request)) {
             return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => ContractResource::collection($rows)->resolve()));
@@ -234,6 +243,19 @@ class ContractController extends Controller
             'template' => ($template = ContractTemplate::with(['versions' => fn ($query) => $query->where('status', 'active')->orderByDesc('is_current')->orderByDesc('version_number')->with(['country', 'language', 'test'])])->where('service', $service)->first())
                 ? new ContractTemplateResource($template) : null,
         ]]);
+    }
+
+    /** Compact list for the contract register filter; contract viewers do not
+     * need the full creation-options payload to filter issued contracts. */
+    public function versionOptions(Request $request, string $service): JsonResponse
+    {
+        abort_unless(BuiltInService::isValid($service), 404);
+
+        $template = ContractTemplate::query()->where('service', $service)->first();
+
+        return response()->json(['success' => true, 'data' => $template
+            ? $template->versions()->orderByDesc('version_number')->get(['id', 'name', 'version_number'])
+            : []]);
     }
 
     /**

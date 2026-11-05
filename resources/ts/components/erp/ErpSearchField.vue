@@ -40,6 +40,8 @@ defineProps<{
 
 .erp-search-field .v-field__input { min-height: 38px; }
 
+.erp-search-field .v-field__outline { --v-field-border-opacity: 0.44; }
+
 .erp-search-field .v-field--focused {
   outline: 3px solid rgba(var(--v-theme-primary), 0.2);
 }

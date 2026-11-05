@@ -97,6 +97,9 @@ const routeDefinitions: Array<{
   { path: '/payrolls', component: 'payrolls', name: 'payrolls', meta: { requiresAuth: true, action: 'read', subject: 'view_salaries' } },
   { path: '/staff-salary', redirect: { name: 'payrolls' } },
   { path: '/bonuslist', component: 'bonuslist', name: 'bonuslist', meta: { requiresAuth: true, action: 'read', subject: 'view_bonuses' } },
+  // Private is the main contracts workspace. Keep a direct /contracts URL so
+  // menu links and old bookmarks land on the same default service.
+  { path: '/contracts', redirect: { name: 'private-contracts' }, name: 'contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/contracts/scholarship', component: 'serviceContracts', name: 'scholarship-contracts', meta: { builtInService: 'scholarship', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/contracts/test-offer', component: 'serviceContracts', name: 'test-offer-contracts', meta: { builtInService: 'test_offer', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/contracts/private', component: 'serviceContracts', name: 'private-contracts', meta: { builtInService: 'private', requiresAuth: true, action: 'read', subject: 'view_contracts' } },

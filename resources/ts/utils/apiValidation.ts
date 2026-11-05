@@ -14,7 +14,7 @@ const serviceContractRules: Schema = {
   currency_id: ['required', 'integer'], currency_rate: ['required', 'numeric', 'gt:0', 'max:9999999'],
   // `start_date` is prohibited server-side: ContractGenerationService derives it
   // from today. A client rule here rejected every valid dialog submission.
-  language_id: ['required', 'integer'],
+  language_id: ['nullable', 'integer'],
   email: ['nullable', 'email', 'max:255'], responsible_employee_id: ['nullable', 'integer'],
 }
 

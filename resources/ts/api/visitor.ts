@@ -49,11 +49,12 @@ export interface VisitorParams {
   consultant_employee_id?: number | null
   country_id?: number | null
   education_level_id?: number | null
-  province_id?: number | null
   english_level_id?: number | null
   acquisition_route_id?: number | null
   date_from?: string
   date_to?: string
+  sort_by?: 'name' | 'contact' | 'email' | 'service' | 'date'
+  sort_direction?: 'asc' | 'desc'
   /** 1 = only follow-up worthy visitors, 0 = only the rest. Omit for every visitor. */
   follow_up?: 0 | 1
 }
@@ -97,21 +98,22 @@ export interface VisitorFormData {
 }
 
 /**
- * The visitor fields that also exist on an applicant/contract. Only present
- * values are copied so selecting a visitor never clears what the operator
- * already typed.
+ * The visitor fields that also exist on an applicant/contract. The mapper
+ * carries every compatible CRM value, including explicit blanks, so selecting
+ * a visitor produces one faithful applicant form instead of mixed records.
  */
-export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact' | 'email' | 'education_level_id' | 'grade_score'>): ApplicantPayload => {
+export const visitorApplicantFields = (visitor: Pick<Visitor, 'name' | 'contact' | 'email' | 'country_id' | 'education_level_id' | 'grade_score' | 'consultant_employee_id' | 'notes'>): ApplicantPayload => {
   const payload: ApplicantPayload = {
     name: visitor.name,
     contact: visitor.contact,
+    country_id: visitor.country_id,
+    education_level_id: visitor.education_level_id,
+    grade_score: visitor.grade_score,
+    responsible_employee_id: visitor.consultant_employee_id,
+    notes: visitor.notes ?? '',
   }
   if (visitor.email)
     payload.email = visitor.email
-  if (visitor.education_level_id != null)
-    payload.education_level_id = visitor.education_level_id
-  if (visitor.grade_score != null && visitor.grade_score !== '')
-    payload.grade_score = visitor.grade_score
 
   return payload
 }

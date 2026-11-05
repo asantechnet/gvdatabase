@@ -359,6 +359,17 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       const mobileMenuAction = props.mobileActionsAsMenu && actionColumn && actionProps
         ? collectActionNodes(slots[`item.${actionColumn.key}`]?.(actionProps as any)).find(node => /VMenu/i.test(componentName(node)))
         : undefined
+      const mobileActionNodes = actionColumn && actionProps
+        ? collectActionNodes(slots[`item.${actionColumn.key}`]?.(actionProps as any))
+        : []
+      // Keep a direct action (such as Print) visible beside the menu trigger.
+      // The menu still owns the remaining actions, so mobile does not render
+      // a second copy of the same action list. FullDetailsButton is also a
+      // direct action: filtering it out here made View Details disappear on
+      // rows that also have an overflow menu.
+      const mobileInlineActions = mobileMenuAction
+        ? mobileActionNodes.filter(node => /^(?:VBtn|IconBtn|FullDetailsButton|CrmRelationshipDetails)$/i.test(componentName(node)))
+        : []
 
       const toggleCard = () => {
         if (!expandable)
@@ -437,8 +448,11 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
               }, { default: () => titleContent }),
               append: () => h('div', { class: 'd-flex align-center' }, [
                 mobileMenuAction
-                  ? cloneVNode(mobileMenuAction, { key: `menu-${key}` })
-                  : actionColumn
+                  ? [
+                      ...mobileInlineActions.map((node, actionIndex) => cloneVNode(node, { key: `inline-${key}-${actionIndex}` })),
+                      cloneVNode(mobileMenuAction, { key: `menu-${key}` }),
+                    ]
+                  : actionColumn && mobileActionNodes.length
                   ? h(VBtn, {
                     'icon': true,
                     'size': 'small',
@@ -446,7 +460,8 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
                     'aria-label': `${localized('common.messages.actions', 'Actions')} for ${String(titleProps.value || '')}`,
                     'onClick': openActions,
                   }, { default: () => h(VIcon, { icon: 'tabler-dots-vertical' }) })
-                  : h(VBtn, {
+                  : !actionColumn
+                    ? h(VBtn, {
                     'icon': true,
                     'size': 'small',
                     'variant': 'text',
@@ -458,7 +473,8 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
                       event.stopPropagation()
                       toggleCard()
                     },
-                  }, { default: () => h(VIcon, { icon: isExpanded ? 'tabler-chevron-up' : 'tabler-chevron-down' }) }),
+                    }, { default: () => h(VIcon, { icon: isExpanded ? 'tabler-chevron-up' : 'tabler-chevron-down' }) })
+                    : undefined,
               ]),
             }),
           ]),

@@ -70,6 +70,14 @@ const hasDates = computed(() => props.editable || !!props.startDate || !!props.e
 const startRules = computed(() => (props.editable && props.startRequired
   ? [(value: unknown) => !!value || tr('startDateRequired')]
   : []))
+
+const dockCalendar = (_dates: Date[], _value: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.transform = 'translateY(0) scale(0.86)'
+    instance.calendarContainer.style.transformOrigin = 'top left'
+    instance.calendarContainer.style.zIndex = '2400'
+  })
+}
 </script>
 
 <template>
@@ -127,13 +135,15 @@ const startRules = computed(() => (props.editable && props.startRequired
 
       <VRow v-if="editable" dense>
         <VCol cols="12" sm="6">
-          <VTextField :model-value="startDate ?? ''" type="date" :label="tr('startDate')"
+          <AppDateTimePicker :model-value="startDate ?? ''" :label="tr('startDate')"
             prepend-inner-icon="tabler-calendar-event" :rules="startRules" required
+            :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }"
             @update:model-value="emit('update:startDate', $event === '' ? null : $event)" />
         </VCol>
         <VCol cols="12" sm="6">
-          <VTextField :model-value="endDate ?? ''" type="date" :label="tr('endDate')"
+          <AppDateTimePicker :model-value="endDate ?? ''" :label="tr('endDate')"
             prepend-inner-icon="tabler-calendar-check" :hint="showEndDateHint ? tr('endDateHint') : undefined" :persistent-hint="showEndDateHint" clearable
+            :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }"
             @update:model-value="emit('update:endDate', $event === '' ? null : $event)" />
         </VCol>
       </VRow>

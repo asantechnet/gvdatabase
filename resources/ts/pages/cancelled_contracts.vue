@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
@@ -28,6 +31,8 @@ const filterCounterparty = ref<string | null>(null)
 const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
+const sortByKey = ref<'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'>('start_date')
+const sortDirection = ref<'asc' | 'desc'>('asc')
 const counterparties = ref<string[]>([])
 // Filled from every matching contract right before printing.
 const printedRows = ref<(string | number)[][]>([])
@@ -38,6 +43,8 @@ const listParams = (): ContractParams => ({
   counterparty: filterCounterparty.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
+  sort_by: sortByKey.value,
+  sort_direction: sortDirection.value,
 })
 
 async function load() {
@@ -56,12 +63,21 @@ function reload() {
   void load()
 }
 
-function updateTableOptions(options: { page: number; itemsPerPage: number }) {
-  if (page.value === options.page && perPage.value === options.itemsPerPage)
+function updateTableOptions(options: { page: number; itemsPerPage: number; sortBy?: Array<{ key: string; order?: 'asc' | 'desc' }> }) {
+  const sort = options.sortBy?.[0]
+  const sortableKeys = ['contract_number', 'counterparty', 'start_date', 'status', 'created_at'] as const
+  const nextSortBy = sortableKeys.includes(sort?.key as typeof sortableKeys[number])
+    ? sort?.key as typeof sortableKeys[number]
+    : 'start_date'
+  const nextSortDirection = sort?.order === 'desc' ? 'desc' : 'asc'
+  if (page.value === options.page && perPage.value === options.itemsPerPage
+    && sortByKey.value === nextSortBy && sortDirection.value === nextSortDirection)
     return
 
   page.value = options.page
   perPage.value = options.itemsPerPage
+  sortByKey.value = nextSortBy
+  sortDirection.value = nextSortDirection
   void load()
 }
 
@@ -163,42 +179,38 @@ export default {
   <div class="erp-workspace">
   <ErpPageHeader :title="$t('common.navigation.cancelledContracts')" section="contracts" />
   <VCard>
-    <!-- List actions live in the card's own toolbar corner, so the page header
-         stays a plain title and the icons sit with the table (not mid-page). -->
-    <VCardText class="d-flex align-center justify-end flex-wrap ga-2">
-      <DataTableFilterMenu
-        :active="Boolean(search || filterCounterparty || dateFrom || dateTo)"
-        @reset="search = ''; filterCounterparty = null; dateFrom = ''; dateTo = ''; reload()"
-      >
-        <VTextField
-          v-model="search"
-          class="data-table-search"
-          prepend-inner-icon="tabler-search"
-          :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
-          density="compact"
-          clearable
-          hide-details
-          style="min-width: 280px;"
-          @update:model-value="debouncedSearch"
-        />
-        <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-2" @apply="reload" />
-        <VSelect
-          v-model="filterCounterparty"
-          :items="counterparties"
-          :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')"
-          density="compact"
-          clearable
-          hide-details
-          style="min-width: 200px;"
-          @update:model-value="reload"
-        />
-      </DataTableFilterMenu>
-      <VBtn
-        icon="tabler-printer"
-        variant="text"
-        class="flex-shrink-0"
-        @click="printTable"
-      />
+    <VCardText>
+      <VRow align="center" class="table-toolbar">
+        <VCol cols="12" md="6" lg="5">
+          <ErpSearchField
+            v-model="search"
+            :placeholder="$t('pages.contracts.cancelledContracts.cancelledContracts.searchCancelledContracts')"
+            @input="debouncedSearch"
+          />
+        </VCol>
+        <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+          <DataTableFilterMenu
+            :active="Boolean(filterCounterparty || dateFrom || dateTo)"
+            @reset="filterCounterparty = null; dateFrom = ''; dateTo = ''; reload()"
+          >
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
+            <ErpField
+              v-model="filterCounterparty"
+              kind="select"
+              :items="counterparties"
+              :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')"
+              clearable
+            />
+            <template #actions>
+              <VBtn variant="tonal" color="primary" @click="filterCounterparty = null; dateFrom = ''; dateTo = ''; reload()">{{ $t('common.messages.reset') }}</VBtn>
+              <VBtn color="primary" variant="flat" data-filter-apply @click="reload">{{ $t('educational.apply') }}</VBtn>
+            </template>
+          </DataTableFilterMenu>
+          <VBtn icon="tabler-printer" color="primary" variant="tonal" size="small" class="flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTable">
+            <VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip>
+          </VBtn>
+        </VCol>
+      </VRow>
     </VCardText>
 
     <VAlert
@@ -215,16 +227,34 @@ export default {
       :items-length="total"
       :page="page"
       :items-per-page="perPage"
+      :sort-by="[{ key: sortByKey, order: sortDirection }]"
       :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
-      class="text-no-wrap"
+      class="cancelled-contract-table text-no-wrap"
       mobile-breakpoint="sm"
+      mobile-cards
+      mobile-expand-all
+      mobile-actions-as-menu
+      mobile-title-key="contract_number"
+      mobile-action-key="actions"
+      :sticky-key-column="false"
+      :sticky-action-column="false"
+      :skeleton-rows="5"
+      :show-scroll-affordance="false"
       :loading="isLoading"
-      style="overflow-x: auto;"
       @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
-      <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.cancelledContracts.cancelledContracts.noContracts')" /></template>
+      <template #no-data>
+        <div class="cancelled-contract-empty-state">
+          <TableEmptyState
+            icon="tabler-file-off"
+            :min-height="0"
+            :title="$t('pages.contracts.cancelledContracts.cancelledContracts.noCancelledContractRecords')"
+            :description="$t('pages.contracts.cancelledContracts.cancelledContracts.noCancelledContractRecordsDescription')"
+          />
+        </div>
+      </template>
       <template #item.contract="{ item }">
         {{ item.contract || item.contract_template?.name || $t('pages.contracts.allContracts.allContracts.untitledContract') }}
       </template>
@@ -257,3 +287,55 @@ export default {
   <PrintableListReport :title="$t('common.navigation.cancelledContracts')" :columns="reportColumns.map(column => column.title)" :rows="printedRows" />
   </div>
 </template>
+
+<style scoped>
+.cancelled-contract-table :deep(.v-table__wrapper > table) {
+  min-inline-size: 900px;
+}
+
+.cancelled-contract-empty-state { align-items: center; display: flex; flex-direction: column; justify-content: center; min-block-size: 17rem; padding: 1.25rem 1.25rem 2rem; }
+.cancelled-contract-empty-state :deep(.table-empty-state) { min-block-size: 0 !important; padding-block: 1rem; }
+
+.cancelled-contract-table :deep(.v-table__wrapper > table > tbody > tr:hover > td) {
+  background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
+}
+
+.cancelled-contract-table :deep(.v-table__wrapper:has(.table-empty-state)) {
+  overflow-x: hidden;
+}
+
+.cancelled-contract-table :deep(.v-table__wrapper > table:has(.table-empty-state)) {
+  min-inline-size: 100%;
+  table-layout: fixed;
+}
+
+.cancelled-contract-table :deep(.v-table__wrapper > table:has(.table-empty-state) > tbody > tr:hover > td),
+.cancelled-contract-table :deep(.v-table__wrapper > table > tbody > tr.responsive-data-table__skeleton-row:hover > td) {
+  background-color: transparent !important;
+}
+
+@media (max-width: 959px) {
+  .cancelled-contract-table.responsive-data-table--mobile-cards :deep(.v-table__wrapper > table > tbody > tr:hover > td),
+  .cancelled-contract-table.responsive-data-table--mobile-cards :deep(.responsive-data-table__mobile-row:hover > td) {
+    background-color: transparent !important;
+  }
+
+  .cancelled-contract-table :deep(.v-table__wrapper) {
+    overflow: clip;
+  }
+
+  .cancelled-contract-table :deep(.v-table__wrapper > table) {
+    inline-size: 100%;
+    min-inline-size: 0;
+    table-layout: fixed;
+  }
+
+  .cancelled-contract-table :deep(.v-data-table__thead) {
+    display: none;
+  }
+
+  .cancelled-contract-table :deep(.responsive-data-table__mobile-row > td) {
+    padding: .75rem;
+  }
+}
+</style>

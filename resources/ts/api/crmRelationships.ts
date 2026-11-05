@@ -7,7 +7,7 @@ export interface Interaction {
   id: number
   channel: Channel
   title: string
-  notes: string
+  notes: string | null
   contacted_at: string
   follow_up_at: string | null
   creator?: { id: number; name: string } | null
@@ -23,6 +23,14 @@ export interface Relationship {
   service?: string | null
   service_interest?: string | null
   country?: { id: number; name: string; code?: string } | null
+  education_level?: { id: number; name: string } | null
+  province?: { id: number; name: string } | null
+  english_level?: { id: number; name: string } | null
+  acquisition_route?: { id: number; name: string } | null
+  consultant?: { id: number; name: string } | null
+  age?: number | null
+  grade_score?: number | string | null
+  consultant_review?: string | null
   stage?: string
   probability?: number | null
   estimated_value?: number | string | null

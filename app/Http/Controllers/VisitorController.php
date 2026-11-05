@@ -34,9 +34,10 @@ class VisitorController extends Controller
             'consultant_employee_id' => ['nullable', 'integer'],
             'country_id' => ['nullable', 'integer'],
             'education_level_id' => ['nullable', 'integer'],
-            'province_id' => ['nullable', 'integer'],
             'english_level_id' => ['nullable', 'integer'],
             'acquisition_route_id' => ['nullable', 'integer'],
+            'sort_by' => ['nullable', Rule::in(['name', 'contact', 'email', 'service', 'date'])],
+            'sort_direction' => ['nullable', Rule::in(['asc', 'desc'])],
         ]);
         $search = $request->input('search');
 
@@ -64,7 +65,7 @@ class VisitorController extends Controller
             $query->where('service', $request->string('service')->toString());
         }
 
-        foreach (['consultant_employee_id', 'country_id', 'education_level_id', 'province_id', 'english_level_id', 'acquisition_route_id'] as $field) {
+        foreach (['consultant_employee_id', 'country_id', 'education_level_id', 'english_level_id', 'acquisition_route_id'] as $field) {
             if ($request->integer($field)) {
                 $query->where($field, $request->integer($field));
             }
@@ -72,8 +73,11 @@ class VisitorController extends Controller
 
         $query->when(! empty($dates['date_from']), fn ($q) => $q->whereDate('date', '>=', $dates['date_from']))
             ->when(! empty($dates['date_to']), fn ($q) => $q->whereDate('date', '<=', $dates['date_to']));
-        // Newest visits first; the id breaks ties between same-day rows.
-        $query->orderByDesc('date')->orderByDesc('id');
+        $sortBy = $request->input('sort_by', 'date');
+        $sortDirection = $request->input('sort_direction', 'desc');
+        // Newest visits stay first until the operator chooses a sortable
+        // header; the id keeps same-day rows stable.
+        $query->orderBy($sortBy, $sortDirection)->orderByDesc('id');
 
         if ($this->requestedPerPage($request)) {
             return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => VisitorResource::collection($rows)->resolve()));
