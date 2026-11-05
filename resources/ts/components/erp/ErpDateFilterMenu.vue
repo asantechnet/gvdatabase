@@ -36,6 +36,7 @@ function apply(clear = false) {
   <VMenu
     v-model="open"
     :close-on-content-click="false"
+    persistent
     location="bottom end"
     :max-width="336"
     @update:model-value="resetDraft"

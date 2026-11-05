@@ -403,7 +403,9 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
   color: rgb(var(--v-theme-error)) !important;
 }
 .contact-log-card__cancel:hover,
-.contact-log-card__cancel:focus-visible { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.contact-log-card__cancel:focus-visible,
+.contact-log-card__cancel.v-btn--active,
+.contact-log-card__cancel:active { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .contact-log-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 .contact-action-menu__value {

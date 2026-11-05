@@ -577,7 +577,8 @@ onMounted(async () => {
       >
         <VCol
           cols="12"
-          md="7"
+          md="6"
+          lg="5"
         >
           <ErpSearchField
             v-model="search"
@@ -587,7 +588,8 @@ onMounted(async () => {
         </VCol>
         <VCol
           cols="12"
-          md="5"
+          md="6"
+          lg="7"
           class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
@@ -734,7 +736,21 @@ onMounted(async () => {
       </template>
 
       <template #item.actions="{ item }">
-        <VMenu location="bottom end" :close-on-content-click="false">
+        <div class="d-flex align-center ga-1 justify-end">
+          <VBtn
+            icon
+            variant="text"
+            size="small"
+            class="visitor-follow-up-trigger"
+            color="secondary"
+            :disabled="isSaving"
+            :aria-label="$t(isFollowUpList ? 'pages.contracts.visitor.visitor.removeFromFollowUp' : 'pages.contracts.visitor.visitor.markForFollowUp')"
+            @click="setFollowUp(item, !isFollowUpList)"
+          >
+            <VIcon :icon="isFollowUpList ? 'tabler-star-off' : 'tabler-star'" />
+            <VTooltip activator="parent">{{ $t(isFollowUpList ? 'pages.contracts.visitor.visitor.removeFromFollowUp' : 'pages.contracts.visitor.visitor.markForFollowUp') }}</VTooltip>
+          </VBtn>
+          <VMenu location="bottom end" :close-on-content-click="false">
           <template #activator="{ props: menuProps }">
             <VBtn
               v-bind="menuProps"
@@ -746,7 +762,7 @@ onMounted(async () => {
             />
           </template>
 
-          <VList class="visitor-actions-menu" density="compact" min-width="220">
+            <VList class="visitor-actions-menu" density="compact" min-width="220">
             <CrmRelationshipDetails
               v-if="isFollowUpList"
               type="visitor"
@@ -759,20 +775,6 @@ onMounted(async () => {
               prepend-icon="tabler-address-book"
               :title="$t('common.actions.viewFullDetails')"
               @click="openVisitorDetails(item)"
-            />
-            <VListItem
-              v-if="!isFollowUpList"
-              prepend-icon="tabler-star"
-              :title="$t('pages.contracts.visitor.visitor.markForFollowUp')"
-              :disabled="isSaving"
-              @click="setFollowUp(item, true)"
-            />
-            <VListItem
-              v-else
-              prepend-icon="tabler-star-off"
-              :title="$t('pages.contracts.visitor.visitor.removeFromFollowUp')"
-              :disabled="isSaving"
-              @click="setFollowUp(item, false)"
             />
             <template v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
               <VDivider class="my-1" />
@@ -814,8 +816,9 @@ onMounted(async () => {
               :disabled="isSaving"
               @click="openDeleteDialog(item)"
             />
-          </VList>
-        </VMenu>
+            </VList>
+          </VMenu>
+        </div>
       </template>
 
       <template #no-data>
@@ -911,7 +914,7 @@ onMounted(async () => {
 
   <VDialog
     v-model="isVisitorDetailsDialogVisible"
-    max-width="920"
+    max-width="1180"
     content-class="visitor-form-dialog visitor-details-dialog"
     scrollable
   >
@@ -1197,6 +1200,8 @@ onMounted(async () => {
 .visitor-actions-trigger:hover {
   background-color: rgba(var(--v-theme-on-surface), 0.08) !important;
 }
+.visitor-follow-up-trigger { color: rgb(var(--v-theme-secondary)) !important; }
+.visitor-follow-up-trigger:hover { background-color: rgba(var(--v-theme-secondary), .12) !important; }
 
 .visitor-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
 
@@ -1322,7 +1327,10 @@ onMounted(async () => {
   color: rgb(var(--v-theme-error)) !important;
 }
 
-.visitor-form-dialog button.visitor-dialog-cancel.v-btn:hover {
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:hover,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:focus-visible,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn.v-btn--active,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:active {
   border-color: rgb(var(--v-theme-error));
   background-color: rgb(var(--v-theme-error)) !important;
   color: rgb(var(--v-theme-on-error)) !important;

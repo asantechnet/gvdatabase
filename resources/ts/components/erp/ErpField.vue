@@ -111,7 +111,7 @@ const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 
 }
 
 .erp-field .v-field__outline {
-  --v-field-border-opacity: 0.32;
+  --v-field-border-opacity: 0.44;
 }
 
 .erp-field .v-field--focused {

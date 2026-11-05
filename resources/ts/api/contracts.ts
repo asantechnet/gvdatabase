@@ -168,9 +168,12 @@ export interface ContractParams {
   status?: ContractStatus
   date_from?: string
   date_to?: string
+  contract_template_version_id?: number
   search?: string
   counterparty?: string
   only_cancelled?: boolean
+  sort_by?: 'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'
+  sort_direction?: 'asc' | 'desc'
   /** Active contracts ending on or before 30 days from today. */
   expiring?: boolean
 }
@@ -179,6 +182,13 @@ const normalizeList = (payload: unknown): Contract[] =>
   Array.isArray(payload) ? (payload as Contract[]) : []
 
 const ContractApi = {
+  /** Versions available for the current service's register filter. */
+  async versionOptions(service: BuiltInService): Promise<Array<{ id: number; name: string; version_number: number }>> {
+    const response = await api.get<{ success: boolean; data: Array<{ id: number; name: string; version_number: number }> }>(`/contracts/${service}/version-options`)
+
+    return Array.isArray(response.data.data) ? response.data.data : []
+  },
+
   async serviceOptions(service: BuiltInService): Promise<ServiceContractOptions> {
     const response = await api.get<{ success: boolean; data: ServiceContractOptions }>(`/contracts/${service}/options`)
 
@@ -296,7 +306,7 @@ export interface ServiceContractCreateData {
   discount: number
   currency_id: number
   currency_rate: number
-  language_id: number
+  language_id: number | null
   notes?: string | null
   company_signatory_name?: string | null
   passport_id?: string | null

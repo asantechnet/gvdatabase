@@ -166,9 +166,20 @@ const warningTone = computed(() => actionWarningState.request?.tone || 'warning'
     background: rgba(var(--v-theme-secondary), 0.13) !important;
     color: rgb(var(--v-theme-secondary)) !important;
 
-    &:hover {
-      background: rgb(var(--v-theme-secondary)) !important;
-      color: rgb(var(--v-theme-on-secondary)) !important;
+    .v-btn__content {
+      color: rgb(var(--v-theme-secondary)) !important;
+    }
+
+    &:hover,
+    &:focus-visible,
+    &.v-btn--active,
+    &:active {
+      background: rgba(var(--v-theme-secondary), 0.2) !important;
+      color: rgb(var(--v-theme-secondary)) !important;
+
+      .v-btn__content {
+        color: rgb(var(--v-theme-secondary)) !important;
+      }
     }
   }
 
@@ -176,8 +187,20 @@ const warningTone = computed(() => actionWarningState.request?.tone || 'warning'
     background: var(--warning-color) !important;
     color: #fff !important;
 
-    &:hover {
+    .v-btn__content {
+      color: #fff !important;
+    }
+
+    &:hover,
+    &:focus-visible,
+    &.v-btn--active,
+    &:active {
       filter: brightness(0.88);
+      color: #fff !important;
+
+      .v-btn__content {
+        color: #fff !important;
+      }
     }
   }
 }

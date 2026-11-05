@@ -190,8 +190,8 @@ const saveInteraction = async () => {
 const removeInteraction = async (interaction: Interaction) => {
   const confirmed = await confirmActionWarning({
     key: 'delete-crm-interaction',
-    title: t('common.crmDetails.deleteConfirm', { title: interaction.title }),
-    message: t('common.crmDetails.deleteConfirm', { title: interaction.title }),
+    title: t('common.crmDetails.deleteConversationTitle'),
+    message: t('common.crmDetails.deleteConversationMessage'),
     confirmText: t('common.actions.delete'),
     cancelText: t('common.actions.cancel'),
     icon: 'tabler-trash',
@@ -212,18 +212,26 @@ const removeInteraction = async (interaction: Interaction) => {
 </script>
 
 <template>
+  <VListItem
+    v-if="props.menuAction"
+    class="crm-relationship-details__menu-action"
+    prepend-icon="tabler-address-book"
+    :title="$t('common.crmDetails.relationshipDetails')"
+    @click.stop="show"
+  />
   <VBtn
+    v-else
     :icon="!props.mobileAction && !props.menuAction"
     :block="props.mobileAction"
     variant="text"
-    :size="props.menuAction ? undefined : 'small'"
-    :color="props.menuAction ? undefined : 'primary'"
-    :class="{ 'crm-relationship-details__mobile-action': props.mobileAction, 'crm-relationship-details__menu-action': props.menuAction }"
+    size="small"
+    color="primary"
+    :class="{ 'crm-relationship-details__mobile-action': props.mobileAction }"
     :aria-label="$t('common.crmDetails.relationshipDetails')"
     @click.stop="show"
   >
     <VIcon icon="tabler-address-book" />
-    <span v-if="props.mobileAction || props.menuAction" class="ms-2">
+    <span v-if="props.mobileAction" class="ms-2">
       {{ $t('common.crmDetails.relationshipDetails') }}
     </span>
     <VTooltip
@@ -236,7 +244,8 @@ const removeInteraction = async (interaction: Interaction) => {
 
   <VDialog
     v-model="open"
-    max-width="980"
+    persistent
+    max-width="1180"
     class="relationship-dialog-overlay"
   >
     <VCard class="relationship-dialog">
@@ -270,7 +279,9 @@ const removeInteraction = async (interaction: Interaction) => {
           </VChip>
           <VBtn
             icon="tabler-x"
-            variant="text"
+            variant="tonal"
+            color="error"
+            class="relationship-dialog__close"
             :aria-label="$t('common.actions.close')"
             @click="open = false"
           />
@@ -311,10 +322,34 @@ const removeInteraction = async (interaction: Interaction) => {
       </div>
       <VDivider />
       <VCardText class="pa-5 pa-sm-6 relationship-content">
-        <VSkeletonLoader
-          v-if="loading"
-          type="article, list-item-three-line, list-item-three-line"
-        />
+        <div v-if="loading" class="relationship-skeleton" aria-busy="true">
+          <div class="relationship-skeleton__intro">
+            <div class="relationship-skeleton__intro-copy">
+              <VSkeletonLoader type="heading" />
+              <VSkeletonLoader type="text" />
+            </div>
+            <VSkeletonLoader type="chip" />
+          </div>
+          <VRow>
+            <VCol
+              v-for="index in 9"
+              :key="index"
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <VCard border variant="flat" height="100%" class="detail-tile relationship-skeleton__tile">
+                <VCardText class="d-flex align-start ga-3">
+                  <div class="relationship-skeleton__avatar" />
+                  <div class="relationship-skeleton__copy flex-grow-1">
+                    <VSkeletonLoader class="relationship-skeleton__label" type="text" />
+                    <VSkeletonLoader class="relationship-skeleton__value" type="text" />
+                  </div>
+                </VCardText>
+              </VCard>
+            </VCol>
+          </VRow>
+        </div>
         <VWindow
           v-else
           v-model="activeTab"
@@ -625,13 +660,13 @@ const removeInteraction = async (interaction: Interaction) => {
                         <VListItem
                           prepend-icon="tabler-edit"
                           :title="$t('common.actions.edit')"
-                          @click="startInteraction(item)"
+                          @click.stop="startInteraction(item)"
                         />
                         <VListItem
                           prepend-icon="tabler-trash"
                           :title="$t('common.actions.delete')"
                           class="text-error"
-                          @click="removeInteraction(item)"
+                          @click.stop="removeInteraction(item)"
                         />
                       </VList>
                     </VMenu>
@@ -769,23 +804,36 @@ const removeInteraction = async (interaction: Interaction) => {
 .relationship-note { white-space: pre-wrap; line-height: 1.65; }
 .details-intro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .detail-tile { background: linear-gradient(145deg, rgba(var(--v-theme-primary), .045), rgb(var(--v-theme-surface))); }
+.relationship-skeleton { display: grid; gap: 1rem; }
+.relationship-skeleton__intro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-block-size: 54px; margin-block-end: 20px; padding: 0; }
+.relationship-skeleton__intro-copy { display: grid; gap: .35rem; inline-size: min(100%, 15rem); }
+.relationship-skeleton__intro-copy :deep(.v-skeleton-loader:first-child) { inline-size: 11rem; }
+.relationship-skeleton__intro-copy :deep(.v-skeleton-loader:last-child) { inline-size: 15rem; }
+.relationship-skeleton__intro > :deep(.v-skeleton-loader:last-child) { inline-size: 5rem; }
+.relationship-skeleton__tile { min-block-size: 76px; }
+.relationship-skeleton__avatar { flex: 0 0 38px; inline-size: 38px; block-size: 38px; border-radius: 50%; background: rgba(var(--v-theme-primary), .1); }
+.relationship-skeleton__copy { display: grid; min-inline-size: 0; gap: .2rem; padding-block-start: .05rem; }
+.relationship-skeleton__label { inline-size: min(100%, 6.5rem); }
+.relationship-skeleton__value { inline-size: min(100%, 11rem); }
+.relationship-dialog__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 50% !important; color: rgb(var(--v-theme-error)) !important; }
+.relationship-dialog__close:hover { background: rgba(var(--v-theme-error), .18) !important; }
 .interaction-card { transition: border-color .18s ease, transform .18s ease; }
 .interaction-card:hover { border-color: rgba(var(--v-theme-primary), .45) !important; transform: translateY(-1px); }
 .crm-relationship-details__mobile-action { justify-content: flex-start; }
 .crm-relationship-details__menu-action {
-  justify-content: flex-start;
-  inline-size: 100%;
-  min-height: 40px;
-  padding-inline: 16px;
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  min-block-size: 40px;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding-inline: 16px !important;
   color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
-  font-size: inherit;
-  font-weight: inherit;
+  font-size: .875rem !important;
+  font-weight: 500 !important;
 }
 
-.crm-relationship-details__menu-action :deep(.v-btn__content),
-.crm-relationship-details__menu-action :deep(.v-icon) {
-  color: inherit !important;
-}
+.crm-relationship-details__menu-action :deep(.v-icon) { color: inherit !important; font-size: 20px; }
+.crm-relationship-details__menu-action :deep(.v-list-item-title) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .min-w-0 { min-width: 0; }
 
 .relationship-interaction-card { overflow: hidden; }
@@ -809,7 +857,9 @@ const removeInteraction = async (interaction: Interaction) => {
   color: rgb(var(--v-theme-error)) !important;
 }
 .relationship-interaction-card__cancel:hover,
-.relationship-interaction-card__cancel:focus-visible { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.relationship-interaction-card__cancel:focus-visible,
+.relationship-interaction-card__cancel.v-btn--active,
+.relationship-interaction-card__cancel:active { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .relationship-interaction-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 @media (max-height: 650px) {

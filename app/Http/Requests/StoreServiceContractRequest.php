@@ -84,10 +84,8 @@ class StoreServiceContractRequest extends FormRequest
             'marketer' => ['prohibited'],
             'marketer_id' => ['prohibited'],
             'name' => [$extending && $service !== BuiltInService::ACADEMY ? 'prohibited' : 'required', 'string', 'max:255'],
-            'father_name' => $service === BuiltInService::SCHOLARSHIP || $service === BuiltInService::PRIVATE
-                ? $requiredIdentity('max:255') : [$identity, 'string', 'max:255'],
-            'father_phone' => $service === BuiltInService::SCHOLARSHIP || $service === BuiltInService::PRIVATE
-                ? $requiredIdentity('max:50') : [$identity, 'string', 'max:50'],
+            'father_name' => [$identity, 'string', 'max:255'],
+            'father_phone' => [$identity, 'string', 'max:50'],
             'backup_phone' => $service === BuiltInService::TEST_OFFER
                 ? $requiredIdentity('max:50') : [$identity, 'string', 'max:50'],
             'contact' => $requiredIdentity('max:255'),
@@ -104,7 +102,7 @@ class StoreServiceContractRequest extends FormRequest
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
             'currency_rate' => ['required', 'numeric', 'gt:0', 'max:9999999', 'decimal:0,8'],
-            'language_id' => ['required', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
+            'language_id' => ['nullable', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
             'start_date' => ['prohibited'],
             'contract_template_version_id' => ['required', 'integer', 'exists:contract_template_versions,id'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
@@ -118,13 +116,13 @@ class StoreServiceContractRequest extends FormRequest
             default => ['prohibited'],
         };
         $rules['application_fee_min'] = $service === BuiltInService::PRIVATE
-            ? ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
+            ? ['nullable', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
             : ['prohibited'];
         $rules['application_fee_max'] = $service === BuiltInService::PRIVATE
-            ? ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
+            ? ['nullable', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
             : ['prohibited'];
         $rules['visa_fee'] = $service === BuiltInService::PRIVATE
-            ? ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
+            ? ['nullable', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2']
             : ['prohibited'];
         foreach (['booking_fee', 'remote_fee'] as $field) {
             $rules[$field] = $service === BuiltInService::TEST_OFFER
@@ -158,12 +156,12 @@ class StoreServiceContractRequest extends FormRequest
                 'passport_id' => ['nullable', 'string', 'max:64'],
                 'grade_score' => ['required', 'numeric', 'min:0', 'max:100'],
                 'country_id' => ['required', 'integer', $exists('countries')],
-                'contract_type_id' => ['required', 'integer', $exists('contract_types')],
+                'contract_type_id' => ['nullable', 'integer', $exists('contract_types')],
                 'education_level_id' => ['required', 'integer', $exists('education_levels')],
                 'semester_id' => ['required', 'integer', $exists('semesters')],
                 'university_id' => ['nullable', 'integer', $exists('universities')],
-                'university_fee' => ['required', 'numeric', 'min:0', 'max:9999999999999'],
-                'favorite_subject_ids' => ['required', 'array', 'min:1', 'max:100'],
+                'university_fee' => ['nullable', 'numeric', 'min:0', 'max:9999999999999'],
+                'favorite_subject_ids' => ['nullable', 'array', 'max:100'],
             ],
             BuiltInService::SCHOLARSHIP => [
                 'passport_id' => ['nullable', 'string', 'max:64'],

@@ -2,6 +2,7 @@
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -12,6 +13,7 @@ import ContractTemplateApi from '@/api/contractTemplate'
 import type { Contract, ContractParams } from '@/api/contracts'
 import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
+import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
@@ -54,6 +56,8 @@ const {
 const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
+const sortByKey = ref<'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'>('start_date')
+const sortDirection = ref<'asc' | 'desc'>('asc')
 // Filled from every matching contract right before printing.
 const reportRows = ref<string[][]>([])
 const counterparties = ref<string[]>([])
@@ -138,6 +142,8 @@ const listParams = (): ContractParams => ({
   expiring: expiringOnly.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
+  sort_by: sortByKey.value,
+  sort_direction: sortDirection.value,
 })
 
 // Loads the visible page; `reload` additionally returns to the first page,
@@ -158,12 +164,21 @@ function reload() {
   void load()
 }
 
-function updateTableOptions(options: { page: number; itemsPerPage: number }) {
-  if (page.value === options.page && perPage.value === options.itemsPerPage)
+function updateTableOptions(options: { page: number; itemsPerPage: number; sortBy?: Array<{ key: string; order?: 'asc' | 'desc' }> }) {
+  const sort = options.sortBy?.[0]
+  const sortableKeys = ['contract_number', 'counterparty', 'start_date', 'status', 'created_at'] as const
+  const nextSortBy = sortableKeys.includes(sort?.key as typeof sortableKeys[number])
+    ? sort?.key as typeof sortableKeys[number]
+    : 'start_date'
+  const nextSortDirection = sort?.order === 'desc' ? 'desc' : 'asc'
+  if (page.value === options.page && perPage.value === options.itemsPerPage
+    && sortByKey.value === nextSortBy && sortDirection.value === nextSortDirection)
     return
 
   page.value = options.page
   perPage.value = options.itemsPerPage
+  sortByKey.value = nextSortBy
+  sortDirection.value = nextSortDirection
   void load()
 }
 
@@ -171,9 +186,6 @@ function updateTableOptions(options: { page: number; itemsPerPage: number }) {
 const debouncedSearch = useDebounceFn(reload, 300)
 
 async function loadCounterparties() {
-  if (isOtherAudience.value)
-    return
-
   try {
     counterparties.value = await ContractApi.counterparties()
   }
@@ -586,7 +598,7 @@ onMounted(async () => {
   await Promise.all([
     load(),
     fetchTemplates(),
-    loadCounterparties(),
+    ...(isOtherAudience.value ? [] : [loadCounterparties()]),
   ])
   templates.value = templates.value.filter(template =>
     props.contractAudience === 'employees'
@@ -645,52 +657,49 @@ onMounted(async () => {
         align="center"
         class="table-toolbar"
       >
-
+        <VCol cols="12" md="6" lg="5">
+          <ErpSearchField
+            v-model="search"
+            :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
+            @input="debouncedSearch"
+          />
+        </VCol>
         <VCol
           cols="12"
-          md="8"
-          lg="6"
-          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2 ms-auto"
+          md="6"
+          lg="7"
+          class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2"
         >
           <DataTableFilterMenu
             :active="Boolean(search || filterCounterparty || filterStatus || expiringOnly || dateFrom || dateTo)"
             @reset="search = ''; filterCounterparty = null; filterStatus = null; expiringOnly = false; dateFrom = ''; dateTo = ''; reload()"
           >
-            <VTextField
-            v-model="search"
-            class="data-table-search"
-            prepend-inner-icon="tabler-search"
-            :placeholder="$t('pages.contracts.allContracts.allContracts.searchContracts')"
-            density="compact"
-            clearable
-            hide-details
-            @update:model-value="debouncedSearch"
-          />
-            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" class="mb-4" @apply="reload" />
-            <VSelect
+            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
+            <ErpField
               v-if="!isOtherAudience"
               v-model="filterCounterparty"
+              kind="select"
               :items="counterparties"
               :label="$t('pages.contracts.allContracts.allContracts.filterByCounterparty')"
-              density="compact"
               clearable
-              hide-details
-              @update:model-value="reload"
             />
-            <VSelect
+            <ErpField
               v-model="filterStatus"
+              kind="select"
               :items="statuses"
               :label="$t('common.messages.filterByStatus')"
-              density="compact"
               clearable
-              hide-details
-              @update:model-value="reload"
             />
+            <template #actions>
+              <VBtn variant="tonal" color="primary" @click="search = ''; filterCounterparty = null; filterStatus = null; expiringOnly = false; dateFrom = ''; dateTo = ''; reload()">{{ $t('common.messages.reset') }}</VBtn>
+              <VBtn color="primary" variant="flat" data-filter-apply @click="reload">{{ $t('educational.apply') }}</VBtn>
+            </template>
           </DataTableFilterMenu>
           <VBtn
             icon="tabler-printer"
-            variant="text"
+            variant="tonal"
             class="flex-shrink-0"
+            :aria-label="$t('common.actions.print')"
             @click="printTable"
           >
             <VIcon icon="tabler-printer" /><VTooltip
@@ -703,7 +712,6 @@ onMounted(async () => {
           <VBtn
             color="primary"
             class="flex-shrink-0"
-            :loading="isLoading"
             @click="addNew"
           >
             <VIcon
@@ -738,15 +746,37 @@ onMounted(async () => {
       :items-length="total"
       :page="page"
       :items-per-page="perPage"
+      :sort-by="[{ key: sortByKey, order: sortDirection }]"
       :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
       class="contract-table text-no-wrap"
       mobile-breakpoint="sm"
+      mobile-cards
+      mobile-expand-all
+      mobile-actions-as-menu
+      mobile-title-key="contract_number"
+      mobile-action-key="actions"
+      :sticky-key-column="false"
+      :sticky-action-column="false"
+      :skeleton-rows="5"
+      :show-scroll-affordance="false"
       :loading="isLoading"
       @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
-      <template #no-data><TableEmptyState icon="tabler-file-off" :description="$t('pages.contracts.allContracts.allContracts.noContracts')" /></template>
+      <template #no-data>
+        <div class="contract-empty-state">
+          <TableEmptyState
+            icon="tabler-file-off"
+            :min-height="0"
+            :title="isOtherAudience ? $t('pages.contracts.allContracts.allContracts.noOtherContractRecords') : undefined"
+            :description="isOtherAudience ? $t('pages.contracts.allContracts.allContracts.noOtherContractRecordsDescription') : $t('pages.contracts.allContracts.allContracts.noContracts')"
+          />
+          <VBtn v-if="isOtherAudience" color="primary" variant="tonal" class="contract-empty-state__action" @click="addNew">
+            <VIcon icon="tabler-plus" class="me-1" />{{ $t('pages.contracts.allContracts.allContracts.addContract') }}
+          </VBtn>
+        </div>
+      </template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.contract_number="{ item }">
         <span>{{ item.contract_number ?? '—' }}</span>
@@ -941,15 +971,20 @@ onMounted(async () => {
   <!-- Contract Form Dialog -->
   <VDialog
     v-model="isDialogVisible" class="erp-form"
-    :max-width="isEmployeeAudience ? '800px' : '600px'"
+    :max-width="isEmployeeAudience ? '800px' : '900px'"
+    :content-class="isOtherAudience ? 'other-contract-form-dialog' : undefined"
     scrollable
   >
-    <VCard>
-      <VCardTitle>
+    <VCard :class="isOtherAudience && 'other-contract-form-card'">
+      <VCardTitle :class="isOtherAudience && 'other-contract-dialog-title px-5 py-5'">
         <span class="headline">{{ extensionParent ? $t('pages.contracts.allContracts.allContracts.extendContract') : dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
+        <template v-if="isOtherAudience">
+          <VSpacer />
+          <VBtn icon="tabler-x" variant="tonal" color="error" class="other-contract-dialog-close" :aria-label="$t('common.actions.close')" @click="isDialogVisible = false" />
+        </template>
       </VCardTitle>
 
-      <VCardText>
+      <VCardText :class="['contract-form-dialog__body', isOtherAudience && 'other-contract-dialog-body pa-5 pa-sm-6']">
         <ContractForm
           :key="extensionParent ? `extend-${extensionParent.id}` : dialogMode === 'edit' ? `edit-${selectedContract?.id}` : 'add'"
           :contract="selectedContract || undefined"
@@ -1138,10 +1173,43 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.contract-form-dialog__body {
+  /* ContractForm owns the action bar's padding. Keeping VCardText's bottom
+     padding leaves an extra gutter below that footer inside the dialog. */
+  padding-block-end: 0 !important;
+}
+
+:global(.other-contract-form-dialog .other-contract-dialog-title),
+:global(.other-contract-form-dialog .app-form__actions) {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+  border-color: rgba(var(--v-theme-on-surface), .035);
+  border-style: solid;
+}
+
+:global(.other-contract-form-dialog .other-contract-dialog-title) {
+  align-items: center;
+  border-width: 0 0 1px;
+  display: flex;
+}
+
+:global(.other-contract-form-dialog .app-form__actions) {
+  border-width: 1px 0 0;
+  justify-content: flex-end;
+  margin-inline: -1.5rem;
+  padding: 1rem 1.5rem;
+}
+
+:global(.other-contract-form-dialog .app-form__actions .v-btn) { min-inline-size: 104px; }
+:global(.other-contract-form-dialog .other-contract-dialog-close:hover) { background-color: rgba(var(--v-theme-error), .18) !important; }
+
 .contract-table :deep(.v-data-table__wrapper) {
   overflow-x: auto;
   scrollbar-width: none;
 }
+
+.contract-empty-state { align-items: center; display: flex; flex-direction: column; justify-content: center; min-block-size: 17rem; padding: 1.25rem 1.25rem 2rem; }
+.contract-empty-state :deep(.table-empty-state) { min-block-size: 0 !important; padding-block: 1rem; }
+.contract-empty-state__action { margin-block-start: -.25rem; }
 
 .contract-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
   display: none;
@@ -1149,5 +1217,52 @@ onMounted(async () => {
 
 .contract-table :deep(.v-data-table__wrapper > table) {
   min-inline-size: 1100px;
+}
+
+.contract-table :deep(.v-table__wrapper > table) {
+  min-inline-size: 1100px;
+}
+
+.contract-table :deep(.v-table__wrapper > table > tbody > tr:hover > td) {
+  background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
+}
+
+.contract-table :deep(.v-table__wrapper:has(.table-empty-state)) {
+  overflow-x: hidden;
+}
+
+.contract-table :deep(.v-table__wrapper > table:has(.table-empty-state)) {
+  min-inline-size: 100%;
+  table-layout: fixed;
+}
+
+.contract-table :deep(.v-table__wrapper > table:has(.table-empty-state) > tbody > tr:hover > td),
+.contract-table :deep(.v-table__wrapper > table > tbody > tr.responsive-data-table__skeleton-row:hover > td) {
+  background-color: transparent !important;
+}
+
+@media (max-width: 959px) {
+  .contract-table.responsive-data-table--mobile-cards :deep(.v-table__wrapper > table > tbody > tr:hover > td),
+  .contract-table.responsive-data-table--mobile-cards :deep(.responsive-data-table__mobile-row:hover > td) {
+    background-color: transparent !important;
+  }
+
+  .contract-table :deep(.v-table__wrapper) {
+    overflow: clip;
+  }
+
+  .contract-table :deep(.v-table__wrapper > table) {
+    inline-size: 100%;
+    min-inline-size: 0;
+    table-layout: fixed;
+  }
+
+  .contract-table :deep(.v-data-table__thead) {
+    display: none;
+  }
+
+  .contract-table :deep(.responsive-data-table__mobile-row > td) {
+    padding: .75rem;
+  }
 }
 </style>

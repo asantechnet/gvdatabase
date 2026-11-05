@@ -451,6 +451,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_currencies');
 
     // Setting routes
+    Route::get('company-profile', [SettingController::class, 'profile'])
+        ->middleware('permission:view_settings,view_contracts');
     Route::apiResource('settings', SettingController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_settings')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_settings');
@@ -490,6 +492,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('contracts/{service}/options', [ContractController::class, 'serviceOptions'])
         ->whereIn('service', BuiltInService::ALL)
         ->middleware('permission:create_contracts');
+    Route::get('contracts/{service}/version-options', [ContractController::class, 'versionOptions'])
+        ->whereIn('service', BuiltInService::ALL)
+        ->middleware('permission:view_contracts');
     Route::post('contracts/{service}', [ContractController::class, 'storeService'])
         ->whereIn('service', BuiltInService::ALL)
         ->middleware('permission:create_contracts');
