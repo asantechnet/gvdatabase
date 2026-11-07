@@ -18,8 +18,6 @@ class UpsertSettingRequest extends FormRequest
 
     public function rules(): array
     {
-        $required = $this->isMethod('post') ? ['required'] : ['sometimes', 'required'];
-
         return [
             'navigation_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'cards_clr' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
@@ -27,17 +25,27 @@ class UpsertSettingRequest extends FormRequest
             ...collect(ThemePalette::fields())
                 ->mapWithKeys(fn (string $field) => [$field => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/']])
                 ->all(),
-            'off_day_allowance_days_per_year' => [...$required, 'numeric', 'min:0', 'max:366'],
-            'website_title' => [...$required, 'string', 'max:255'],
+            'off_day_allowance_days_per_year' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:366'],
+            'website_title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'website_logo' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_website_logo')),
+            ],
+            'website_dark_logo' => [
+                'nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_website_dark_logo')),
+            ],
+            'favicon' => [
+                'nullable', 'mimes:ico,jpeg,png,jpg,webp,gif', 'max:2048',
+                Rule::prohibitedIf(fn () => $this->boolean('remove_favicon')),
             ],
             'company_signature' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048',
                 Rule::prohibitedIf(fn () => $this->boolean('remove_company_signature')),
             ],
             'remove_website_logo' => ['sometimes', 'boolean'],
+            'remove_website_dark_logo' => ['sometimes', 'boolean'],
+            'remove_favicon' => ['sometimes', 'boolean'],
             'remove_company_signature' => ['sometimes', 'boolean'],
             'contract_letterhead' => [
                 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:8192',
@@ -90,11 +98,11 @@ class UpsertSettingRequest extends FormRequest
             'clear_mail_password' => ['sometimes', 'boolean'],
             'mail_from_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'mail_reply_to' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
-            'timezone' => [...$required, 'timezone:all'],
-            'phone' => [...$required, 'string', 'max:50'],
-            'physical_address' => [...$required, 'string', 'max:1000'],
-            'short_company_name' => [...$required, 'string', 'max:255'],
-            'original_company_name' => [...$required, 'string', 'max:255'],
+            'timezone' => ['sometimes', 'nullable', 'timezone:all'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'physical_address' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'short_company_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'original_company_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'business_licence' => ['nullable', 'string', 'max:255'],
             'office_open_time' => ['nullable', 'date_format:H:i'],
             'office_close_time' => ['nullable', 'date_format:H:i'],

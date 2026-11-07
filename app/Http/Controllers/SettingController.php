@@ -16,6 +16,8 @@ class SettingController extends Controller
 {
     private const FILES = [
         'website_logo' => 'logos',
+        'website_dark_logo' => 'logos',
+        'favicon' => 'favicons',
         'company_signature' => 'signatures',
         'contract_letterhead' => 'contract-letterheads',
         'contract_cover_design' => 'contract-cover-designs',
@@ -25,6 +27,8 @@ class SettingController extends Controller
 
     private const REMOVABLE_FILES = [
         'website_logo',
+        'website_dark_logo',
+        'favicon',
         'company_signature',
         'contract_letterhead',
         'contract_cover_design',
@@ -59,6 +63,8 @@ class SettingController extends Controller
             'success' => true,
             'data' => $setting ? [
                 'website_logo_url' => $setting->website_logo ? Storage::disk('public')->url($setting->website_logo) : null,
+                'website_dark_logo_url' => $setting->website_dark_logo ? Storage::disk('public')->url($setting->website_dark_logo) : null,
+                'favicon_url' => $setting->favicon ? Storage::disk('public')->url($setting->favicon) : null,
                 'website_title' => $setting->website_title,
                 'short_company_name' => $setting->short_company_name,
                 'original_company_name' => $setting->original_company_name,
@@ -74,6 +80,8 @@ class SettingController extends Controller
         abort_if(Setting::query()->exists(), 409, 'business.company_profile_already_exists');
         $data = Arr::except($request->validated(), [
             'remove_website_logo',
+            'remove_website_dark_logo',
+            'remove_favicon',
             'remove_company_signature',
             'remove_contract_letterhead',
             'remove_contract_cover_design',
@@ -116,6 +124,8 @@ class SettingController extends Controller
     {
         $data = Arr::except($request->validated(), [
             'remove_website_logo',
+            'remove_website_dark_logo',
+            'remove_favicon',
             'remove_company_signature',
             'remove_contract_letterhead',
             'remove_contract_cover_design',

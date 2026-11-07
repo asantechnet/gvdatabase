@@ -1,8 +1,8 @@
 import type { ThemeDefinition } from 'vuetify'
 import { semanticThemeColors } from '@/utils/semanticThemeColors'
 
-export const staticPrimaryColor = '#0F766E'
-export const staticPrimaryDarkenColor = '#0B5D57'
+export const staticPrimaryColor = '#80027F'
+export const staticPrimaryDarkenColor = '#660166'
 
 export const themes: Record<string, ThemeDefinition> = {
   light: {
@@ -11,7 +11,7 @@ export const themes: Record<string, ThemeDefinition> = {
       'primary': staticPrimaryColor,
       'on-primary': '#fff',
       'primary-darken-1': '#675DD8',
-      'secondary': '#475569',
+      'secondary': '#F47E26',
       'on-secondary': '#fff',
       'secondary-darken-1': '#737682',
       'tertiary': '#D97706',
@@ -84,10 +84,10 @@ export const themes: Record<string, ThemeDefinition> = {
   dark: {
     dark: true,
     colors: {
-      'primary': '#2DD4BF',
+      'primary': '#D03FCE',
       'on-primary': '#fff',
-      'primary-darken-1': '#14B8A6',
-      'secondary': '#808390',
+      'primary-darken-1': '#AE2CAC',
+      'secondary': '#FF974A',
       'on-secondary': '#fff',
       'secondary-darken-1': '#737682',
       'tertiary': '#FBBF24',
@@ -128,11 +128,13 @@ export const themes: Record<string, ThemeDefinition> = {
       'overlay-scrim-background': '#171925',
       'tooltip-background': '#F7F4FF',
       'overlay-scrim-opacity': 0.6,
-      'hover-opacity': 0.06,
-      'focus-opacity': 0.1,
-      'selected-opacity': 0.08,
-      'activated-opacity': 0.16,
-      'pressed-opacity': 0.14,
+      // Dark surfaces need stronger tonal overlays than light surfaces.
+      // These drive Vuetify's tonal buttons, chips, list items and alerts.
+      'hover-opacity': 0.12,
+      'focus-opacity': 0.16,
+      'selected-opacity': 0.18,
+      'activated-opacity': 0.24,
+      'pressed-opacity': 0.2,
       'dragged-opacity': 0.1,
       'disabled-opacity': 0.4,
       'border-color': '#E1DEF5',

@@ -15,7 +15,6 @@ export interface DepartmentMember {
 export interface Department {
   id: number
   name: string
-  code: string | null
   description: string | null
   is_active: boolean
   manager_employee_id: number | null
@@ -34,7 +33,6 @@ export interface DepartmentManagerOption {
 }
 
 export interface DepartmentDeleteRefusal {
-  code?: string
   message?: string
   blocking_employee_count?: number
   blocking_employees?: string[]
@@ -42,7 +40,6 @@ export interface DepartmentDeleteRefusal {
 
 export interface DepartmentPayload {
   name: string
-  code?: string | null
   description?: string | null
   manager_employee_id?: number | null
   is_active: boolean

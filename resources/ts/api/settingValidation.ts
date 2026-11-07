@@ -6,6 +6,8 @@ import { translate, translateOrFallback } from '@/utils/localization'
 export const settingFieldLabels: Record<string, string> = {
   website_title: 'pages.settings.settings.websiteTitle',
   website_logo: 'pages.settings.settings.uploadNewLogo',
+  website_dark_logo: 'pages.settings.settings.darkLogo',
+  favicon: 'pages.settings.settings.favicon',
   company_signature: 'pages.settings.settings.authorizedSignature',
   website_address: 'pages.settings.settings.websiteAddress',
   phone: 'common.fields.phone',
@@ -32,6 +34,8 @@ export const settingFieldLabels: Record<string, string> = {
   automatic_attendance_enabled: 'pages.settings.settings.automaticAttendanceEnabled',
   primary_color: 'pages.settings.settings.primaryColor',
   secondary_color: 'pages.settings.settings.secondaryColor',
+  dark_primary_color: 'pages.settings.settings.darkPrimaryColor',
+  dark_secondary_color: 'pages.settings.settings.darkSecondaryColor',
   light_background_color: 'settingsValidation.lightBackground',
   light_surface_color: 'settingsValidation.lightSurface',
   dark_background_color: 'settingsValidation.darkBackground',
@@ -107,11 +111,13 @@ export function settingsErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function settingsUploadError(file: File, field: string): string | null {
-  const logo = field === 'website_logo'
-  const limit = ['website_logo', 'company_signature'].includes(field) ? 2 : 8
-  const types = ['image/jpeg', 'image/png', 'image/webp', ...(logo ? ['image/gif'] : [])]
-  if (!types.includes(file.type))
-    return translate('settingsValidation.image', { field: settingFieldLabel(field), types: logo ? 'JPG, PNG, WEBP, GIF' : 'JPG, PNG, WEBP' })
+  const logo = ['website_logo', 'website_dark_logo'].includes(field)
+  const favicon = field === 'favicon'
+  const limit = ['website_logo', 'website_dark_logo', 'favicon', 'company_signature'].includes(field) ? 2 : 8
+  const types = ['image/jpeg', 'image/png', 'image/webp', ...(logo || favicon ? ['image/gif'] : []), ...(favicon ? ['image/x-icon', 'image/vnd.microsoft.icon'] : [])]
+  const isIco = favicon && file.name.toLowerCase().endsWith('.ico')
+  if (!isIco && !types.includes(file.type))
+    return translate('settingsValidation.image', { field: settingFieldLabel(field), types: favicon ? 'ICO, JPG, PNG, WEBP, GIF' : logo ? 'JPG, PNG, WEBP, GIF' : 'JPG, PNG, WEBP' })
   if (file.size > limit * 1024 * 1024)
     return translate('settingsValidation.fileSize', { field: settingFieldLabel(field), size: limit })
 

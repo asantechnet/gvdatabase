@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
-import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
-import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
@@ -19,6 +18,7 @@ import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ApplicantPipeline from '@/pages/applicant-pipeline.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -26,7 +26,9 @@ const route = useRoute()
 const { t } = useI18n()
 
 const rows = ref<Applicant[]>([])
-const loading = ref(false)
+// Keep the table in its loading state through catalogue bootstrapping so the
+// first paint is always the row skeleton, never an empty table flash.
+const loading = ref(true)
 // The shared A4 report prints the whole filtered set, not the visible page, so
 // it is filled from every page right before printing.
 const printing = ref(false)
@@ -34,7 +36,16 @@ const reportRows = ref<string[][]>([])
 const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
-const filtersOpen = ref(false)
+const filterDialog = ref(false)
+const displayView = ref<'table' | 'kanban'>(route.query.view === 'kanban' ? 'kanban' : 'table')
+
+function setDisplayView(value: 'table' | 'kanban') {
+  displayView.value = value
+  const query = { ...route.query }
+  if (value === 'kanban') query.view = 'kanban'
+  else delete query.view
+  void router.replace({ query })
+}
 
 const search = ref((route.query.search as string) ?? '')
 const focus = ref<ApplicantListParams['focus']>(['outstanding', 'admitted', 'awaiting_decision', 'unassigned'].includes(String(route.query.focus)) ? route.query.focus as ApplicantListParams['focus'] : '')
@@ -66,6 +77,26 @@ const queryDate = (key: string) => /^\d{4}-\d{2}-\d{2}$/.test(String(route.query
 const dateFrom = ref(queryDate('date_from'))
 const dateTo = ref(queryDate('date_to'))
 const invalidDateRange = computed(() => !!dateFrom.value && !!dateTo.value && dateFrom.value > dateTo.value)
+const dockFilterCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+    instance.calendarContainer.style.setProperty('z-index', '2400', 'important')
+  })
+}
+const filterDraft = reactive({
+  focus: focus.value,
+  service: service.value,
+  status: status.value,
+  paymentStatus: paymentStatus.value,
+  responsibleEmployeeId: responsibleEmployeeId.value,
+  countryId: countryId.value,
+  universityId: universityId.value,
+  educationLevelId: educationLevelId.value,
+  semesterId: semesterId.value,
+  dateFrom: dateFrom.value,
+  dateTo: dateTo.value,
+})
 
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
@@ -81,12 +112,26 @@ const canViewPipeline = computed(() => canAccess('view_applicants'))
 const canViewFinancials = computed(() => canAccess('view_applicant_financials'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canReview = computed(() => canAccess('review_visitors'))
-const activeFilterCount = computed(() => [focus.value, service.value, search.value, stage.value, status.value, paymentStatus.value, responsibleEmployeeId.value, countryId.value, universityId.value, educationLevelId.value, semesterId.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const hasActiveFilters = computed(() => Boolean(
+  focus.value
+  || service.value
+  || status.value
+  || paymentStatus.value
+  || responsibleEmployeeId.value
+  || countryId.value
+  || universityId.value
+  || educationLevelId.value
+  || semesterId.value
+  || dateFrom.value
+  || dateTo.value,
+))
 const headers = computed(() => [
   { title: t('educational.id'), key: 'id', sortable: false },
   { title: t('educational.applicant'), key: 'name', sortable: false },
   { title: t('educational.employee'), key: 'employee', sortable: false },
-  { title: t('educational.destination'), key: 'destination', sortable: false },
+  { title: t('educational.service'), key: 'service', sortable: false },
+  { title: t('educational.country'), key: 'country', sortable: false },
+  { title: t('educational.university'), key: 'university', sortable: false },
   { title: t('educational.stage'), key: 'stage', sortable: false },
   { title: t('educational.status'), key: 'status', sortable: false },
   { title: t('pages.finance.income.income.paymentStatus'), key: 'paymentStatus', sortable: false },
@@ -99,6 +144,8 @@ const destinationLabel = (row: Applicant) => {
 
   return [serviceLabel(row), place].filter(Boolean).join(' · ')
 }
+const countryLabel = (row: Applicant) => row.details?.country?.name ?? '—'
+const universityLabel = (row: Applicant) => row.details?.university?.name ?? '—'
 const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : t('educational.noServiceLines')
 // The API returns the same stage it filters by: the service line's under a
 // service filter, the applicant mirror otherwise.
@@ -107,7 +154,9 @@ const reportRow = (row: Applicant) => [
   `#${row.id}`,
   row.name,
   row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? t('educational.unassigned')),
-  destinationLabel(row),
+  serviceLabel(row),
+  countryLabel(row),
+  universityLabel(row),
   stageOf(row) ? translateApplicantStage(stageOf(row)!) : '—',
   translateBackendValue(row.status),
   ...(canViewFinancials.value ? [paymentStatusLabel(row)] : []),
@@ -164,6 +213,14 @@ const listParams = (): ApplicantListParams => ({
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
 })
+
+// The Kanban board receives this exact same filter state. Its API needs a
+// single stage catalogue, therefore Scholarship is used only until a service
+// is chosen in the shared Applications filter.
+const pipelineFilters = computed<ApplicantListParams>(() => ({
+  ...listParams(),
+  service: service.value || 'scholarship',
+}))
 
 async function load() {
   if (invalidDateRange.value) return
@@ -282,6 +339,44 @@ async function applyFilters() {
   await load()
 }
 
+const syncFilterDraft = () => {
+  filterDraft.focus = focus.value
+  filterDraft.service = service.value
+  filterDraft.status = status.value
+  filterDraft.paymentStatus = paymentStatus.value
+  filterDraft.responsibleEmployeeId = responsibleEmployeeId.value
+  filterDraft.countryId = countryId.value
+  filterDraft.universityId = universityId.value
+  filterDraft.educationLevelId = educationLevelId.value
+  filterDraft.semesterId = semesterId.value
+  filterDraft.dateFrom = dateFrom.value
+  filterDraft.dateTo = dateTo.value
+}
+
+const openFilters = () => {
+  syncFilterDraft()
+  filterDialog.value = true
+}
+
+const applyFilterDialog = async () => {
+  if (filterDraft.dateFrom && filterDraft.dateTo && filterDraft.dateFrom > filterDraft.dateTo)
+    return
+
+  focus.value = filterDraft.focus
+  service.value = filterDraft.service
+  status.value = filterDraft.status
+  paymentStatus.value = filterDraft.paymentStatus
+  responsibleEmployeeId.value = filterDraft.responsibleEmployeeId
+  countryId.value = filterDraft.countryId
+  universityId.value = filterDraft.universityId
+  educationLevelId.value = filterDraft.educationLevelId
+  semesterId.value = filterDraft.semesterId
+  dateFrom.value = filterDraft.dateFrom
+  dateTo.value = filterDraft.dateTo
+  filterDialog.value = false
+  await applyFilters()
+}
+
 function onTabChange() {
   page.value = 1
   load()
@@ -364,10 +459,9 @@ async function saveConsultantReview() {
   }
 }
 
-function clearFilters() {
+async function clearFilters() {
   focus.value = ''
   service.value = ''
-  search.value = ''
   stage.value = ''
   status.value = ''
   paymentStatus.value = ''
@@ -379,10 +473,17 @@ function clearFilters() {
   dateFrom.value = ''
   dateTo.value = ''
   page.value = 1
+  syncFilterDraft()
+  filterDialog.value = false
   // The destination context was reset too, so the stage strip must return to
   // the unscoped catalogue before the list reloads.
-  void applyFilters()
+  await applyFilters()
 }
+
+const debouncedSearch = useDebounceFn(() => {
+  page.value = 1
+  void load()
+}, 300)
 
 // Pagination controls call load() explicitly; no page watcher, so changing
 // pages never fires duplicate requests.
@@ -393,6 +494,15 @@ watch(countryId, () => {
 
   if (!stillVisible)
     universityId.value = null
+})
+
+watch(() => filterDraft.countryId, () => {
+  const stillVisible = universities.value
+    .filter(university => university.is_active && (!filterDraft.countryId || university.country_id === filterDraft.countryId))
+    .some(university => university.id === filterDraft.universityId)
+
+  if (!stillVisible)
+    filterDraft.universityId = null
 })
 
 // A tab from the previous service's pipeline must not stay selected: the
@@ -428,38 +538,50 @@ onMounted(async () => {
 
 <template>
   <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.applications')" section="applications">
-      <template #actions>
-        <div class="applicants-header-actions">
-          <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
-            <VSelect v-model="focus" :items="focusOptions" :label="$t('educational.needsAttention')" clearable />
-            <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
-            <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" :show-apply="false" />
-            <VSelect v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable />
-            <VSelect v-if="canViewFinancials" v-model="paymentStatus" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('pages.finance.income.income.paymentStatus')" clearable />
-            <VSelect v-model="responsibleEmployeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable />
-            <VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable />
-            <VSelect v-model="universityId" :items="universities.filter(u => u.is_active && (!countryId || u.country_id === countryId)).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable />
-            <VSelect v-model="educationLevelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable />
-            <VSelect v-model="semesterId" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="$t('educational.semester')" clearable />
-            <VBtn color="primary" :loading="loading" :disabled="invalidDateRange" @click="applyFilters">{{ $t('educational.apply') }}</VBtn>
-          </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" variant="text" :loading="loading || printing" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
-        </div>
-      </template>
-    </ErpPageHeader>
-  <VCard class="education-panel">
+    <ErpPageHeader :title="$t('educational.applications')" section="applications" />
+  <VCard>
     <VCardText>
-      <VRow dense align="center">
-        <VCol cols="12"><VTextField v-model="search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="page = 1; load()" /></VCol>
+      <VRow align="center" class="table-toolbar">
+        <VCol cols="12" md="6" lg="5">
+          <ErpSearchField
+            v-model="search"
+            :placeholder="$t('educational.searchApplicant')"
+            @input="debouncedSearch"
+          />
+        </VCol>
+        <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+          <div class="applications-view-switch" role="group" :aria-label="$t('educational.applications')">
+            <VBtn size="small" :variant="displayView === 'table' ? 'flat' : 'tonal'" :color="displayView === 'table' ? 'primary' : undefined" @click="setDisplayView('table')">Table</VBtn>
+            <VBtn size="small" :variant="displayView === 'kanban' ? 'flat' : 'tonal'" :color="displayView === 'kanban' ? 'primary' : undefined" @click="setDisplayView('kanban')">Kanban</VBtn>
+          </div>
+          <VBtn
+            icon="tabler-filter"
+            :variant="hasActiveFilters ? 'flat' : 'tonal'"
+            :color="hasActiveFilters ? 'primary' : undefined"
+            size="small"
+            class="applications-filter-trigger"
+            :aria-label="$t('common.messages.filters')"
+            @click="openFilters"
+          >
+            <VIcon icon="tabler-filter" />
+            <VTooltip activator="parent" location="top">{{ $t('common.messages.filters') }}</VTooltip>
+          </VBtn>
+          <VBtn
+            icon="tabler-printer"
+            variant="tonal"
+            class="flex-shrink-0"
+            :aria-label="$t('common.actions.print')"
+            :loading="loading || printing"
+            @click="printReport"
+          >
+            <VIcon icon="tabler-printer" />
+            <VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip>
+          </VBtn>
+        </VCol>
       </VRow>
     </VCardText>
-    <VChip v-if="focus" closable class="mx-4 mb-3" color="primary" @click:close="focus = ''; page = 1; load()">{{ focusOptions.find(option => option.value === focus)?.title }}</VChip>
-    <p v-if="!service" class="text-caption text-medium-emphasis px-4 pt-4 mb-0">{{ $t('educational.serviceStageHint') }}</p>
-    <!-- Do not mount the tabs before their items exist: Vuetify writes an
-         unmatched model value back as empty, which silently drops the stage
-         carried by a deep link such as ?service=scholarship&stage=consultation. -->
-    <VTabs v-if="service && stages.length" v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
+    <template v-if="displayView === 'table'">
+    <VTabs v-if="service" v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
       <VTab value="">{{ $t('educational.allApplications') }}</VTab>
       <VTab v-for="item in pipelineStages" :key="item.id" :value="item.key">{{ translateApplicantStage(item) }}</VTab>
       <VDivider v-if="terminalStages.length && pipelineStages.length" vertical class="stage-tabs-divider align-self-center" />
@@ -470,7 +592,6 @@ onMounted(async () => {
       </VTab>
     </VTabs>
     <VDivider />
-    <div class="d-flex align-center gap-2 px-4 py-3"><VIcon icon="tabler-users" color="primary" /><strong>{{ $t('educational.resultCount', { count: total }) }}</strong><VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn></div>
     <ResponsiveDataTableServer
       :headers="headers"
       :items="rows"
@@ -480,27 +601,157 @@ onMounted(async () => {
       :items-per-page="perPage"
       :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
-      class="education-applications-table"
+      class="applications-responsive-table"
+      mobile-breakpoint="sm"
       mobile-cards
+      mobile-expand-all
+      mobile-actions-as-menu
       mobile-title-key="name"
       mobile-action-key="actions"
       :mobile-fields="['stage', 'employee', 'destination', 'status']"
+      :sticky-key-column="false"
+      :sticky-action-column="false"
+      :skeleton-rows="5"
+      :show-scroll-affordance="false"
+      pagination
       @update:options="updateTableOptions"
     >
       <template #loading><TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" /></template>
-      <template #no-data><TableEmptyState icon="tabler-clipboard-list" :description="$t('educational.noApplicants')" /></template>
+      <template #no-data>
+        <div class="applications-empty-state">
+          <TableEmptyState
+            icon="tabler-clipboard-list"
+            :min-height="0"
+            :title="$t('pages.contracts.visitor.visitor.noApplicants')"
+            :description="$t('educational.noApplicants')"
+          />
+        </div>
+      </template>
       <template #item.id="{ item }">#{{ item.id }}</template>
       <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
       <template #item.employee="{ item }">{{ item.service === 'academy' ? '—' : (item.responsible_employee?.name ?? $t('educational.unassigned')) }}</template>
-      <template #item.destination="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip><span v-if="['scholarship', 'private'].includes(item.service)" class="ms-2">{{ item.details?.country?.name ?? '—' }}{{ item.details?.university?.name ? ` · ${item.details.university.name}` : '' }}</span></template>
+      <template #item.service="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip></template>
+      <template #item.country="{ item }"><span class="text-medium-emphasis">{{ countryLabel(item) }}</span></template>
+      <template #item.university="{ item }"><span class="text-medium-emphasis">{{ universityLabel(item) }}</span></template>
       <template #item.stage="{ item }">{{ stageOf(item) ? translateApplicantStage(stageOf(item)!) : '—' }}</template>
       <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'secondary'">{{ translateBackendValue(item.status) }}</VChip></template>
       <template #item.paymentStatus="{ item }"><VChip v-if="item.payment_status" size="small" variant="tonal" :color="item.payment_status === 'paid' ? 'success' : item.payment_status === 'partially_paid' ? 'warning' : 'error'">{{ paymentStatusLabel(item) }}</VChip><span v-else class="text-medium-emphasis">{{ $t('educational.noServiceLines') }}</span></template>
-      <template #item.actions="{ item }"><div class="d-flex justify-end align-center ga-1"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canReview" icon="tabler-message" size="small" variant="text" @click="openConsultantReview(item)"><VTooltip activator="parent">{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VTooltip></VBtn><VBtn size="small" variant="text" @click="router.push({ name: 'applicant-case', params: { id: item.id } })">{{ $t('educational.openCase') }}</VBtn></div></template>
+      <template #item.actions="{ item }">
+        <div class="d-flex justify-end align-center">
+          <VMenu location="bottom end" :close-on-content-click="false">
+            <template #activator="{ props: menuProps }">
+              <VBtn
+                v-bind="menuProps"
+                icon="tabler-dots-vertical"
+                variant="tonal"
+                size="small"
+                class="applications-actions-trigger"
+                :aria-label="$t('common.messages.actions')"
+              />
+            </template>
+            <VList class="applications-actions-menu" density="compact" min-width="220">
+              <CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" menu-action />
+              <VListItem
+                v-if="canReview"
+                prepend-icon="tabler-message"
+                :title="$t('pages.contracts.visitor.visitor.consultantReview')"
+                :disabled="creating"
+                @click="openConsultantReview(item)"
+              />
+              <VListItem
+                prepend-icon="tabler-folder-open"
+                :title="$t('educational.openCase')"
+                @click="router.push({ name: 'applicant-case', params: { id: item.id } })"
+              />
+            </VList>
+          </VMenu>
+        </div>
+      </template>
     </ResponsiveDataTableServer>
+    </template>
+    <ApplicantPipeline v-else embedded :external-filters="pipelineFilters" />
   </VCard>
   <PrintableListReport :title="t('educational.applications')" :subtitle="t('common.crmUi.printReports.applications.subtitle')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="reportRows" />
   </div>
+  <VDialog
+    v-model="filterDialog"
+    max-width="860"
+    content-class="applications-filter-dialog"
+    scroll-strategy="block"
+  >
+    <VCard class="applications-filter-card">
+      <VCardTitle class="applications-filter-dialog__title px-5 py-4">
+        <span class="applications-filter-dialog__heading">{{ $t('common.messages.filters') }}</span>
+        <VSpacer />
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="applications-filter-dialog__close"
+          :aria-label="$t('common.actions.close')"
+          @click="filterDialog = false"
+        />
+      </VCardTitle>
+      <VCardText class="applications-filter-dialog__body pa-5">
+        <VRow>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.focus" kind="select" :items="focusOptions" :label="$t('educational.needsAttention')" :placeholder="$t('educational.needsAttention')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.service" kind="select" :items="serviceOptions" :label="$t('educational.service')" :placeholder="$t('educational.service')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.status" kind="select" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" :placeholder="$t('educational.status')" clearable />
+          </VCol>
+          <VCol v-if="canViewFinancials" cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.paymentStatus" kind="select" :items="[{ title: $t('finance.paymentStatus.paid'), value: 'paid' }, { title: $t('finance.paymentStatus.partially_paid'), value: 'partially_paid' }, { title: $t('finance.paymentStatus.unpaid'), value: 'unpaid' }]" :label="$t('pages.finance.income.income.paymentStatus')" :placeholder="$t('pages.finance.income.income.paymentStatus')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.responsibleEmployeeId" kind="autocomplete" :items="employees.map(employee => ({ title: employee.name, value: employee.id }))" :label="$t('educational.employee')" :placeholder="$t('educational.employee')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.countryId" kind="select" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="$t('educational.country')" :placeholder="$t('educational.country')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.universityId" kind="select" :items="universities.filter(university => university.is_active && (!filterDraft.countryId || university.country_id === filterDraft.countryId)).map(university => ({ title: university.name, value: university.id }))" :label="$t('educational.university')" :placeholder="$t('educational.university')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.educationLevelId" kind="select" :items="levels.filter(level => level.is_active).map(level => ({ title: level.name, value: level.id }))" :label="$t('educational.educationLevel')" :placeholder="$t('educational.educationLevel')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6" md="4">
+            <ErpField v-model="filterDraft.semesterId" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="$t('educational.semester')" :placeholder="$t('educational.semester')" clearable />
+          </VCol>
+          <VCol cols="12" sm="6">
+            <div class="erp-field">
+              <label class="erp-field-label">{{ $t('common.fields.startDate') }}</label>
+              <AppDateTimePicker v-model="filterDraft.dateFrom" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', maxDate: filterDraft.dateTo || undefined, static: false, onOpen: dockFilterCalendar }" />
+            </div>
+          </VCol>
+          <VCol cols="12" sm="6">
+            <div class="erp-field">
+              <label class="erp-field-label">{{ $t('common.fields.endDate') }}</label>
+              <AppDateTimePicker v-model="filterDraft.dateTo" class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', minDate: filterDraft.dateFrom || undefined, static: false, onOpen: dockFilterCalendar }" />
+            </div>
+          </VCol>
+        </VRow>
+      </VCardText>
+      <VCardActions class="applications-filter-dialog__actions px-5 py-4">
+        <VBtn class="applications-filter-dialog__reset" variant="flat" @click="clearFilters">
+          {{ $t('common.messages.reset') }}
+        </VBtn>
+        <VBtn
+          class="applications-filter-dialog__apply"
+          color="primary"
+          variant="flat"
+          :loading="loading"
+          :disabled="!!filterDraft.dateFrom && !!filterDraft.dateTo && filterDraft.dateFrom > filterDraft.dateTo"
+          @click="applyFilterDialog"
+        >
+          {{ $t('educational.apply') }}
+        </VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
   <VDialog v-model="createDialog" max-width="1100" scrollable class="erp-form">
     <VCard :title="$t('educational.newApplicantCase')">
       <VCardText>
@@ -523,40 +774,255 @@ onMounted(async () => {
       </VCardActions>
     </VCard>
   </VDialog>
-  <VDialog v-model="reviewDialog" max-width="640">
-    <VCard>
-      <VCardTitle>{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</VCardTitle>
-      <VCardText><VSelect v-model="consultantReview" :items="reviewOptions" :label="$t('pages.contracts.visitor.visitor.consultantReview')" clearable /></VCardText>
-      <VCardActions><VSpacer /><VBtn variant="outlined" @click="reviewDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :loading="creating" @click="saveConsultantReview">{{ $t('common.actions.save') }}</VBtn></VCardActions>
+  <VDialog v-model="reviewDialog" max-width="460" content-class="visitor-form-dialog visitor-review-dialog">
+    <VCard class="visitor-form-card">
+      <VCardTitle class="visitor-dialog-title px-5 py-4">
+        <span class="visitor-dialog-heading">{{ $t('pages.contracts.visitor.visitor.consultantReview') }}</span>
+        <VSpacer />
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="visitor-dialog-close"
+          :aria-label="$t('common.actions.close')"
+          :disabled="creating"
+          @click="reviewDialog = false"
+        />
+      </VCardTitle>
+      <VCardText class="visitor-dialog-body pa-5">
+        <ErpField
+          v-model="consultantReview"
+          kind="select"
+          :items="reviewOptions"
+          :label="$t('pages.contracts.visitor.visitor.consultantReview')"
+          :placeholder="$t('pages.contracts.visitor.visitor.placeholders.consultantReview')"
+          clearable
+        />
+      </VCardText>
+      <VCardActions class="visitor-dialog-actions px-5 py-4">
+        <VSpacer />
+        <VBtn class="visitor-dialog-cancel" variant="flat" color="error" :disabled="creating" @click="reviewDialog = false">
+          {{ $t('common.actions.cancel') }}
+        </VBtn>
+        <VBtn class="visitor-dialog-submit" color="primary" variant="flat" :loading="creating" @click="saveConsultantReview">
+          {{ $t('common.actions.save') }}
+        </VBtn>
+      </VCardActions>
     </VCard>
   </VDialog>
 </template>
 
-<style scoped>
+<style lang="scss">
 /* Separates the open pipeline stages from the terminal (closing) stages. */
 .stage-tabs-divider {
   block-size: 22px;
   margin-inline: 12px;
 }
 
-:deep(.erp-header-actions) {
-  flex: 0 0 auto;
-  order: 2;
+@media (max-width: 1279px) {
+  .table-toolbar-actions { justify-content: flex-start; }
 }
 
-:deep(.erp-subnav) {
-  order: 3;
+.applications-filter-trigger.v-btn--variant-flat {
+  color: rgb(var(--v-theme-on-primary));
 }
 
-.applicants-header-actions {
+.applications-view-switch {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.applications-view-switch .v-btn {
+  min-inline-size: 74px;
+}
+
+.applications-responsive-table .v-table__wrapper {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.applications-responsive-table .v-table__wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.applications-responsive-table .v-table__wrapper > table {
+  min-inline-size: 1400px;
+}
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th,
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td {
+  white-space: nowrap;
+}
+
+/* Keep the profile and destination data readable instead of compressing the
+   middle of this intentionally scrollable operational table. */
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(3),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 11rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 9rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(5),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 10rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(6),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 13rem; }
+
+.applications-responsive-table .v-table__wrapper > table > tbody > tr:hover > td {
+  background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
+}
+
+.applications-responsive-table .v-table__wrapper:has(.applications-empty-state) {
+  overflow-x: hidden;
+}
+
+.applications-responsive-table .v-table__wrapper > table:has(.applications-empty-state) {
+  min-inline-size: 100%;
+  table-layout: fixed;
+}
+
+.applications-responsive-table .v-table__wrapper > table:has(.applications-empty-state) > thead > tr > th,
+.applications-responsive-table .v-table__wrapper > table:has(.applications-empty-state) > tbody > tr > td {
+  min-inline-size: 0 !important;
+  white-space: normal;
+}
+
+.applications-responsive-table .v-table__wrapper > table > tbody > tr:has(.applications-empty-state):hover > td,
+.applications-responsive-table .v-table__wrapper > table > tbody > tr.responsive-data-table__skeleton-row:hover > td {
+  background-color: transparent !important;
+}
+
+.applications-responsive-table .v-table__wrapper > table > tbody > tr:has(.applications-empty-state) > td {
+  padding: 0 !important;
+}
+
+.applications-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  min-block-size: 17rem;
+  padding-block: 1.25rem 2rem;
+  padding-inline: 1.25rem;
+}
+
+.applications-empty-state .table-empty-state {
+  min-block-size: 0 !important;
+  padding-block: 1rem;
+}
+
+.applications-actions-trigger {
+  border-radius: 999px !important;
+  background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
+  color: rgba(var(--v-theme-on-surface), 0.72) !important;
+}
+
+.applications-actions-trigger:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.08) !important;
+}
+
+.applications-filter-card,
+.visitor-form-dialog .visitor-form-card {
+  overflow: hidden;
+}
+
+.applications-filter-dialog__title,
+.applications-filter-dialog__actions,
+.visitor-form-dialog .visitor-dialog-title,
+.visitor-form-dialog .visitor-dialog-actions {
   display: flex;
   align-items: center;
+  border-width: 0;
+  border-style: solid;
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+}
+
+.applications-filter-dialog__title,
+.visitor-form-dialog .visitor-dialog-title {
+  border-block-end-width: 1px;
+}
+
+.applications-filter-dialog__actions,
+.visitor-form-dialog .visitor-dialog-actions {
+  border-block-start-width: 1px;
+}
+
+.applications-filter-dialog__heading,
+.visitor-form-dialog .visitor-dialog-heading {
+  font-size: 1.625rem;
+  font-weight: 700;
+}
+
+.applications-filter-dialog__body,
+.visitor-form-dialog .visitor-dialog-body {
+  background-color: rgb(var(--v-theme-surface));
+}
+
+.applications-filter-dialog__actions {
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
-@media (max-width: 599px) {
-  :deep(.erp-header-actions) {
-    flex-basis: 100%;
+.applications-filter-dialog__close,
+.visitor-form-dialog .visitor-dialog-close {
+  border: 1px solid rgba(var(--v-theme-error), 0.38);
+  border-radius: 50%;
+  block-size: 36px;
+  color: rgb(var(--v-theme-error));
+  inline-size: 36px;
+}
+
+.applications-filter-dialog__close:hover,
+.visitor-form-dialog .visitor-dialog-close:hover {
+  background-color: rgba(var(--v-theme-error), 0.18) !important;
+}
+
+.applications-filter-dialog__reset,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn {
+  border: 1px solid rgba(var(--v-theme-error), 0.62) !important;
+  background-color: rgba(var(--v-theme-error), 0.12) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.applications-filter-dialog__reset:hover,
+.applications-filter-dialog__reset:focus-visible,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:hover,
+.visitor-form-dialog button.visitor-dialog-cancel.v-btn:focus-visible {
+  border-color: rgb(var(--v-theme-error));
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-on-error)) !important;
+}
+
+.applications-filter-dialog__apply,
+.visitor-form-dialog .visitor-dialog-submit {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+.applications-filter-dialog__apply:hover,
+.visitor-form-dialog .visitor-dialog-submit:hover {
+  filter: brightness(0.9);
+}
+
+.v-overlay:has(.applications-filter-dialog) .v-overlay__scrim,
+.v-overlay:has(.visitor-form-dialog) .v-overlay__scrim {
+  backdrop-filter: blur(4px);
+  background-color: rgba(var(--v-theme-on-surface), 0.24);
+}
+
+@media (max-width: 959px) {
+  .applications-responsive-table.responsive-data-table--mobile-cards .v-table__wrapper > table > tbody > tr:hover > td {
+    background-color: transparent !important;
+  }
+
+  .applications-responsive-table.responsive-data-table--mobile-cards .responsive-data-table__field + .responsive-data-table__field {
+    border-block-start-color: rgba(var(--v-theme-on-surface), 0.08);
+  }
+
+  .applications-responsive-table.responsive-data-table--mobile-cards .responsive-data-table__field-value > .d-flex {
+    justify-content: flex-end;
   }
 }
 </style>

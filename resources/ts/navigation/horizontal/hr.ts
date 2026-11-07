@@ -61,6 +61,13 @@ export default [
         subject: 'view_bonuses',
       },
       {
+        title: 'common.navigation.employeePerformanceReport',
+        icon: { icon: 'tabler-chart-bar' },
+        to: 'employee-performance-report',
+        action: 'read',
+        subject: 'view_employees',
+      },
+      {
         title: 'common.navigation.positions',
         icon: { icon: 'tabler-briefcase' },
         to: 'setup-positions',

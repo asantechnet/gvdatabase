@@ -37,6 +37,7 @@ function selectTab(tab: unknown) {
       cols="12"
       md="3"
       lg="2"
+      class="account-settings-navigation"
     >
       <VCard>
         <VTabs
@@ -63,6 +64,7 @@ function selectTab(tab: unknown) {
       cols="12"
       md="9"
       lg="10"
+      class="account-settings-content"
     >
       <component :is="activeComponent" />
     </VCol>
@@ -70,6 +72,30 @@ function selectTab(tab: unknown) {
 </template>
 
 <style scoped>
+@media (min-width: 960px) {
+  .account-settings-navigation {
+    flex-basis: calc(25% + 40px);
+    max-inline-size: calc(25% + 40px);
+  }
+
+  .account-settings-content {
+    flex-basis: calc(75% - 40px);
+    max-inline-size: calc(75% - 40px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .account-settings-navigation {
+    flex-basis: calc(16.666667% + 40px);
+    max-inline-size: calc(16.666667% + 40px);
+  }
+
+  .account-settings-content {
+    flex-basis: calc(83.333333% - 40px);
+    max-inline-size: calc(83.333333% - 40px);
+  }
+}
+
 @media (max-width: 959px) {
   .v-tabs { flex-direction: row !important; overflow-x: auto; }
 }

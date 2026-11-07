@@ -37,6 +37,7 @@ class EducationalReportController extends Controller
     public function show(Request $request, string $type)
     {
         $this->assertType($type);
+        $this->authorizeType($request, $type);
         $filters = $this->filters($request);
         $rows = $this->rows($type, $filters, paginate: true, request: $request);
 
@@ -46,11 +47,12 @@ class EducationalReportController extends Controller
     public function export(Request $request, string $type): StreamedResponse
     {
         $this->assertType($type);
+        $this->authorizeType($request, $type);
         abort_unless($request->user()->hasPermission('export_reports'), 403, 'auth.forbidden');
         AcceptedLocale::fromRequest($request);
         $filters = $this->filters($request);
         $report = $this->rows($type, $filters, paginate: false, request: $request);
-        $filename = sprintf('visa-%s-report-%s.csv', $type, now()->format('Y-m-d'));
+        $filename = sprintf('%s-report-%s.csv', $type, now()->format('Y-m-d'));
         $generatedAt = now('UTC')->toISOString();
 
         return response()->streamDownload(function () use ($report, $generatedAt): void {
@@ -71,6 +73,17 @@ class EducationalReportController extends Controller
     private function assertType(string $type): void
     {
         abort_unless(in_array($type, self::TYPES, true), 404);
+    }
+
+    private function authorizeType(Request $request, string $type): void
+    {
+        $permission = match ($type) {
+            'financial' => 'view_financial_reports',
+            'employee-performance' => 'view_employees',
+            default => 'view_visa_reports',
+        };
+
+        abort_unless($request->user()->hasPermission($permission), 403, 'auth.forbidden');
     }
 
     private function filters(Request $request): array

@@ -206,7 +206,7 @@ export default {
               <VBtn color="primary" variant="flat" data-filter-apply @click="reload">{{ $t('educational.apply') }}</VBtn>
             </template>
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" color="primary" variant="tonal" size="small" class="flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTable">
+          <VBtn icon="tabler-printer" color="primary" variant="tonal" size="small" class="cancelled-contract-print-button flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTable">
             <VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip>
           </VBtn>
         </VCol>
@@ -289,11 +289,27 @@ export default {
 </template>
 
 <style scoped>
+.cancelled-contract-print-button {
+  background-color: rgba(var(--v-theme-primary), 0.12) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.cancelled-contract-print-button :deep(.v-btn__content),
+.cancelled-contract-print-button :deep(.v-icon) {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.cancelled-contract-print-button:hover,
+.cancelled-contract-print-button:focus-visible {
+  background-color: rgba(var(--v-theme-primary), 0.18) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
 .cancelled-contract-table :deep(.v-table__wrapper > table) {
   min-inline-size: 900px;
 }
 
-.cancelled-contract-empty-state { align-items: center; display: flex; flex-direction: column; justify-content: center; min-block-size: 17rem; padding: 1.25rem 1.25rem 2rem; }
+.cancelled-contract-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-block-size: 17rem; padding-block: 1.25rem 2rem; padding-inline: 1.25rem; }
 .cancelled-contract-empty-state :deep(.table-empty-state) { min-block-size: 0 !important; padding-block: 1rem; }
 
 .cancelled-contract-table :deep(.v-table__wrapper > table > tbody > tr:hover > td) {
@@ -335,7 +351,7 @@ export default {
   }
 
   .cancelled-contract-table :deep(.responsive-data-table__mobile-row > td) {
-    padding: .75rem;
+    padding: 0.75rem;
   }
 }
 </style>

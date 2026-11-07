@@ -20,7 +20,6 @@ class Department extends Model
 
     protected $fillable = [
         'name',
-        'code',
         'description',
         'manager_employee_id',
         'is_active',

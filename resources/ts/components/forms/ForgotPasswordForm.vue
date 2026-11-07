@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ErpField from '@/components/erp/ErpField.vue'
+
 defineProps<{ email: string; loading: boolean }>()
 
 const emit = defineEmits<{ submit: []; 'update:email': [value: string] }>()
@@ -9,7 +11,7 @@ const emit = defineEmits<{ submit: []; 'update:email': [value: string] }>()
     class="app-form"
     @submit.prevent="emit('submit')"
   >
-    <VTextField
+    <ErpField
       :model-value="email"
       type="email"
       :label="$t('common.fields.email')"

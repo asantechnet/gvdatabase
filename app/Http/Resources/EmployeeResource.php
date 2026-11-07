@@ -42,7 +42,6 @@ class EmployeeResource extends JsonResource
                 ->map(fn ($department) => [
                     'id' => $department->id,
                     'name' => $department->name,
-                    'code' => $department->code,
                     'is_primary' => (bool) $department->pivot->is_primary,
                 ])
                 ->values()),

@@ -94,7 +94,7 @@ const formatParagraphs = (content: string | string[]) => {
 // 4. Print Controller
 const printContractPage = async () => {
   if (!contractRef.value) return
-  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractRef.value })
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractRef.value, printPageSelector: '.contract-page-container' })
 }
 
 defineExpose({
@@ -376,10 +376,23 @@ defineExpose({
   inset: var(--letterhead-safe-y) auto auto var(--letterhead-safe-x);
   width: var(--letterhead-safe-width);
   height: var(--letterhead-safe-height);
+  /* Artwork owns the header and footer. Keep generated text away from both
+     edges of the configured safe zone, including on short contract pages. */
+  box-sizing: border-box;
+  padding-block: 2mm;
 }
 
 .has-letterhead .margin-rail-left,
 .has-letterhead .margin-corner-top-right {
+  display: none;
+}
+
+/* The letterhead is the sole source of company chrome. These are already
+ * conditionally rendered, but the guard also protects print clones from any
+ * future slot or transition that introduces the built-in elements. */
+.has-letterhead .contract-header,
+.has-letterhead .header-divider,
+.has-letterhead .contract-footer-wrapper {
   display: none;
 }
 

@@ -46,6 +46,30 @@ class CompanySettingsTest extends TestCase
         $this->assertFalse(\Schema::hasColumn('settings', 'business_licence_document'));
     }
 
+    public function test_company_branding_supports_dark_logo_and_favicon(): void
+    {
+        Sanctum::actingAs($this->superAdmin(), ['access']);
+
+        $this->post('/api/settings', [
+            ...$this->validSettings(),
+            'website_logo' => $this->fakePng('light.png', 400, 200),
+            'website_dark_logo' => $this->fakePng('dark.png', 400, 200),
+            'favicon' => $this->fakePng('favicon.png', 64, 64),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.website_dark_logo_url', fn (?string $url) => str_contains($url ?? '', '/logos/'))
+            ->assertJsonPath('data.favicon_url', fn (?string $url) => str_contains($url ?? '', '/favicons/'));
+
+        $setting = Setting::query()->firstOrFail();
+        Storage::disk('public')->assertExists($setting->website_dark_logo);
+        Storage::disk('public')->assertExists($setting->favicon);
+
+        $this->getJson('/api/company-branding')
+            ->assertOk()
+            ->assertJsonPath('data.website_dark_logo_url', fn (?string $url) => str_contains($url ?? '', '/logos/'))
+            ->assertJsonPath('data.favicon_url', fn (?string $url) => str_contains($url ?? '', '/favicons/'));
+    }
+
     public function test_artwork_replacement_and_removal_clean_up_superseded_files(): void
     {
         Sanctum::actingAs($this->superAdmin(), ['access']);
@@ -129,9 +153,9 @@ class CompanySettingsTest extends TestCase
         $this->patchJson("/api/settings/{$setting->id}", [
             'primary_color' => null,
         ])->assertOk()
-            ->assertJsonPath('data.primary_color', '#0F766E');
+            ->assertJsonPath('data.primary_color', '#80027F');
 
-        $this->assertSame('#0F766E', $setting->fresh()->primary_color);
+        $this->assertSame('#80027F', $setting->fresh()->primary_color);
     }
 
     public function test_theme_palette_returns_only_adjustable_defaults(): void
@@ -142,6 +166,8 @@ class CompanySettingsTest extends TestCase
 
         $this->assertSame('#F5F7F4', $resource['light_background_color']);
         $this->assertSame('#1A1B1B', $resource['dark_surface_color']);
+        $this->assertSame('#80027F', $resource['primary_color']);
+        $this->assertSame('#D03FCE', $resource['dark_primary_color']);
         $this->assertArrayNotHasKey('success_color', $resource);
         $this->assertArrayNotHasKey('info_color', $resource);
         $this->assertArrayNotHasKey('warning_color', $resource);

@@ -160,6 +160,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PUT /applicant-portal/profile': ['edit_own_applicant_profile'],
     'GET /applicant-portal/attachments': ['view_own_applicant_portal'],
     'POST /applicant-portal/attachments': ['edit_own_applicant_profile'],
+    'GET /applicant-portal/attachments/:id/preview': ['view_own_applicant_portal'],
+    'DELETE /applicant-portal/attachments/:id': ['edit_own_applicant_profile'],
     'POST /applicants/:id/portal-invitation': ['invite_applicant_portal'],
     'GET /applicants/:id/universities': ['view_applicants'],
     'POST /applicants/:id/universities': ['edit_applicants'],
@@ -190,7 +192,7 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'PATCH /audit-resources/:id': ['manage_audit_scope'],
     'GET /dashboard/stats': ['view_dashboard'],
     'GET /dashboard/chart-data': ['view_dashboard'],
-    'GET /employees/assignment-options': ['view_applicants', 'view_visitors', 'create_contracts'],
+    'GET /employees/assignment-options': ['view_applicants', 'view_visitors', 'create_contracts', 'view_financial_reports', 'view_employees'],
     'GET /educational-dashboard': ['view_agency_overview'],
     'GET /educational-bonus-sources': ['view_bonuses'],
     'POST /educational-bonus-sources': ['manage_educational_bonuses'],
@@ -294,10 +296,14 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     return [`${action}_${key}`]
   }
 
-  if (/^\/educational-reports\/[^/]+\/export$/.test(path) && requestMethod === 'GET')
+  const reportType = path.match(/^\/educational-reports\/([^/]+)(?:\/export)?$/)?.[1]
+  if (reportType && requestMethod === 'GET') {
+    if (reportType === 'financial')
+      return ['view_financial_reports']
+    if (reportType === 'employee-performance')
+      return ['view_employees']
     return ['view_visa_reports']
-  if (/^\/educational-reports\/[^/]+$/.test(path) && requestMethod === 'GET')
-    return ['view_visa_reports']
+  }
 
   return special[`${requestMethod} ${path}`] ?? restPermission(requestMethod, path)
 }

@@ -9,6 +9,7 @@ import {
 } from '@/api/accountDeactivation'
 import { canAccess } from '@/utils/authorization'
 import { applyUiScale, uiScaleOptions } from '@/utils/uiScale'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const fallbackAvatar = 'https://ui-avatars.com/api/?background=7367f0&color=fff&name=User'
 const toast = useToast()
@@ -24,6 +25,7 @@ const deactivationCancelling = ref(false)
 const deactivationPassword = ref('')
 const deactivationReason = ref('')
 const passwordFieldGuarded = ref(true)
+const showDeactivationPassword = ref(false)
 const deactivationRequests = ref<AccountDeactivationRequest[]>([])
 const emailVerified = ref(false)
 const initial = ref<AccountUpdatePayload>({})
@@ -140,6 +142,7 @@ function resetForm() { account.value = { ...account.value, ...initial.value } }
 function clearDeactivationSecrets() {
   deactivationPassword.value = ''
   passwordFieldGuarded.value = true
+  showDeactivationPassword.value = false
 }
 
 function openDeactivationDialog() {
@@ -199,7 +202,11 @@ watch(deactivationDialogOpen, open => {
     clearDeactivationSecrets()
 })
 
-onMounted(() => Promise.all([loadAccount(), loadDeactivationRequests()]))
+onMounted(async () => {
+  await loadAccount()
+  if (canRequestDeactivation.value)
+    await loadDeactivationRequests()
+})
 onBeforeUnmount(() => {
   clearDeactivationSecrets()
   if (avatarPreview.value)
@@ -210,11 +217,33 @@ onBeforeUnmount(() => {
 <template>
   <VRow>
     <VCol cols="12">
-      <VCard :loading="loading">
-        <VCardText
-          class="d-flex"
-          data-account-guide="profile-photo"
-        >
+      <VCard>
+        <template v-if="loading">
+          <VCardText class="d-flex align-center ga-5">
+            <VSkeletonLoader type="avatar" />
+            <div class="flex-grow-1">
+              <VSkeletonLoader type="button, text" />
+            </div>
+          </VCardText>
+          <VCardText>
+            <VRow>
+              <VCol
+                v-for="index in 5"
+                :key="index"
+                cols="12"
+                md="6"
+              >
+                <VSkeletonLoader type="text, image" />
+              </VCol>
+            </VRow>
+          </VCardText>
+        </template>
+
+        <template v-else>
+          <VCardText
+            class="d-flex"
+            data-account-guide="profile-photo"
+          >
           <VAvatar
             rounded
             size="100"
@@ -252,25 +281,24 @@ onBeforeUnmount(() => {
               {{ $t('components.account.accountsettingsaccount.allowedJPGGIFPNGOrWebPMaximumSize800KB') }}
             </p>
           </div>
-        </VCardText>
+          </VCardText>
 
-        <VCardText
-          class="pt-2"
-          data-account-guide="profile-details"
-        >
+          <VCardText
+            class="pt-2"
+            data-account-guide="profile-details"
+          >
           <VForm
             class="mt-3"
             @submit.prevent="saveAccount"
           >
             <VRow>
               <VCol cols="12">
-                <VSelect
+                <ErpField
                   v-model="uiScale"
+                  kind="select"
                   :items="uiScaleOptions"
                   label="Display size"
-                  hint="Changes the interactive application only; printed documents keep their fixed layout."
-                  persistent-hint
-                  :disabled="loading"
+                  placeholder="Select display size"
                   @update:model-value="saveUiScale"
                 />
               </VCol>
@@ -278,21 +306,21 @@ onBeforeUnmount(() => {
                 md="6"
                 cols="12"
               >
-                <AppTextField
+                <ErpField
                   v-model="account.name"
                   :label="$t('common.messages.fullName')"
-                  :disabled="loading"
+                  :placeholder="$t('common.messages.fullName')"
                 />
               </VCol>
               <VCol
                 md="6"
                 cols="12"
               >
-                <AppTextField
+                <ErpField
                   v-model="account.email"
                   :label="$t('common.messages.eMail')"
+                  :placeholder="$t('common.messages.eMail')"
                   type="email"
-                  :disabled="loading"
                 />
               </VCol>
               <VCol
@@ -319,18 +347,20 @@ onBeforeUnmount(() => {
                 md="6"
                 cols="12"
               >
-                <AppTextField
+                <ErpField
                   v-model="account.phone"
                   :label="$t('components.account.accountsettingsaccount.phoneNumber')"
+                  :placeholder="$t('components.account.accountsettingsaccount.phoneNumber')"
                 />
               </VCol>
               <VCol
                 md="6"
                 cols="12"
               >
-                <AppTextField
+                <ErpField
                   v-model="account.address"
                   :label="$t('common.fields.address')"
+                  :placeholder="$t('common.fields.address')"
                 />
               </VCol>
               <VCol
@@ -352,7 +382,8 @@ onBeforeUnmount(() => {
               </VCol>
             </VRow>
           </VForm>
-        </VCardText>
+          </VCardText>
+        </template>
       </VCard>
     </VCol>
 
@@ -413,11 +444,11 @@ onBeforeUnmount(() => {
           autocomplete="off"
           @submit.prevent="submitDeactivationRequest"
         >
-          <VTextField
+          <ErpField
             v-model="deactivationPassword"
             name="account-deactivation-confirmation-password"
             :label="$t('components.account.accountsettingsaccount.currentPassword')"
-            type="password"
+            :type="showDeactivationPassword ? 'text' : 'password'"
             autocomplete="new-password"
             :readonly="passwordFieldGuarded"
             data-lpignore="true"
@@ -425,12 +456,16 @@ onBeforeUnmount(() => {
             autocapitalize="none"
             spellcheck="false"
             class="mb-4"
+            :append-inner-icon="showDeactivationPassword ? 'tabler-eye-off' : 'tabler-eye'"
             @pointerdown="passwordFieldGuarded = false"
             @focus="passwordFieldGuarded = false"
+            @click:append-inner="showDeactivationPassword = !showDeactivationPassword"
           />
-          <VTextarea
+          <ErpField
             v-model="deactivationReason"
+            kind="textarea"
             :label="$t('components.account.accountsettingsaccount.reasonOptional')"
+            :placeholder="$t('components.account.accountsettingsaccount.reasonOptional')"
             maxlength="2000"
             counter
             rows="3"

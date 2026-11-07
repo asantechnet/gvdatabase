@@ -14,6 +14,7 @@ use App\Support\BuiltInService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -119,6 +120,36 @@ class ApplicantPortalController extends Controller
         $this->notifications->applicantDocumentUploaded($applicant, $attachment, $request->user()->id);
 
         return response()->json(['success' => true, 'data' => $this->attachmentData($attachment)], 201);
+    }
+
+    public function destroyAttachment(Request $request, int $attachment): JsonResponse
+    {
+        $applicant = $this->applicantFor($request);
+        $record = $applicant->attachments()
+            ->whereKey($attachment)
+            ->where('category', 'applicant_portal')
+            ->firstOrFail();
+
+        Storage::disk($record->disk)->delete($record->path);
+        $record->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function previewAttachment(Request $request, int $attachment)
+    {
+        $applicant = $this->applicantFor($request);
+        $record = $applicant->attachments()
+            ->whereKey($attachment)
+            ->where('category', 'applicant_portal')
+            ->firstOrFail();
+
+        abort_unless(Storage::disk($record->disk)->exists($record->path), 404);
+
+        return Storage::disk($record->disk)->response($record->path, $record->original_name, [
+            'Content-Type' => $record->mime_type ?? 'application/octet-stream',
+            'Content-Disposition' => 'inline; filename="'.$record->original_name.'"',
+        ]);
     }
 
     /**
