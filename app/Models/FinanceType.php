@@ -17,6 +17,6 @@ class FinanceType extends Model
 
     public const DEFAULTS = [
         'income' => ['Service', 'Product', 'Investment', 'Other'],
-        'expense' => ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries', 'Pending transaction'],
+        'expense' => ['Utilities', 'Software/SaaS', 'Marketing', 'Office Supplies', 'Travel & Dining', 'Salaries', 'Other'],
     ];
 }

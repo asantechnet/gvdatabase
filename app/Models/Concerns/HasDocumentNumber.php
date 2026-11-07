@@ -9,7 +9,9 @@ trait HasDocumentNumber
     public static function bootHasDocumentNumber(): void
     {
         static::created(function ($model) {
-            $model->assignDocumentNumber();
+            if ($model->documentNumberIsIssued()) {
+                $model->assignDocumentNumber();
+            }
         });
 
         static::updating(function ($model) {
@@ -44,6 +46,15 @@ trait HasDocumentNumber
     }
 
     abstract protected function documentNumberColumn(): string;
+
+    /**
+     * A row can exist before its number is issued; a draft receipt is the
+     * example. Such a model gets its number when it is approved.
+     */
+    protected function documentNumberIsIssued(): bool
+    {
+        return true;
+    }
 
     abstract protected function documentNumberPrefix(): string;
 

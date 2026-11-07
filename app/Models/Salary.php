@@ -16,7 +16,6 @@ class Salary extends Model
 
     protected $fillable = [
         'employee_id',
-        'pending_transaction_id',
         'currency_id',
         'base_currency_id',
         'currency_code', 'currency_name', 'currency_symbol', 'currency_decimal_places', 'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',

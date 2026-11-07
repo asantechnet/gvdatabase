@@ -97,7 +97,7 @@ const caseRow = stage => ({
   current_stage_id: stage.id,
   current_stage: { id: stage.id, key: stage.key, name: stage.name, is_terminal: stage.is_terminal, allowed_next_keys: stage.allowed_next_keys },
   contact: '0700000000', email: 'applicant@example.test', notes: '', details: {}, tasks: [], incomes: [], expenses: [],
-  pending_transactions: [], stage_history: [], attachments_count: 0, universities: [],
+  stage_history: [], attachments_count: 0, universities: [],
 });
 window.requests = [];
 window.toastErrors = [];
@@ -140,7 +140,11 @@ const mocks = {
   '@/api/board': { default: { getAll: async () => ({ data: { data: [] } }) } },
   '@/api/employee': { default: { getOptions: async () => [], getAssignmentOptions: async () => [] } },
   '@/api/educationalMasterData': { default: { list: async () => [] } },
-  '@/api/pendingTransactions': { default: { options: async () => ({ currencies: [], employees: [], applicants: [] }), create: async () => ({}) } },
+  '@/api/incomes': { createIncome: async () => ({}), approveIncome: async () => ({}), rejectIncome: async () => ({}) },
+  '@/api/expenses': { createExpense: async () => ({}), approveExpense: async () => ({}), rejectExpense: async () => ({}) },
+  '@/api/financeTypes': { getFinanceTypes: async () => [] },
+  '@/api/currency': { default: { getAll: async () => ({ data: [] }) } },
+  '@/utils/financeTypes': { financeTypeLabel: type => type?.name ?? type?.value ?? '' },
   '@/api/task': { default: { complete: async () => ({}), create: async () => ({}), attachments: async () => [] } },
   './workspace.scss': {},
 ${stubs.map(file => `  ${JSON.stringify(file)}: stub(${JSON.stringify(file.split('/').pop())}),`).join('\n')}

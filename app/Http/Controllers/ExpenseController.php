@@ -6,8 +6,10 @@ use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\ExpenseResource;
 use App\Models\Currency;
 use App\Models\Expense;
+use App\Services\ActiveContractService;
 use App\Services\CurrencyConversionService;
 use App\Services\CurrencyRateService;
+use App\Services\EducationalWorkflowNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -23,11 +25,18 @@ class ExpenseController extends Controller
     public function __construct(
         private readonly CurrencyConversionService $currencies,
         private readonly CurrencyRateService $rates,
+        private readonly EducationalWorkflowNotificationService $notifications,
     ) {}
 
     public function index(Request $request)
     {
-        $query = Expense::with(['expenseCurrency', 'recorder', 'applicant']);
+        $query = Expense::with(['expenseCurrency', 'recorder', 'applicant', 'approver']);
+        $this->scopeToVisibleRecords($request, $query);
+
+        if ($request->filled('status')) {
+            $request->validate(['status' => ['required', Rule::in([Expense::DRAFT, Expense::APPROVED, Expense::REJECTED])]]);
+            $query->where('status', (string) $request->input('status'));
+        }
 
         if ($request->has('type') && $request->type) {
             $query->where('type', $request->type);
@@ -70,6 +79,7 @@ class ExpenseController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'applicant_id' => ['nullable', 'integer', Rule::exists('applicants', 'id')->whereNull('deleted_at')],
+            'status' => ['sometimes', Rule::in([Expense::DRAFT, Expense::APPROVED])],
             'type' => ['required', 'string', 'max:255', Rule::exists('finance_types', 'value')->where('kind', 'expense')],
             'description' => 'required|string',
             'amount' => 'required|numeric|gt:0',
@@ -82,6 +92,12 @@ class ExpenseController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
+        $data['status'] = $this->creationStatus($request, $data['status'] ?? null);
+        if ($data['status'] === Expense::DRAFT) {
+            // A case-level draft follows the same rule the retired payment
+            // request enforced: an applicant expense needs an active contract.
+            app(ActiveContractService::class)->requireActiveContractForExpense($data['applicant_id'] ?? null);
+        }
         $data['recorded_by'] = $request->user()->id;
         $expense = DB::transaction(function () use ($data) {
             $this->applyCurrencySnapshot($data);
@@ -89,13 +105,19 @@ class ExpenseController extends Controller
             return Expense::create($data);
         });
 
+        if ($expense->status === Expense::DRAFT) {
+            $this->notifications->financeDraftSubmitted($expense);
+        }
+
         // Return the created expense with 201 status code
-        return (new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant'])))->response()->setStatusCode(201);
+        return (new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant', 'approver'])))->response()->setStatusCode(201);
     }
 
-    public function show(Expense $expense)
+    public function show(Request $request, Expense $expense)
     {
-        return new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant']));
+        $this->assertCanViewRecord($request, $expense);
+
+        return new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant', 'approver']));
     }
 
     public function update(Request $request, Expense $expense)
@@ -115,6 +137,7 @@ class ExpenseController extends Controller
         ]);
 
         $validator->validate();
+        $this->assertCanEditRecord($request, $expense);
 
         $data = $validator->validated();
 
@@ -130,11 +153,51 @@ class ExpenseController extends Controller
             $expense->update($data);
         });
 
-        return new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant']));
+        return new ExpenseResource($expense->load(['expenseCurrency', 'recorder', 'applicant', 'approver']));
     }
 
-    public function destroy(Expense $expense)
+    public function approve(Request $request, Expense $expense)
     {
+        return DB::transaction(function () use ($request, $expense) {
+            $expense = Expense::query()->lockForUpdate()->findOrFail($expense->id);
+            abort_unless($expense->status === Expense::DRAFT, 422, 'business.finance_record_not_draft');
+
+            $expense->update([
+                'status' => Expense::APPROVED,
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+            $this->notifications->financeDraftStatusChanged($expense->fresh(), Expense::APPROVED, $request->user()->id);
+
+            return new ExpenseResource($expense->fresh()->load(['expenseCurrency', 'recorder', 'applicant', 'approver']));
+        });
+    }
+
+    public function reject(Request $request, Expense $expense)
+    {
+        $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:5000']]);
+
+        return DB::transaction(function () use ($request, $expense, $data) {
+            $expense = Expense::query()->lockForUpdate()->findOrFail($expense->id);
+            abort_unless($expense->status === Expense::DRAFT, 422, 'business.finance_record_not_draft');
+
+            $expense->update([
+                'status' => Expense::REJECTED,
+                'rejected_at' => now(),
+                'rejection_reason' => $data['rejection_reason'],
+            ]);
+            $this->notifications->financeDraftStatusChanged($expense->fresh(), Expense::REJECTED, $request->user()->id);
+
+            return new ExpenseResource($expense->fresh()->load(['expenseCurrency', 'recorder', 'applicant', 'approver']));
+        });
+    }
+
+    public function destroy(Request $request, Expense $expense)
+    {
+        $this->assertCanDeleteRecord($request, $expense);
+
         if ($expense->salary_id) {
             throw ValidationException::withMessages(['expense' => ['business.salary_expense_managed_by_payroll']]);
         }
@@ -159,8 +222,9 @@ class ExpenseController extends Controller
         return new ExpenseResource($expense->fresh(['expenseCurrency', 'recorder']));
     }
 
-    public function downloadDocument(Expense $expense)
+    public function downloadDocument(Request $request, Expense $expense)
     {
+        $this->assertCanViewRecord($request, $expense);
         abort_unless($expense->document_path && Storage::disk('local')->exists($expense->document_path), 404);
 
         return Storage::disk('local')->download($expense->document_path, $expense->document_name ?: 'expense-document');
@@ -174,6 +238,81 @@ class ExpenseController extends Controller
         $expense->update(['document_path' => null, 'document_name' => null, 'document_mime' => null, 'document_size' => null]);
 
         return new ExpenseResource($expense->fresh(['expenseCurrency', 'recorder']));
+    }
+
+    /**
+     * A list is scoped by the explicit own/all grants. A legacy finance viewer
+     * who holds no scope grant keeps the historical all-records behaviour.
+     */
+    private function scopeToVisibleRecords(Request $request, $query): void
+    {
+        $user = $request->user();
+        $seesAll = $user->hasPermission('view_all_finance_records')
+            || (! $user->hasPermission('view_own_finance_records') && $user->hasPermission('view_expenses'));
+
+        if (! $seesAll) {
+            $query->where('recorded_by', $user->id);
+        }
+    }
+
+    private function assertCanViewRecord(Request $request, Expense $expense): void
+    {
+        $user = $request->user();
+        $seesAll = $user->hasPermission('view_all_finance_records')
+            || (! $user->hasPermission('view_own_finance_records') && $user->hasPermission('view_expenses'));
+
+        abort_unless(
+            $seesAll || ((int) $expense->recorded_by === (int) $user->id && $user->hasPermission('view_own_finance_records')),
+            403,
+            'auth.forbidden',
+        );
+    }
+
+    private function creationStatus(Request $request, ?string $status): string
+    {
+        $status = $status ?: Expense::APPROVED;
+        abort_unless(in_array($status, [Expense::DRAFT, Expense::APPROVED], true), 422, 'business.finance_record_status_invalid');
+
+        if ($status === Expense::DRAFT) {
+            abort_unless($request->user()->hasPermission('create_draft_finance_records'), 403, 'auth.forbidden');
+        } else {
+            abort_unless($request->user()->hasPermission('create_expenses'), 403, 'auth.forbidden');
+        }
+
+        return $status;
+    }
+
+    private function assertCanEditRecord(Request $request, Expense $expense): void
+    {
+        $user = $request->user();
+        if ($expense->status === Expense::DRAFT) {
+            abort_unless(
+                $user->hasPermission('edit_expenses')
+                || ((int) $expense->recorded_by === (int) $user->id && $user->hasPermission('create_draft_finance_records')),
+                403,
+                'auth.forbidden',
+            );
+
+            return;
+        }
+
+        abort_unless($user->hasPermission('edit_expenses'), 403, 'auth.forbidden');
+    }
+
+    private function assertCanDeleteRecord(Request $request, Expense $expense): void
+    {
+        $user = $request->user();
+        if ($user->hasPermission('delete_expenses')) {
+            return;
+        }
+
+        abort_unless(
+            $expense->status === Expense::DRAFT
+            && (int) $expense->recorded_by === (int) $user->id
+            && $user->hasPermission('create_draft_finance_records'),
+            403,
+            'auth.forbidden',
+        );
     }
 
     /** @param array<string, mixed> $data */

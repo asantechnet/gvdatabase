@@ -240,13 +240,20 @@ class ApplicantController extends Controller
             $relations[] = 'contracts';
         }
         if ($request->user()->hasPermission('view_applicant_financials')) {
-            array_push($relations, 'pendingTransactions.currency', 'incomes', 'expenses');
+            array_push($relations, 'incomes', 'expenses');
         }
         if ($request->user()->hasPermission('view_applicant_contracts')) {
             array_push($relations, 'services.currency', 'services.soldByEmployee', 'services.bonusSource', 'services.contract', 'services.currentStage');
         }
 
         $applicant->load($relations);
+        // The case workspace only offers the Task Matrix link when the row is
+        // actually readable there. The check includes service-board access and
+        // task assignment, not just case visibility.
+        $applicant->tasks->each(fn ($task) => $task->setAttribute(
+            'can_view',
+            \App\Support\TaskAccess::canViewTask($request->user(), $task)
+        ));
         if ($request->user()->hasPermission('view_applicant_contracts')) {
             $applicant->setRelation('services', $applicant->services->map(fn ($service) => $this->presentService($service)));
         }
@@ -291,7 +298,7 @@ class ApplicantController extends Controller
     public function destroy(Applicant $applicant)
     {
         $this->assertCaseManageAccess(request(), $applicant);
-        $blocking = ['contracts' => $applicant->contracts()->count(), 'services' => $applicant->services()->count(), 'tasks' => $applicant->tasks()->count(), 'pending_transactions' => $applicant->pendingTransactions()->count(), 'official_finance' => $applicant->incomes()->count() + $applicant->expenses()->count()];
+        $blocking = ['contracts' => $applicant->contracts()->count(), 'services' => $applicant->services()->count(), 'tasks' => $applicant->tasks()->count(), 'official_finance' => $applicant->incomes()->count() + $applicant->expenses()->count()];
         if (array_sum($blocking) > 0) {
             return response()->json(['code' => 'business.applicant_has_activity', 'blocking' => $blocking], 409);
         } $applicant->delete();

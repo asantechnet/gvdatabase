@@ -1,11 +1,44 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import KanbanView from './views/KanbanView.vue'
 import TodoMatrixView from './views/TodoMatrixView.vue'
 import TaskSettingsView from './views/TaskSettingsView.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 
 const store = useTaskStore()
+const route = useRoute()
+
+const validViews = ['kanban', 'todos', 'settings'] as const
+
+// A case task can deep-link into the matrix. Load the board state first: the
+// matrix view is mounted here, not by the Kanban view's own onMounted fetch.
+const applyRouteQuery = () => {
+  const view = String(route.query.view ?? '')
+  if (validViews.includes(view as typeof validViews[number]))
+    store.setView(view as typeof validViews[number])
+
+  const taskId = Number(route.query.task)
+  if (Number.isInteger(taskId) && taskId > 0)
+    store.selectTask(String(taskId))
+}
+
+onMounted(async () => {
+  applyRouteQuery()
+  if (store.activeView !== 'kanban' && !store.boards.length)
+    await store.fetchBoardData()
+})
+
+watch(() => route.query, applyRouteQuery, { deep: true })
+
+// The selected id is applied before data exists when the route is opened
+// directly; re-apply after the board payload arrives so the matrix selects the
+// row rather than rendering an empty panel.
+watch(() => store.tasks.length, () => {
+  const taskId = Number(route.query.task)
+  if (Number.isInteger(taskId) && taskId > 0)
+    store.selectTask(String(taskId))
+})
 
 // Bi-directional binding to the Pinia state
 const activeTab = computed({

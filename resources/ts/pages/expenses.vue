@@ -4,7 +4,6 @@ import { VDialog } from "vuetify/components";
 import { useToast } from "vue-toastification";
 import { type FinanceType, getFinanceTypes } from "@/api/financeTypes";
 import { financeTypeLabel } from "@/utils/financeTypes";
-import PendingTransactionApi from "@/api/pendingTransactions";
 import CurrencyApi, { type Currency } from "@/api/currency";
 import {
   type Expense,
@@ -12,12 +11,16 @@ import {
   type ExpenseFormData,
   type ExpenseUpdateData,
   type ExpenseParams,
+  type FinanceRecordStatus,
+  approveExpense,
   createExpense,
   deleteExpense,
   getExpenses,
   getExpensesPage,
+  rejectExpense,
   updateExpense,
 } from "@/api/expenses";
+import { canAccess } from "@/utils/authorization";
 import { apiErrorMessage, apiFieldErrors } from "@/utils/apiErrors";
 import { formatActiveMoney } from "@/utils/localization";
 import { printDocument } from "@/utils/printDocument";
@@ -44,6 +47,7 @@ const isEditExpenseDialogVisible = ref(false);
 const isDeleteExpenseDialogVisible = ref(false);
 const searchQuery = ref("");
 const filterType = ref<string | null>(null);
+const filterStatus = ref<FinanceRecordStatus | null>(null);
 const filterCurrency = ref<number | null>(null);
 const dateFrom = ref("");
 const dateTo = ref("");
@@ -53,6 +57,13 @@ const fieldErrors = ref<Record<string, string>>({});
 const attachmentTarget = ref<Expense | null>(null);
 const isAttachmentsOpen = ref(false);
 const toast = useToast();
+const canCreateDirect = computed(() => canAccess("create_expenses"));
+const canCreateDraft = computed(() => canAccess("create_draft_finance_records"));
+const canApproveDrafts = computed(() => canAccess("approve_draft_finance_records"));
+const rejectDraftDialog = ref(false);
+const rejectDraftTarget = ref<Expense | null>(null);
+const rejectionReason = ref("");
+const rejectingDraft = ref(false);
 
 const financeTypes = ref<FinanceType[]>([]);
 const typeOptions = computed(() =>
@@ -92,6 +103,7 @@ const fetchCurrencies = async () => {
 const filterParams = (): ExpenseParams => ({
   search: searchQuery.value || undefined,
   type: filterType.value || undefined,
+  status: filterStatus.value || undefined,
   currency_id: filterCurrency.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
@@ -241,7 +253,7 @@ const validateExpense = () => {
 const saveExpense = async (
   isEditing = false,
   submittedExpense?: ExpenseFormData,
-  mode: "direct" | "loan" = "direct",
+  mode: "direct" | "draft" = "direct",
 ) => {
   if (submittedExpense) selectedExpense.value = submittedExpense;
 
@@ -258,24 +270,18 @@ const saveExpense = async (
     formError.value = "";
     fieldErrors.value = {};
 
-    // Payment requests route the expense through the approval workflow instead
-    // of writing the ledger row immediately.
-    if (!isEditing && mode === "loan") {
-      await PendingTransactionApi.create({
-        transaction_type: "expense",
-        reason:
-          selectedExpense.value.description?.trim() ||
-          selectedExpense.value.type ||
-          "Expense",
-        amount:
-          Number(selectedExpense.value.amount) *
-          Number(selectedExpense.value.quantity || 1),
-        currency_id: selectedExpense.value.currency_id,
-        applicant_id: selectedExpense.value.applicant_id ?? null,
-        employee_id: null,
+    // A draft is a real ledger row, but it does not count as money until a
+    // finance approver accepts it.
+    if (!isEditing && mode === "draft") {
+      await createExpense({
+        ...(selectedExpense.value as ExpenseCreateData),
+        status: "draft",
       });
       isAddExpenseDialogVisible.value = false;
-      toast.success(translate("pages.finance.expenses.expenses.loanSubmitted"));
+      toast.success(
+        translate("pages.finance.expenses.expenses.draftSaved"),
+      );
+      reload();
 
       return;
     }
@@ -352,6 +358,46 @@ const expenseTypeColor = (type: string) =>
     "Travel & Dining": "success",
     Salaries: "error",
   })[type] ?? "secondary";
+const statusColor = (status: FinanceRecordStatus) =>
+  ({ draft: "warning", approved: "success", rejected: "error" })[status];
+
+const approveDraft = async (expense: Expense) => {
+  try {
+    await approveExpense(expense.id);
+    await fetchExpenses();
+    toast.success(translate("finance.drafts.approved"));
+  } catch (error) {
+    console.error("Error approving expense draft:", error);
+    toast.error(translate("finance.drafts.approveFailed"));
+  }
+};
+
+const openRejectDraft = (expense: Expense) => {
+  rejectDraftTarget.value = expense;
+  rejectionReason.value = "";
+  rejectDraftDialog.value = true;
+};
+
+const rejectDraft = async () => {
+  if (!rejectDraftTarget.value || !rejectionReason.value.trim()) return;
+
+  rejectingDraft.value = true;
+  try {
+    await rejectExpense(
+      rejectDraftTarget.value.id,
+      rejectionReason.value.trim(),
+    );
+    rejectDraftDialog.value = false;
+    await fetchExpenses();
+    toast.success(translate("finance.drafts.rejected"));
+  } catch (error) {
+    console.error("Error rejecting expense draft:", error);
+    toast.error(translate("finance.drafts.rejectFailed"));
+  } finally {
+    rejectingDraft.value = false;
+  }
+};
+
 const expenseReportRow = (expense: Expense): string[] => [
   `EXP-${String(expense.id).padStart(6, "0")}`,
   expense.type,
@@ -364,9 +410,12 @@ const expenseReportRow = (expense: Expense): string[] => [
 // Print is global: the report is filled from every matching row first.
 const printTable = async () => {
   try {
-    reportRows.value = (await getExpenses(filterParams())).map(
-      expenseReportRow,
-    );
+    // The printed register defaults to approved rows; a status filter still
+    // prints exactly the rows the operator selected.
+    reportRows.value = (await getExpenses({
+      ...filterParams(),
+      status: filterStatus.value ?? "approved",
+    })).map(expenseReportRow);
     await printDocument({
       bodyClass: "printing-table-expenses",
       pageStyle: "size: A4 landscape; margin: 12mm;",
@@ -442,16 +491,42 @@ onMounted(() => {
           >
             <DataTableFilterMenu
               :active="
-                Boolean(filterType || filterCurrency || dateFrom || dateTo)
+                Boolean(
+                  filterType ||
+                    filterStatus ||
+                    filterCurrency ||
+                    dateFrom ||
+                    dateTo,
+                )
               "
               @reset="
                 filterType = null;
+                filterStatus = null;
                 filterCurrency = null;
                 dateFrom = '';
                 dateTo = '';
                 reload();
               "
             >
+              <VSelect
+                v-model="filterStatus"
+                :items="[
+                  { title: translate('common.statuses.draft'), value: 'draft' },
+                  {
+                    title: translate('common.statuses.approved'),
+                    value: 'approved',
+                  },
+                  {
+                    title: translate('common.statuses.rejected'),
+                    value: 'rejected',
+                  },
+                ]"
+                :label="$t('finance.drafts.filterByStatus')"
+                density="compact"
+                clearable
+                hide-details
+                @update:model-value="reload"
+              />
               <VSelect
                 v-model="filterType"
                 :items="filterTypeOptions"
@@ -496,6 +571,11 @@ onMounted(() => {
             {
               title: translate('pages.finance.expenses.expenses.expense'),
               key: 'id',
+              align: 'start',
+            },
+            {
+              title: translate('common.fields.status'),
+              key: 'status',
               align: 'start',
             },
             {
@@ -554,6 +634,21 @@ onMounted(() => {
               }}
             </div>
           </template>
+          <template #item.status="{ item }">
+            <VChip
+              size="small"
+              :color="statusColor(item.status)"
+              variant="tonal"
+            >
+              {{ translateBackendValue(item.status) }}
+            </VChip>
+            <div
+              v-if="item.rejection_reason"
+              class="text-caption text-medium-emphasis"
+            >
+              {{ item.rejection_reason }}
+            </div>
+          </template>
           <template #item.type="{ item }">
             <VChip
               size="small"
@@ -587,6 +682,26 @@ onMounted(() => {
           </template>
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
+              <VBtn
+                v-if="canApproveDrafts && item.status === 'draft'"
+                icon="tabler-check"
+                variant="text"
+                size="small"
+                color="success"
+                :aria-label="$t('finance.drafts.approve')"
+                :title="$t('finance.drafts.approve')"
+                @click="approveDraft(item)"
+              />
+              <VBtn
+                v-if="canApproveDrafts && item.status === 'draft'"
+                icon="tabler-x"
+                variant="text"
+                size="small"
+                color="error"
+                :aria-label="$t('finance.drafts.reject')"
+                :title="$t('finance.drafts.reject')"
+                @click="openRejectDraft(item)"
+              />
               <VBtn
                 icon="tabler-paperclip"
                 variant="text"
@@ -633,6 +748,8 @@ onMounted(() => {
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
       :type-options="typeOptions"
+      :can-create-direct="canCreateDirect"
+      :can-create-draft="canCreateDraft"
       mode="create"
       @submit="(value, mode) => saveExpense(false, value, mode)"
     />
@@ -641,9 +758,42 @@ onMounted(() => {
       :initial-expense="selectedExpense"
       :currency-options="currencyOptions"
       :type-options="typeOptions"
+      :can-create-direct="canCreateDirect"
+      :can-create-draft="canCreateDraft"
       mode="edit"
       @submit="saveExpense(true, $event)"
     />
+
+    <VDialog v-model="rejectDraftDialog" max-width="520px">
+      <VCard :title="$t('finance.drafts.rejectTitle')">
+        <VCardText>
+          <VTextarea
+            v-model="rejectionReason"
+            :label="$t('finance.drafts.rejectionReason')"
+            rows="3"
+            autofocus
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="rejectDraftDialog = false"
+          >
+            {{ $t("common.actions.cancel") }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :loading="rejectingDraft"
+            :disabled="!rejectionReason.trim()"
+            @click="rejectDraft"
+          >
+            {{ $t("finance.drafts.reject") }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <VDialog v-model="isDeleteExpenseDialogVisible" max-width="500px">
       <VCard>

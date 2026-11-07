@@ -36,8 +36,10 @@ class IncomeApplicantPickerTest extends TestCase
 
     public function test_applicant_picker_requires_income_view_permission(): void
     {
+        // Staff now hold a finance read scope to record and review their own
+        // drafts; a role with no finance grant at all must still be refused.
         $user = User::factory()->create();
-        $user->roles()->attach(Role::where('name', 'staff')->firstOrFail());
+        $user->roles()->attach(Role::where('name', 'viewer')->firstOrFail());
         Sanctum::actingAs($user, ['access']);
         $this->getJson('/api/incomes/applicants')->assertForbidden();
     }

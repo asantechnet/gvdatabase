@@ -37,7 +37,6 @@ use App\Models\Language;
 use App\Models\OffDay;
 use App\Models\Office;
 use App\Models\LeaveRequest;
-use App\Models\PendingTransaction;
 use App\Models\Permission;
 use App\Models\Position;
 use App\Models\PrivateApplicantDetail;
@@ -111,7 +110,6 @@ final class AuditRegistry
             'offices' => Office::class,
             'off_days' => OffDay::class,
             'leaves' => LeaveRequest::class,
-            'pending_transactions' => PendingTransaction::class,
             'permissions' => Permission::class,
             'positions' => Position::class,
             'salaries' => Salary::class,
@@ -154,7 +152,9 @@ final class AuditRegistry
         $now = now();
         AuditResourceSetting::query()->insertOrIgnore(array_map(fn (string $key) => [
             'resource_key' => $key,
-            'enabled' => true,
+            // Auditing is opt-in: a new resource stays unaudited until an
+            // administrator enables it on the audit settings screen.
+            'enabled' => false,
             'created_at' => $now,
             'updated_at' => $now,
         ], array_keys(self::resources())));
@@ -204,7 +204,6 @@ final class AuditRegistry
             'worthy_employees' => ['bonus_month', 'selected_type'],
             'settings' => ['short_company_name', 'website_title'],
             'announcements' => ['title', 'message'],
-            'pending_transactions' => ['reason', 'transaction_type'],
         ][$key] ?? ['name', 'title', 'code', 'serial_number', 'email', 'date', 'type'];
 
         foreach ($candidates as $attribute) {

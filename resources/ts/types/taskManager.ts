@@ -47,10 +47,9 @@ interface LegacyTask {
   order: number // Drag-and-drop ordering within column
   title: string
   description: string // Rich HTML string from the TipTap editor
-  results: string
   attachments: {
     id: string
-    section: 'input' | 'results'
+    section: 'input'
     name: string
     mimeType: string | null
     size: number

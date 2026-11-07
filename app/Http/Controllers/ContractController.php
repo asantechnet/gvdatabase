@@ -118,10 +118,11 @@ class ContractController extends Controller
         $query->when(! empty($data['date_from']), fn ($q) => $q->whereDate('start_date', '>=', $data['date_from']))
             ->when(! empty($data['date_to']), fn ($q) => $q->whereDate('start_date', '<=', $data['date_to']));
         ContractAccess::scopeVisibleTo($query, $request->user());
-        // Keep the register ascending until the operator changes a table
-        // header. Only validated column names are used here.
-        $sortBy = $data['sort_by'] ?? 'start_date';
-        $sortDirection = $data['sort_direction'] ?? 'asc';
+        // The registers send their own `start_date` ascending sort; a bare API
+        // call keeps the long-standing newest-agreements-first order. Only
+        // validated column names and directions reach this clause.
+        $sortBy = $data['sort_by'] ?? 'created_at';
+        $sortDirection = $data['sort_direction'] ?? 'desc';
         $query->orderBy($sortBy, $sortDirection)->orderBy('id', $sortDirection);
 
         if ($this->requestedPerPage($request)) {
@@ -153,6 +154,7 @@ class ContractController extends Controller
         $data = $this->validatedData($request);
         $contract = DB::transaction(function () use ($data, $request): Contract {
             $template = $this->genericTemplate($data['template_id']);
+            abort_unless(ContractAccess::canAccessTemplate($request->user(), $template), 403, 'auth.forbidden');
             // Employment and other agreements extend the same way built-in
             // service contracts do: a new record linked to a live primary
             // parent. Extensions are always issued as drafts so the terms can
@@ -224,6 +226,7 @@ class ContractController extends Controller
     public function serviceOptions(Request $request, string $service): JsonResponse
     {
         abort_unless(BuiltInService::isValid($service), 404);
+        abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $employees = Employee::query()->active();
         if (! $request->user()->hasPermission('assign_applicant_employee')) {
             $scope = app(EmployeeScope::class);
@@ -414,7 +417,11 @@ class ContractController extends Controller
             'end_date' => ['nullable', 'date_format:Y-m-d'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
         ]);
-        $contract = new Contract($data);
+        $template = $this->genericTemplate($data['template_id']);
+        abort_unless(ContractAccess::canAccessTemplate($request->user(), $template), 403, 'auth.forbidden');
+        // Give the unsaved draft its real category (employment vs other) so
+        // the manage check does not fall back to `other`.
+        $contract = new Contract([...$data, 'contract_type_id' => $template->contract_type_id]);
         abort_unless(ContractAccess::canManage($request->user(), $contract), 403, 'auth.forbidden');
         $attributes = $this->documentAttributes($contract, $data, true);
 

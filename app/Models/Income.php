@@ -15,13 +15,16 @@ class Income extends Model
 {
     use Auditable, HasDocumentNumber, HasFactory, SoftDeletes;
 
+    public const DRAFT = 'draft';
+    public const APPROVED = 'approved';
+    public const REJECTED = 'rejected';
+
     protected $fillable = [
         'receipt_number',
         'applicant_id',
         'applicant_contract_id',
         'visitor_id',
         'employee_id',
-        'pending_transaction_id',
         'currency_id',
         'base_currency_id',
         'type',
@@ -34,6 +37,11 @@ class Income extends Model
         'revaluation_reason',
         'date',
         'recorded_by',
+        'status',
+        'approved_by',
+        'approved_at',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -48,6 +56,9 @@ class Income extends Model
         'employee_id' => 'integer',
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
+        'approved_by' => 'integer',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     public function attachments(): MorphMany
@@ -91,9 +102,26 @@ class Income extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** Only approved receipts count as ledger money. */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', self::APPROVED);
+    }
+
     protected function documentNumberColumn(): string
     {
         return 'receipt_number';
+    }
+
+    /** A receipt number is issued only once the receipt is approved. */
+    protected function documentNumberIsIssued(): bool
+    {
+        return $this->status === self::APPROVED;
     }
 
     /** Receipt numbers use the shape RCPT-{year}-{000123}. */
@@ -105,11 +133,16 @@ class Income extends Model
     protected static function booted()
     {
         static::creating(function ($income) {
+            // Directly recorded receipts are approved; an explicit draft stays
+            // out of the ledger until a finance user approves it.
+            $income->status = $income->status ?: self::APPROVED;
             $income->base_amount = ($income->amount * $income->quantity) / $income->rate;
         });
 
         static::created(function (Income $income): void {
-            app(ApplicantContractPaymentService::class)->refreshForIncome($income);
+            if ($income->status === self::APPROVED) {
+                app(ApplicantContractPaymentService::class)->refreshForIncome($income);
+            }
         });
 
         static::updating(function ($income) {
@@ -119,7 +152,7 @@ class Income extends Model
         });
 
         static::updated(function (Income $income) {
-            if ($income->wasChanged(['applicant_contract_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id', 'base_amount'])) {
+            if ($income->wasChanged(['applicant_contract_id', 'amount', 'quantity', 'rate', 'date', 'base_currency_id', 'base_amount', 'status'])) {
                 app(ApplicantContractPaymentService::class)->refreshForIncome(
                     $income,
                     $income->getOriginal('applicant_contract_id') !== null
@@ -132,7 +165,9 @@ class Income extends Model
         // Runs after the soft delete so the removed receipt no longer counts
         // towards the line's paid amount.
         static::deleted(function (Income $income) {
-            app(ApplicantContractPaymentService::class)->refreshForIncome($income);
+            if ($income->status === self::APPROVED) {
+                app(ApplicantContractPaymentService::class)->refreshForIncome($income);
+            }
         });
     }
 }

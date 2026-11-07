@@ -11,7 +11,7 @@ class FinanceTypeSeeder extends Seeder
     {
         foreach (FinanceType::DEFAULTS as $kind => $values) {
             foreach ($values as $value) {
-                FinanceType::firstOrCreate(['kind' => $kind, 'value' => $value], ['name' => $value, 'is_system' => ($kind === 'income' && in_array($value, ['Service', 'Other'], true)) || ($kind === 'expense' && in_array($value, ['Salaries', 'Pending transaction'], true))]);
+                FinanceType::firstOrCreate(['kind' => $kind, 'value' => $value], ['name' => $value, 'is_system' => ($kind === 'income' && in_array($value, ['Service', 'Other'], true)) || ($kind === 'expense' && in_array($value, ['Salaries', 'Other'], true))]);
             }
         }
     }

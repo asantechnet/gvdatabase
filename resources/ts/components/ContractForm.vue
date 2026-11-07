@@ -690,7 +690,7 @@ defineExpose({ submit })
         <VCol cols="12" md="6">
           <div class="erp-field">
             <label class="erp-field-label">{{ tr('startDate') }} <span class="erp-field-required">*</span></label>
-            <AppDateTimePicker v-model="form.start_date" class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }" :rules="[value => !!value || tr('startDateRequired')]" required />
+            <AppDateTimePicker v-model="form.start_date" class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }" :rules="[(value: unknown) => !!value || tr('startDateRequired')]" required />
           </div>
         </VCol>
         <VCol cols="12" md="6">

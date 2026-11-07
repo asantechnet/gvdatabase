@@ -13,12 +13,15 @@ class Expense extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
+    public const DRAFT = 'draft';
+    public const APPROVED = 'approved';
+    public const REJECTED = 'rejected';
+
     protected $fillable = [
         'applicant_id',
         'visitor_id',
         'employee_id',
         'salary_id',
-        'pending_transaction_id',
         'currency_id',
         'base_currency_id',
         'currency',
@@ -30,6 +33,11 @@ class Expense extends Model
         'cnv_curr_shrt', 'base_curr_shrt', 'rate', 'base_amount',
         'date',
         'recorded_by',
+        'status',
+        'approved_by',
+        'approved_at',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -43,6 +51,9 @@ class Expense extends Model
         'employee_id' => 'integer',
         'currency_id' => 'integer',
         'base_currency_id' => 'integer',
+        'approved_by' => 'integer',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     public function attachments(): MorphMany
@@ -85,9 +96,21 @@ class Expense extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** Only approved expenses count as ledger money. */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', self::APPROVED);
+    }
+
     protected static function booted()
     {
         static::creating(function ($expense) {
+            $expense->status = $expense->status ?: self::APPROVED;
             $expense->base_amount = ($expense->amount * $expense->quantity) / $expense->rate;
         });
 

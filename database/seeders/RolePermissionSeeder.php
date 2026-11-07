@@ -70,15 +70,16 @@ class RolePermissionSeeder extends Seeder
                 'view_off_days', 'manage_off_days', 'approve_off_days',
                 'view_positions', 'view_offices',
                 'view_contracts', 'create_contracts', 'edit_contracts', 'cancel_contracts', 'download_contracts',
+                'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts', 'view_employment_contracts',
                 'view_contract_templates', 'manage_contract_templates', 'create_contract_template_versions', 'edit_draft_contract_template_versions', 'activate_contract_template_versions', 'archive_contract_template_versions', 'view_contract_policies',
                 'view_contract_types',
                 'view_incomes', 'create_incomes', 'edit_incomes',
                 'view_expenses', 'create_expenses', 'edit_expenses',
-                'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
+                'create_draft_finance_records', 'approve_draft_finance_records', 'view_own_finance_records', 'view_all_finance_records',
                 'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
                 'view_assets', 'create_assets', 'edit_assets',
                 'view_currencies', 'view_financial_reports', 'view_commissions',
-                'view_all_boards', 'view_assigned_boards', 'create_boards', 'edit_all_boards', 'edit_assigned_boards', 'reorder_boards', 'assign_board_members',
+                'view_all_boards', 'view_assigned_boards',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
                 'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
                 'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',
@@ -115,17 +116,23 @@ class RolePermissionSeeder extends Seeder
                 'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
                 'view_contracts', 'create_contracts', 'view_contract_templates',
+                'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
                 'view_country', 'view_education_level', 'view_province', 'view_english_level', 'view_acquisition_route', 'view_language', 'view_university', 'view_semester',
                 'view_subject', 'view_test', 'view_skill', 'view_program', 'view_time', 'view_duration', 'view_teacher',
                 'view_applicants', 'create_applicants', 'edit_applicants', 'change_applicant_stage', 'view_applicant_stages',
                 'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
-                'view_pending_transactions', 'create_pending_transactions',
+                // The ledger pages open with the legacy page grants; the own
+                // scope still limits the rows to their own recordings.
+                'view_incomes', 'view_expenses',
+                'create_draft_finance_records', 'view_own_finance_records',
             ],
 
             'viewer' => [
                 'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'manage_own_workday', 'submit_own_daily_report',
                 'request_own_leave',
+                'view_contracts',
+                'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
                 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
@@ -167,6 +174,7 @@ class RolePermissionSeeder extends Seeder
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             'view_applicants', 'view_applicant_stages', 'view_applicant_contracts',
             'view_contracts', 'view_contract_templates', 'download_contracts',
+            'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
             'view_files', 'upload_files', 'download_files',
         ];
 
@@ -179,8 +187,9 @@ class RolePermissionSeeder extends Seeder
             'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             'view_incomes', 'create_incomes', 'edit_incomes',
             'view_expenses', 'create_expenses', 'edit_expenses',
-            'view_pending_transactions', 'create_pending_transactions', 'approve_pending_transactions', 'post_pending_transactions',
+            'create_draft_finance_records', 'approve_draft_finance_records', 'view_own_finance_records', 'view_all_finance_records',
             'view_currencies', 'view_financial_reports', 'view_contracts', 'download_files',
+            'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
             'view_commissions', 'manage_commission_settlements', 'approve_commissions', 'pay_commissions',
             // Payroll for finance: the officer records salaries, deductions and
             // advance recovery and prints the monthly payroll register.

@@ -272,7 +272,6 @@ const employeeContractDetailFields = computed(() => [
   { key: 'status', label: t('common.fields.status') },
   { key: 'start_date', label: t('serviceContracts.startDate') },
   { key: 'end_date', label: t('serviceContracts.endDate') },
-  { key: 'counterparty_company', label: t('common.fields.company') },
   { key: 'counterparty', label: t('common.fields.employee') },
   { key: 'employee.father_name', label: t('serviceContracts.fatherName') },
   { key: 'employee.position', label: t('common.fields.position') },
@@ -337,6 +336,9 @@ const addNew = () => {
 
 const editContractUI = (contract: Contract) => {
   dialogMode.value = 'edit'
+  // An earlier extend action must not leak into this edit: `extensionParent`
+  // keeps the dialog and form in extend mode.
+  extensionParent.value = null
   selectedContract.value = { ...contract }
   isDialogVisible.value = true
 }
@@ -371,6 +373,11 @@ const confirmContractAction = async () => {
   try {
     if (action.type === 'delete') {
       await removeContract(action.contract.id)
+      // Step back when the last row on a later page was removed, then reload
+      // so the footer total matches the stored records.
+      if (contracts.value.length === 0 && page.value > 1)
+        page.value -= 1
+      await load()
       toast.success(translate('pages.contracts.allContracts.allContracts.contractDeleted'))
     }
     else {
@@ -419,6 +426,11 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
       toast.success(translate('pages.contracts.allContracts.allContracts.contractSaved'))
     }
     isDialogVisible.value = false
+    // Positions, numbering and totals come from the server: refresh the page
+    // instead of leaving a locally inserted row under a stale footer count.
+    if (dialogMode.value === 'add')
+      page.value = 1
+    await load()
   }
   catch (err) {
     toast.error(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
@@ -465,9 +477,14 @@ onMounted(async () => {
     await router.replace({ name: currentListRoute() })
   }
   else if (contractId) {
+    // Deep links (for example an expiry notification) name a contract that may
+    // not be on the first page, so resolve it before applying the search.
     const contract = contracts.value.find(item => item.id === contractId)
-    if (contract)
+      ?? await ContractApi.getById(contractId).catch(() => null)
+    if (contract) {
       search.value = contract.contract_number || contract.counterparty || contract.contract
+      await load()
+    }
   }
 })
 
@@ -797,31 +814,33 @@ onMounted(async () => {
 
 :global(.other-contract-form-dialog .other-contract-dialog-title),
 :global(.other-contract-form-dialog .app-form__actions) {
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
-  border-color: rgba(var(--v-theme-on-surface), .035);
   border-style: solid;
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
 }
 
 :global(.other-contract-form-dialog .other-contract-dialog-title) {
+  display: flex;
   align-items: center;
   border-width: 0 0 1px;
-  display: flex;
 }
 
 :global(.other-contract-form-dialog .app-form__actions) {
-  border-width: 1px 0 0;
   justify-content: flex-start;
+  border-width: 1px 0 0;
   margin-inline: -1.5rem;
-  padding: 1rem 1.5rem;
+  padding-block: 1rem;
+  padding-inline: 1.5rem;
 }
 
 :global(.other-contract-form-dialog .other-contract-form-actions__save) {
   background-color: rgb(var(--v-theme-primary)) !important;
   color: rgb(var(--v-theme-on-primary)) !important;
 }
+
 :global(.other-contract-form-dialog .other-contract-form-actions__cancel) {
-  border: 1px solid rgba(var(--v-theme-error), .62) !important;
-  background-color: rgba(var(--v-theme-error), .12) !important;
+  border: 1px solid rgba(var(--v-theme-error), 0.62) !important;
+  background-color: rgba(var(--v-theme-error), 0.12) !important;
   color: rgb(var(--v-theme-error)) !important;
 }
 
@@ -832,20 +851,20 @@ onMounted(async () => {
   background-color: rgb(var(--v-theme-error)) !important;
   color: rgb(var(--v-theme-on-error)) !important;
 }
-:global(.other-contract-form-dialog .other-contract-form-actions__save:hover) { filter: brightness(.9); }
+:global(.other-contract-form-dialog .other-contract-form-actions__save:hover) { filter: brightness(0.9); }
 :global(.other-contract-form-dialog .app-form__actions .v-btn) { min-inline-size: 104px; }
-:global(.other-contract-form-dialog .other-contract-dialog-close:hover) { background-color: rgba(var(--v-theme-error), .18) !important; }
-:global(.v-overlay:has(.other-contract-form-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .24); backdrop-filter: blur(4px); opacity: 1 !important; }
+:global(.other-contract-form-dialog .other-contract-dialog-close:hover) { background-color: rgba(var(--v-theme-error), 0.18) !important; }
+:global(.v-overlay:has(.other-contract-form-dialog) .v-overlay__scrim) { backdrop-filter: blur(4px); background: rgba(var(--v-theme-on-surface), 0.24); opacity: 1 !important; }
 :global(.other-contract-form-dialog .v-card-text) { scrollbar-width: none; }
 :global(.other-contract-form-dialog .v-card-text::-webkit-scrollbar) { display: none; }
 
-.contract-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; text-align: center; }
-.contract-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
-.contract-action-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; place-items: center; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); }
-.contract-action-dialog__title { margin: 0 0 .7rem; font-size: 1.2rem; font-weight: 700; }
-.contract-action-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }
-.contract-action-dialog__button { min-block-size: 2.85rem; border-radius: 10px !important; background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; font-weight: 700; }
-.contract-action-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.contract-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), 0.2) !important; border-radius: 16px !important; text-align: center; }
+.contract-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding-block: 2rem 1.25rem !important; padding-inline: 2rem !important; }
+.contract-action-dialog__icon { display: grid; border-radius: 50%; background: rgba(var(--v-theme-error), 0.14); block-size: 4.25rem; color: rgb(var(--v-theme-error)); inline-size: 4.25rem; margin-block-end: 1.25rem; place-items: center; }
+.contract-action-dialog__title { font-size: 1.2rem; font-weight: 700; margin-block: 0 0.7rem; margin-inline: 0; }
+.contract-action-dialog__actions { display: grid !important; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0 2rem !important; padding-inline: 2rem !important; }
+.contract-action-dialog__button { border-radius: 10px !important; background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; font-weight: 700; min-block-size: 2.85rem; }
+.contract-action-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), 0.52) !important; background: rgba(var(--v-theme-secondary), 0.13) !important; color: rgb(var(--v-theme-secondary)) !important; }
 .contract-action-dialog__button--delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 
 .contract-table :deep(.v-data-table__wrapper) {
@@ -853,9 +872,9 @@ onMounted(async () => {
   scrollbar-width: none;
 }
 
-.contract-empty-state { align-items: center; display: flex; flex-direction: column; justify-content: center; min-block-size: 17rem; padding: 1.25rem 1.25rem 2rem; }
+.contract-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-block-size: 17rem; padding-block: 1.25rem 2rem; padding-inline: 1.25rem; }
 .contract-empty-state :deep(.table-empty-state) { min-block-size: 0 !important; padding-block: 1rem; }
-.contract-empty-state__action { margin-block-start: -.25rem; }
+.contract-empty-state__action { margin-block-start: -0.25rem; }
 
 .contract-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
   display: none;
@@ -908,7 +927,7 @@ onMounted(async () => {
   }
 
   .contract-table :deep(.responsive-data-table__mobile-row > td) {
-    padding: .75rem;
+    padding: 0.75rem;
   }
 }
 </style>

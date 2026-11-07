@@ -4,8 +4,6 @@ import { clearStoredPermissions, storePermissions } from '@/utils/authStorage'
 
 const impliedPermissions: Record<string, string[]> = {
   view_all_boards: ['view_assigned_boards'],
-  edit_all_boards: ['edit_assigned_boards'],
-  delete_all_boards: ['delete_assigned_boards'],
   view_all_tasks: ['view_assigned_tasks'],
   edit_all_tasks: ['edit_assigned_tasks'],
   delete_all_tasks: ['delete_assigned_tasks'],

@@ -131,6 +131,14 @@ class PermissionSeeder extends Seeder
 
         // Contracts and their service catalog
         ['name' => 'view_contracts', 'category' => 'customer_contracts'],
+        // One access gate per contract category. The category gate is required
+        // in addition to the existing create/edit/cancel/delete action grants.
+        ['name' => 'view_private_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_scholarship_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_test_offer_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_academy_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_employment_contracts', 'category' => 'customer_contracts'],
+        ['name' => 'view_other_contracts', 'category' => 'customer_contracts'],
         ['name' => 'view_all_contracts', 'category' => 'customer_contracts'],
         ['name' => 'create_contracts', 'category' => 'customer_contracts'],
         ['name' => 'edit_contracts', 'category' => 'customer_contracts'],
@@ -185,15 +193,10 @@ class PermissionSeeder extends Seeder
         // Task management. Assigned scope is based on the task/board member
         // relationship; all scope is supervisory. These scopes are enforced
         // by backend policies, never by the frontend alone.
+        // Boards are product-owned and read-only. Service board access is
+        // derived from the contract-category permissions above.
         ['name' => 'view_assigned_boards', 'category' => 'task_management'],
         ['name' => 'view_all_boards', 'category' => 'task_management'],
-        ['name' => 'create_boards', 'category' => 'task_management'],
-        ['name' => 'edit_assigned_boards', 'category' => 'task_management'],
-        ['name' => 'edit_all_boards', 'category' => 'task_management'],
-        ['name' => 'delete_assigned_boards', 'category' => 'task_management'],
-        ['name' => 'delete_all_boards', 'category' => 'task_management'],
-        ['name' => 'reorder_boards', 'category' => 'task_management'],
-        ['name' => 'assign_board_members', 'category' => 'task_management'],
         ['name' => 'view_assigned_tasks', 'category' => 'task_management'],
         ['name' => 'view_all_tasks', 'category' => 'task_management'],
         ['name' => 'create_tasks', 'category' => 'task_management'],
@@ -300,10 +303,13 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_visa_reports', 'category' => 'educational_visa'],
         ['name' => 'view_own_applicant_portal', 'category' => 'applicant_portal'],
         ['name' => 'edit_own_applicant_profile', 'category' => 'applicant_portal'],
-        ['name' => 'view_pending_transactions', 'category' => 'finance'],
-        ['name' => 'create_pending_transactions', 'category' => 'finance'],
-        ['name' => 'approve_pending_transactions', 'category' => 'finance'],
-        ['name' => 'post_pending_transactions', 'category' => 'finance'],
+        // A case officer raises a draft income/expense; finance approves it.
+        // The own/all grants scope the ledger lists independently of the
+        // legacy view_incomes/view_expenses page grants.
+        ['name' => 'create_draft_finance_records', 'category' => 'finance'],
+        ['name' => 'approve_draft_finance_records', 'category' => 'finance'],
+        ['name' => 'view_own_finance_records', 'category' => 'finance'],
+        ['name' => 'view_all_finance_records', 'category' => 'finance'],
         ['name' => 'view_visitors', 'category' => 'operations'],
         ['name' => 'create_visitors', 'category' => 'operations'],
         ['name' => 'edit_visitors', 'category' => 'operations'],

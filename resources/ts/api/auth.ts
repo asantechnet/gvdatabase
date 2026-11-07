@@ -12,6 +12,7 @@ export interface Account {
   permissions: string[]
   employee: { id: number; name?: string | null; position_id: number } | null
   notifications?: NotificationPreferences
+  notification_sound?: boolean
   ui_scale?: number
   two_factor_enabled: boolean
   email_verified: boolean
@@ -73,7 +74,7 @@ const AuthApi = {
   },
   removeAvatar: () => api.delete('/auth/account/avatar'),
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) => api.put('/auth/account/password', data),
-  updateNotifications: (data: { notifications: NotificationPreferences }) => api.put('/auth/account/notifications', data),
+  updateNotifications: (data: { notifications: NotificationPreferences; notification_sound?: boolean }) => api.put('/auth/account/notifications', data),
   beginTwoFactor: () => api.post('/auth/account/two-factor'),
   confirmTwoFactor: (code: string) => api.post('/auth/account/two-factor/confirm', { code }),
   disableTwoFactor: (password: string) => api.delete('/auth/account/two-factor', { data: { password } }),

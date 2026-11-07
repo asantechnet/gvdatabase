@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Support\EmployeeScope;
+use App\Support\ServiceBoard;
 use Database\Factories\BoardFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,15 +30,26 @@ class Board extends Model
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         $canSeeAllShared = $user->hasPermission('view_all_boards');
+        $serviceTitles = ServiceBoard::serviceTitles();
+        $allowedServiceTitles = ServiceBoard::titlesVisibleTo($user);
 
-        return $query->where(function (Builder $q) use ($user, $canSeeAllShared) {
+        return $query->where(function (Builder $q) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
             $q->where('user_id', $user->id)
-                ->orWhere(function (Builder $shared) use ($user, $canSeeAllShared) {
-                    $shared->whereNull('user_id');
-                    if (! $canSeeAllShared) {
-                        $shared->whereHas('users', fn ($members) => $members
-                            ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user)));
-                    }
+                ->orWhere(function (Builder $shared) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
+                    $shared->whereNull('user_id')
+                        ->where(function (Builder $scope) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
+                            // A built-in service board follows its contract-category
+                            // permission, not board membership. The unserviced
+                            // operational boards keep the membership rule.
+                            $scope->whereIn('title', $allowedServiceTitles)
+                                ->orWhere(function (Builder $unserviced) use ($user, $canSeeAllShared, $serviceTitles) {
+                                    $unserviced->whereNotIn('title', $serviceTitles);
+                                    if (! $canSeeAllShared) {
+                                        $unserviced->whereHas('users', fn ($members) => $members
+                                            ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user)));
+                                    }
+                                });
+                        });
                 });
         });
     }

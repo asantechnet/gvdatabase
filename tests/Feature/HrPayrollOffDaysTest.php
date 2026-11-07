@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\AuditLog;
+use App\Models\AuditResourceSetting;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\EmployeeAdvance;
@@ -13,6 +14,7 @@ use App\Models\Position;
 use App\Models\Salary;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\AuditRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -240,6 +242,10 @@ class HrPayrollOffDaysTest extends TestCase
         // A second reviewer receives the real-time flag and drains it.
         $reviewer = User::factory()->create(['roles' => ['super_admin']]);
         $this->assertFalse((bool) $reviewer->unread_audit_logs);
+
+        // Auditing is opt-in; this heartbeat test needs the off-day resource on.
+        AuditRegistry::ensureSettings();
+        AuditResourceSetting::query()->where('resource_key', 'off_days')->update(['enabled' => true]);
 
         OffDay::create([
             'start_date' => '2026-09-07',

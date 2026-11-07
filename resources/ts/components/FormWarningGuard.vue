@@ -15,6 +15,11 @@ const eligibleForm = (target: EventTarget | null) => {
   const element = target instanceof Element ? target : null
   const form = element?.closest('form') as HTMLFormElement | null
 
+  // Signing in is not unsaved work. Auth forms must never trigger the
+  // discard-changes warning when the user navigates or closes the tab.
+  if (form?.classList.contains('login-form'))
+    return null
+
   return form && (form.classList.contains('app-form') || form.classList.contains('contract-template-form') || form.closest('.app-form-dialog'))
     ? form
     : null

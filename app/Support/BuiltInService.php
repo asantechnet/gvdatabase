@@ -32,6 +32,14 @@ final class BuiltInService
         self::PRIVATE => 'Private',
     ];
 
+    /** Contract-category permission for each built-in service. */
+    public const CONTRACT_PERMISSIONS = [
+        self::SCHOLARSHIP => 'view_scholarship_contracts',
+        self::TEST_OFFER => 'view_test_offer_contracts',
+        self::ACADEMY => 'view_academy_contracts',
+        self::PRIVATE => 'view_private_contracts',
+    ];
+
     /** Translation keys the frontend uses, keyed by service value. */
     public const LABEL_KEYS = [
         self::SCHOLARSHIP => 'educational.builtInServices.scholarship',
@@ -43,6 +51,11 @@ final class BuiltInService
     public static function isValid(mixed $service): bool
     {
         return is_string($service) && in_array($service, self::ALL, true);
+    }
+
+    public static function contractPermission(?string $service): ?string
+    {
+        return self::CONTRACT_PERMISSIONS[$service] ?? null;
     }
 
     public static function label(?string $service): string

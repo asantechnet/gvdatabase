@@ -117,15 +117,18 @@ const verticalNavAttrs = computed(() => {
         </div>
       </footer>
     </div>
-    <div
-      class="layout-overlay"
-      :class="[{ visible: isLayoutOverlayVisible }]"
-      @click="
-        () => {
-          isLayoutOverlayVisible = !isLayoutOverlayVisible;
-        }
-      "
-    />
+    <Transition name="layout-overlay">
+      <div
+        v-if="isLayoutOverlayVisible && configStore.isLessThanOverlayNavBreakpoint"
+        class="layout-overlay visible"
+        @click="
+          () => {
+            isLayoutOverlayVisible = false;
+            isOverlayNavActive = false;
+          }
+        "
+      />
+    </Transition>
   </div>
 </template>
 
@@ -189,6 +192,16 @@ const verticalNavAttrs = computed(() => {
   }
 
   // 👉 Layout overlay
+  .layout-overlay-enter-active,
+  .layout-overlay-leave-active {
+    transition: opacity 280ms ease;
+  }
+
+  .layout-overlay-enter-from,
+  .layout-overlay-leave-to {
+    opacity: 0 !important;
+  }
+
   .layout-overlay {
     position: fixed;
     z-index: variables.$layout-overlay-z-index;

@@ -332,11 +332,18 @@ class AuthController extends Controller
         $data = $request->validate([
             'notifications' => ['required', 'array'],
             'notifications.*.in_app' => ['required', 'boolean'],
+            'notification_sound' => ['sometimes', 'boolean'],
         ]);
         $user = $request->user();
         $settings = $user->account_settings ?? [];
         unset($settings['notification_frequency']);
-        $user->account_settings = array_merge($settings, ['notifications' => $data['notifications']]);
+        $settings['notifications'] = $data['notifications'];
+        // Omitted means "leave unchanged": the event matrix and the sound
+        // toggle are saved independently.
+        if (array_key_exists('notification_sound', $data)) {
+            $settings['notification_sound'] = (bool) $data['notification_sound'];
+        }
+        $user->account_settings = $settings;
         $user->save();
 
         return response()->json(['success' => true, 'data' => $user->account_settings]);
@@ -457,10 +464,13 @@ class AuthController extends Controller
     private function accountData(User $user): array
     {
         $employee = $this->employeeFor($user);
+        $settings = $user->account_settings ?? [];
 
-        return array_merge($user->only(['id', 'name', 'email', 'phone', 'address', 'acc_status']), $user->account_settings ?? [], [
+        return array_merge($user->only(['id', 'name', 'email', 'phone', 'address', 'acc_status']), $settings, [
             'roles' => $user->roleNames(),
             'permissions' => $user->permissionNames(),
+            // The chime is opt-in, so an account without a saved preference reports it off.
+            'notification_sound' => (bool) ($settings['notification_sound'] ?? false),
             'avatar' => $employee?->avatar,
             'employee' => $employee ? [
                 'id' => $employee->id,

@@ -58,10 +58,9 @@ class PersonalBoardIsolationTest extends TestCase
             'The peer should receive their own personal board.'
         );
 
-        // Direct mutation of someone else's personal board is forbidden.
+        // Board definitions are read-only; there is no mutation route at all.
         $this->putJson("/api/boards/{$personalBoard['id']}", ['title' => 'Taken over'])
-            ->assertForbidden()
-            ->assertJsonPath('code', 'auth.forbidden');
+            ->assertNotFound();
 
         $this->assertSame('Personal', Board::find($personalBoard['id'])->title);
     }
@@ -88,8 +87,7 @@ class PersonalBoardIsolationTest extends TestCase
             ->assertJsonMissing(['id' => (string) $personal->id]);
 
         $this->putJson("/api/boards/{$personal->id}", ['title' => 'Admin takeover'])
-            ->assertForbidden()
-            ->assertJsonPath('code', 'auth.forbidden');
+            ->assertNotFound();
 
         $this->putJson("/api/tasks/{$personalTask->id}", ['title' => 'Admin takeover'])
             ->assertForbidden()

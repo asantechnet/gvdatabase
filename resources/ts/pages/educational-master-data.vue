@@ -24,6 +24,9 @@ const form = ref<Partial<CatalogRow>>({ name: '', is_active: true })
 const labels = computed<Record<Catalog, string>>(() => ({ countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), scholarships: t('erp.scholarship'), provinces: t('educational.masterData.provinces'), 'english-levels': t('educational.masterData.englishLevels'), 'acquisition-routes': t('educational.masterData.acquisitionRoutes') }))
 const hasCode = computed(() => ['countries', 'languages', 'semesters'].includes(catalog.value))
 const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'programs', 'scholarships', 'provinces', 'english-levels', 'acquisition-routes'].includes(catalog.value))
+// Countries and universities are the two catalogues a visa case contacts
+// directly, so they carry the optional phone, email and portal address.
+const hasContact = computed(() => ['countries', 'universities'].includes(catalog.value))
 
 async function load() {
   loading.value = true
@@ -77,7 +80,7 @@ onMounted(load)
         <VProgressLinear v-if="loading" indeterminate class="my-4" />
         <div class="education-table-scroll"><VTable density="compact" class="education-table">
           <thead><tr><th>{{ $t('common.fields.name') }}</th><th v-if="hasCode">{{ $t('common.fields.code') }}</th><th>{{ $t('educational.masterData.details') }}</th><th>{{ $t('common.fields.status') }}</th><th /></tr></thead>
-          <tbody><tr v-for="row in rows" :key="row.id"><td>{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td>{{ row.contact || row.city || row.email || row.description || '—' }}</td><td><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
+          <tbody><tr v-for="row in rows" :key="row.id"><td>{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td>{{ row.phone || row.email || row.city || row.portal_url || row.contact || row.description || '—' }}</td><td><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
         </VTable></div>
       </VCardText>
     </VCard>
@@ -90,6 +93,11 @@ onMounted(load)
     <VSelect v-if="catalog==='universities'" v-model="form.country_id" :items="countries.filter(x=>x.is_active).map(x=>({title:x.name,value:x.id}))" :label="$t('educational.country')" clearable class="mb-3" />
     <VTextField v-if="catalog==='universities'" v-model="form.city" :label="$t('educational.masterData.city')" class="mb-3" />
     <VTextField v-if="catalog==='universities'" v-model="form.website" :label="$t('educational.masterData.website')" class="mb-3" />
+    <template v-if="hasContact">
+      <VTextField v-model="form.phone" :label="$t('educational.masterData.phone')" class="mb-3" />
+      <VTextField v-model="form.email" type="email" :label="$t('educational.masterData.email')" class="mb-3" />
+      <VTextField v-model="form.portal_url" :label="$t('educational.masterData.portalUrl')" :hint="$t('educational.masterData.portalUrlHint')" persistent-hint class="mb-3" />
+    </template>
     <VTextarea v-if="!hasCode" v-model="form.description" :label="$t('common.fields.description')" />
 
     <VSwitch v-model="form.is_active" :label="$t('common.statuses.active')" />

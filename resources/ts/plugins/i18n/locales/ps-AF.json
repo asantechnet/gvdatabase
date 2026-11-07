@@ -445,15 +445,12 @@
         "viewAttachments": "نښلونکي فایلونه وګورئ",
         "downloadAttachment": "نښلونکی فایل ښکته کړئ",
         "taskFiles": "د دندې فایلونه",
-        "resultFiles": "د پایلو فایلونه",
         "noAttachments": "له دې دندې سره کوم فایل نه دی نښلول شوی.",
         "dueDate": "د پای نېټه",
         "assignees": "مسؤلین"
       },
       "calendarview": {
         "taskContent": "د دندې منځپانګه",
-        "results": "پایلې",
-        "noResultsRecorded": "تر اوسه پایلې نه دي ثبت شوي.",
         "downloadAttachment": "نښلونکی فایل ښکته کړئ"
       },
       "todomatrixview": {
@@ -461,13 +458,7 @@
         "noTaskContent": "د دې دندې لپاره منځپانګه نه ده ثبت شوې.",
         "attachTaskFile": "د دندې فایل ونښلوئ",
         "attach": "ونښلوئ",
-        "results": "پایلې",
-        "saveResults": "پایلې خوندي کړئ",
-        "recordTaskResults": "د دندې پایلې ثبت کړئ...",
-        "noResultsRecorded": "تر اوسه پایلې نه دي ثبت شوي.",
-        "attachResultFile": "د پایلې فایل ونښلوئ",
         "taskAttachments": "د دندې نښلونکي فایلونه",
-        "resultAttachments": "د پایلو نښلونکي فایلونه",
         "downloadAttachment": "نښلونکی فایل ښکته کړئ",
         "removeAttachment": "نښلونکی فایل لرې کړئ",
         "attachmentUploadFailed": "نښلونکی فایل پورته نه شو لېږل کېدای."
@@ -694,7 +685,6 @@
       "pastDue": "له ټاکلي وخت تېر شوی",
       "terminated": "??? ?? ??????",
       "noContracts": "قراردادونه نشته",
-      "pendingTransaction": "د تادیې غوښتنه",
       "closed": "تړل شوی",
       "applied": "غوښتنه شوې",
       "admitted": "منل شوی",
@@ -927,7 +917,6 @@
       "myVisaCase": "زما د ویزې قضیه",
       "sales": "پلور",
       "serviceSales": "د خدمتونو پلور",
-      "paymentRequests": "د تادیې غوښتنې",
       "educationalData": "تحصیلي معلومات",
       "contractStages": "د قرارداد مرحلې",
       "announcements": "اعلانیې",
@@ -1206,13 +1195,13 @@
       "required": "دا برخه اړینه ده."
     },
     "ui": {
-      "newFinancialRequest": "نوې د تادیې غوښتنه",
+      "newFinancialRequest": "د پیش‌نویس مالي ثبت",
       "attachCaseDocument": "د دوسیې سند نښلول",
       "caseTask": "د دوسیې دنده",
       "document": "سند",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "اسناد د دوسیې دندې ته د ضمیمو په توګه ساتل کېږي او د هماغې دندې د لاسرسي او پلټنې اصول پرې پلي کېږي.",
-      "unableToLoadFinancialRequestOptions": "د تادیې غوښتنې غوراوي پورته نه شول.",
-      "financialRequestLinkedToThisVisaCase": "د تادیې غوښتنه له دې ویزې دوسیې سره ونښلول شوه.",
+      "unableToLoadFinancialRequestOptions": "د مالي انتخابونو بارول نشول.",
+      "financialRequestLinkedToThisVisaCase": "پیش‌نویس مالي دې ویزې دوسیې لپاره خوندي شو.",
       "documentAttachedToThisVisaCase": "سند له دې ویزې دوسیې سره ونښلول شو.",
       "allocatedTo": "ورکړل شوی کس",
       "whatIsMonitored": "څارل کېدونکي موارد",
@@ -1530,10 +1519,24 @@
         "verifiedMessage": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ.",
         "requestNew": "لاندې د تایید د نوي لینک غوښتنه وکړئ.",
         "resend": "د تایید برېښنالیک ولېږئ",
-        "verified": { "title": "برېښنالیک تایید شو", "description": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ." },
-        "pending": { "title": "خپل برېښنالیک تایید کړئ", "description": "خپل برېښنالیک ولیکئ ترڅو د تایید لینک درولېږو." },
-        "expired": { "title": "د تایید لینک ختم شوی", "description": "ستاسو د امنیت لپاره تایید لینکونه ختمېږي. لاندې د نوي لینک غوښتنه وکړئ.", "notice": "دا د تایید لینک ختم شوی دی." },
-        "invalid": { "title": "د تایید لینک نه کارېږي", "description": "دا لینک نه کارېږي. لاندې د نوي تایید برېښنالیک غوښتنه وکړئ.", "notice": "دا د تایید لینک نامعتبر یا ناسم جوړ شوی دی." }
+        "verified": {
+          "title": "برېښنالیک تایید شو",
+          "description": "ستاسو برېښنالیک تایید شو. اوس کولی شئ سیستم ته ننوځئ."
+        },
+        "pending": {
+          "title": "خپل برېښنالیک تایید کړئ",
+          "description": "خپل برېښنالیک ولیکئ ترڅو د تایید لینک درولېږو."
+        },
+        "expired": {
+          "title": "د تایید لینک ختم شوی",
+          "description": "ستاسو د امنیت لپاره تایید لینکونه ختمېږي. لاندې د نوي لینک غوښتنه وکړئ.",
+          "notice": "دا د تایید لینک ختم شوی دی."
+        },
+        "invalid": {
+          "title": "د تایید لینک نه کارېږي",
+          "description": "دا لینک نه کارېږي. لاندې د نوي تایید برېښنالیک غوښتنه وکړئ.",
+          "notice": "دا د تایید لینک نامعتبر یا ناسم جوړ شوی دی."
+        }
       },
       "invitation": {
         "title": "خپل پټنوم تنظیم کړئ",
@@ -3166,14 +3169,14 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "وتونکې پیسې د اسعارو له اوسني نرخ سره ثبت کړئ.",
           "saveExpense": "لګښت خوندي کړئ",
           "saveModeDirect": "مستقیم ثبت",
-          "saveModeLoan": "د تادیې غوښتنو ته واستوئ",
           "saveModeDirectHint": "لګښت سمدلاسه کتابچې ته لیکل کیږي.",
-          "saveModeLoanHint": "اندازه د تادیې غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
-          "loanSubmitted": "د لګښت غوښتنه د منلو لپاره د تادیې غوښتنو ته واستول شوه.",
           "editExpense": "لګښت بدل کړئ",
           "updateTheRecordedSpendAndItsCurrency": "ثبت شوی لګښت او پولي واحد یې نوی کړئ.",
           "deleteExpense": "لګښت حذف کړئ؟",
-          "thisRemovesTheSelectedExpenseRecordPermanently": "دا ټاکل شوی د لګښت ریکارډ د تل لپاره له منځه وړي."
+          "thisRemovesTheSelectedExpenseRecordPermanently": "دا ټاکل شوی د لګښت ریکارډ د تل لپاره له منځه وړي.",
+          "saveModeDraft": "د پیش‌نویس په توګه خوندي کړئ",
+          "saveModeDraftHint": "پیش‌نویس یوازې تاسو او مالي برخې ته ښکاري او له تصویب وروسته دفتر ته ورزیاتېږي.",
+          "draftSaved": "پیش‌نویس د تصویب لپاره خوندي شو."
         }
       },
       "finance": {
@@ -3221,10 +3224,7 @@
           "incomeLedger": "د عاید کتابچه",
           "saveMode": "د خوندي کولو طریقه",
           "saveModeDirect": "مستقیم ثبت",
-          "saveModeLoan": "د تادیې غوښتنو ته واستوئ",
           "saveModeDirectHint": "رسید سمدلاسه د عاید کتابچې ته لیکل کیږي.",
-          "saveModeLoanHint": "اندازه د تادیې غوښتنې په توګه واستول کیږي او یوازې له منلو وروسته کتابچې ته رسیږي.",
-          "loanSubmitted": "د عاید غوښتنه د منلو لپاره د تادیې غوښتنو ته واستول شوه.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "د رسیدونو ژوندی فعالیت او د اسعارو مجموعې په یوه ځای کې",
           "printIncomeRecords": "د عاید ریکارډونه چاپ کړئ",
           "recordIncome": "عاید ثبت کړئ",
@@ -3256,7 +3256,10 @@
           "paymentExceedsRemainingBalance": "تادیه نشي کولی د دې خدمت له پاتې برخې زیاته شي:",
           "selectTheContractedServiceThisReceiptPaysFor": "هغه تړون شوې خدمت وټاکئ چې دا رسید ورته تادیه کوي",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "پیرودونکی، شمېر، پولي واحد او د تبادلې نرخ د ټاکل شوې خدمت څخه راځي. یوازې ترلاسه شوې پیسې ولیکئ.",
-          "servicePayments": "د خدمت تادیې"
+          "servicePayments": "د خدمت تادیې",
+          "saveModeDraft": "د پیش‌نویس په توګه خوندي کړئ",
+          "saveModeDraftHint": "پیش‌نویس یوازې تاسو او مالي برخې ته ښکاري او له تصویب وروسته دفتر ته ورزیاتېږي.",
+          "draftSaved": "پیش‌نویس د تصویب لپاره خوندي شو."
         }
       },
       "currencies": {
@@ -3645,7 +3648,6 @@
         "educational_bonus_sources": "د بونس سرچینې",
         "languages": "ژبې",
         "leaves": "رخصتي",
-        "pending_transactions": "د تادیې غوښتنې",
         "salary_payments": "د معاش تادیې",
         "semesters": "سمسترونه",
         "attachments": "ضمیمې",
@@ -3865,7 +3867,7 @@
       "noServices": "لا تر اوسه تړوني خدمتونه ثبت شوي نه دي.",
       "paperSize": "د کاغذ اندازه",
       "paperA3Landscape": "A3 اوږد (۲ کاپي)",
-      "paperA4Portrait": "A4 ولاړ (۲ کاپي)",
+      "paperA4Portrait": "A4 ولاړ",
       "paperA4Landscape": "A4 اوږد (۲ کاپي)",
       "paperA4TwoA5": "A4 ولاړ (۲ A5 اوږد کاپي)",
       "paperA5Two": "A5 ولاړ (۲ کاپي)",
@@ -3882,43 +3884,6 @@
       "service": "خدمت",
       "paymentStatus": "د تادیې حالت",
       "paymentSummary": "د تادیې لنډیز"
-    },
-    "paymentVoucher": {
-      "title": "د تادیې سند",
-      "date": "د سند نېټه",
-      "print": "سند چاپ کړه",
-      "payTo": "ورکول کیږي",
-      "approval": "منظوري",
-      "voucherType": "د سند ډول",
-      "reason": "دلیل / موخه",
-      "approvedAt": "د منظوري نېټه",
-      "requestedBy": "غوښتونکی",
-      "approvedBy": "منونکی",
-      "rejectionReason": "د رد دلیل",
-      "breakdown": "د تادیې تفکیک",
-      "totalPayout": "ټوله پرداخت",
-      "paidStatus": "د سند حالت",
-      "baseAmount": "بنسټیزه اندازه",
-      "note": "دا سند یوه وتونکې پرداخت ثبتوي چې مالي دفتر منظوري ورکړې ده.",
-      "preparedBy": "چمتو کوونکی",
-      "approvedBySignature": "منونکی"
-    },
-    "loan": {
-      "title": "د تادیې غوښتنه",
-      "requestedBy": "غوښتونکی",
-      "requestSummary": "د غوښتنې لنډیز",
-      "reason": "دلیل",
-      "reference": "د تادیې غوښتنې پېژند",
-      "details": "د تادیې غوښتنې توضیحات",
-      "item": "توکی",
-      "amount": "مبلغ",
-      "requestedAmount": "غوښتل شوی مبلغ",
-      "approvedAmount": "تصدیق شوی مبلغ",
-      "remaining": "نه تصدیق شوی",
-      "status": "حالت",
-      "requestedAt": "د غوښتنې نېټه",
-      "footerNote": "دا د تادیې غوښتنې سند په اتومات ډول جوړ شوی دی.",
-      "print": "د تادیې غوښتنه چاپ کړه"
     },
     "academySlip": {
       "title": "د اکادمۍ نوملیکنې پاڼه",
@@ -4174,13 +4139,13 @@
       }
     },
     "finance": {
-      "pendingSubmitted": {
-        "title": "د تادیې غوښتنه کتنې ته چمتو ده",
-        "message": "د {amount} په ارزښت د {type} غوښتنه کتنې ته چمتو ده."
+      "draftSubmitted": {
+        "title": "د پیش‌نویس مالي د بیاکتنې په تمه",
+        "message": "د {amount} لپاره یو {type} د بیاکتنې لپاره تیار دی."
       },
-      "pendingStatus": {
-        "title": "د تادیې غوښتنه تازه شوه",
-        "message": "ستاسو د {type} غوښتنه اوس {status} ده. {reason}"
+      "draftStatus": {
+        "title": "پیش‌نویس مالي تازه شو",
+        "message": "ستاسو {type} اوس {status} دی. {reason}"
       }
     },
     "bonus": {
@@ -4420,6 +4385,8 @@
     "applicantUpdates": "د غوښتونکو د دوسیو تازه معلومات",
     "applicantCaseAssignmentsStagesAndReminders": "د دوسیې سپارل، د پړاو بدلونونه او د ځنډېدلو دوسیو یادونې.",
     "subtitle": "وټاکئ چې د ادارې کومې پېښې د پروګرام په خبرتیاوو کې ښکاره شي.",
+    "sound": "د خبرتیا غږ",
+    "soundDescription": "کله چې نوې خبرتیا راشي، غږ وګړئ.",
     "loadFailed": "د خبرتیا غوره توبونه پورته نه شول.",
     "saveFailed": "د خبرتیا غوره توبونه خوندي نه شول."
   },
@@ -4475,6 +4442,9 @@
       "stageTransition": "{from} ← {to}",
       "tasks": "دندې",
       "newTask": "د دوسیې نوې دنده",
+      "personalBoardOnly": "د دوسیې دندې ستاسو په شخصي بورډ کې جوړیږي.",
+      "personalBoardMissing": "ستاسو شخصي بورډ لا نه دی چمتو شوی. بیا پاڼه تازه کړئ.",
+      "openInTaskMatrix": "په دندو میټریکس کې پرانیستل",
       "taskPermission": "د دندې جوړول اجازې ته اړتیا لري. د پړاو اتومات دندې بیا هم دلته ښکاري.",
       "taskSummary": "{progress}٪ بشپړ · {priority} · وروستۍ نېټه {date}",
       "complete": "بشپړول",
@@ -4487,7 +4457,6 @@
       "primary": "اصلي",
       "noApplications": "تر اوسه غوښتنلیک نشته. هر هغه پوهنتون جلا ورزیات کړئ چې زده‌کوونکی ورته غوښتنه کوي.",
       "finance": "مالي چارې",
-      "pendingWorkspace": "د تادیې غوښتنې",
       "financeSummary": "ثبت شوی عاید {income} · ثبت شوي لګښتونه {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -4558,6 +4527,12 @@
       "portalUserDeleted": "د پورټل کاروونکی لرې شو.",
       "caseUpdated": "دوسیه تازه شوه.",
       "caseUpdateFailed": "دوسیه تازه نه شوه.",
+      "universityNotes": "د پوهنتون یادښتونه",
+      "universityNotesHint": "دا یادښتونه یوازې د دې قضیې لپاره د همدې پوهنتون سره ساتل کیږي.",
+      "universityNotesSaved": "د پوهنتون یادښتونه خوندي شول.",
+      "universityNotesSaveFailed": "د پوهنتون یادښتونه خوندي نه شول.",
+      "openPortal": "پورټل پرانیستل",
+      "visitWebsite": "وېبپاڼې لیدل",
       "universityAdded": "د پوهنتون غوښتنلیک زیات شو.",
       "universityAddFailed": "د پوهنتون غوښتنلیک زیات نه شو.",
       "applicationMarked": "غوښتنلیک {status} شو.",
@@ -4568,7 +4543,11 @@
       "applicationRemoveFailed": "د پوهنتون غوښتنلیک لرې نه شو.",
       "primaryUpdated": "اصلي پوهنتون تازه شو.",
       "primaryUpdateFailed": "اصلي پوهنتون تازه نه شو.",
-      "loadUniversitiesFailed": "د دوسیې انتخابونه پورته نه شول."
+      "loadUniversitiesFailed": "د دوسیې انتخابونه پورته نه شول.",
+      "draftRecords": "پیش‌نویس ثبتونه",
+      "noDrafts": "هیڅ پیش‌نویس ثبت نشته.",
+      "draftRecordTitle": "{type}: {description}",
+      "draftSummary": "{amount} · {status} · {rejection}"
     },
     "applicantCases": "غوښتنلیکونه",
     "applications": "غوښتنلیکونه",
@@ -4596,7 +4575,6 @@
     "allCaughtUp": "ټول کارونه تازه دي",
     "noActivePipeline": "د دې فلټرونو لپاره فعال پړاو نشته.",
     "financialSnapshot": "مالي لنډیز",
-    "postedRecordsOnly": "یوازې ثبت شوي اسناد؛ ځنډېدلې غوښتنې جلا ښودل کېږي.",
     "salesHelp": "ثبت شوي قراردادونه او تحصیلي خدمتونه.",
     "countryHelp": "فعالې قضیې د ټولو ثبت شوو قضیو په پرتله.",
     "performanceHelp": "د هر کارکوونکي کاري بار او د پلور ونډه.",
@@ -4742,17 +4720,11 @@
     "loadReportFailed": "راپور پورته نه شو.",
     "exported": "راپور ترلاسه شو.",
     "exportFailed": "راپور ترلاسه نه شو.",
-    "pendingSubtitle": "غوښتنې یوازې له تایید او ثبت وروسته رسمي مالي اسناد کېږي.",
     "newRequest": "نوې غوښتنه",
-    "paymentRequestsSubtitle": "د داخلي یا مشاور لخوا د تادیې غوښتنه ثبتېږي؛ مالي دفتر یې منظوري کوي او د عاید رسید یا د تادیې سند چاپوي.",
-    "paymentRequestsNew": "نوې د تادیې غوښتنه",
     "transactionType": "د معاملې ډول",
     "reason": "دلیل",
     "amount": "مبلغ",
     "requested": "غوښتل شوی",
-    "noTransactions": "هیچ د تادیې غوښتنه نشته.",
-    "newPending": "نوې د تادیې غوښتنه",
-    "editPending": "د تادیې غوښتنه سمول",
     "applicantOptional": "غوښتونکی / قضیه (اختیاري)",
     "employeeOptional": "کارکوونکی (اختیاري)",
     "rejectTransaction": "معامله ردول",
@@ -4814,6 +4786,10 @@
       "transitionNotAllowed": "دا کاري بدلون مجاز نه دی."
     },
     "masterData": {
+      "phone": "د تلیفون شمېره",
+      "email": "د ایمیل پته",
+      "portalUrl": "د پورتال پته",
+      "portalUrlHint": "لکه څنګه چې یې لیکئ همداسې خوندي کیږي. د ویزې قضیه یې لینک ته اړوي.",
       "title": "د زده‌کړې بنسټیز معلومات — {catalog}",
       "academyTitle": "د اکاډمۍ معلومات — {catalog}",
       "countries": "هېوادونه",
@@ -4858,24 +4834,6 @@
       "provinces": "ولایتونه",
       "englishLevels": "د انګلیسي کچې",
       "acquisitionRoutes": "لیدونکي څنګه له موږ سره بلد شول"
-    },
-    "pendingUi": {
-      "customerEmployee": "پېرودونکی / کارکوونکی",
-      "searchReason": "د تادیې دلیل پلټنه",
-      "saved": "د تادیې غوښتنه خوندي شوه.",
-      "submitted": "د تادیې غوښتنه د تصویب لپاره ولېږل شوه.",
-      "selfApproval": "تاسو نشئ کولای خپله د تادیې غوښتنه تصویب، رد یا ثبت کړئ. بل تصویب کوونکی باید یې وګوري.",
-      "saveFailed": "معامله خوندي نه شوه؛ ښايي قفل یا د سمون وخت یې پای ته رسېدلی وي.",
-      "transitioned": "د معاملې حالت اوس {status} دی.",
-      "rejected": "معامله رد شوه.",
-      "rejectFailed": "معامله رد نه شوه.",
-      "actions": {
-        "edit": "دا د تادیې غوښتنه سم کړئ",
-        "review": "بیاکتنې ته یې واستوئ",
-        "approve": "دا غوښتنه تایید کړئ",
-        "reject": "له دلیل سره یې رد کړئ",
-        "post": "په رسمي اسنادو کې یې ثبت کړئ"
-      }
     },
     "search": {
       "title": "لټون",
@@ -4949,6 +4907,20 @@
       "paid": "تادیه شوی",
       "unpaid": "نه تادیه شوی",
       "partially_paid": "تر یوې کچې تادیه شوی"
+    },
+    "drafts": {
+      "saveDraft": "د پیش‌نویس په توګه خوندي کړئ",
+      "saveDraftHint": "پیش‌نویس یوازې تاسو او مالي برخې ته ښکاري او له تصویب وروسته دفتر ته ورزیاتېږي.",
+      "draftSaved": "پیش‌نویس د تصویب لپاره خوندي شو.",
+      "filterByStatus": "د حالت له مخې فلټر",
+      "approve": "پیش‌نویس تصویب کړئ",
+      "reject": "پیش‌نویس رد کړئ",
+      "rejectTitle": "د پیش‌نویس رد",
+      "rejectionReason": "د رد دلیل",
+      "approved": "پیش‌نویس تصویب او دفتر ته ولوېد.",
+      "rejected": "پیش‌نویس رد شو.",
+      "approveFailed": "پیش‌نویس تصویب نشو.",
+      "rejectFailed": "پیش‌نویس رد نشو."
     }
   },
   "tasksPage": {

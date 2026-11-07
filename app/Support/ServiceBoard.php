@@ -40,6 +40,32 @@ final class ServiceBoard
         'Academy',
     ];
 
+    /** @return list<string> */
+    public static function serviceTitles(): array
+    {
+        return array_values(self::BY_SERVICE);
+    }
+
+    public static function serviceForTitle(string $title): ?string
+    {
+        $service = array_search($title, self::BY_SERVICE, true);
+
+        return $service === false ? null : $service;
+    }
+
+    /** @return list<string> */
+    public static function titlesVisibleTo(User $user): array
+    {
+        $titles = [];
+        foreach (self::BY_SERVICE as $service => $title) {
+            if ($user->hasPermission(BuiltInService::contractPermission($service))) {
+                $titles[] = $title;
+            }
+        }
+
+        return $titles;
+    }
+
     /**
      * The shared board title a service's delivery work belongs on. Work with no
      * resolvable service is applicant-stage work; it must never fall back to the

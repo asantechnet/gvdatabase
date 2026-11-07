@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\FinanceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -175,7 +176,9 @@ class RealtimeNotificationTest extends TestCase
             'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
         ]);
 
-        $created = $this->createBuiltInContract('academy', [
+        // Admission assignment is a scholarship/private field; academy
+        // contracts intentionally prohibit it.
+        $created = $this->createBuiltInContract('scholarship', [
             'responsible_employee_id' => $responsible->id,
             'admission_employee_id' => $admission->id,
             'currency_id' => $currency->id,
@@ -207,39 +210,44 @@ class RealtimeNotificationTest extends TestCase
         $this->assertSame([$manager->id], $notification->recipients()->pluck('users.id')->all());
     }
 
-    public function test_payment_request_notifies_approvers_and_never_the_requester(): void
+    public function test_draft_finance_record_notifies_approvers_and_never_the_recorder(): void
     {
-        $requester = $this->userWithRole('staff');
+        $this->seed(FinanceTypeSeeder::class);
+        $recorder = $this->userWithRole('staff');
         $finance = $this->userWithRole('finance_officer');
         $viewer = $this->userWithRole('viewer');
-        Employee::factory()->create(['user_id' => $requester->id, 'status' => 'active']);
+        Employee::factory()->create(['user_id' => $recorder->id, 'status' => 'active']);
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
 
-        Sanctum::actingAs($requester, ['access']);
-        $pending = $this->postJson('/api/payment-requests', [
-            'transaction_type' => 'income',
-            'reason' => 'Applicant deposit',
+        Sanctum::actingAs($recorder, ['access']);
+        $draft = $this->postJson('/api/incomes', [
+            'type' => 'Service',
+            'description' => 'Applicant deposit',
             'amount' => 100,
+            'quantity' => 1,
             'currency_id' => $currency->id,
+            'rate' => 1,
+            'date' => now()->toDateString(),
+            'status' => 'draft',
         ])->assertCreated()->json('data');
 
         $notification = Notification::query()
-            ->where('notification_key', "finance.pending.submitted.{$pending['id']}")
+            ->where('notification_key', "finance.draft.submitted.income.{$draft['id']}")
             ->firstOrFail();
         $recipients = $notification->recipients()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
 
         $this->assertContains($finance->id, $recipients);
-        $this->assertNotContains($requester->id, $recipients);
+        $this->assertNotContains($recorder->id, $recipients);
         $this->assertNotContains($viewer->id, $recipients);
         $this->assertTrue($finance->fresh()->unread_notifications);
         // No permission, no notification — and no leftover flag either.
-        $this->assertFalse($requester->fresh()->unread_notifications);
+        $this->assertFalse($recorder->fresh()->unread_notifications);
         $this->assertFalse($viewer->fresh()->unread_notifications);
 
         // The approver pulls it over the real-time channel.
         Sanctum::actingAs($finance->refresh(), ['access']);
         $this->getJson('/api/notifications/heartbeat')
             ->assertOk()
-            ->assertJsonPath('data.0.notification_key', "finance.pending.submitted.{$pending['id']}");
+            ->assertJsonPath('data.0.notification_key', "finance.draft.submitted.income.{$draft['id']}");
     }
 }

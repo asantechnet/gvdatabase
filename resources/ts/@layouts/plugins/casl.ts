@@ -1,7 +1,7 @@
 import type { RouteLocationNormalized } from 'vue-router'
 import { ability } from '@/plugins/casl/ability'
 import type { Actions } from '@/plugins/casl/ability'
-import type { NavGroup } from '@layouts/types'
+import type { NavGroup, NavLink } from '@layouts/types'
 
 /**
  * Returns ability result if ACL is configured or else just return true
@@ -35,6 +35,13 @@ export const can = (action: string | undefined, subject: string | undefined) => 
  * Based on item's action and subject & Hide group if all of it's children are hidden
  * @param {object} item navigation object item
  */
+export const canViewNavLink = (item: NavLink) => {
+  if (item.anyPermissions?.length)
+    return item.anyPermissions.some(permission => ability.can('read', permission))
+
+  return can(item.action, item.subject)
+}
+
 export const canViewNavMenuGroup = (item: NavGroup) => {
   const hasAnyVisibleChild = item.children.some(i => can(i.action, i.subject))
 
@@ -49,6 +56,10 @@ export const canViewNavMenuGroup = (item: NavGroup) => {
 export const canNavigate = (to: RouteLocationNormalized) => {
   // Get the most specific route (last one in the matched array)
   const targetRoute = to.matched[to.matched.length - 1]
+
+  const allPermissions = targetRoute?.meta?.allPermissions
+  if (Array.isArray(allPermissions) && !allPermissions.every(permission => ability.can('read', permission as string)))
+    return false
 
   const anyPermissions = targetRoute?.meta?.anyPermissions
   if (Array.isArray(anyPermissions))

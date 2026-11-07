@@ -28,6 +28,16 @@ for (const paper of papers) {
   assert.ok(layout.width > 0 && layout.height > 0 && layout.cardHeight * layout.perPage === layout.height)
 }
 
+// Printing settings mirror the academy slip: the same paper options, two fixed
+// copies (customer + office) and no copies selector.
+const dialogSource = await read('resources/ts/components/income/ReceiptPrinter.vue')
+const slipDialogSource = await read('resources/ts/components/academy/AcademySlipPrinter.vue')
+const paperValues = source => [...source.matchAll(/\{\s*title:\s*[^,]+,\s*value:\s*'([^']+)'/g)].map(match => match[1])
+assert.deepEqual(paperValues(dialogSource), ['A4 2x A5', 'A5 2x', 'A4', 'A5'])
+assert.deepEqual(new Set(paperValues(dialogSource)), new Set(paperValues(slipDialogSource)))
+assert.ok(!dialogSource.includes('VTextField'), 'receipt printing must not offer a copies selector')
+assert.ok(/const copies = 2/.test(dialogSource), 'receipts print as two fixed copies')
+
 const file = 'resources/ts/pages/templates/receipt_template.vue'
 const { descriptor, errors } = parse(await read(file), { filename: file })
 assert.deepEqual(errors, [])

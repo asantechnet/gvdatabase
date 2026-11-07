@@ -62,23 +62,9 @@ export interface ReceiptLine {
   payment_status_label?: string
 }
 
-export interface ReceiptLoan {
-  status: string
-  transaction_type: string
-  requested_at: string | null
-  approved_at: string | null
-  approver: { id: number; name: string } | null
-  rejection_reason: string | null
-  /** Expense/salary requests print as a payment voucher naming the payee. */
-  payee_type?: 'employee' | 'applicant' | 'other'
-  payee_name?: string | null
-  employee?: { id: number; name: string } | null
-  reference?: string | null
-}
-
 export interface ReceiptPayload {
   serial_number: string | null
-  document: 'receipt' | 'loan'
+  document: 'receipt'
   date: string | null
   income: {
     id: number
@@ -110,8 +96,6 @@ export interface ReceiptPayload {
   letterhead: ReceiptLetterhead
   signature: { url: string | null; name: string | null }
   recorded_by: { id: number; name: string } | null
-  /** Present only when `document` is `loan`. */
-  loan?: ReceiptLoan | null
 }
 
 const ReceiptApi = {

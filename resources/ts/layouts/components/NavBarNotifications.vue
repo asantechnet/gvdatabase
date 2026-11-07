@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { type AppNotification, deleteNotification, getNotifications, markAllNotificationsRead, updateNotification } from '@/api/notification'
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
-import { playLaunchDingOnce, useNotificationHeartbeat } from '@/composables/useNotificationHeartbeat'
+import { playLaunchDingOnce, setNotificationSoundEnabled, useNotificationHeartbeat } from '@/composables/useNotificationHeartbeat'
 import { useVisiblePolling } from '@/composables/useVisiblePolling'
 import type { Notification } from '@layouts/types'
 import { canAccess } from '@/utils/authorization'
@@ -15,6 +15,7 @@ const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
 const rawNotifications = ref<AppNotification[]>([])
+const userData = useCookie<{ notification_sound?: boolean } | null>('userData')
 let inboxPending = false
 let disposed = false
 let launchChecked = false
@@ -103,6 +104,8 @@ async function handleNotificationClick(notification: Notification) {
 }
 
 onMounted(() => {
+  // Hydrate the chime preference before the first inbox/heartbeat fetch can play it.
+  setNotificationSoundEnabled(userData.value?.notification_sound === true)
   startInboxRefresh(true)
   startHeartbeat()
 })

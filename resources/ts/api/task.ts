@@ -61,11 +61,11 @@ const TaskApi = {
     return response.data.data
   },
 
-  uploadAttachment: async (taskId: string, file: File, section: 'input' | 'results' = 'results') => {
+  uploadAttachment: async (taskId: string, file: File) => {
     const formData = new FormData()
 
     formData.append('file', file)
-    formData.append('section', section)
+    formData.append('section', 'input')
 
     return api.post(`/tasks/${taskId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
   },

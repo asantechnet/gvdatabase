@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useToast } from 'vue-toastification'
 import AuthApi, { type Account, type NotificationPreferences } from '@/api/auth'
+import { setNotificationSoundEnabled } from '@/composables/useNotificationHeartbeat'
 
 interface NotificationEvent { key: string; title: string; description: string; in_app: boolean }
 
@@ -13,26 +14,34 @@ const notificationEvents = ref<NotificationEvent[]>([
 ])
 
 const initialPreferences = ref<NotificationPreferences>()
+const notificationSound = ref(false)
+const initialNotificationSound = ref(false)
 const saving = ref(false)
 const toast = useToast()
+const userData = useCookie<Record<string, unknown> | null>('userData')
 
 const preferences = (): NotificationPreferences => Object.fromEntries(notificationEvents.value.map(event => [event.key, { in_app: event.in_app }]))
 
-function applyPreferences(savedPreferences?: NotificationPreferences) {
+function applyPreferences(savedPreferences?: NotificationPreferences, savedSound?: boolean) {
   notificationEvents.value.forEach(event => {
     const saved = savedPreferences?.[event.key] as { in_app?: boolean; browser?: boolean } | undefined
 
     // Migrate the old browser preference to the new in-app preference.
     event.in_app = saved?.in_app ?? saved?.browser ?? true
   })
+
+  // The chime is opt-in: accounts without a saved preference stay silent.
+  notificationSound.value = savedSound === true
 }
 
 async function load() {
   try {
     const account = (await AuthApi.me()).data.data as Account
 
-    applyPreferences(account.notifications)
+    applyPreferences(account.notifications, account.notification_sound)
+    setNotificationSoundEnabled(notificationSound.value)
     initialPreferences.value = structuredClone(preferences())
+    initialNotificationSound.value = notificationSound.value
   }
   catch (exception: any) {
     toast.error(exception.message || translate('notificationPreferences.loadFailed'))
@@ -43,9 +52,13 @@ async function save() {
   saving.value = true
   try {
     const notifications = preferences()
+    const sound = notificationSound.value
 
-    await AuthApi.updateNotifications({ notifications })
+    await AuthApi.updateNotifications({ notifications, notification_sound: sound })
     initialPreferences.value = structuredClone(notifications)
+    initialNotificationSound.value = sound
+    setNotificationSoundEnabled(sound)
+    userData.value = { ...(userData.value ?? {}), notification_sound: sound }
     toast.success(translate('components.account.accountsettingsnotification.notificationPreferencesSaved'))
   }
   catch (exception: any) {
@@ -57,7 +70,7 @@ async function save() {
 }
 
 function discard() {
-  applyPreferences(initialPreferences.value)
+  applyPreferences(initialPreferences.value, initialNotificationSound.value)
 }
 
 onMounted(load)
@@ -108,6 +121,24 @@ onMounted(load)
           </tr>
         </tbody>
       </VTable>
+    </VCardText>
+
+    <VCardText data-account-guide="notification-sound">
+      <div class="d-flex flex-wrap align-center gap-4">
+        <VSwitch
+          v-model="notificationSound"
+          hide-details
+          :aria-label="$t('notificationPreferences.sound')"
+        />
+        <div>
+          <div class="text-body-1 text-high-emphasis">
+            {{ $t('notificationPreferences.sound') }}
+          </div>
+          <div class="text-caption text-medium-emphasis text-wrap">
+            {{ $t('notificationPreferences.soundDescription') }}
+          </div>
+        </div>
+      </div>
     </VCardText>
 
     <VCardText data-account-guide="notification-actions">

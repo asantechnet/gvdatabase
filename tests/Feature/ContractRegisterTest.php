@@ -124,7 +124,7 @@ class ContractRegisterTest extends TestCase
 
         $role = Role::create(['name' => 'contract_reader_'.uniqid()]);
 
-        foreach (['view_contracts', 'view_all_contracts'] as $name) {
+        foreach (['view_contracts', 'view_all_contracts', 'view_scholarship_contracts'] as $name) {
             $role->permissions()->attach(Permission::firstOrCreate(['name' => $name], ['category' => 'customer_contracts']));
         }
 

@@ -8,13 +8,18 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import { externalUrl } from '@/utils/externalUrl'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import BoardApi from '@/api/board'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
-import PendingTransactionApi, { type PendingTransactionInput, type PendingTransactionOptions } from '@/api/pendingTransactions'
+import { approveExpense, createExpense, rejectExpense } from '@/api/expenses'
+import { approveIncome, createIncome, rejectIncome } from '@/api/incomes'
+import { getFinanceTypes, type FinanceType } from '@/api/financeTypes'
+import { financeTypeLabel } from '@/utils/financeTypes'
+import CurrencyApi, { type Currency } from '@/api/currency'
 import TaskApi from '@/api/task'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate, translateBackendValue } from '@/utils/localization'
@@ -33,20 +38,31 @@ const selected = ref<number | string | null>(null)
 const note = ref('')
 const moving = ref(false)
 
-const boards = ref<Array<{ id: string; title: string }>>([])
+const boards = ref<Array<{ id: string; title: string; is_personal: boolean; is_owned: boolean }>>([])
 const taskDialog = ref(false)
 const creatingTask = ref(false)
 const completingId = ref<number | null>(null)
 const taskForm = ref({ board_id: '', title: '', priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent', due_date: '' })
 
-const canCreateTask = computed(() => canAccess('create_tasks'))
+const personalBoard = computed(() => boards.value.find(board => board.is_personal && board.is_owned) ?? null)
+const canCreateTask = computed(() => canAccess('create_tasks') && !!personalBoard.value)
 const canEditCase = computed(() => canAccess('edit_applicants'))
 const canInvitePortal = computed(() => canAccess('invite_applicant_portal'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canAssignAdmission = computed(() => canAccess('assign_admission_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
-const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
-const serviceLabel = computed(() => applicant.value ? translateBackendValue(applicant.value.service) : '')
+const canCreateDraftFinance = computed(() => canAccess('create_draft_finance_records'))
+const canApproveDrafts = computed(() => canAccess('approve_draft_finance_records'))
+// Service names are catalogue labels, not backend status enums: use the same
+// translated labels as the applications list instead of the raw `test_offer`.
+const serviceLabelKeys: Record<string, string> = { scholarship: 'scholarship', private: 'private', test_offer: 'testOffer', academy: 'academy' }
+const serviceLabel = computed(() => {
+  const service = applicant.value?.service
+  if (!service) return ''
+  const key = serviceLabelKeys[service]
+
+  return key ? t(`educational.builtInServices.${key}`) : translateBackendValue(service)
+})
 // Shared contact and service details remain visible beside the case title.
 const guardianSummary = computed(() => {
   const current = applicant.value
@@ -212,6 +228,47 @@ const savingUni = ref(false)
 const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '', notes: '' })
 const uniStatuses = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn']
 const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info', admitted: 'success', rejected: 'error', withdrawn: 'warning' }[status] ?? 'secondary')
+type CaseUniversityApplication = NonNullable<Applicant['universities']>[number]
+const uniNotesDialog = ref(false)
+const uniNotesTarget = ref<CaseUniversityApplication | null>(null)
+const uniNotesDraft = ref('')
+const savingUniNotes = ref(false)
+// The case's destination country carries the embassy contact details used by
+// the quick-contact block. It comes from the same catalogue the form edits.
+const caseCountry = computed(() => {
+  const countryId = applicant.value?.details?.country_id
+
+  return countryId ? countries.value.find(row => row.id === countryId) ?? null : null
+})
+const universityById = computed(() => new Map<number, MasterDataRecord>(universities.value.map(row => [row.id, row] as const)))
+const universityContactFor = (id: number) => universityById.value.get(id) ?? null
+const portalHref = (value?: string | null) => externalUrl(value)
+
+function openUniNotes(app: CaseUniversityApplication) {
+  uniNotesTarget.value = app
+  uniNotesDraft.value = app.notes ?? ''
+  uniNotesDialog.value = true
+}
+
+async function saveUniNotes() {
+  if (!applicant.value || !uniNotesTarget.value)
+    return
+
+  savingUniNotes.value = true
+  try {
+    await ApplicantUniversityApi.update(applicant.value.id, uniNotesTarget.value.id, { notes: uniNotesDraft.value.trim() || null })
+    uniNotesDialog.value = false
+    uniNotesTarget.value = null
+    await load()
+    toast.success(t('educational.caseUi.universityNotesSaved'))
+  }
+  catch {
+    toast.error(t('educational.caseUi.universityNotesSaveFailed'))
+  }
+  finally {
+    savingUniNotes.value = false
+  }
+}
 
 const editDialog = ref(false)
 const savingCase = ref(false)
@@ -228,10 +285,30 @@ const portalForm = ref({ name: '', email: '', phone: '', address: '', password: 
 // A supplied password must satisfy the server's minimum; an empty one keeps the
 // invitation flow, where the applicant chooses their own.
 const portalPasswordValid = computed(() => !portalForm.value.password || portalForm.value.password.length >= 8)
+type DraftFinanceRow = {
+  id: number
+  kind: 'income' | 'expense'
+  amount: number | string
+  date?: string | null
+  description?: string | null
+  status: 'draft' | 'approved' | 'rejected'
+  rejection_reason?: string | null
+}
+
 const financeDialog = ref(false)
 const savingFinance = ref(false)
-const financeOptions = ref<PendingTransactionOptions>({ currencies: [], employees: [], applicants: [] })
-const financeForm = ref<PendingTransactionInput>({ transaction_type: 'income', reason: '', amount: 0, currency_id: null, applicant_id: null, employee_id: null })
+const rejectFinanceDialog = ref(false)
+const savingRejectFinance = ref(false)
+const rejectFinanceTarget = ref<DraftFinanceRow | null>(null)
+const rejectFinanceReason = ref('')
+const financeOptions = ref<{ currencies: Currency[]; incomeTypes: FinanceType[]; expenseTypes: FinanceType[] }>({ currencies: [], incomeTypes: [], expenseTypes: [] })
+const financeForm = ref({ transaction_type: 'income' as 'income' | 'expense', type: '', description: '', amount: 0, currency_id: null as number | null })
+// Must be declared after `financeForm`: the watcher getter is evaluated during
+// setup, so an earlier declaration throws a temporal-dead-zone ReferenceError.
+const financeTypeOptions = computed(() => (financeForm.value.transaction_type === 'income' ? financeOptions.value.incomeTypes : financeOptions.value.expenseTypes).map(type => ({ title: financeTypeLabel(type), value: type.value })))
+watch(() => financeForm.value.transaction_type, () => {
+  financeForm.value.type = financeTypeOptions.value[0]?.value ?? ''
+})
 const documentDialog = ref(false)
 const uploadingDocument = ref(false)
 const documentTaskId = ref<number | null>(null)
@@ -298,11 +375,16 @@ async function removeApplicantAttachment(id: number) {
 async function loadBoards() {
   try {
     const response = await BoardApi.getAll()
-    const rows = (response as { data?: { data?: Array<{ id: string; title: string }> } }).data?.data ?? []
+    const rows = (response as { data?: { data?: Array<{ id: string; title: string; is_personal?: boolean; is_owned?: boolean }> } }).data?.data ?? []
 
-    boards.value = rows.map(b => ({ id: String(b.id), title: b.title }))
-    if (!taskForm.value.board_id && boards.value.length)
-      taskForm.value.board_id = boards.value[0].id
+    boards.value = rows.map(b => ({
+      id: String(b.id),
+      title: b.title,
+      is_personal: !!b.is_personal,
+      is_owned: !!b.is_owned,
+    }))
+    if (!taskForm.value.board_id && personalBoard.value)
+      taskForm.value.board_id = personalBoard.value.id
   }
   catch {
     toast.error(t('educational.caseUi.loadBoardsFailed'))
@@ -372,13 +454,21 @@ async function recordStage(target: ApplicantStage) {
 }
 
 function openTaskDialog() {
-  taskForm.value = { board_id: boards.value[0]?.id ?? '', title: '', priority: 'medium', due_date: '' }
+  if (!personalBoard.value) {
+    toast.error(t('educational.caseUi.personalBoardMissing'))
+
+    return
+  }
+
+  taskForm.value = { board_id: personalBoard.value.id, title: '', priority: 'medium', due_date: '' }
   taskDialog.value = true
 }
 
 async function createTask() {
-  if (!taskForm.value.board_id || !taskForm.value.title.trim() || !applicant.value)
+  if (!personalBoard.value || !taskForm.value.title.trim() || !applicant.value)
     return
+
+  taskForm.value.board_id = personalBoard.value.id
 
   creatingTask.value = true
   try {
@@ -725,14 +815,18 @@ async function openFinanceDialog() {
     return
 
   try {
-    financeOptions.value = await PendingTransactionApi.options()
+    const [currencyResponse, incomeTypes, expenseTypes] = await Promise.all([
+      CurrencyApi.getAll(),
+      getFinanceTypes('income'),
+      getFinanceTypes('expense'),
+    ])
+    financeOptions.value = { currencies: currencyResponse.data, incomeTypes, expenseTypes }
     financeForm.value = {
       transaction_type: 'income',
-      reason: '',
+      type: incomeTypes[0]?.value ?? '',
+      description: '',
       amount: 0,
-      currency_id: financeOptions.value.currencies.find(currency => currency.is_base)?.id ?? null,
-      applicant_id: applicant.value.id,
-      employee_id: applicant.value.responsible_employee_id ?? null,
+      currency_id: currencyResponse.data.find(currency => currency.isBase)?.id ?? null,
     }
     financeDialog.value = true
   }
@@ -742,12 +836,29 @@ async function openFinanceDialog() {
 }
 
 async function createFinanceRequest() {
-  if (!financeForm.value.reason.trim() || financeForm.value.amount <= 0 || !financeForm.value.currency_id)
+  if (!applicant.value || !financeForm.value.type || !financeForm.value.description.trim() || financeForm.value.amount <= 0 || !financeForm.value.currency_id)
     return
 
+  const currency = financeOptions.value.currencies.find(row => row.id === financeForm.value.currency_id)
   savingFinance.value = true
   try {
-    await PendingTransactionApi.create(financeForm.value)
+    const payload = {
+      applicant_id: applicant.value.id,
+      type: financeForm.value.type,
+      description: financeForm.value.description.trim(),
+      amount: financeForm.value.amount,
+      quantity: 1,
+      currency_id: financeForm.value.currency_id,
+      rate: Number(currency?.rate ?? 1),
+      date: new Date().toISOString().slice(0, 10),
+      status: 'draft' as const,
+    }
+
+    if (financeForm.value.transaction_type === 'income')
+      await createIncome(payload)
+    else
+      await createExpense(payload)
+
     financeDialog.value = false
     await load()
     toast.success(translate('common.ui.financialRequestLinkedToThisVisaCase'))
@@ -757,6 +868,50 @@ async function createFinanceRequest() {
   }
   finally {
     savingFinance.value = false
+  }
+}
+
+async function approveDraftFinance(row: DraftFinanceRow) {
+  try {
+    if (row.kind === 'income')
+      await approveIncome(row.id)
+    else
+      await approveExpense(row.id)
+
+    await load()
+    toast.success(translate('finance.drafts.approved'))
+  }
+  catch {
+    toast.error(translate('finance.drafts.approveFailed'))
+  }
+}
+
+function openRejectDraft(row: DraftFinanceRow) {
+  rejectFinanceTarget.value = row
+  rejectFinanceReason.value = ''
+  rejectFinanceDialog.value = true
+}
+
+async function rejectDraftFinance() {
+  if (!rejectFinanceTarget.value || !rejectFinanceReason.value.trim())
+    return
+
+  savingRejectFinance.value = true
+  try {
+    if (rejectFinanceTarget.value.kind === 'income')
+      await rejectIncome(rejectFinanceTarget.value.id, rejectFinanceReason.value.trim())
+    else
+      await rejectExpense(rejectFinanceTarget.value.id, rejectFinanceReason.value.trim())
+
+    rejectFinanceDialog.value = false
+    await load()
+    toast.success(translate('finance.drafts.rejected'))
+  }
+  catch {
+    toast.error(translate('finance.drafts.rejectFailed'))
+  }
+  finally {
+    savingRejectFinance.value = false
   }
 }
 
@@ -933,7 +1088,42 @@ onBeforeUnmount(() => {
           <p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.primaryChoiceHint') }}</p>
           <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
           <h4 class="mt-2">{{ t('educational.caseUi.trackedApplications') }}</h4>
-          <VList><VListItem v-for="app in applicant.universities" :key="app.id" class="university-application-item" :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })" :subtitle="t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') })"><template #prepend><VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip></template><template v-if="canEditCase" #append><VMenu><template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn></template><VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" /></VList></VMenu><VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn></template></VListItem></VList>
+          <VList>
+            <VListItem
+              v-for="app in applicant.universities"
+              :key="app.id"
+              class="university-application-item"
+              :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })"
+            >
+              <template #prepend>
+                <VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip>
+              </template>
+              <template #subtitle>
+                <span>{{ t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') }) }}</span>
+                <div v-if="universityContactFor(app.university_id)" class="university-quick-contact">
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.phone" kind="phone" :value="universityContactFor(app.university_id)?.phone" />
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.email" kind="email" :value="universityContactFor(app.university_id)?.email" />
+                  <a v-if="portalHref(universityContactFor(app.university_id)?.portal_url)" :href="portalHref(universityContactFor(app.university_id)?.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">
+                    <VIcon icon="tabler-external-link" size="16" />
+                    <span>{{ t('educational.caseUi.openPortal') }}</span>
+                  </a>
+                </div>
+              </template>
+              <template v-if="canEditCase" #append>
+                <VBtn size="small" variant="text" prepend-icon="tabler-notes" @click="openUniNotes(app)">{{ t('educational.caseUi.universityNotes') }}</VBtn>
+                <VMenu>
+                  <template #activator="{ props }">
+                    <VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn>
+                  </template>
+                  <VList density="compact">
+                    <VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" />
+                  </VList>
+                </VMenu>
+                <VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
+                <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn>
+              </template>
+            </VListItem>
+          </VList>
           <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noApplications') }}</p>
         </section>
 
@@ -944,7 +1134,7 @@ onBeforeUnmount(() => {
           </VList>
           <VList><VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="t('educational.caseUi.transactionTitle', { type: translateBackendValue(row.transaction_type), reason: row.reason })" :subtitle="t('educational.caseUi.transactionSummary', { amount: money(row.amount), status: translateBackendValue(row.approval_status), rejection: row.rejection_reason || t('common.messages.notAvailable') })" /></VList>
           <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem></VList>
-          <p v-if="!applicant.pending_transactions?.length && !applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
+          <p v-if="!applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
         </section>
 
         <section class="case-section case-section--documents">
@@ -1077,6 +1267,44 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.case-country-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  gap: 8px 16px;
+  margin-block: 8px 12px;
+  padding-block: 10px;
+  padding-inline: 12px;
+}
+
+.case-country-contact__identity {
+  display: flex;
+  flex-direction: column;
+}
+
+.university-quick-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-block-start: 4px;
+}
+
+.case-portal-link {
+  display: inline-flex;
+  align-items: center;
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.8125rem;
+  gap: 4px;
+  text-decoration: none;
+}
+
+.case-portal-link:hover {
+  text-decoration: underline;
+}
+
 .case-title-link {
   color: rgb(var(--v-theme-primary));
   font-weight: 600;
@@ -1101,31 +1329,31 @@ onBeforeUnmount(() => {
 }
 
 .case-profile-hero {
-  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  align-items: flex-start;
   justify-content: space-between;
-  padding-block-end: 1.25rem;
   border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  gap: 1rem;
+  padding-block-end: 1.25rem;
 }
 
 .case-profile-hero__identity,
 .case-profile-hero__actions {
-  align-items: center;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
 .case-profile-hero__identity { align-items: flex-start; }
 .case-profile-hero__actions { justify-content: flex-end; }
-.case-profile-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; padding-block-start: 1.25rem; }
+.case-profile-body { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block-start: 1.25rem; }
 .case-profile-body > .visa-case-stage-panel { grid-column: 2; }
 .case-profile-body > .case-overview-grid { display: contents; }
 .case-profile-body .case-section--details { grid-column: 1; grid-row: 1 / span 2; }
 .case-profile-body .case-section--cases { grid-column: 2; }
-.case-portal-status { min-block-size: 2rem; padding-inline: .75rem !important; }
+.case-portal-status { min-block-size: 2rem; padding-inline: 0.75rem !important; }
 
 .visa-case-stage-panel {
   max-inline-size: 46rem;
@@ -1144,16 +1372,16 @@ onBeforeUnmount(() => {
 }
 
 .case-section {
-  background: rgb(var(--v-theme-on-surface) / 0.035);
+  padding: clamp(1rem, 2vw, 1.5rem);
   border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
   border-radius: 0.75rem;
+  background: rgb(var(--v-theme-on-surface) / 3.5%);
   min-inline-size: 0;
-  padding: clamp(1rem, 2vw, 1.5rem);
 }
 
 .case-section--timeline {
+  border-color: rgba(var(--v-theme-secondary), 0.18);
   background: rgba(var(--v-theme-secondary), 0.05);
-  border-color: rgba(var(--v-theme-secondary), .18);
 }
 
 .case-section--tasks { background: rgba(var(--v-theme-info), 0.045); }
@@ -1161,10 +1389,10 @@ onBeforeUnmount(() => {
 .case-section--finance { background: rgba(var(--v-theme-success), 0.045); }
 .case-section--documents { background: rgba(var(--v-theme-warning), 0.045); }
 .case-section--notes { background: rgba(var(--v-theme-secondary), 0.045); }
-.case-section--details { background: rgba(var(--v-theme-primary), 0.055); border-color: rgba(var(--v-theme-primary), .18); }
-.case-section--cases { background: rgba(var(--v-theme-info), 0.055); border-color: rgba(var(--v-theme-info), .18); }
+.case-section--details { border-color: rgba(var(--v-theme-primary), 0.18); background: rgba(var(--v-theme-primary), 0.055); }
+.case-section--cases { border-color: rgba(var(--v-theme-info), 0.18); background: rgba(var(--v-theme-info), 0.055); }
 .case-section--notes { grid-column: 1 / -1; }
-.case-stage-change { padding: 1rem; border: 1px solid rgba(var(--v-theme-primary), .18); border-radius: 10px; background: rgba(var(--v-theme-primary), .055); }
+.case-stage-change { padding: 1rem; border: 1px solid rgba(var(--v-theme-primary), 0.18); border-radius: 10px; background: rgba(var(--v-theme-primary), 0.055); }
 
 .case-section--details,
 .case-section--cases {
@@ -1172,21 +1400,21 @@ onBeforeUnmount(() => {
 }
 
 .case-section__heading {
-  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 0.75rem;
   margin-block-end: 1rem;
 }
 
 .case-section__heading h3,
 .case-section__heading h4,
 .case-section h4 {
+  margin: 0;
   color: rgb(var(--v-theme-on-surface));
   font-size: 1rem;
   line-height: 1.4;
-  margin: 0;
 }
 
 .case-section h4 {
@@ -1199,7 +1427,8 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  margin: 0 0 0.25rem;
+  margin-block: 0 0.25rem;
+  margin-inline: 0;
   text-transform: uppercase;
 }
 
@@ -1220,15 +1449,15 @@ onBeforeUnmount(() => {
 }
 
 .case-case-row {
-  align-items: center;
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
-  border: 1px solid rgb(var(--v-border-color) / 0.36);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 0.035);
   display: grid;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid rgb(var(--v-border-color) / 36%);
+  border-radius: 12px;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
+  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 3.5%);
   gap: 0.75rem;
   grid-template-columns: minmax(10rem, 1fr) auto;
-  padding: 0.75rem;
 }
 
 .case-case-row + .case-case-row {
@@ -1240,26 +1469,28 @@ onBeforeUnmount(() => {
 }
 
 .case-case-row__meta {
-  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .case-section :deep(.v-list) {
   background: transparent;
 }
+
 .case-section--universities :deep(.v-list-item),
 .case-section--finance :deep(.v-list-item),
 .case-section--documents :deep(.v-list-item),
 .case-task-item--done {
-  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
-  border: 1px solid rgb(var(--v-border-color) / 0.34);
-  border-radius: 12px !important;
-  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 0.025);
   overflow: hidden;
-  padding: 0.7rem 0.75rem;
+  border: 1px solid rgb(var(--v-border-color) / 34%);
+  border-radius: 12px !important;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
+  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 2.5%);
+  padding-block: 0.7rem;
+  padding-inline: 0.75rem;
 }
 
 .case-section--universities :deep(.v-list-item + .v-list-item),
@@ -1270,21 +1501,21 @@ onBeforeUnmount(() => {
 }
 
 .case-task-item--done {
-  background: rgb(var(--v-theme-success) / 0.035);
-  border-color: rgb(var(--v-theme-success) / 0.34);
+  border-color: rgb(var(--v-theme-success) / 34%);
+  background: rgb(var(--v-theme-success) / 3.5%);
 }
 
 :global(.v-theme--dark) .case-case-row,
 :global(.v-theme--dark) .case-section--universities :deep(.v-list-item),
 :global(.v-theme--dark) .case-section--finance :deep(.v-list-item),
 :global(.v-theme--dark) .case-section--documents :deep(.v-list-item) {
+  border-color: rgb(var(--v-border-color) / 42%);
   background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, black 7%);
-  border-color: rgb(var(--v-border-color) / 0.42);
 }
 
 .case-document-upload {
-  align-items: center;
   display: grid;
+  align-items: center;
   gap: 0.75rem;
   grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1fr) auto;
   margin-block-start: 1rem;
@@ -1319,7 +1550,9 @@ onBeforeUnmount(() => {
   .case-profile-body { display: block; }
   .case-profile-body > .visa-case-stage-panel { margin-block-end: 1.25rem; }
   .case-profile-body > .case-overview-grid { display: grid; }
-  .case-profile-body .case-section--details, .case-profile-body .case-section--cases { grid-column: auto; grid-row: auto; }
+
+  .case-profile-body .case-section--details,
+ .case-profile-body .case-section--cases { grid-column: auto; grid-row: auto; }
 
   .case-overview-grid,
   .case-content-grid {
@@ -1347,7 +1580,7 @@ onBeforeUnmount(() => {
     inline-size: 100%;
   }
 
-  .case-profile-hero__actions { inline-size: 100%; justify-content: flex-start; }
+  .case-profile-hero__actions { justify-content: flex-start; inline-size: 100%; }
 }
 </style>
 
@@ -1355,56 +1588,67 @@ onBeforeUnmount(() => {
 .v-overlay:has(.case-form-dialog) .v-overlay__scrim,
 .case-confirm-overlay .v-overlay__scrim,
 .v-overlay:has(.case-preview-dialog) .v-overlay__scrim {
-  background: rgba(var(--v-theme-on-surface), 0.28) !important;
   backdrop-filter: blur(7px);
+  background: rgba(var(--v-theme-on-surface), 0.28) !important;
   opacity: 1 !important;
 }
 
 .case-form-card { overflow: hidden; }
-.case-edit-wizard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .9rem 1.25rem; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .06); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 95%, rgb(var(--v-theme-primary)) 5%); }
-.case-edit-wizard__step { display: flex; align-items: center; min-inline-size: 0; padding: .35rem; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; gap: .5rem; text-align: start; }
+.case-edit-wizard { display: grid; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 95%, rgb(var(--v-theme-primary)) 5%); border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.06); gap: 0.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0.9rem; padding-inline: 1.25rem; }
+.case-edit-wizard__step { display: flex; align-items: center; padding: 0.35rem; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 600; gap: 0.5rem; min-inline-size: 0; text-align: start; }
 .case-edit-wizard__step:disabled { cursor: default; opacity: 1; }
-.case-edit-wizard__indicator { display: grid; flex: 0 0 auto; inline-size: 25px; block-size: 25px; border: 1px solid rgba(var(--v-theme-on-surface), .18); border-radius: 50%; place-items: center; font-size: .75rem; font-weight: 700; }
-.case-edit-wizard__step--active { color: rgb(var(--v-theme-primary)); }.case-edit-wizard__step--active .case-edit-wizard__indicator { border-color: rgba(var(--v-theme-primary), .3); background: rgba(var(--v-theme-primary), .12); }.case-edit-wizard__step--complete .case-edit-wizard__indicator { border-color: transparent; background: rgba(var(--v-theme-secondary), .14); color: rgb(var(--v-theme-secondary)); }
-.case-edit-step-enter-active, .case-edit-step-leave-active { transition: opacity .2s ease, transform .2s ease; }.case-edit-step-enter-from { opacity: 0; transform: translateY(8px); }.case-edit-step-leave-to { opacity: 0; transform: translateY(-6px); }
+.case-edit-wizard__indicator { display: grid; flex: 0 0 auto; border: 1px solid rgba(var(--v-theme-on-surface), 0.18); border-radius: 50%; block-size: 25px; font-size: 0.75rem; font-weight: 700; inline-size: 25px; place-items: center; }
+.case-edit-wizard__step--active { color: rgb(var(--v-theme-primary)); }
+.case-edit-wizard__step--active .case-edit-wizard__indicator { border-color: rgba(var(--v-theme-primary), 0.3); background: rgba(var(--v-theme-primary), 0.12); }
+.case-edit-wizard__step--complete .case-edit-wizard__indicator { border-color: transparent; background: rgba(var(--v-theme-secondary), 0.14); color: rgb(var(--v-theme-secondary)); }
+
+.case-edit-step-enter-active,
+ .case-edit-step-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.case-edit-step-enter-from { opacity: 0; transform: translateY(8px); }
+.case-edit-step-leave-to { opacity: 0; transform: translateY(-6px); }
+
 .case-form-dialog__title,
-.case-form-dialog__actions { display: flex; align-items: center; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-color: rgba(var(--v-theme-on-surface), .05); border-style: solid; border-width: 0; }
+.case-form-dialog__actions { display: flex; align-items: center; border-width: 0; border-style: solid; border-color: rgba(var(--v-theme-on-surface), 0.05); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); }
 .case-form-dialog__title { border-block-end-width: 1px; font-size: 1.35rem; font-weight: 700; }
 .case-form-dialog__actions { border-block-start-width: 1px; }
 .case-form-dialog__body { background: rgb(var(--v-theme-surface)); }
-.case-form-dialog__close { border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 50% !important; }
-.case-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }
+.case-form-dialog__close { border: 1px solid rgba(var(--v-theme-error), 0.38) !important; border-radius: 50% !important; }
+.case-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-error), 0.62) !important; background: rgba(var(--v-theme-error), 0.12) !important; color: rgb(var(--v-theme-error)) !important; }
 .case-form-dialog__cancel:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .case-form-dialog__submit { color: rgb(var(--v-theme-on-primary)) !important; }
 
-.case-confirm-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, .18) !important; text-align: center; --case-confirm-color: rgb(var(--v-theme-error)); --case-confirm-on-color: rgb(var(--v-theme-on-error)); --case-confirm-tint: rgba(var(--v-theme-error), .14); }
-.case-confirm-dialog--success { --case-confirm-color: rgb(var(--v-theme-success)); --case-confirm-on-color: rgb(var(--v-theme-on-success)); --case-confirm-tint: rgba(var(--v-theme-success), .14); }
-.case-confirm-dialog--warning { --case-confirm-color: rgb(var(--v-theme-warning)); --case-confirm-on-color: rgb(var(--v-theme-on-warning)); --case-confirm-tint: rgba(var(--v-theme-warning), .14); }
-.case-confirm-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
-.case-confirm-dialog__icon { display: grid; width: 4.25rem; height: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; place-items: center; background: var(--case-confirm-tint); color: var(--case-confirm-color); }
+.case-confirm-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), 0.2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, 18%) !important; text-align: center; --case-confirm-color: rgb(var(--v-theme-error)); --case-confirm-on-color: rgb(var(--v-theme-on-error)); --case-confirm-tint: rgba(var(--v-theme-error), 0.14); }
+.case-confirm-dialog--success { --case-confirm-color: rgb(var(--v-theme-success)); --case-confirm-on-color: rgb(var(--v-theme-on-success)); --case-confirm-tint: rgba(var(--v-theme-success), 0.14); }
+.case-confirm-dialog--warning { --case-confirm-color: rgb(var(--v-theme-warning)); --case-confirm-on-color: rgb(var(--v-theme-on-warning)); --case-confirm-tint: rgba(var(--v-theme-warning), 0.14); }
+.case-confirm-dialog__content { display: flex; flex-direction: column; align-items: center; padding-block: 2rem 1.25rem !important; padding-inline: 2rem !important; }
+.case-confirm-dialog__icon { display: grid; border-radius: 50%; background: var(--case-confirm-tint); block-size: 4.25rem; color: var(--case-confirm-color); inline-size: 4.25rem; margin-block-end: 1.25rem; place-items: center; }
 .case-confirm-dialog__title { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: 1.2rem; font-weight: 700; line-height: 1.45; }
-.case-confirm-dialog__description { max-inline-size: 24rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.65; }
-.case-confirm-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }
-.case-confirm-dialog__button { min-block-size: 2.85rem; border-radius: 10px !important; font-weight: 700; letter-spacing: 0; text-transform: none; }
-.case-confirm-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.case-confirm-dialog__description { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.65; margin-block: 0.65rem 0; margin-inline: 0; max-inline-size: 24rem; }
+.case-confirm-dialog__actions { display: grid !important; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0 2rem !important; padding-inline: 2rem !important; }
+.case-confirm-dialog__button { border-radius: 10px !important; font-weight: 700; letter-spacing: 0; min-block-size: 2.85rem; text-transform: none; }
+.case-confirm-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), 0.52) !important; background: rgba(var(--v-theme-secondary), 0.13) !important; color: rgb(var(--v-theme-secondary)) !important; }
 .case-confirm-dialog__button--confirm { background: var(--case-confirm-color) !important; color: var(--case-confirm-on-color) !important; }
 
-.case-file-picker { display: flex; align-items: center; gap: .875rem; width: 100%; padding: 1rem; border: 1px dashed rgba(var(--v-theme-on-surface), .22); border-radius: 12px; background: rgba(var(--v-theme-primary), .035); color: inherit; cursor: pointer; text-align: start; }
-.case-file-picker:hover { border-color: rgba(var(--v-theme-primary), .55); background: rgba(var(--v-theme-primary), .07); }
-.case-file-picker__icon { display: grid; flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: 50%; place-items: center; background: rgba(var(--v-theme-primary), .12); color: rgb(var(--v-theme-primary)); }
-.case-file-picker__copy { display: grid; min-inline-size: 0; gap: .2rem; flex: 1 1 auto; }
-.case-file-picker__copy strong, .case-file-picker__copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.case-file-picker { display: flex; align-items: center; padding: 1rem; border: 1px dashed rgba(var(--v-theme-on-surface), 0.22); border-radius: 12px; background: rgba(var(--v-theme-primary), 0.035); color: inherit; cursor: pointer; gap: 0.875rem; inline-size: 100%; text-align: start; }
+.case-file-picker:hover { border-color: rgba(var(--v-theme-primary), 0.55); background: rgba(var(--v-theme-primary), 0.07); }
+.case-file-picker__icon { display: grid; flex: 0 0 auto; border-radius: 50%; background: rgba(var(--v-theme-primary), 0.12); block-size: 2.5rem; color: rgb(var(--v-theme-primary)); inline-size: 2.5rem; place-items: center; }
+.case-file-picker__copy { display: grid; flex: 1 1 auto; gap: 0.2rem; min-inline-size: 0; }
+
+.case-file-picker__copy strong,
+ .case-file-picker__copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .case-file-picker__copy small { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
-.case-file-picker__action { flex: 0 0 auto; padding: .38rem .7rem; border-radius: 7px; background: rgba(var(--v-theme-primary), .12); color: rgb(var(--v-theme-primary)); font-size: .75rem; font-weight: 600; }
+.case-file-picker__action { flex: 0 0 auto; border-radius: 7px; background: rgba(var(--v-theme-primary), 0.12); color: rgb(var(--v-theme-primary)); font-size: 0.75rem; font-weight: 600; padding-block: 0.38rem; padding-inline: 0.7rem; }
 .case-preview-card { overflow: hidden; }
-.case-preview-card__body { display: grid; height: min(72vh, 760px); overflow: auto; place-items: center; background: rgb(var(--v-theme-surface-variant)); }
-.case-preview-card__body img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
-.case-preview-card__body iframe { width: 100%; height: 100%; border: 0; background: white; }
+.case-preview-card__body { display: grid; overflow: auto; background: rgb(var(--v-theme-surface-variant)); block-size: min(72vh, 760px); place-items: center; }
+.case-preview-card__body img { display: block; max-block-size: 100%; max-inline-size: 100%; object-fit: contain; }
+.case-preview-card__body iframe { border: 0; background: white; block-size: 100%; inline-size: 100%; }
 .case-section--documents :deep(.v-list-item + .v-list-item) { margin-block-start: 0.45rem; }
 
 @media (max-width: 599px) {
-  .case-file-picker { align-items: flex-start; flex-wrap: wrap; }
+  .case-file-picker { flex-wrap: wrap; align-items: flex-start; }
   .case-file-picker__action { margin-inline-start: 3.375rem; }
-  .case-confirm-dialog__content, .case-confirm-dialog__actions { padding-inline: 1.25rem !important; }
+
+  .case-confirm-dialog__content,
+ .case-confirm-dialog__actions { padding-inline: 1.25rem !important; }
 }
 </style>

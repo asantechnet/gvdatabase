@@ -151,6 +151,9 @@ class FinanceRetirementBoundaryTest extends TestCase
         }
         $oldLink = Notification::create(['notification_key' => 'system.changed', 'go_to_url' => '/companies/1', 'date_time' => now()]);
         $current = Notification::create(['notification_key' => 'income.recorded', 'go_to_url' => '/income', 'date_time' => now()]);
+        // Auditing is opt-in; this cleanup test asserts that the current
+        // income resource survives, so it must be enabled explicitly.
+        AuditResourceSetting::updateOrCreate(['resource_key' => 'incomes'], ['enabled' => true]);
         $migration = require database_path('migrations/2026_10_08_000009_purge_retired_finance_metadata.php');
         $migration->up();
         $migration->up();

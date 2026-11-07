@@ -17,7 +17,6 @@ const store = useTaskStore()
 const isDetailModalOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
 const selectedTask = ref<Task | null>(null)
-const resultAttachments = computed(() => selectedTask.value?.attachments.filter(attachment => attachment.section === 'results') ?? [])
 
 const downloadAttachment = async (attachment: TaskAttachment) => {
   if (!selectedTask.value)
@@ -352,51 +351,6 @@ const executeDeleteTask = () => {
             >{{ $t('components.taskManager.calendarview.noDescriptionProvidedForThisTask') }}</span>
           </div>
 
-          <div class="mt-5">
-            <div class="mb-2 d-flex align-center gap-2">
-              <VIcon
-                icon="tabler-file-description"
-                size="20"
-              />
-              <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.calendarview.results') }}</span>
-            </div>
-            <div
-              v-if="selectedTask.results"
-              class="html-preview-box pa-4 border rounded bg-surface text-body-1"
-              v-html="selectedTask.results"
-            />
-            <div
-              v-else
-              class="text-body-2 text-disabled"
-            >
-              {{ $t('components.taskManager.calendarview.noResultsRecorded') }}
-            </div>
-
-            <VList
-              v-if="resultAttachments.length"
-              class="border rounded pa-0 mt-3"
-            >
-              <VListItem
-                v-for="attachment in resultAttachments"
-                :key="attachment.id"
-              >
-                <template #prepend>
-                  <VIcon icon="tabler-paperclip" />
-                </template>
-                <VListItemTitle>{{ attachment.name }}</VListItemTitle>
-                <template #append>
-                  <VBtn
-                    icon="tabler-download"
-                    variant="text"
-                    size="small"
-                    :aria-label="$t('components.taskManager.calendarview.downloadAttachment')"
-                    :title="$t('components.taskManager.calendarview.downloadAttachment')"
-                    @click="downloadAttachment(attachment)"
-                  />
-                </template>
-              </VListItem>
-            </VList>
-          </div>
         </VCardText>
 
         <!-- Modal Action Footer -->

@@ -4,17 +4,13 @@ import { useToast } from 'vue-toastification'
 import type { ReceiptPayload } from '@/api/receipts'
 import ReceiptTemplate, { type ReceiptPaperSize } from '@/pages/templates/receipt_template.vue'
 
-// Shared preview/print dialog for A5 receipt-shaped documents. Income receipts
-// and payment requests both render the same template; callers pass their own
-// loader so the income and payment-request API contracts stay separate.
-const props = withDefaults(defineProps<{
+// Shared preview/print dialog for A5 receipt-shaped documents. Callers pass
+// their own loader so each ledger keeps its own API contract.
+const props = defineProps<{
   modelValue: boolean
   recordId: number | null
   loader: (id: number) => Promise<ReceiptPayload>
-  document?: 'receipt' | 'loan'
-}>(), {
-  document: 'receipt',
-})
+}>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
@@ -24,30 +20,21 @@ const loading = ref(false)
 const printing = ref(false)
 const templateRef = ref<InstanceType<typeof ReceiptTemplate> | null>(null)
 
-const paperSize = ref<ReceiptPaperSize>('A5')
-const copies = ref(1)
+const paperSize = ref<ReceiptPaperSize>('A4 2x A5')
+// Two receipts are always issued together: the customer copy and the office copy.
+const copies = 2
 let requestGeneration = 0
 
-const isLoan = computed(() => props.document === 'loan' || receipt.value?.document === 'loan')
-// A payment request prints as an income receipt when money comes in, and as a
-// payment voucher when money goes out (expense or salary).
-const isVoucher = computed(() => isLoan.value && !!receipt.value && receipt.value.loan?.transaction_type !== 'income')
-const documentTitle = computed(() => isVoucher.value
-  ? translate('documents.paymentVoucher.title')
-  : translate(isLoan.value ? 'documents.loan.title' : 'documents.receipt.title'))
-const printLabel = computed(() => isVoucher.value
-  ? translate('documents.paymentVoucher.print')
-  : translate(isLoan.value ? 'documents.loan.print' : 'documents.receipt.printReceipt'))
-const documentIcon = computed(() => isVoucher.value ? 'tabler-file-invoice' : isLoan.value ? 'tabler-clock-dollar' : 'tabler-receipt')
+const documentTitle = computed(() => translate('documents.receipt.title'))
+const printLabel = computed(() => translate('documents.receipt.printReceipt'))
+const documentIcon = 'tabler-receipt'
 
+// Same options (and same grouping behaviour) as the academy slip.
 const paperSizes = computed<Array<{ title: string; value: ReceiptPaperSize }>>(() => [
-  { title: translate('documents.receipt.paperA3Landscape'), value: 'A3 landscape' },
-  { title: translate('documents.receipt.paperA4Portrait'), value: 'A4' },
-  { title: translate('documents.receipt.paperA4Landscape'), value: 'A4 landscape' },
   { title: translate('documents.receipt.paperA4TwoA5'), value: 'A4 2x A5' },
   { title: translate('documents.receipt.paperA5Two'), value: 'A5 2x' },
+  { title: translate('documents.receipt.paperA4Portrait'), value: 'A4' },
   { title: translate('documents.receipt.paperA5Portrait'), value: 'A5' },
-  { title: translate('documents.receipt.paperLetterPortrait'), value: 'letter' },
 ])
 
 const previewScale = computed(() => (paperSize.value === 'A5' || paperSize.value === 'A5 2x' ? 0.85 : paperSize.value === 'A4 2x A5' ? 0.9 : 1))
@@ -133,17 +120,6 @@ const print = async () => {
             :disabled="printing"
             style="min-width: 200px;"
           />
-          <VTextField
-            v-model.number="copies"
-            type="number"
-            min="1"
-            max="4"
-            :label="$t('documents.receipt.copies')"
-            density="compact"
-            hide-details
-            :disabled="printing"
-            style="max-width: 110px;"
-          />
           <VBtn
             variant="tonal"
             color="secondary"
@@ -178,7 +154,7 @@ const print = async () => {
           <ReceiptTemplate
             ref="templateRef"
             :receipt="receipt"
-            :copies="Number(copies) || 1"
+            :copies="copies"
             :paper-size="paperSize"
           />
         </div>

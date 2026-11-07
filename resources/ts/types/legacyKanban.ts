@@ -27,5 +27,4 @@ export interface KanbanBoard { id: KanbanId; title: string; itemsIds: KanbanId[]
 export interface KanbanData { boards: KanbanBoard[]; items: KanbanItem[] }
 export interface AddNewKanbanItem { itemTitle: string; boardName: string; boardId: KanbanId }
 export interface EditKanbanItem { item: KanbanItem; boardId: KanbanId; boardName: string }
-export interface RenameKanbanBoard { oldName: string; newName: string; boardId: KanbanId }
 export interface KanbanState { boardId: KanbanId; ids: KanbanId[] }

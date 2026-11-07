@@ -11,7 +11,6 @@ use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Office;
-use App\Models\PendingTransaction;
 use App\Models\Position;
 use App\Models\Task;
 use App\Models\User;
@@ -52,7 +51,6 @@ final class AuditPresenter
         'contract_id' => Contract::class,
         'base_currency_id' => Currency::class,
         'recorded_by' => User::class,
-        'pending_transaction_id' => PendingTransaction::class,
         'current_stage_id' => ApplicantStage::class,
         'old_stage_id' => ApplicantStage::class,
         'new_stage_id' => ApplicantStage::class,
@@ -195,7 +193,6 @@ final class AuditPresenter
             'contract_type_id' => 'contractType',
             'base_currency_id' => 'baseCurrency',
             'recorded_by' => 'recordedBy',
-            'pending_transaction_id' => 'pendingTransaction',
             default => Str::camel($field),
         };
     }

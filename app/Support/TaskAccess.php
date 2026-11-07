@@ -25,6 +25,14 @@ class TaskAccess
             return (int) $board->user_id === (int) $user->id;
         }
 
+        // A built-in service board is readable by anyone who may access that
+        // service's contracts. `view_all_boards` never widens a category the
+        // user cannot access.
+        $service = ServiceBoard::serviceForTitle($board->title);
+        if ($service !== null) {
+            return $user->hasPermission(BuiltInService::contractPermission($service));
+        }
+
         if ($user->hasPermission('view_all_boards')) {
             return true;
         }

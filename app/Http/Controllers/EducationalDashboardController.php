@@ -12,7 +12,6 @@ use App\Models\EducationalBonusSource;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
-use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Models\Task;
 use App\Support\BuiltInService;
@@ -248,13 +247,16 @@ class EducationalDashboardController extends Controller
                 ])->all();
         };
 
-        $pending = PendingTransaction::query()
-            ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
-            ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereHas('applicant', function ($aq) use ($filters) {
-                $aq->when(! empty($filters['country_id']), fn ($q) => $q->whereScholarshipField('country_id', $filters['country_id']))
-                    ->when(! empty($filters['university_id']), fn ($q) => $q->whereScholarshipField('university_id', $filters['university_id']));
-            }))
-            ->selectRaw('approval_status, COUNT(*) as count')->groupBy('approval_status')->pluck('count', 'approval_status');
+        // Draft finance records replace the retired payment-request pipeline;
+        // only drafts wait for a finance decision.
+        $draftScope = fn ($q) => $q->when(
+            ! empty($filters['country_id']) || ! empty($filters['university_id']),
+            fn ($query) => $query->whereIn('applicant_id', $this->applicantScope($filters)->select('applicants.id')),
+        );
+        $pending = collect([
+            'draft' => Income::query()->where('status', Income::DRAFT)->where($draftScope)->count()
+                + Expense::query()->where('status', Expense::DRAFT)->where($draftScope)->count(),
+        ]);
 
         // Payroll is split by its persisted payment state so an open salary is
         // never presented as posted. `salaries` stays the total for existing
@@ -359,11 +361,12 @@ class EducationalDashboardController extends Controller
             ->map(fn (Task $t) => ['id' => $t->id, 'title' => $t->title, 'subtitle' => ($t->applicant?->name ?: "Applicant #{$t->applicant_id}")." · due {$t->due_date}", 'route' => ['name' => 'applicant-case', 'params' => ['id' => $t->applicant_id]]])
             ->all();
 
-        $pendingApprovals = PendingTransaction::query()
-            ->whereIn('approval_status', [PendingTransaction::SUBMITTED, PendingTransaction::UNDER_REVIEW])
-            ->when(($employeeIds = $this->employeeIds($filters)) !== [], fn ($q) => $q->whereIn('employee_id', $employeeIds))
+        $pendingApprovals = Income::query()->where('status', Income::DRAFT)
             ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereIn('applicant_id', $this->applicantScope($filters)->select('applicants.id')))
-            ->count();
+            ->count()
+            + Expense::query()->where('status', Expense::DRAFT)
+                ->when(! empty($filters['country_id']) || ! empty($filters['university_id']), fn ($q) => $q->whereIn('applicant_id', $this->applicantScope($filters)->select('applicants.id')))
+                ->count();
         $missingDocuments = $this->applicantScope($filters)
             ->where('status', 'active')
             ->whereHas('currentStage', fn ($q) => $q->where('key', 'documents_required'))

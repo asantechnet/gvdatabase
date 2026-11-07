@@ -35,7 +35,9 @@ const contracts: Record<string, Schema> = {
   'PUT /auth/account': { name: ['string', 'max:255'], email: ['email', 'max:255'], phone: ['nullable', 'string', 'max:20'], address: ['nullable', 'string', 'max:2000'], organization: ['nullable', 'string', 'max:255'], state: ['nullable', 'string', 'max:255'], zip: ['nullable', 'string', 'max:30'], country: ['nullable', 'string', 'max:100'], language: ['nullable', 'string', 'max:100'], timezone: ['nullable', 'string', 'max:100'], currency: ['nullable', 'string', 'size:3'] },
   'POST /auth/account/avatar': { avatar: ['required', 'file', 'image', 'max:800'] },
   'PUT /auth/account/password': { current_password: ['required', 'string'], password: ['required', 'string', 'min:8'], password_confirmation: ['required', 'string'] },
-  'PUT /auth/account/notifications': { 'notifications': ['required', 'array'], 'notifications.*.in_app': ['required', 'boolean'], 'notifications.*.email': ['required', 'boolean'] },
+  // `notifications` is a keyed object map; the generic validator cannot walk it
+  // with `*`, so its per-event booleans stay server-validated.
+  'PUT /auth/account/notifications': { 'notifications': ['required'], 'notification_sound': ['boolean'] },
   'POST /auth/account/deactivation-requests': { current_password: ['required', 'string', 'max:1024'], reason: ['nullable', 'string', 'max:2000'] },
   'PATCH /account-deactivation-requests/:id/review': { decision: ['required', 'in:approve,reject'], decision_notes: ['nullable', 'string', 'max:2000'] },
   'POST /users/:id/reactivate': { decision_notes: ['nullable', 'string', 'max:2000'] },
@@ -122,9 +124,9 @@ const contracts: Record<string, Schema> = {
   'PUT /boards/:id': { title: ['required', 'string', 'max:255'], order: ['integer'] },
   'PUT /boards/reorder': { board_ids: ['required', 'array'] },
   'PUT /boards/:id/members': { 'user_ids': ['required', 'array'], 'user_ids.*': ['integer'] },
-  'POST /tasks': { board_id: ['required'], title: ['required', 'string', 'max:255'], description: ['nullable', 'string'], results: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'] },
-  'PUT /tasks/:id': { title: ['string', 'max:255'], description: ['nullable', 'string'], results: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], progress: ['integer', 'between:0,100'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'], dependencies: ['array'] },
-  'POST /tasks/:id/attachments': { file: ['required', 'file', 'max:10240'], section: ['in:input,results'] },
+  'POST /tasks': { board_id: ['required'], title: ['required', 'string', 'max:255'], description: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'] },
+  'PUT /tasks/:id': { title: ['string', 'max:255'], description: ['nullable', 'string'], priority: ['in:low,medium,high,urgent'], progress: ['integer', 'between:0,100'], start_date: ['nullable', 'date'], due_date: ['nullable', 'date'], dependencies: ['array'] },
+  'POST /tasks/:id/attachments': { file: ['required', 'file', 'max:10240'], section: ['in:input'] },
   'POST /applicant-portal/attachments': { file: ['required', 'file', 'max:10240'], label: ['nullable', 'string', 'max:120'] },
   'PUT /tasks/:id/move': { board_id: ['required'], order: ['required', 'integer', 'min:0'] },
   'PATCH /tasks/:id/bonus-review': { quality_score: ['required', 'numeric', 'between:1,5'], rejected: ['boolean'], contributions: ['array'] },

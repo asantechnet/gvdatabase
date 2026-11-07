@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\AuditResourceSetting;
 use App\Models\Applicant;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\AuditRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -13,6 +15,16 @@ use Tests\TestCase;
 class AuditManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Auditing is opt-in from this release. These tests exercise the audit
+        // management surface, so explicitly enable every resource first.
+        AuditRegistry::ensureSettings();
+        AuditResourceSetting::query()->update(['enabled' => true]);
+    }
 
     private function auditor(): User
     {
