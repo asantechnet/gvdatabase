@@ -111,7 +111,7 @@ const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 
 }
 
 .erp-field .v-field__outline {
-  --v-field-border-opacity: 0.32;
+  --v-field-border-opacity: 0.44;
 }
 
 .erp-field .v-field--focused {
@@ -140,6 +140,18 @@ const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 
   width: 100%;
 }
 
+/* Textareas use the same border, label and focus treatment while preserving
+   their requested multi-line height instead of inheriting the 38px control. */
+.erp-field .v-textarea .v-field {
+  block-size: auto;
+  min-block-size: 150px !important;
+}
+
+.erp-field .v-textarea .v-field__input {
+  align-items: flex-start;
+  min-height: 150px !important;
+}
+
 .erp-field .v-field--error {
   outline-color: rgba(var(--v-theme-error), 0.24);
 }
@@ -161,6 +173,11 @@ const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 
     min-block-size: 36px !important;
     block-size: 36px;
     border-radius: 8px;
+  }
+
+  .erp-field .v-textarea .v-field,
+  .erp-field .v-textarea .v-field__input {
+    min-block-size: 132px !important;
   }
 }
 </style>

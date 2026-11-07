@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-export type ActionWarningKey = 'discard-form-changes' | 'move-kanban-card' | `activate-template-version-${number}`
+export type ActionWarningKey = 'discard-form-changes' | 'move-kanban-card' | 'delete-crm-interaction' | `activate-template-version-${number}`
 export type ActionWarningTone = 'error' | 'warning' | 'success' | 'info' | 'primary'
 
 export interface ActionWarningRequest {

@@ -43,7 +43,7 @@ const invalid = computed(() => !!from.value && !!to.value && from.value > to.val
       />
     </div>
     <div v-if="showApply" class="erp-date-range__actions">
-      <VBtn variant="flat" color="primary" :disabled="invalid" @click="emit('apply')">{{ t('educational.apply') }}</VBtn>
+      <VBtn data-filter-apply variant="flat" color="primary" :disabled="invalid" @click="emit('apply')">{{ t('educational.apply') }}</VBtn>
     </div>
   </div>
 </template>

@@ -79,7 +79,7 @@ class ContractGenerationService
             // but never one belonging to another template, language or scope.
             $version = $template->versions()->whereKey($data['contract_template_version_id'])
                 ->where('status', 'active')
-                ->where('language_id', $data['language_id'])
+                ->when(! empty($data['language_id'] ?? null), fn ($query) => $query->where('language_id', $data['language_id']))
                 ->where('country_id', $countryId)
                 ->where('test_id', $testId)->lockForUpdate()->first();
             abort_unless($version && trim($version->content) !== '', 422, 'business.builtin_contract_template_not_ready');
@@ -100,7 +100,7 @@ class ContractGenerationService
                 'contract_role' => $primary ? Contract::ROLE_EXTENSION : Contract::ROLE_PRIMARY,
                 'parent_contract_id' => $primary?->id, 'applicant_id' => $applicant->id,
                 'sold_by_employee_id' => Employee::query()->active()->where('user_id', $request->user()->id)->value('id'),
-                'contract_country_id' => $countryId, 'contract_language_id' => $data['language_id'],
+                'contract_country_id' => $countryId, 'contract_language_id' => $version->language_id,
                 'name' => $template->name, 'type' => $type->name, 'cover_text' => $template->cover_text,
                 'content' => '', 'status' => 'active', 'start_date' => now()->toDateString(),
                 'company_signatory_name' => $signatory,
@@ -113,7 +113,7 @@ class ContractGenerationService
             // A private application fee is a range; the legacy single column
             // keeps the range maximum so older readers see a price.
             if ($service === BuiltInService::PRIVATE) {
-                $lineFees['application_fee'] = $data['application_fee_max'];
+                $lineFees['application_fee'] = $data['application_fee_max'] ?? 0;
             }
             $line = $contract->applicantContracts()->create([
                 'service' => $service, 'applicant_id' => $applicant->id,
@@ -211,7 +211,7 @@ class ContractGenerationService
             abort_unless($rate, 422, 'business.invalid_currency_rate');
             $lineFees = Arr::only($data, ['application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']);
             if ($service === BuiltInService::PRIVATE) {
-                $lineFees['application_fee'] = $data['application_fee_max'];
+                $lineFees['application_fee'] = $data['application_fee_max'] ?? 0;
             }
             $line->update([
                 'fee' => $data['fee'], 'discount' => $data['discount'],

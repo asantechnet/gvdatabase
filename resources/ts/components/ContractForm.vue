@@ -104,6 +104,13 @@ const currentEmployeeName = computed(() => {
 
   return (match?.name?.trim() || cookieName || null) as string | null
 })
+const dockCalendar = (_dates: Date[], _value: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.transform = 'translateY(0) scale(0.86)'
+    instance.calendarContainer.style.transformOrigin = 'top left'
+    instance.calendarContainer.style.zIndex = '2400'
+  })
+}
 const isApplicantLocked = computed(() => props.applicantId != null)
 // Other contracts are blank templates the office completes by hand: they carry
 // no counterparty identity, only the optional record that feeds placeholders.
@@ -517,7 +524,6 @@ defineExpose({ submit })
           item-value="id"
           :label="tr('template')"
           :rules="[v => !!v || tr('templateRequired')]"
-          :loading="loadingEntities"
           required
         />
       </VCol>
@@ -596,7 +602,7 @@ defineExpose({ submit })
         cols="12"
         md="6"
       >
-        <VTextField
+        <ErpField
           :model-value="templatePositionTitle"
           :label="tr('position')"
           prepend-inner-icon="tabler-briefcase"
@@ -610,7 +616,8 @@ defineExpose({ submit })
         cols="12"
         md="6"
       >
-        <VAutocomplete
+        <ErpField
+          kind="autocomplete"
           v-model="form.employee_id"
           :items="employeeOptions"
           :label="tr('employee')"
@@ -627,7 +634,8 @@ defineExpose({ submit })
         v-if="context === 'other'"
         cols="12"
       >
-        <VAutocomplete
+        <ErpField
+          kind="autocomplete"
           v-model="form.applicant_id"
           :items="applicantOptions"
           :label="tr('applicant')"
@@ -671,8 +679,9 @@ defineExpose({ submit })
         </VCol>
       </template>
 
-      <!-- Identity summary of the selected record, plus the contract dates -->
-      <VCol cols="12">
+      <!-- Other contracts may optionally link an applicant for template
+           placeholders, but they have no counterparty to summarise. -->
+      <VCol v-if="!isOtherAudience" cols="12">
         <CounterpartyCard
           :details="counterpartyDetails"
           :title-key="isOtherAudience ? 'components.contractCounterpartyCard.applicantCardTitle' : null"
@@ -685,6 +694,21 @@ defineExpose({ submit })
           @update:end-date="form.end_date = $event ?? ''"
         />
       </VCol>
+
+      <template v-if="isOtherAudience">
+        <VCol cols="12" md="6">
+          <div class="erp-field">
+            <label class="erp-field-label">{{ tr('startDate') }} <span class="erp-field-required">*</span></label>
+            <AppDateTimePicker v-model="form.start_date" class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }" :rules="[(value: unknown) => !!value || tr('startDateRequired')]" required />
+          </div>
+        </VCol>
+        <VCol cols="12" md="6">
+          <div class="erp-field">
+            <label class="erp-field-label">{{ tr('endDate') }}</label>
+            <AppDateTimePicker v-model="form.end_date" clearable class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }" />
+          </div>
+        </VCol>
+      </template>
 
       <VCol
         cols="12"

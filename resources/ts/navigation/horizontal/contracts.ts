@@ -7,7 +7,7 @@ export default [
     // ErpPageHeader instead of nested menu groups, so this entry stays a single
     // destination (the default service) rather than a dropdown.
     icon: { icon: 'tabler-file-text' },
-    to: 'scholarship-contracts',
+    to: 'private-contracts',
     action: 'read',
     subject: 'view_contracts',
   },

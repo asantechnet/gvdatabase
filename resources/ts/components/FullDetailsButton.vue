@@ -21,12 +21,14 @@ const props = withDefaults(defineProps<{
   fields?: DetailField[]
   exclude?: string[]
   mobileAction?: boolean
+  menuAction?: boolean
 }>(), {
   title: '',
   subtitle: '',
   fields: () => [],
   exclude: () => [],
   mobileAction: false,
+  menuAction: false,
 })
 
 const isOpen = ref(false)
@@ -352,7 +354,7 @@ watch(isOpen, open => {
 </script>
 
 <template>
-  <span class="full-details-action">
+  <template>
     <VBtn
       v-if="mobileAction"
       block
@@ -365,7 +367,7 @@ watch(isOpen, open => {
       {{ t('common.actions.viewFullDetails') }}
     </VBtn>
     <IconBtn
-      v-else
+      v-else-if="!menuAction"
       color="info"
       :aria-label="t('common.actions.viewFullDetails')"
       @click.stop="isOpen = true"
@@ -373,11 +375,18 @@ watch(isOpen, open => {
       <VIcon icon="tabler-eye" />
       <VTooltip activator="parent">{{ t('common.actions.viewFullDetails') }}</VTooltip>
     </IconBtn>
+    <VListItem
+      v-else
+      prepend-icon="tabler-eye"
+      :title="t('common.actions.viewFullDetails')"
+      @click.stop="isOpen = true"
+    />
 
     <VDialog
       v-model="isOpen"
-      max-width="1080"
+      max-width="1180"
       scrollable
+      content-class="full-details-dialog"
     >
       <VCard class="detail-viewer">
         <header class="detail-viewer__hero">
@@ -618,21 +627,14 @@ watch(isOpen, open => {
           </VWindow>
         </VCardText>
 
-        <VCardActions class="detail-viewer__footer">
-          <VBtn
-            variant="flat"
-            color="primary"
-            prepend-icon="tabler-x"
-          @click="isOpen = false"
-          >{{ t('common.actions.close') }}</VBtn>
-        </VCardActions>
       </VCard>
     </VDialog>
-  </span>
+  </template>
 </template>
 
 <style scoped lang="scss">
-.detail-viewer { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; max-block-size: min(92dvh, 900px); border-radius: 1rem !important; overflow: hidden; }
+.detail-viewer { display: grid; grid-template-rows: auto auto minmax(0, 1fr); max-block-size: min(92dvh, 900px); border-radius: 1rem !important; overflow: hidden; }
+:global(.v-overlay:has(.full-details-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .26) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
 .detail-viewer__hero { display: flex; min-inline-size: 0; align-items: center; gap: 1rem; padding: 1.15rem 1.35rem; background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-info), .04) 52%, transparent); border-block-end: 1px solid rgba(var(--v-border-color), .12); }
 .detail-viewer__hero-icon { display: grid; flex: 0 0 48px; block-size: 48px; border-radius: .85rem; background: rgb(var(--v-theme-primary)); box-shadow: 0 8px 20px rgba(var(--v-theme-primary), .22); color: rgb(var(--v-theme-on-primary)); place-items: center; }
 .detail-viewer__identity { min-inline-size: 0; flex: 1; }
@@ -692,8 +694,6 @@ watch(isOpen, open => {
 .activity-timeline article > div:last-child { display: grid; }
 .activity-timeline span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .7rem; }
 .activity-timeline strong { font-size: .85rem; }
-.detail-viewer__footer { display: flex; min-block-size: 62px; align-items: center; justify-content: flex-end; gap: 1rem; padding: .7rem 1.35rem !important; border-block-start: 1px solid rgba(var(--v-border-color), .13); background: linear-gradient(90deg, rgba(var(--v-theme-primary), .055), rgba(var(--v-theme-surface), .98) 46%); }
-.detail-viewer__footer .v-btn { flex: 0 0 auto; min-inline-size: 92px; }
 @media (max-width: 700px) {
   .detail-viewer { max-block-size: calc(100dvh - 1rem); border-radius: .8rem !important; }
   .detail-viewer__hero { gap: .7rem; padding: .9rem; }
@@ -703,7 +703,6 @@ watch(isOpen, open => {
   .detail-viewer__body { padding: .9rem !important; }
   .detail-facts, .related-grid { grid-template-columns: minmax(0, 1fr); }
   .collection-card__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .detail-viewer__footer { min-block-size: 56px; padding-inline: .9rem !important; }
 }
 @media (max-width: 420px) { .collection-card__fields { grid-template-columns: minmax(0, 1fr); } }
 </style>

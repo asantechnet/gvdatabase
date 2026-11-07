@@ -226,6 +226,12 @@ watch(
 }
 
 .app-bar-search-dialog {
+  .v-overlay__scrim {
+    background: rgba(var(--v-theme-on-surface), 0.24) !important;
+    backdrop-filter: blur(7px);
+    opacity: 1 !important;
+  }
+
   .app-bar-search-input {
     .v-field__input {
       padding-block-start: 0.2rem;

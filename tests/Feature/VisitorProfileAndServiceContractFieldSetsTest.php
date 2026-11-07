@@ -176,6 +176,29 @@ class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
         $this->assertEquals(120, $contract['services'][0]['payable_total']);
     }
 
+    public function test_private_contract_optional_fields_can_be_left_blank(): void
+    {
+        $this->superAdmin();
+        $payload = $this->builtInContractPayload('private');
+        $versionId = $payload['contract_template_version_id'];
+
+        foreach (['father_name', 'father_phone', 'language_id', 'contract_type_id', 'university_fee', 'favorite_subject_ids', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee'] as $field) {
+            unset($payload[$field]);
+        }
+
+        $created = $this->postJson('/api/contracts/private', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.contract_template_version_id', $versionId)
+            ->json('data');
+
+        $this->assertNotNull($created['contract_language_id']);
+        $this->assertDatabaseHas('applicants', [
+            'id' => $created['applicant_id'],
+            'father_name' => null,
+            'father_phone' => null,
+        ]);
+    }
+
     public function test_service_field_sets_reject_missing_required_fields_and_inverted_ranges(): void
     {
         $this->superAdmin();

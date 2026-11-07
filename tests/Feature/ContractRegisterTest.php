@@ -136,4 +136,26 @@ class ContractRegisterTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertArrayNotHasKey('payment', $rows[0]);
     }
+
+    public function test_register_filters_by_issued_contract_version_and_keeps_newest_rows_first(): void
+    {
+        $older = $this->contract();
+        $newer = $this->contract();
+        $older->forceFill(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()])->save();
+
+        $versionId = $newer->contract_template_version_id;
+        $otherVersion = $this->contract();
+        $otherVersion->forceFill([
+            'contract_template_version_id' => null,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ])->save();
+
+        $filteredIds = collect($this->rows(['contract_template_version_id' => $versionId]))->pluck('id')->all();
+
+        $this->assertContains($older->id, $filteredIds);
+        $this->assertContains($newer->id, $filteredIds);
+        $this->assertNotContains($otherVersion->id, $filteredIds);
+        $this->assertSame($newer->id, $this->rows()[0]['id']);
+    }
 }
