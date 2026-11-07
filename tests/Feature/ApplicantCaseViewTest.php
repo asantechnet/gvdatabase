@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Employee;
+use App\Models\Income;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,17 +31,25 @@ class ApplicantCaseViewTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $a = $this->postJson('/api/applicants', ['name' => 'Case One', 'notes' => 'Initial note'])->assertCreated()->json('data');
 
-        $pending = $this->postJson('/api/payment-requests', ['transaction_type' => 'income', 'reason' => 'Tuition fee', 'amount' => 200, 'currency_id' => $currency->id, 'applicant_id' => $a['id']])->assertCreated()->json('data');
-        $approver = User::factory()->create();
-        $approver->roles()->attach(Role::firstOrCreate(['name' => 'super_admin']));
-        Sanctum::actingAs($approver, ['access']);
-        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertOk();
-        $this->postJson("/api/payment-requests/{$pending['id']}/post")->assertOk();
+        // The case view carries the ledger rows themselves; the retired
+        // payment-request list is no longer a separate collection.
+        Income::create([
+            'applicant_id' => $a['id'],
+            'type' => 'Service',
+            'description' => 'Tuition fee',
+            'amount' => 200,
+            'quantity' => 1,
+            'currency_id' => $currency->id,
+            'rate' => 1,
+            'date' => now()->toDateString(),
+            'recorded_by' => User::query()->value('id'),
+            'cnv_curr_shrt' => $currency->code,
+            'base_curr_shrt' => $currency->code,
+        ]);
 
         $case = $this->getJson("/api/applicants/{$a['id']}")->assertOk()->json('data');
-        $this->assertCount(1, $case['pending_transactions']);
-        $this->assertSame('posted', $case['pending_transactions'][0]['approval_status']);
         $this->assertCount(1, $case['incomes']);
+        $this->assertSame('approved', $case['incomes'][0]['status']);
         $this->assertSame(200.0, (float) $case['incomes'][0]['amount']);
         $this->assertSame([], $case['expenses']);
         $this->assertSame('Initial note', $case['notes']);

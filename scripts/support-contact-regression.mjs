@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -70,12 +70,12 @@ assert.ok(/activeSettingsPage === 'support'/.test(setupSettings), 'the Support s
 const accountSettings = read('pages/account-settings.vue')
 assert.ok(!accountSettings.includes("value: 'support'"), 'Support must no longer be a tab of the account settings page')
 
-// Payment requests are income/expense only; payroll owns salary.
-const pendingPage = read('pages/pending-transactions.vue')
-assert.ok(pendingPage.includes(":items=\"['income', 'expense']"), 'payment requests must offer income and expense only')
-assert.ok(!pendingPage.includes("'salary'"), 'the payment-request form must not mention salary any more')
-const pendingController = readApp('app/Http/Controllers/PendingTransactionController.php')
-assert.ok(pendingController.includes("'transaction_type' => [\$presence, 'in:income,expense']"), 'the API must reject salary as a payment-request type')
+// Payment requests are retired; a case officer raises a draft ledger row.
+const incomeApi = read('api/incomes.ts')
+const expenseApi = read('api/expenses.ts')
+assert.ok(incomeApi.includes('/incomes/${id}/approve'), 'income drafts must be approvable through the income API')
+assert.ok(expenseApi.includes('/expenses/${id}/approve'), 'expense drafts must be approvable through the expense API')
+assert.ok(!existsSync(join(root, 'app/Http/Controllers/PendingTransactionController.php')), 'the payment-request controller must be gone')
 
 // Accounts can be created with a manual password and no email.
 assert.ok(read('api/user.ts').includes('password_confirmation'), 'the user API contract must carry the optional manual credentials')

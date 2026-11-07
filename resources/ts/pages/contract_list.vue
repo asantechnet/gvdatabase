@@ -280,7 +280,6 @@ const employeeContractDetailFields = computed(() => [
   { key: 'status', label: t('common.fields.status') },
   { key: 'start_date', label: t('serviceContracts.startDate') },
   { key: 'end_date', label: t('serviceContracts.endDate') },
-  { key: 'counterparty_company', label: t('common.fields.company') },
   { key: 'counterparty', label: t('common.fields.employee') },
   { key: 'employee.father_name', label: t('serviceContracts.fatherName') },
   { key: 'employee.position', label: t('common.fields.position') },
@@ -299,7 +298,15 @@ const printedContractTitle = computed(() => {
   const name = contractToPrint.value?.contract || contractToPrint.value?.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
   const version = contractToPrint.value?.snapshot_data?.template_version
 
-  return version?.version_number ? [name, version.name, `v${version.version_number}`, version.country_name, version.language_name].filter(Boolean).join(' - ') : name
+  // Employment versions carry the same name as their template, so repeating
+  // it would print "Employment Agreement — X - Employment Agreement — X - v1".
+  return [
+    name,
+    version?.name && version.name !== name ? version.name : null,
+    version?.version_number ? `v${version.version_number}` : null,
+    version?.country_name,
+    version?.language_name,
+  ].filter(Boolean).join(' - ')
 })
 
 const company = computed<CompanyDetails>(() => ({
@@ -494,6 +501,9 @@ const addNew = () => {
 
 const editContractUI = (contract: Contract) => {
   dialogMode.value = 'edit'
+  // An earlier extend action must not leak into this edit: `extensionParent`
+  // keeps the dialog and form in extend mode.
+  extensionParent.value = null
   selectedContract.value = { ...contract }
   isDialogVisible.value = true
 }
@@ -528,6 +538,11 @@ const confirmContractAction = async () => {
   try {
     if (action.type === 'delete') {
       await removeContract(action.contract.id)
+      // Step back when the last row on a later page was removed, then reload
+      // so the footer total matches the stored records.
+      if (contracts.value.length === 0 && page.value > 1)
+        page.value -= 1
+      await load()
       toast.success(translate('pages.contracts.allContracts.allContracts.contractDeleted'))
     }
     else {
@@ -576,6 +591,11 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
       toast.success(translate('pages.contracts.allContracts.allContracts.contractSaved'))
     }
     isDialogVisible.value = false
+    // Positions, numbering and totals come from the server: refresh the page
+    // instead of leaving a locally inserted row under a stale footer count.
+    if (dialogMode.value === 'add')
+      page.value = 1
+    await load()
   }
   catch (err) {
     toast.error(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
@@ -622,9 +642,14 @@ onMounted(async () => {
     await router.replace({ name: currentListRoute() })
   }
   else if (contractId) {
+    // Deep links (for example an expiry notification) name a contract that may
+    // not be on the first page, so resolve it before applying the search.
     const contract = contracts.value.find(item => item.id === contractId)
-    if (contract)
+      ?? await ContractApi.getById(contractId).catch(() => null)
+    if (contract) {
       search.value = contract.contract_number || contract.counterparty || contract.contract
+      await load()
+    }
   }
   try {
     companySetting.value = (await SettingApi.getCompanyProfile()).data

@@ -34,7 +34,13 @@ class IncomeController extends Controller
 
     public function index(Request $request)
     {
-        $query = Income::with(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder']);
+        $query = Income::with(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']);
+        $this->scopeToVisibleRecords($request, $query);
+
+        if ($request->filled('status')) {
+            $request->validate(['status' => ['required', Rule::in([Income::DRAFT, Income::APPROVED, Income::REJECTED])]]);
+            $query->where('status', (string) $request->input('status'));
+        }
 
         if ($request->filled('applicant_id')) {
             $query->where('applicant_id', $request->integer('applicant_id'));
@@ -149,6 +155,7 @@ class IncomeController extends Controller
             'invoice_id' => ['prohibited'],
             'invoice_amount' => ['prohibited'],
             'company_id' => ['prohibited'],
+            'status' => ['sometimes', Rule::in([Income::DRAFT, Income::APPROVED])],
             'applicant_id' => 'nullable|exists:applicants,id',
             'applicant_contract_id' => 'nullable|exists:applicant_contract,id',
             'type' => ['required', 'string', 'max:255', Rule::exists('finance_types', 'value')->where('kind', 'income')],
@@ -163,6 +170,7 @@ class IncomeController extends Controller
         $validator->validate();
 
         $data = $validator->validated();
+        $data['status'] = $this->creationStatus($request, $data['status'] ?? null);
         $data['recorded_by'] = $request->user()->id;
         $data['description'] = $data['description'] ?? '';
 
@@ -187,22 +195,31 @@ class IncomeController extends Controller
             return Income::create($data);
         });
 
-        $this->notifications->incomeRecorded($income, (int) $request->user()->id);
+        if ($income->status === Income::DRAFT) {
+            $this->notifications->financeDraftSubmitted($income);
+        } else {
+            $this->notifications->incomeRecorded($income, (int) $request->user()->id);
+        }
 
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder']));
+        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
-    public function show(Income $income)
+    public function show(Request $request, Income $income)
     {
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder']));
+        $this->assertCanViewRecord($request, $income);
+
+        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
     /**
      * The printable receipt payload: one service line, its fee/discount/paid/
      * remaining, the party identity, serial number and letterhead artwork.
      */
-    public function receipt(Income $income, IncomeReceiptService $receipts)
+    public function receipt(Request $request, Income $income, IncomeReceiptService $receipts)
     {
+        $this->assertCanViewRecord($request, $income);
+        abort_unless($income->status === Income::APPROVED, 422, 'business.finance_record_not_approved');
+
         return response()->json([
             'success' => true,
             'data' => $receipts->forIncome($income),
@@ -229,6 +246,7 @@ class IncomeController extends Controller
         ]);
 
         $validator->validate();
+        $this->assertCanEditRecord($request, $income);
 
         $data = $validator->validated();
 
@@ -238,7 +256,7 @@ class IncomeController extends Controller
         $valueFields = ['amount', 'quantity', 'currency_id', 'rate'];
         // A null rate is an ignored field, not a revaluation: it keeps the
         // snapshot exactly as before.
-        $revaluation = collect($valueFields)->contains(fn (string $field) => array_key_exists($field, $data)
+        $revaluation = $income->status !== Income::DRAFT && collect($valueFields)->contains(fn (string $field) => array_key_exists($field, $data)
             && $data[$field] !== null
             && (string) $data[$field] !== (string) $income->{$field});
         if ($revaluation) {
@@ -296,11 +314,63 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder']));
+        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
-    public function destroy(Income $income)
+    public function approve(Request $request, Income $income, EducationalWorkflowNotificationService $notifications)
     {
+        return DB::transaction(function () use ($request, $income, $notifications) {
+            $income = Income::query()->lockForUpdate()->findOrFail($income->id);
+            abort_unless($income->status === Income::DRAFT, 422, 'business.finance_record_not_draft');
+
+            // A draft did not consume the service line's balance; approving it
+            // must, so the balance is re-checked under the same lock.
+            if ($income->applicant_contract_id) {
+                $line = ApplicantContract::withTrashed()->whereKey($income->applicant_contract_id)->lockForUpdate()->first();
+                if ($line) {
+                    $this->ensureLineCurrency($line, (int) $income->currency_id);
+                    $this->ensureLineCanAcceptPayment($line, $income->toArray());
+                }
+            }
+
+            $income->update([
+                'status' => Income::APPROVED,
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+            // The number is issued at approval, not when the draft was saved.
+            $income->assignDocumentNumber();
+            $notifications->financeDraftStatusChanged($income->fresh(), Income::APPROVED, $request->user()->id);
+
+            return new IncomeResource($income->fresh()->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+        });
+    }
+
+    public function reject(Request $request, Income $income, EducationalWorkflowNotificationService $notifications)
+    {
+        $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:5000']]);
+
+        return DB::transaction(function () use ($request, $income, $data, $notifications) {
+            $income = Income::query()->lockForUpdate()->findOrFail($income->id);
+            abort_unless($income->status === Income::DRAFT, 422, 'business.finance_record_not_draft');
+
+            $income->update([
+                'status' => Income::REJECTED,
+                'rejected_at' => now(),
+                'rejection_reason' => $data['rejection_reason'],
+            ]);
+            $notifications->financeDraftStatusChanged($income->fresh(), Income::REJECTED, $request->user()->id);
+
+            return new IncomeResource($income->fresh()->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+        });
+    }
+
+    public function destroy(Request $request, Income $income)
+    {
+        $this->assertCanDeleteRecord($request, $income);
+
         DB::transaction(function () use ($income) {
             $income = Income::query()->lockForUpdate()->findOrFail($income->id);
             if ($income->applicant_contract_id) {
@@ -311,6 +381,81 @@ class IncomeController extends Controller
         });
 
         return response()->noContent();
+    }
+
+    /**
+     * A list is scoped by the explicit own/all grants. A legacy finance viewer
+     * who holds no scope grant keeps the historical all-records behaviour.
+     */
+    private function scopeToVisibleRecords(Request $request, $query): void
+    {
+        $user = $request->user();
+        $seesAll = $user->hasPermission('view_all_finance_records')
+            || (! $user->hasPermission('view_own_finance_records') && $user->hasPermission('view_incomes'));
+
+        if (! $seesAll) {
+            $query->where('recorded_by', $user->id);
+        }
+    }
+
+    private function assertCanViewRecord(Request $request, Income $income): void
+    {
+        $user = $request->user();
+        $seesAll = $user->hasPermission('view_all_finance_records')
+            || (! $user->hasPermission('view_own_finance_records') && $user->hasPermission('view_incomes'));
+
+        abort_unless(
+            $seesAll || ((int) $income->recorded_by === (int) $user->id && $user->hasPermission('view_own_finance_records')),
+            403,
+            'auth.forbidden',
+        );
+    }
+
+    private function creationStatus(Request $request, ?string $status): string
+    {
+        $status = $status ?: Income::APPROVED;
+        abort_unless(in_array($status, [Income::DRAFT, Income::APPROVED], true), 422, 'business.finance_record_status_invalid');
+
+        if ($status === Income::DRAFT) {
+            abort_unless($request->user()->hasPermission('create_draft_finance_records'), 403, 'auth.forbidden');
+        } else {
+            abort_unless($request->user()->hasPermission('create_incomes'), 403, 'auth.forbidden');
+        }
+
+        return $status;
+    }
+
+    private function assertCanEditRecord(Request $request, Income $income): void
+    {
+        $user = $request->user();
+        if ($income->status === Income::DRAFT) {
+            abort_unless(
+                $user->hasPermission('edit_incomes')
+                || ((int) $income->recorded_by === (int) $user->id && $user->hasPermission('create_draft_finance_records')),
+                403,
+                'auth.forbidden',
+            );
+
+            return;
+        }
+
+        abort_unless($user->hasPermission('edit_incomes'), 403, 'auth.forbidden');
+    }
+
+    private function assertCanDeleteRecord(Request $request, Income $income): void
+    {
+        $user = $request->user();
+        if ($user->hasPermission('delete_incomes')) {
+            return;
+        }
+
+        abort_unless(
+            $income->status === Income::DRAFT
+            && (int) $income->recorded_by === (int) $user->id
+            && $user->hasPermission('create_draft_finance_records'),
+            403,
+            'auth.forbidden',
+        );
     }
 
     /**

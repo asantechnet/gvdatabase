@@ -76,30 +76,34 @@ export const printDocument = async ({
         body.printing-isolated-document #app-print-host > * { display: block !important; margin: 0 !important; }
         body.printing-isolated-document #app-print-host > :not(.print-page):not(.payslip-container) { position: static !important; }
         ${contentMargin ? `body.printing-isolated-document #app-print-host { padding: ${contentMargin} !important; box-sizing: border-box; }` : ''}
-      }
-      /*
-       * Vuetify's overlay scroll strategy pins <html> to the viewport
-       * (position: fixed; width/height: 100%) and clips <body> (overflow
-       * hidden) for as long as a dialog is open. Every print path opens a
-       * dialog, so without overriding that lock the print engine can only lay
-       * out a single viewport-height page and the document is truncated to its
-       * first screen. These selectors are global by necessity (html cannot be
-       * namespaced by a body class) but live only in this temporary sheet,
-       * which is removed once the print job finishes.
-       */
-      @media print {
-        html.v-overlay-scroll-blocked {
-          position: static !important;
-          inset: auto !important;
-          inline-size: auto !important;
-          block-size: auto !important;
-          overflow: visible !important;
-        }
-        .v-overlay-scroll-blocked:not(html) { overflow-y: visible !important; }
-        .v-overlay-scroll-blocked { padding-inline-end: 0 !important; }
-        html:has(body.printing-isolated-document) { overflow: visible !important; }
       }`
   }
+
+  /*
+   * Vuetify's overlay scroll strategy pins <html> to the viewport
+   * (position: fixed; width/height: 100%) and clips <body> (overflow hidden)
+   * for as long as a dialog is open. Every print path opens a dialog, so
+   * without overriding that lock the print engine can only lay out a single
+   * viewport-height page and the document is truncated to its first screen.
+   * Receipts and slips build their own print host instead of passing an
+   * element, so this must apply to every print job, not only cloned ones.
+   * These selectors are global by necessity (html cannot be namespaced by a
+   * body class) but live only in this temporary sheet, which is removed once
+   * the print job finishes.
+   */
+  pageStyleElement.textContent += `
+    @media print {
+      html.v-overlay-scroll-blocked {
+        position: static !important;
+        inset: auto !important;
+        inline-size: auto !important;
+        block-size: auto !important;
+        overflow: visible !important;
+      }
+      .v-overlay-scroll-blocked:not(html) { overflow-y: visible !important; }
+      .v-overlay-scroll-blocked { padding-inline-end: 0 !important; }
+      html:has(body.printing-isolated-document) { overflow: visible !important; }
+    }`
 
   let fallbackTimer: number | undefined
   let cleaned = false

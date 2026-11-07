@@ -59,6 +59,24 @@ class ApplicantUniversityTest extends TestCase
         $this->assertNotEmpty($case['universities']);
     }
 
+    public function test_university_notes_are_editable_per_application(): void
+    {
+        $a = $this->makeCase();
+        $u = $this->makeUniversity();
+        $app = $this->postJson("/api/applicants/{$a['id']}/universities", [
+            'university_id' => $u['id'],
+            'notes' => 'Portal opens 1 October',
+        ])->assertCreated()->assertJsonPath('data.notes', 'Portal opens 1 October')->json('data');
+
+        $this->putJson("/api/applicants/{$a['id']}/universities/{$app['id']}", [
+            'notes' => 'Application submitted; awaiting decision',
+        ])->assertOk()->assertJsonPath('data.notes', 'Application submitted; awaiting decision');
+
+        $case = $this->getJson("/api/applicants/{$a['id']}")->assertOk()->json('data');
+        $row = collect($case['universities'])->firstWhere('id', $app['id']);
+        $this->assertSame('Application submitted; awaiting decision', $row['notes']);
+    }
+
     public function test_applications_are_scoped_to_their_case(): void
     {
         $a = $this->makeCase();

@@ -30,6 +30,41 @@ class EducationalMasterDataTest extends TestCase
         $this->postJson('/api/educational-master-data/universities', ['name' => 'Example University', 'country_id' => $country['id'], 'is_active' => true])->assertCreated()->assertJsonPath('data.country.id', $country['id']);
     }
 
+    public function test_country_and_university_contact_fields_store_typed_portal_addresses(): void
+    {
+        $country = $this->postJson('/api/educational-master-data/countries', [
+            'name' => 'Germany',
+            'code' => 'DEU',
+            'phone' => '+49 30 5000 0',
+            'email' => 'visa@example.test',
+            // Deliberately scheme-less and path-bearing: the portal address has
+            // no URL rule, so it is stored exactly as typed.
+            'portal_url' => 'auswaertiges-amt.de/en/visa-service',
+        ])->assertCreated()
+            ->assertJsonPath('data.phone', '+49 30 5000 0')
+            ->assertJsonPath('data.email', 'visa@example.test')
+            ->assertJsonPath('data.portal_url', 'auswaertiges-amt.de/en/visa-service')
+            ->json('data');
+
+        $university = $this->postJson('/api/educational-master-data/universities', [
+            'name' => 'Technical University',
+            'country_id' => $country['id'],
+            'phone' => '+49 89 289 01',
+            'email' => 'admissions@example.test',
+            'portal_url' => '//apply.example.test/portal?intake=Fall%202027#step-2',
+        ])->assertCreated()
+            ->assertJsonPath('data.phone', '+49 89 289 01')
+            ->assertJsonPath('data.portal_url', '//apply.example.test/portal?intake=Fall%202027#step-2')
+            ->json('data');
+
+        $this->putJson("/api/educational-master-data/universities/{$university['id']}", [
+            'portal_url' => 'https://apply.example.test/portal',
+        ])->assertOk()->assertJsonPath('data.portal_url', 'https://apply.example.test/portal');
+
+        $this->getJson('/api/educational-master-data/countries')->assertOk()
+            ->assertJsonPath('data.0.phone', '+49 30 5000 0');
+    }
+
     public function test_every_catalog_has_server_side_crud_authorization_and_reference_protection(): void
     {
         $unprivileged = User::factory()->create();

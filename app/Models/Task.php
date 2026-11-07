@@ -23,7 +23,6 @@ class Task extends Model
         'applicant_contract_id',
         'title',
         'description',
-        'results',
         'priority',
         'progress',
         'start_date',

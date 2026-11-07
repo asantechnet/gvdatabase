@@ -46,6 +46,12 @@ class ExpenseResource extends JsonResource
             'date' => $this->date->toDateString(),
             'recorded_by' => $this->recorded_by,
             'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? ['id' => $this->recorder->id, 'name' => $this->recorder->name] : null),
+            'status' => $this->status,
+            'approved_by' => $this->approved_by,
+            'approved_at' => $this->approved_at,
+            'rejected_at' => $this->rejected_at,
+            'rejection_reason' => $this->rejection_reason,
+            'approver' => $this->whenLoaded('approver', fn () => $this->approver ? ['id' => $this->approver->id, 'name' => $this->approver->name] : null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

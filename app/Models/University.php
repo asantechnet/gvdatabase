@@ -11,7 +11,7 @@ class University extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['name', 'country_id', 'city', 'website', 'description', 'is_active'];
+    protected $fillable = ['name', 'country_id', 'city', 'website', 'phone', 'email', 'portal_url', 'description', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

@@ -4,18 +4,20 @@ import { VDialog } from "vuetify/components";
 import { useToast } from "vue-toastification";
 import { type FinanceType, getFinanceTypes } from "@/api/financeTypes";
 import { financeTypeLabel } from "@/utils/financeTypes";
-import PendingTransactionApi from "@/api/pendingTransactions";
 import {
+  type FinanceRecordStatus,
   type Income,
   type IncomeCreateData,
   type IncomeParams,
   type IncomeUpdateData,
   type ApplicantContractPaymentOption,
+  approveIncome,
   createIncome,
   deleteIncome,
   getIncomes,
   getIncomesPage,
   getApplicantContractPayments,
+  rejectIncome,
   updateIncome,
 } from "@/api/incomes";
 import ReceiptApi from "@/api/receipts";
@@ -50,10 +52,15 @@ const reportRows = ref<string[][]>([]);
 const isAddIncomeDialogVisible = ref(false);
 const isEditIncomeDialogVisible = ref(false);
 const isDeleteIncomeDialogVisible = ref(false);
-type IncomeForm = Omit<IncomeCreateData, "applicant_contract_id"> & {
+type IncomeForm = Omit<
+  IncomeCreateData,
+  "applicant_contract_id" | "status"
+> & {
   id: number;
   applicant_contract_id: number | null;
   base_amount: number;
+  // A saved row can be approved, rejected or still a draft.
+  status?: FinanceRecordStatus;
   receipt_number?: string;
   contract_service?: Income["contract_service"];
   currency?: Income["currency"];
@@ -78,6 +85,7 @@ const emptyIncomeForm = (): IncomeForm => ({
 const selectedIncome = ref<IncomeForm>(emptyIncomeForm());
 const searchQuery = ref("");
 const filterType = ref<string | null>(null);
+const filterStatus = ref<FinanceRecordStatus | null>(null);
 const filterCurrency = ref<number | null>(null);
 const dateFrom = ref("");
 const dateTo = ref("");
@@ -88,7 +96,14 @@ const applicants = ref<Applicant[]>([]);
 const formError = ref("");
 const isReceiptPreviewOpen = ref(false);
 const activeReceiptIncomeId = ref<number | null>(null);
-const saveMode = ref<"direct" | "loan">("direct");
+const saveMode = ref<"direct" | "draft">("direct");
+const canCreateDirect = computed(() => canAccess("create_incomes"));
+const canCreateDraft = computed(() => canAccess("create_draft_finance_records"));
+const canApproveDrafts = computed(() => canAccess("approve_draft_finance_records"));
+const rejectDraftDialog = ref(false);
+const rejectDraftTarget = ref<Income | null>(null);
+const rejectionReason = ref("");
+const rejectingDraft = ref(false);
 const attachmentTarget = ref<Income | null>(null);
 const isAttachmentsOpen = ref(false);
 const isPaymentOverridesOpen = ref(false);
@@ -226,6 +241,7 @@ const setDefaultCurrency = () => {
 const filterParams = (): IncomeParams => ({
   search: searchQuery.value || undefined,
   type: filterType.value || undefined,
+  status: filterStatus.value || undefined,
   currency_id: filterCurrency.value || undefined,
   date_from: dateFrom.value || undefined,
   date_to: dateTo.value || undefined,
@@ -269,7 +285,7 @@ const reload = () => {
 
 const openAddIncomeDialog = () => {
   formError.value = "";
-  saveMode.value = "direct";
+  saveMode.value = canCreateDirect.value ? "direct" : "draft";
   selectedIncome.value = emptyIncomeForm();
   applicantContracts.value = [];
   Promise.all([fetchCurrencies(), fetchApplicants(), fetchTypes()])
@@ -405,24 +421,16 @@ const addIncome = async () => {
   try {
     formError.value = "";
 
-    // Payment requests route the receipt through the approval workflow instead
-    // of writing the ledger row immediately.
-    if (saveMode.value === "loan") {
-      await PendingTransactionApi.create({
-        transaction_type: "income",
-        reason:
-          selectedIncome.value.description?.trim() ||
-          selectedIncome.value.type ||
-          "Income",
-        amount:
-          Number(selectedIncome.value.amount) *
-          Number(selectedIncome.value.quantity || 1),
-        currency_id: selectedIncome.value.currency_id,
-        applicant_id: selectedIncome.value.applicant_id ?? null,
-        employee_id: null,
+    // A draft is a real ledger row, but it does not count as money until a
+    // finance approver accepts it.
+    if (saveMode.value === "draft") {
+      await createIncome({
+        ...(selectedIncome.value as IncomeCreateData),
+        status: "draft",
       });
       isAddIncomeDialogVisible.value = false;
-      toast.success(translate("pages.finance.income.income.loanSubmitted"));
+      toast.success(translate("pages.finance.income.income.draftSaved"));
+      reload();
 
       return;
     }
@@ -518,6 +526,43 @@ const confirmRevaluation = async () => {
   });
 };
 
+const statusColor = (status: FinanceRecordStatus) =>
+  ({ draft: "warning", approved: "success", rejected: "error" })[status];
+
+const approveDraft = async (income: Income) => {
+  try {
+    await approveIncome(income.id);
+    await fetchIncomes();
+    toast.success(translate("finance.drafts.approved"));
+  } catch (error) {
+    console.error("Error approving income draft:", error);
+    toast.error(translate("finance.drafts.approveFailed"));
+  }
+};
+
+const openRejectDraft = (income: Income) => {
+  rejectDraftTarget.value = income;
+  rejectionReason.value = "";
+  rejectDraftDialog.value = true;
+};
+
+const rejectDraft = async () => {
+  if (!rejectDraftTarget.value || !rejectionReason.value.trim()) return;
+
+  rejectingDraft.value = true;
+  try {
+    await rejectIncome(rejectDraftTarget.value.id, rejectionReason.value.trim());
+    rejectDraftDialog.value = false;
+    await fetchIncomes();
+    toast.success(translate("finance.drafts.rejected"));
+  } catch (error) {
+    console.error("Error rejecting income draft:", error);
+    toast.error(translate("finance.drafts.rejectFailed"));
+  } finally {
+    rejectingDraft.value = false;
+  }
+};
+
 const deleteIncomeRecord = async () => {
   if (selectedIncome.value.id) {
     try {
@@ -585,7 +630,14 @@ const incomeReportRow = (income: Income): string[] => [
 // Print is global: the report is filled from every matching row first.
 const printTable = async () => {
   try {
-    reportRows.value = (await getIncomes(filterParams())).map(incomeReportRow);
+    // Drafts are not money yet: the register defaults to approved receipts
+    // unless the operator explicitly filters another status.
+    reportRows.value = (
+      await getIncomes({
+        ...filterParams(),
+        status: filterStatus.value ?? "approved",
+      })
+    ).map(incomeReportRow);
     await printDocument({
       bodyClass: "printing-table-income",
       pageStyle: "size: A4 landscape; margin: 12mm;",
@@ -694,16 +746,42 @@ onMounted(() => {
           >
             <DataTableFilterMenu
               :active="
-                Boolean(filterType || filterCurrency || dateFrom || dateTo)
+                Boolean(
+                  filterType ||
+                    filterStatus ||
+                    filterCurrency ||
+                    dateFrom ||
+                    dateTo,
+                )
               "
               @reset="
                 filterType = null;
+                filterStatus = null;
                 filterCurrency = null;
                 dateFrom = '';
                 dateTo = '';
                 reload();
               "
             >
+              <VSelect
+                v-model="filterStatus"
+                :items="[
+                  { title: translate('common.statuses.draft'), value: 'draft' },
+                  {
+                    title: translate('common.statuses.approved'),
+                    value: 'approved',
+                  },
+                  {
+                    title: translate('common.statuses.rejected'),
+                    value: 'rejected',
+                  },
+                ]"
+                :label="$t('finance.drafts.filterByStatus')"
+                density="compact"
+                clearable
+                hide-details
+                @update:model-value="reload"
+              />
               <VSelect
                 v-model="filterType"
                 :items="filterTypeOptions"
@@ -760,6 +838,11 @@ onMounted(() => {
             {
               title: translate('pages.finance.income.income.receipt'),
               key: 'receipt_number',
+              align: 'start',
+            },
+            {
+              title: translate('common.fields.status'),
+              key: 'status',
               align: 'start',
             },
             {
@@ -835,6 +918,22 @@ onMounted(() => {
             </div>
           </template>
 
+          <template #item.status="{ item }">
+            <VChip
+              size="small"
+              :color="statusColor(item.status)"
+              variant="tonal"
+            >
+              {{ translateBackendValue(item.status) }}
+            </VChip>
+            <div
+              v-if="item.rejection_reason"
+              class="text-caption text-medium-emphasis detail-copy"
+            >
+              {{ item.rejection_reason }}
+            </div>
+          </template>
+
           <template #item.type="{ item }">
             <VChip
               size="small"
@@ -900,6 +999,38 @@ onMounted(() => {
           <template #item.actions="{ item }">
             <div class="d-flex gap-1">
               <VBtn
+                v-if="canApproveDrafts && item.status === 'draft'"
+                icon="tabler-check"
+                variant="text"
+                size="small"
+                color="success"
+                :aria-label="$t('finance.drafts.approve')"
+                @click="approveDraft(item)"
+              >
+                <VIcon icon="tabler-check" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t("finance.drafts.approve") }}
+                </VTooltip>
+              </VBtn>
+              <VBtn
+                v-if="canApproveDrafts && item.status === 'draft'"
+                icon="tabler-x"
+                variant="text"
+                size="small"
+                color="error"
+                :aria-label="$t('finance.drafts.reject')"
+                @click="openRejectDraft(item)"
+              >
+                <VIcon icon="tabler-x" /><VTooltip
+                  activator="parent"
+                  location="top"
+                >
+                  {{ $t("finance.drafts.reject") }}
+                </VTooltip>
+              </VBtn>
+              <VBtn
                 icon="tabler-paperclip"
                 variant="text"
                 size="small"
@@ -915,6 +1046,7 @@ onMounted(() => {
               </VBtn>
               <FullDetailsButton :item="item" />
               <VBtn
+                v-if="item.status === 'approved'"
                 icon="tabler-receipt"
                 variant="text"
                 size="small"
@@ -1130,6 +1262,7 @@ onMounted(() => {
               <VCol cols="12">
                 <div class="d-flex flex-wrap gap-4 mb-1">
                   <VBtn
+                    v-if="canCreateDirect"
                     :color="saveMode === 'direct' ? 'primary' : 'secondary'"
                     :variant="saveMode === 'direct' ? 'flat' : 'outlined'"
                     prepend-icon="tabler-device-floppy"
@@ -1138,18 +1271,19 @@ onMounted(() => {
                     {{ $t("pages.finance.income.income.saveModeDirect") }}
                   </VBtn>
                   <VBtn
-                    :color="saveMode === 'loan' ? 'primary' : 'secondary'"
-                    :variant="saveMode === 'loan' ? 'flat' : 'outlined'"
+                    v-if="canCreateDraft"
+                    :color="saveMode === 'draft' ? 'primary' : 'secondary'"
+                    :variant="saveMode === 'draft' ? 'flat' : 'outlined'"
                     prepend-icon="tabler-send"
-                    @click="saveMode = 'loan'"
+                    @click="saveMode = 'draft'"
                   >
-                    {{ $t("pages.finance.income.income.saveModeLoan") }}
+                    {{ $t("pages.finance.income.income.saveModeDraft") }}
                   </VBtn>
                 </div>
                 <p class="text-caption text-medium-emphasis mb-0">
                   {{
-                    saveMode === "loan"
-                      ? $t("pages.finance.income.income.saveModeLoanHint")
+                    saveMode === "draft"
+                      ? $t("pages.finance.income.income.saveModeDraftHint")
                       : $t("pages.finance.income.income.saveModeDirectHint")
                   }}
                 </p>
@@ -1508,6 +1642,37 @@ onMounted(() => {
           </VBtn>
           <VBtn color="primary" @click="confirmRevaluation">
             {{ $t("common.actions.save") }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="rejectDraftDialog" max-width="520px">
+      <VCard :title="$t('finance.drafts.rejectTitle')">
+        <VCardText>
+          <VTextarea
+            v-model="rejectionReason"
+            :label="$t('finance.drafts.rejectionReason')"
+            rows="3"
+            autofocus
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="rejectDraftDialog = false"
+          >
+            {{ $t("common.actions.cancel") }}
+          </VBtn>
+          <VBtn
+            color="error"
+            :loading="rejectingDraft"
+            :disabled="!rejectionReason.trim()"
+            @click="rejectDraft"
+          >
+            {{ $t("finance.drafts.reject") }}
           </VBtn>
         </VCardActions>
       </VCard>

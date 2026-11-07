@@ -279,7 +279,6 @@
       "pastDue": "Past due",
       "terminated": "Terminated",
       "noContracts": "No contracts",
-      "pendingTransaction": "Payment request",
       "closed": "Closed",
       "applied": "Applied",
       "admitted": "Admitted",
@@ -513,7 +512,6 @@
       "myVisaCase": "My visa case",
       "sales": "Sales",
       "serviceSales": "Service sales",
-      "paymentRequests": "Payment requests",
       "educationalData": "Educational data",
       "contractStages": "Contract stages",
       "announcements": "Announcements",
@@ -778,13 +776,13 @@
       "required": "Required."
     },
     "ui": {
-      "newFinancialRequest": "New payment request",
+      "newFinancialRequest": "Record draft finance",
       "attachCaseDocument": "Attach case document",
       "caseTask": "Case task",
       "document": "Document",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "Documents are stored as input attachments on a case task, so they follow the same access controls and audit trail.",
-      "unableToLoadFinancialRequestOptions": "Unable to load payment request options.",
-      "financialRequestLinkedToThisVisaCase": "Payment request linked to this visa case.",
+      "unableToLoadFinancialRequestOptions": "Unable to load finance options.",
+      "financialRequestLinkedToThisVisaCase": "Draft finance record saved for this visa case.",
       "documentAttachedToThisVisaCase": "Document attached to this visa case.",
       "allocatedTo": "Allocated to",
       "whatIsMonitored": "What is monitored",
@@ -2709,14 +2707,14 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "Capture outgoing cash with its live currency relationship.",
           "saveExpense": "Save expense",
           "saveModeDirect": "Record directly",
-          "saveModeLoan": "Send to payment requests",
           "saveModeDirectHint": "The expense is written to the ledger immediately.",
-          "saveModeLoanHint": "The amount is submitted as a payment request and only reaches the ledger after approval.",
-          "loanSubmitted": "Expense request submitted to payment requests for approval.",
           "editExpense": "Edit expense",
           "updateTheRecordedSpendAndItsCurrency": "Update the recorded spend and its currency.",
           "deleteExpense": "Delete expense?",
-          "thisRemovesTheSelectedExpenseRecordPermanently": "This removes the selected expense record permanently."
+          "thisRemovesTheSelectedExpenseRecordPermanently": "This removes the selected expense record permanently.",
+          "saveModeDraft": "Save as draft",
+          "saveModeDraftHint": "The draft is visible to you and finance; it joins the ledger after approval.",
+          "draftSaved": "Draft saved for approval."
         }
       },
       "finance": {
@@ -2764,10 +2762,7 @@
           "incomeLedger": "Income Ledger",
           "saveMode": "Save as",
           "saveModeDirect": "Record directly",
-          "saveModeLoan": "Send to payment requests",
           "saveModeDirectHint": "The receipt is written to the income ledger immediately.",
-          "saveModeLoanHint": "The amount is submitted as a payment request and only reaches the ledger after approval.",
-          "loanSubmitted": "Income request submitted to payment requests for approval.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "Live receipt activity and currency totals in one view",
           "printIncomeRecords": "Print Income Records",
           "recordIncome": "Record Income",
@@ -2799,7 +2794,10 @@
           "paymentExceedsRemainingBalance": "Payment cannot exceed the remaining balance of this service:",
           "selectTheContractedServiceThisReceiptPaysFor": "Select the contracted service this receipt pays for",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "Customer, quantity, currency and exchange rate come from the selected service. Enter only the amount received.",
-          "servicePayments": "Service Payments"
+          "servicePayments": "Service Payments",
+          "saveModeDraft": "Save as draft",
+          "saveModeDraftHint": "The draft is visible to you and finance; it joins the ledger after approval.",
+          "draftSaved": "Draft saved for approval."
         }
       },
       "currencies": {
@@ -3423,7 +3421,6 @@
         "educational_bonus_sources": "Bonus sources",
         "languages": "Languages",
         "leaves": "Leave",
-        "pending_transactions": "Payment requests",
         "salary_payments": "Salary payments",
         "semesters": "Semesters",
         "attachments": "Attachments",
@@ -4015,8 +4012,6 @@
         "itemProgress": "{completed} / {total} items",
         "noDescriptionProvidedForThisTask": "No description provided for this task.",
         "taskContent": "Task content",
-        "results": "Results",
-        "noResultsRecorded": "No results have been recorded yet.",
         "downloadAttachment": "Download attachment",
         "youAreAboutToDelete": "You are about to delete",
         "yesDeleteIt": "Yes, Delete It!"
@@ -4031,7 +4026,6 @@
         "viewAttachments": "View attachments",
         "downloadAttachment": "Download attachment",
         "taskFiles": "Task files",
-        "resultFiles": "Result files",
         "noAttachments": "This task has no attached files.",
         "dueDate": "Due",
         "assignees": "Assignees"
@@ -4059,13 +4053,7 @@
         "noTaskContent": "No task content has been provided.",
         "attachTaskFile": "Attach task file",
         "attach": "Attach",
-        "results": "Results",
-        "saveResults": "Save results",
-        "recordTaskResults": "Record the task results...",
-        "noResultsRecorded": "No results have been recorded yet.",
-        "attachResultFile": "Attach result file",
         "taskAttachments": "Task attachments",
-        "resultAttachments": "Result attachments",
         "downloadAttachment": "Download attachment",
         "removeAttachment": "Remove attachment",
         "attachmentUploadFailed": "Unable to upload the attachment.",
@@ -4451,7 +4439,7 @@
       "noServices": "No contracted services recorded yet.",
       "paperSize": "Paper size",
       "paperA3Landscape": "A3 landscape (2 up)",
-      "paperA4Portrait": "A4 portrait (2 up)",
+      "paperA4Portrait": "A4 portrait",
       "paperA4Landscape": "A4 landscape (2 up)",
       "paperA4TwoA5": "A4 portrait (2× A5 landscape)",
       "paperA5Two": "A5 portrait (2 up)",
@@ -4468,43 +4456,6 @@
       "service": "Service",
       "paymentStatus": "Payment status",
       "paymentSummary": "Payment Summary"
-    },
-    "paymentVoucher": {
-      "title": "Payment Voucher",
-      "date": "Voucher Date",
-      "print": "Print voucher",
-      "payTo": "Pay To",
-      "approval": "Approval",
-      "voucherType": "Voucher Type",
-      "reason": "Reason / Purpose",
-      "approvedAt": "Approved On",
-      "requestedBy": "Requested By",
-      "approvedBy": "Approved By",
-      "rejectionReason": "Rejection Reason",
-      "breakdown": "Payment Breakdown",
-      "totalPayout": "Total Payout",
-      "paidStatus": "Voucher Status",
-      "baseAmount": "Base Amount",
-      "note": "This voucher records an outgoing payment approved by the finance office.",
-      "preparedBy": "Prepared By",
-      "approvedBySignature": "Approved By"
-    },
-    "loan": {
-      "title": "Payment Request",
-      "requestedBy": "Requested By",
-      "requestSummary": "Request Summary",
-      "reason": "Reason",
-      "reference": "Payment request ID",
-      "details": "Payment request details",
-      "item": "Item",
-      "amount": "Amount",
-      "requestedAmount": "Requested Amount",
-      "approvedAmount": "Approved Amount",
-      "remaining": "Not Yet Approved",
-      "status": "Status",
-      "requestedAt": "Requested On",
-      "footerNote": "This is a system-generated payment request document.",
-      "print": "Print payment request"
     },
     "academySlip": {
       "title": "Academy Enrolment Slip",
@@ -4932,13 +4883,13 @@
       }
     },
     "finance": {
-      "pendingSubmitted": {
-        "title": "Payment request awaiting review",
-        "message": "A {type} request for {amount} is ready for review."
+      "draftSubmitted": {
+        "title": "Draft finance record awaiting approval",
+        "message": "A {type} record for {amount} is ready for review."
       },
-      "pendingStatus": {
-        "title": "Payment request updated",
-        "message": "Your {type} request is now {status}. {reason}"
+      "draftStatus": {
+        "title": "Draft finance record updated",
+        "message": "Your {type} record is now {status}. {reason}"
       }
     },
     "contract": {
@@ -5328,6 +5279,8 @@
     "applicantUpdates": "Applicant Case Updates",
     "applicantCaseAssignmentsStagesAndReminders": "Case assignments, stage changes, and stalled-case reminders.",
     "subtitle": "Choose which company events appear in your in-app inbox.",
+    "sound": "Notification sound",
+    "soundDescription": "Play a sound when a new notification arrives.",
     "loadFailed": "Unable to load notification preferences.",
     "saveFailed": "Unable to save notification preferences."
   },
@@ -5383,6 +5336,9 @@
       "stageTransition": "{from} → {to}",
       "tasks": "Tasks",
       "newTask": "New case task",
+      "personalBoardOnly": "Case tasks are created on your personal board.",
+      "personalBoardMissing": "Your personal board is not available yet. Reload and try again.",
+      "openInTaskMatrix": "Open in Task Matrix",
       "taskPermission": "Task creation requires permission. Automatically generated stage tasks still appear here.",
       "taskSummary": "{progress}% complete · {priority} · due {date}",
       "complete": "Complete",
@@ -5395,7 +5351,6 @@
       "primary": "Primary",
       "noApplications": "No applications tracked yet. Add every university the student applies to; each keeps its own outcome.",
       "finance": "Finance",
-      "pendingWorkspace": "Payment requests",
       "financeSummary": "Posted income {income} · posted expenses {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -5461,6 +5416,12 @@
       "portalUserDeleted": "Portal user deleted.",
       "caseUpdated": "Case updated.",
       "caseUpdateFailed": "Unable to update the case.",
+      "universityNotes": "University notes",
+      "universityNotesHint": "Notes are kept for this university on this case only.",
+      "universityNotesSaved": "University notes saved.",
+      "universityNotesSaveFailed": "Unable to save the university notes.",
+      "openPortal": "Open portal",
+      "visitWebsite": "Visit website",
       "universityAdded": "University application added.",
       "universityAddFailed": "Unable to add the university application.",
       "applicationMarked": "Application marked {status}.",
@@ -5470,7 +5431,11 @@
       "applicationRemoveFailed": "Unable to remove the university application.",
       "primaryUpdated": "Primary university updated.",
       "primaryUpdateFailed": "Unable to update the primary university.",
-      "loadUniversitiesFailed": "Unable to load case options."
+      "loadUniversitiesFailed": "Unable to load case options.",
+      "draftRecords": "Draft records",
+      "noDrafts": "No draft finance records.",
+      "draftRecordTitle": "{type}: {description}",
+      "draftSummary": "{amount} · {status} · {rejection}"
     },
     "applicantCases": "Applications",
     "applications": "Applications",
@@ -5549,17 +5514,11 @@
     "loadReportFailed": "Unable to load the report.",
     "exported": "Report exported.",
     "exportFailed": "Unable to export the report.",
-    "pendingSubtitle": "Requests become official finance records only after authorization and posting.",
     "newRequest": "New request",
-    "paymentRequestsSubtitle": "An admission officer or counselor raises a payment request; the finance office approves it and prints the income receipt or payment voucher.",
-    "paymentRequestsNew": "New payment request",
     "transactionType": "Transaction type",
     "reason": "Reason",
     "amount": "Amount",
     "requested": "Requested",
-    "noTransactions": "No payment requests.",
-    "newPending": "New payment request",
-    "editPending": "Edit payment request",
     "applicantOptional": "Applicant / case (optional)",
     "employeeOptional": "Employee (optional)",
     "rejectTransaction": "Reject transaction",
@@ -5573,7 +5532,6 @@
     "allCaughtUp": "You're all caught up",
     "noActivePipeline": "No active pipeline stages for these filters.",
     "financialSnapshot": "Financial snapshot",
-    "postedRecordsOnly": "Posted records only; pending requests are shown separately.",
     "salesHelp": "Recorded contracts and educational service sales.",
     "countryHelp": "Active cases compared with all recorded cases.",
     "performanceHelp": "Workload and sales contribution by employee.",
@@ -5658,6 +5616,10 @@
       "transitionNotAllowed": "This workflow transition is not allowed."
     },
     "masterData": {
+      "phone": "Phone number",
+      "email": "Email address",
+      "portalUrl": "Portal address",
+      "portalUrlHint": "Stored exactly as typed. The visa case turns it into a link.",
       "title": "Educational master data — {catalog}",
       "academyTitle": "Academy data — {catalog}",
       "countries": "Countries",
@@ -5702,24 +5664,6 @@
       "provinces": "Provinces",
       "englishLevels": "English levels",
       "acquisitionRoutes": "How visitors found us"
-    },
-    "pendingUi": {
-      "customerEmployee": "Customer / employee",
-      "searchReason": "Search payment reasons",
-      "saved": "Payment request saved.",
-      "submitted": "Payment request submitted for approval.",
-      "selfApproval": "You cannot approve, reject or post your own payment request. Another approver must review it.",
-      "saveFailed": "Unable to save the transaction. It may be locked or outside the edit window.",
-      "transitioned": "Transaction is now {status}.",
-      "rejected": "Transaction rejected.",
-      "rejectFailed": "Unable to reject the transaction.",
-      "actions": {
-        "edit": "Edit this payment request",
-        "review": "Send to review",
-        "approve": "Approve this request",
-        "reject": "Reject with a reason",
-        "post": "Post to official records"
-      }
     },
     "search": {
       "title": "Search",
@@ -5839,6 +5783,20 @@
       "paid": "Paid",
       "unpaid": "Unpaid",
       "partially_paid": "Partially Paid"
+    },
+    "drafts": {
+      "saveDraft": "Save as draft",
+      "saveDraftHint": "The draft is visible to you and finance; it joins the ledger after approval.",
+      "draftSaved": "Draft saved for approval.",
+      "filterByStatus": "Filter by status",
+      "approve": "Approve draft",
+      "reject": "Reject draft",
+      "rejectTitle": "Reject draft",
+      "rejectionReason": "Reason for rejection",
+      "approved": "Draft approved and posted to the ledger.",
+      "rejected": "Draft rejected.",
+      "approveFailed": "Unable to approve the draft.",
+      "rejectFailed": "Unable to reject the draft."
     }
   },
   "tasksPage": {

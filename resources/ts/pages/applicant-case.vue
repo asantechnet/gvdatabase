@@ -5,18 +5,23 @@ import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { COMPLETED_APPLICANT_STAGE, type Applicant, type ApplicantStage, ApplicantUniversityApi, ApplicantAttachmentApi, type ApplicantAttachment, type ApplicantPayload, applicantServicePayload } from '@/api/applicants'
+import { externalUrl } from '@/utils/externalUrl'
 import ApplicantServiceFields from '@/components/ApplicantServiceFields.vue'
 import ApplicantSummary from '@/components/erp/ApplicantSummary.vue'
 import ApplicantPortalApi from '@/api/applicantPortal'
 import BoardApi from '@/api/board'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
-import PendingTransactionApi, { type PendingTransactionInput, type PendingTransactionOptions } from '@/api/pendingTransactions'
+import { approveExpense, createExpense, rejectExpense } from '@/api/expenses'
+import { approveIncome, createIncome, rejectIncome } from '@/api/incomes'
+import { getFinanceTypes, type FinanceType } from '@/api/financeTypes'
+import { financeTypeLabel } from '@/utils/financeTypes'
+import CurrencyApi, { type Currency } from '@/api/currency'
 import TaskApi from '@/api/task'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate, translateBackendValue } from '@/utils/localization'
@@ -33,20 +38,31 @@ const selected = ref<number | string | null>(null)
 const note = ref('')
 const moving = ref(false)
 
-const boards = ref<Array<{ id: string; title: string }>>([])
+const boards = ref<Array<{ id: string; title: string; is_personal: boolean; is_owned: boolean }>>([])
 const taskDialog = ref(false)
 const creatingTask = ref(false)
 const completingId = ref<number | null>(null)
 const taskForm = ref({ board_id: '', title: '', priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent', due_date: '' })
 
-const canCreateTask = computed(() => canAccess('create_tasks'))
+const personalBoard = computed(() => boards.value.find(board => board.is_personal && board.is_owned) ?? null)
+const canCreateTask = computed(() => canAccess('create_tasks') && !!personalBoard.value)
 const canEditCase = computed(() => canAccess('edit_applicants'))
 const canInvitePortal = computed(() => canAccess('invite_applicant_portal'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canAssignAdmission = computed(() => canAccess('assign_admission_employee'))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
-const canCreatePendingTransactions = computed(() => canAccess('create_pending_transactions'))
-const serviceLabel = computed(() => applicant.value ? translateBackendValue(applicant.value.service) : '')
+const canCreateDraftFinance = computed(() => canAccess('create_draft_finance_records'))
+const canApproveDrafts = computed(() => canAccess('approve_draft_finance_records'))
+// Service names are catalogue labels, not backend status enums: use the same
+// translated labels as the applications list instead of the raw `test_offer`.
+const serviceLabelKeys: Record<string, string> = { scholarship: 'scholarship', private: 'private', test_offer: 'testOffer', academy: 'academy' }
+const serviceLabel = computed(() => {
+  const service = applicant.value?.service
+  if (!service) return ''
+  const key = serviceLabelKeys[service]
+
+  return key ? t(`educational.builtInServices.${key}`) : translateBackendValue(service)
+})
 // Shared contact and service details remain visible beside the case title.
 const guardianSummary = computed(() => {
   const current = applicant.value
@@ -165,8 +181,18 @@ const taskSubtitle = (task: CaseTask) => [
 ].filter(Boolean).join(' · ')
 const stageHistory = computed(() => [...(applicant.value?.stage_history ?? [])].sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()))
 const documents = computed(() => (applicant.value?.tasks ?? []).flatMap(task => (task.attachments ?? []).map(a => ({ ...a, task_id: task.id, task_title: task.title }))))
-const postedIncomeTotal = computed(() => (applicant.value?.incomes ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
-const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0))
+// Only approved rows are ledger money; drafts and rejections stay in the
+// separate draft list below.
+const postedIncomeTotal = computed(() => (applicant.value?.incomes ?? []).filter(row => row.status === 'approved').reduce((sum, row) => sum + Number(row.amount || 0), 0))
+const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).filter(row => row.status === 'approved').reduce((sum, row) => sum + Number(row.amount || 0), 0))
+const draftFinanceRows = computed<DraftFinanceRow[]>(() => [
+  ...(applicant.value?.incomes ?? [])
+    .filter(row => row.status === 'draft' || row.status === 'rejected')
+    .map(row => ({ ...row, status: row.status as 'draft' | 'rejected', kind: 'income' as const })),
+  ...(applicant.value?.expenses ?? [])
+    .filter(row => row.status === 'draft' || row.status === 'rejected')
+    .map(row => ({ ...row, status: row.status as 'draft' | 'rejected', kind: 'expense' as const })),
+].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')))
 const money = (value: number | string) => n(Number(value || 0), 'decimal')
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
 const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : ''
@@ -216,6 +242,47 @@ const savingUni = ref(false)
 const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '', notes: '' })
 const uniStatuses = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn']
 const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info', admitted: 'success', rejected: 'error', withdrawn: 'warning' }[status] ?? 'secondary')
+type CaseUniversityApplication = NonNullable<Applicant['universities']>[number]
+const uniNotesDialog = ref(false)
+const uniNotesTarget = ref<CaseUniversityApplication | null>(null)
+const uniNotesDraft = ref('')
+const savingUniNotes = ref(false)
+// The case's destination country carries the embassy contact details used by
+// the quick-contact block. It comes from the same catalogue the form edits.
+const caseCountry = computed(() => {
+  const countryId = applicant.value?.details?.country_id
+
+  return countryId ? countries.value.find(row => row.id === countryId) ?? null : null
+})
+const universityById = computed(() => new Map<number, MasterDataRecord>(universities.value.map(row => [row.id, row] as const)))
+const universityContactFor = (id: number) => universityById.value.get(id) ?? null
+const portalHref = (value?: string | null) => externalUrl(value)
+
+function openUniNotes(app: CaseUniversityApplication) {
+  uniNotesTarget.value = app
+  uniNotesDraft.value = app.notes ?? ''
+  uniNotesDialog.value = true
+}
+
+async function saveUniNotes() {
+  if (!applicant.value || !uniNotesTarget.value)
+    return
+
+  savingUniNotes.value = true
+  try {
+    await ApplicantUniversityApi.update(applicant.value.id, uniNotesTarget.value.id, { notes: uniNotesDraft.value.trim() || null })
+    uniNotesDialog.value = false
+    uniNotesTarget.value = null
+    await load()
+    toast.success(t('educational.caseUi.universityNotesSaved'))
+  }
+  catch {
+    toast.error(t('educational.caseUi.universityNotesSaveFailed'))
+  }
+  finally {
+    savingUniNotes.value = false
+  }
+}
 
 const editDialog = ref(false)
 const savingCase = ref(false)
@@ -231,10 +298,30 @@ const portalForm = ref({ name: '', email: '', phone: '', address: '', password: 
 // A supplied password must satisfy the server's minimum; an empty one keeps the
 // invitation flow, where the applicant chooses their own.
 const portalPasswordValid = computed(() => !portalForm.value.password || portalForm.value.password.length >= 8)
+type DraftFinanceRow = {
+  id: number
+  kind: 'income' | 'expense'
+  amount: number | string
+  date?: string | null
+  description?: string | null
+  status: 'draft' | 'approved' | 'rejected'
+  rejection_reason?: string | null
+}
+
 const financeDialog = ref(false)
 const savingFinance = ref(false)
-const financeOptions = ref<PendingTransactionOptions>({ currencies: [], employees: [], applicants: [] })
-const financeForm = ref<PendingTransactionInput>({ transaction_type: 'income', reason: '', amount: 0, currency_id: null, applicant_id: null, employee_id: null })
+const rejectFinanceDialog = ref(false)
+const savingRejectFinance = ref(false)
+const rejectFinanceTarget = ref<DraftFinanceRow | null>(null)
+const rejectFinanceReason = ref('')
+const financeOptions = ref<{ currencies: Currency[]; incomeTypes: FinanceType[]; expenseTypes: FinanceType[] }>({ currencies: [], incomeTypes: [], expenseTypes: [] })
+const financeForm = ref({ transaction_type: 'income' as 'income' | 'expense', type: '', description: '', amount: 0, currency_id: null as number | null })
+// Must be declared after `financeForm`: the watcher getter is evaluated during
+// setup, so an earlier declaration throws a temporal-dead-zone ReferenceError.
+const financeTypeOptions = computed(() => (financeForm.value.transaction_type === 'income' ? financeOptions.value.incomeTypes : financeOptions.value.expenseTypes).map(type => ({ title: financeTypeLabel(type), value: type.value })))
+watch(() => financeForm.value.transaction_type, () => {
+  financeForm.value.type = financeTypeOptions.value[0]?.value ?? ''
+})
 const documentDialog = ref(false)
 const uploadingDocument = ref(false)
 const documentTaskId = ref<number | null>(null)
@@ -265,11 +352,16 @@ async function removeApplicantAttachment(id: number) { if (!applicant.value) ret
 async function loadBoards() {
   try {
     const response = await BoardApi.getAll()
-    const rows = (response as { data?: { data?: Array<{ id: string; title: string }> } }).data?.data ?? []
+    const rows = (response as { data?: { data?: Array<{ id: string; title: string; is_personal?: boolean; is_owned?: boolean }> } }).data?.data ?? []
 
-    boards.value = rows.map(b => ({ id: String(b.id), title: b.title }))
-    if (!taskForm.value.board_id && boards.value.length)
-      taskForm.value.board_id = boards.value[0].id
+    boards.value = rows.map(b => ({
+      id: String(b.id),
+      title: b.title,
+      is_personal: !!b.is_personal,
+      is_owned: !!b.is_owned,
+    }))
+    if (!taskForm.value.board_id && personalBoard.value)
+      taskForm.value.board_id = personalBoard.value.id
   }
   catch {
     toast.error(t('educational.caseUi.loadBoardsFailed'))
@@ -339,13 +431,21 @@ async function recordStage(target: ApplicantStage) {
 }
 
 function openTaskDialog() {
-  taskForm.value = { board_id: boards.value[0]?.id ?? '', title: '', priority: 'medium', due_date: '' }
+  if (!personalBoard.value) {
+    toast.error(t('educational.caseUi.personalBoardMissing'))
+
+    return
+  }
+
+  taskForm.value = { board_id: personalBoard.value.id, title: '', priority: 'medium', due_date: '' }
   taskDialog.value = true
 }
 
 async function createTask() {
-  if (!taskForm.value.board_id || !taskForm.value.title.trim() || !applicant.value)
+  if (!personalBoard.value || !taskForm.value.title.trim() || !applicant.value)
     return
+
+  taskForm.value.board_id = personalBoard.value.id
 
   creatingTask.value = true
   try {
@@ -619,14 +719,18 @@ async function openFinanceDialog() {
     return
 
   try {
-    financeOptions.value = await PendingTransactionApi.options()
+    const [currencyResponse, incomeTypes, expenseTypes] = await Promise.all([
+      CurrencyApi.getAll(),
+      getFinanceTypes('income'),
+      getFinanceTypes('expense'),
+    ])
+    financeOptions.value = { currencies: currencyResponse.data, incomeTypes, expenseTypes }
     financeForm.value = {
       transaction_type: 'income',
-      reason: '',
+      type: incomeTypes[0]?.value ?? '',
+      description: '',
       amount: 0,
-      currency_id: financeOptions.value.currencies.find(currency => currency.is_base)?.id ?? null,
-      applicant_id: applicant.value.id,
-      employee_id: applicant.value.responsible_employee_id ?? null,
+      currency_id: currencyResponse.data.find(currency => currency.isBase)?.id ?? null,
     }
     financeDialog.value = true
   }
@@ -636,12 +740,29 @@ async function openFinanceDialog() {
 }
 
 async function createFinanceRequest() {
-  if (!financeForm.value.reason.trim() || financeForm.value.amount <= 0 || !financeForm.value.currency_id)
+  if (!applicant.value || !financeForm.value.type || !financeForm.value.description.trim() || financeForm.value.amount <= 0 || !financeForm.value.currency_id)
     return
 
+  const currency = financeOptions.value.currencies.find(row => row.id === financeForm.value.currency_id)
   savingFinance.value = true
   try {
-    await PendingTransactionApi.create(financeForm.value)
+    const payload = {
+      applicant_id: applicant.value.id,
+      type: financeForm.value.type,
+      description: financeForm.value.description.trim(),
+      amount: financeForm.value.amount,
+      quantity: 1,
+      currency_id: financeForm.value.currency_id,
+      rate: Number(currency?.rate ?? 1),
+      date: new Date().toISOString().slice(0, 10),
+      status: 'draft' as const,
+    }
+
+    if (financeForm.value.transaction_type === 'income')
+      await createIncome(payload)
+    else
+      await createExpense(payload)
+
     financeDialog.value = false
     await load()
     toast.success(translate('common.ui.financialRequestLinkedToThisVisaCase'))
@@ -651,6 +772,50 @@ async function createFinanceRequest() {
   }
   finally {
     savingFinance.value = false
+  }
+}
+
+async function approveDraftFinance(row: DraftFinanceRow) {
+  try {
+    if (row.kind === 'income')
+      await approveIncome(row.id)
+    else
+      await approveExpense(row.id)
+
+    await load()
+    toast.success(translate('finance.drafts.approved'))
+  }
+  catch {
+    toast.error(translate('finance.drafts.approveFailed'))
+  }
+}
+
+function openRejectDraft(row: DraftFinanceRow) {
+  rejectFinanceTarget.value = row
+  rejectFinanceReason.value = ''
+  rejectFinanceDialog.value = true
+}
+
+async function rejectDraftFinance() {
+  if (!rejectFinanceTarget.value || !rejectFinanceReason.value.trim())
+    return
+
+  savingRejectFinance.value = true
+  try {
+    if (rejectFinanceTarget.value.kind === 'income')
+      await rejectIncome(rejectFinanceTarget.value.id, rejectFinanceReason.value.trim())
+    else
+      await rejectExpense(rejectFinanceTarget.value.id, rejectFinanceReason.value.trim())
+
+    rejectFinanceDialog.value = false
+    await load()
+    toast.success(translate('finance.drafts.rejected'))
+  }
+  catch {
+    toast.error(translate('finance.drafts.rejectFailed'))
+  }
+  finally {
+    savingRejectFinance.value = false
   }
 }
 
@@ -668,7 +833,7 @@ async function uploadDocument() {
   try {
     // Reuse the task's input-attachment flow: documents therefore retain the
     // same access controls, audit trail, download handling, and file limits.
-    await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value, 'input')
+    await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value)
     documentDialog.value = false
     await load()
     toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
@@ -801,29 +966,85 @@ onMounted(async () => {
         <section class="case-section">
           <div class="case-section__heading"><h3>{{ t('educational.caseUi.tasks') }}</h3><VBtn v-if="canCreateTask" size="small" prepend-icon="tabler-plus" @click="openTaskDialog">{{ t('educational.caseUi.newTask') }}</VBtn></div>
           <p v-if="!canCreateTask" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.taskPermission') }}</p>
-          <VList><VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSubtitle(task)"><template #append><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" :disabled="!!taskCompleteBlock(task)" :aria-label="`${t('educational.caseUi.complete')}: ${task.title}`" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}<VTooltip v-if="taskCompleteBlock(task)" activator="parent">{{ taskCompleteBlock(task) }}</VTooltip></VBtn></template></VListItem><VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="taskSubtitle(task)"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem></VList>
+          <VList><VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSubtitle(task)"><template #append><VBtn v-if="task.can_view" size="small" variant="text" color="primary" :to="{ name: 'tasks', query: { view: 'todos', task: task.id } }" :aria-label="`${t('educational.caseUi.openInTaskMatrix')}: ${task.title}`" :title="t('educational.caseUi.openInTaskMatrix')"><VIcon icon="tabler-arrow-up-right" size="18" /></VBtn><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" :disabled="!!taskCompleteBlock(task)" :aria-label="`${t('educational.caseUi.complete')}: ${task.title}`" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}<VTooltip v-if="taskCompleteBlock(task)" activator="parent">{{ taskCompleteBlock(task) }}</VTooltip></VBtn></template></VListItem><VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="taskSubtitle(task)"><template #prepend><VIcon icon="tabler-check" color="success" /></template><template #append><VBtn v-if="task.can_view" size="small" variant="text" color="primary" :to="{ name: 'tasks', query: { view: 'todos', task: task.id } }" :aria-label="`${t('educational.caseUi.openInTaskMatrix')}: ${task.title}`" :title="t('educational.caseUi.openInTaskMatrix')"><VIcon icon="tabler-arrow-up-right" size="18" /></VBtn></template></VListItem></VList>
           <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noTasks') }}</p>
         </section>
 
         <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section">
           <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
+          <div v-if="caseCountry" class="case-country-contact">
+            <div class="case-country-contact__identity">
+              <span class="text-caption text-medium-emphasis">{{ t('educational.destinationCountry') }}</span>
+              <strong>{{ caseCountry.name }}</strong>
+            </div>
+            <ContactActionMenu v-if="caseCountry.phone" kind="phone" :value="caseCountry.phone" />
+            <ContactActionMenu v-if="caseCountry.email" kind="email" :value="caseCountry.email" />
+            <a v-if="portalHref(caseCountry.portal_url)" :href="portalHref(caseCountry.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">
+              <VIcon icon="tabler-world" size="16" />
+              <span>{{ t('educational.caseUi.visitWebsite') }}</span>
+            </a>
+          </div>
           <p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.primaryChoiceHint') }}</p>
           <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
           <h4 class="mt-2">{{ t('educational.caseUi.trackedApplications') }}</h4>
-          <VList><VListItem v-for="app in applicant.universities" :key="app.id" class="university-application-item" :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })" :subtitle="t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') })"><template #prepend><VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip></template><template v-if="canEditCase" #append><VMenu><template #activator="{ props }"><VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn></template><VList density="compact"><VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" /></VList></VMenu><VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn><VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn></template></VListItem></VList>
+          <VList>
+            <VListItem
+              v-for="app in applicant.universities"
+              :key="app.id"
+              class="university-application-item"
+              :title="app.university?.name ?? t('educational.caseUi.universityNumber', { id: n(app.university_id) })"
+            >
+              <template #prepend>
+                <VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip>
+              </template>
+              <template #subtitle>
+                <span>{{ t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') }) }}</span>
+                <div v-if="universityContactFor(app.university_id)" class="university-quick-contact">
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.phone" kind="phone" :value="universityContactFor(app.university_id)?.phone" />
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.email" kind="email" :value="universityContactFor(app.university_id)?.email" />
+                  <a v-if="portalHref(universityContactFor(app.university_id)?.portal_url)" :href="portalHref(universityContactFor(app.university_id)?.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">
+                    <VIcon icon="tabler-external-link" size="16" />
+                    <span>{{ t('educational.caseUi.openPortal') }}</span>
+                  </a>
+                </div>
+              </template>
+              <template v-if="canEditCase" #append>
+                <VBtn size="small" variant="text" prepend-icon="tabler-notes" @click="openUniNotes(app)">{{ t('educational.caseUi.universityNotes') }}</VBtn>
+                <VMenu>
+                  <template #activator="{ props }">
+                    <VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn>
+                  </template>
+                  <VList density="compact">
+                    <VListItem v-for="s in uniStatuses" :key="s" :title="translateBackendValue(s)" @click="setUniStatus(app.id, s)" />
+                  </VList>
+                </VMenu>
+                <VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
+                <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn>
+              </template>
+            </VListItem>
+          </VList>
           <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noApplications') }}</p>
         </section>
 
         <section v-if="canViewFinance" class="case-section">
-          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreatePendingTransactions" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn><VBtn size="small" variant="text" :to="{ name: 'payment-requests' }">{{ t('educational.caseUi.pendingWorkspace') }}</VBtn></div></div>
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreateDraftFinance" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn></div></div>
           <VList v-if="applicant.services?.length" density="compact">
             <VListItem v-for="line in applicant.services" :key="`balance-${line.id}`" :title="line.contract_number ?? line.type ?? line.service" :subtitle="t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') })" />
           </VList>
           <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.postedLedgerNote') }}</p>
           <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.financeSummary', { income: money(postedIncomeTotal), expenses: money(postedExpenseTotal) }) }}</p>
-          <VList><VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="t('educational.caseUi.transactionTitle', { type: translateBackendValue(row.transaction_type), reason: row.reason })" :subtitle="t('educational.caseUi.transactionSummary', { amount: money(row.amount), status: translateBackendValue(row.approval_status), rejection: row.rejection_reason || t('common.messages.notAvailable') })" /></VList>
+          <h4 class="mt-2">{{ t('educational.caseUi.draftRecords') }}</h4>
+          <VList density="compact">
+            <VListItem v-for="row in draftFinanceRows" :key="`draft-${row.kind}-${row.id}`" :title="t('educational.caseUi.draftRecordTitle', { type: translateBackendValue(row.kind), description: row.description || t('common.messages.notAvailable') })" :subtitle="t('educational.caseUi.draftSummary', { amount: money(row.amount), status: translateBackendValue(row.status), rejection: row.rejection_reason || t('common.messages.notAvailable') })">
+              <template v-if="canApproveDrafts && row.status === 'draft'" #append>
+                <VBtn size="x-small" variant="text" color="success" @click="approveDraftFinance(row)">{{ t('finance.drafts.approve') }}</VBtn>
+                <VBtn size="x-small" variant="text" color="error" @click="openRejectDraft(row)">{{ t('finance.drafts.reject') }}</VBtn>
+              </template>
+            </VListItem>
+          </VList>
+          <p v-if="!draftFinanceRows.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noDrafts') }}</p>
           <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem></VList>
-          <p v-if="!applicant.pending_transactions?.length && !applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
+          <p v-if="!applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
         </section>
 
         <section class="case-section case-section--documents">
@@ -866,7 +1087,9 @@ onMounted(async () => {
   <VDialog v-model="taskDialog" max-width="560">
     <VCard :title="t('educational.caseUi.newTask')">
       <VCardText class="case-dialog-body">
-        <VSelect v-model="taskForm.board_id" :items="boards.map(b => ({ title: b.title, value: b.id }))" :label="t('common.fields.board')" class="mb-3" />
+        <VAlert type="info" variant="tonal" density="compact" class="mb-3">
+          {{ t('educational.caseUi.personalBoardOnly') }}
+        </VAlert>
         <VTextField v-model="taskForm.title" :label="t('common.fields.title')" class="mb-3" />
         <VSelect v-model="taskForm.priority" :items="['low', 'medium', 'high', 'urgent'].map(value => ({ value, title: translateBackendValue(value) }))" :label="t('common.fields.priority')" class="mb-3" />
         <VTextField v-model="taskForm.due_date" type="date" :label="t('educational.caseUi.dueDate')" clearable />
@@ -874,7 +1097,7 @@ onMounted(async () => {
       <VCardActions>
         <VSpacer />
         <VBtn @click="taskDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="creatingTask" :disabled="!taskForm.board_id || !taskForm.title.trim()" @click="createTask">{{ t('common.actions.create') }}</VBtn>
+        <VBtn color="primary" :loading="creatingTask" :disabled="!personalBoard || !taskForm.title.trim()" @click="createTask">{{ t('common.actions.create') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -891,6 +1114,19 @@ onMounted(async () => {
         <VSpacer />
         <VBtn @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn>
         <VBtn color="primary" :loading="savingUni" :disabled="!uniForm.university_id" @click="saveUni">{{ t('common.actions.add') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="uniNotesDialog" max-width="560">
+    <VCard :title="t('educational.caseUi.universityNotes')" :subtitle="uniNotesTarget?.university?.name">
+      <VCardText class="case-dialog-body">
+        <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.universityNotesHint') }}</p>
+        <VTextarea v-model="uniNotesDraft" :label="t('common.fields.notes')" rows="4" autofocus />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn @click="uniNotesDialog = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" :loading="savingUniNotes" @click="saveUniNotes">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -962,15 +1198,27 @@ onMounted(async () => {
     <VCard :title="$t('common.ui.newFinancialRequest')">
       <VCardText class="case-dialog-body">
         <VSelect v-model="financeForm.transaction_type" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" :label="$t('educational.transactionType')" class="mb-3" />
-        <VTextarea v-model="financeForm.reason" :label="$t('common.fields.reason')" class="mb-3" />
+        <VSelect v-model="financeForm.type" :items="financeTypeOptions" :label="$t('common.fields.type')" class="mb-3" />
+        <VTextarea v-model="financeForm.description" :label="$t('common.fields.reason')" class="mb-3" />
         <VTextField v-model.number="financeForm.amount" type="number" min="0.000001" :label="$t('common.fields.amount')" class="mb-3" />
         <VSelect v-model="financeForm.currency_id" :items="financeOptions.currencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" :label="$t('serviceContracts.currency')" class="mb-3" />
-        <VSelect v-model="financeForm.employee_id" :items="financeOptions.employees.map(row => ({ title: row.name, value: row.id }))" :label="$t('serviceContracts.responsibleEmployee')" clearable />
       </VCardText>
       <VCardActions>
         <VSpacer />
         <VBtn @click="financeDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingFinance" :disabled="!financeForm.reason.trim() || financeForm.amount <= 0 || !financeForm.currency_id" @click="createFinanceRequest">{{ t('common.actions.submit') }}</VBtn>
+        <VBtn color="primary" :loading="savingFinance" :disabled="!financeForm.type || !financeForm.description.trim() || financeForm.amount <= 0 || !financeForm.currency_id" @click="createFinanceRequest">{{ t('common.actions.submit') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="rejectFinanceDialog" max-width="480">
+    <VCard :title="$t('finance.drafts.rejectTitle')">
+      <VCardText class="case-dialog-body">
+        <VTextarea v-model="rejectFinanceReason" :label="$t('finance.drafts.rejectionReason')" rows="3" autofocus />
+      </VCardText>
+      <VCardActions>
+        <VSpacer />
+        <VBtn variant="tonal" color="secondary" @click="rejectFinanceDialog = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="error" :loading="savingRejectFinance" :disabled="!rejectFinanceReason.trim()" @click="rejectDraftFinance">{{ t('finance.drafts.reject') }}</VBtn>
       </VCardActions>
     </VCard>
   </VDialog>
@@ -991,6 +1239,43 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.case-country-contact {
+  align-items: center;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-block: 8px 12px;
+  padding: 10px 12px;
+}
+
+.case-country-contact__identity {
+  display: flex;
+  flex-direction: column;
+}
+
+.university-quick-contact {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-block-start: 4px;
+}
+
+.case-portal-link {
+  align-items: center;
+  color: rgb(var(--v-theme-primary));
+  display: inline-flex;
+  font-size: 0.8125rem;
+  gap: 4px;
+  text-decoration: none;
+}
+
+.case-portal-link:hover {
+  text-decoration: underline;
+}
+
 .case-title-link {
   color: rgb(var(--v-theme-primary));
   font-weight: 600;

@@ -18,7 +18,7 @@ class SalaryExpenseSynchronizer
     }
 
     /** Record one actual payroll disbursement and its matching expense. */
-    public function createPayment(Salary $salary, float $amount, string $date, ?string $remarks, ?int $recordedBy, ?int $pendingTransactionId = null): SalaryPayment
+    public function createPayment(Salary $salary, float $amount, string $date, ?string $remarks, ?int $recordedBy): SalaryPayment
     {
         $salary->loadMissing(['employee', 'deductions']);
         $details = sprintf(
@@ -42,7 +42,7 @@ class SalaryExpenseSynchronizer
             'recorded_by' => $recordedBy ?? $salary->recorded_by,
         ]);
         $payment = SalaryPayment::create([
-            'salary_id' => $salary->id, 'expense_id' => $expense->id, 'pending_transaction_id' => $pendingTransactionId,
+            'salary_id' => $salary->id, 'expense_id' => $expense->id,
             'amount' => $amount, 'payment_date' => $date, 'remarks' => $remarks, 'recorded_by' => $recordedBy,
         ]);
         $this->refreshPaymentTotals($salary->fresh(['deductions']));

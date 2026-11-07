@@ -19,7 +19,7 @@ class TaskAttachmentController extends Controller
                 'required', 'file', 'max:10240',
                 'mimes:pdf,txt,csv,doc,docx,xls,xlsx,png,jpg,jpeg,webp',
             ],
-            'section' => ['nullable', 'in:input,results'],
+            'section' => ['nullable', 'in:input'],
         ]);
 
         $file = $validated['file'];
@@ -28,7 +28,7 @@ class TaskAttachmentController extends Controller
         try {
             $attachment = $task->attachments()->create([
                 'user_id' => $request->user()->id,
-                'section' => $validated['section'] ?? 'results',
+                'section' => $validated['section'] ?? 'input',
                 'disk' => $disk,
                 'path' => $path,
                 'original_name' => $file->getClientOriginalName(),

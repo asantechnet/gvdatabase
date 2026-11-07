@@ -8,6 +8,7 @@ import WorkdayControl from '@/components/workday/WorkdayControl.vue'
 import EndDayDialog from '@/components/workday/EndDayDialog.vue'
 import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
 import WorkdayApi, { WorkdayLocationError } from '@/api/workday'
+import { setNotificationSoundEnabled } from '@/composables/useNotificationHeartbeat'
 import { useToast } from 'vue-toastification'
 
 const router = useRouter()
@@ -35,6 +36,7 @@ async function refreshUser() {
   try {
     userData.value = (await AuthApi.me()).data.data
     applyPermissions(userData.value.permissions ?? [])
+    setNotificationSoundEnabled(userData.value.notification_sound === true)
   }
   catch { /* The auth guard handles an expired session. */ }
 }

@@ -17,7 +17,6 @@ export interface Task {
   boardId: string
   title: string
   description: string
-  results: string
   attachments: TaskAttachment[]
   priority: 'low' | 'medium' | 'high' | 'urgent'
   progress: number
@@ -37,7 +36,7 @@ export interface Task {
 
 export interface TaskAttachment {
   id: string
-  section: 'input' | 'results'
+  section: 'input'
   name: string
   mimeType: string | null
   size: number
@@ -88,21 +87,10 @@ export interface Comment {
   editWindowExpired: boolean
 }
 
-export interface CreateBoardData {
-  title: string
-  order?: number
-}
-
-export interface UpdateBoardData {
-  title: string
-  order?: number
-}
-
 export interface CreateTaskData {
   board_id: string
   title: string
   description?: string
-  results?: string
   priority?: 'low' | 'medium' | 'high' | 'urgent'
   start_date?: string
   due_date?: string
@@ -115,7 +103,6 @@ export interface CreateTaskData {
 export interface UpdateTaskData {
   title?: string
   description?: string
-  results?: string
   priority?: 'low' | 'medium' | 'high' | 'urgent'
   progress?: number
   start_date?: string
@@ -145,37 +132,6 @@ const KanbanApi = {
     }
     catch (error) {
       console.error('API getBoard error:', error)
-      throw error
-    }
-  },
-
-  // Board endpoints
-  createBoard: async (data: CreateBoardData) => {
-    try {
-      return await api.post<{ data: Board }>('/boards', data)
-    }
-    catch (error) {
-      console.error('API createBoard error:', error)
-      throw error
-    }
-  },
-
-  updateBoard: async (id: string, data: UpdateBoardData) => {
-    try {
-      return await api.put<{ message: string }>(`/boards/${id}`, data)
-    }
-    catch (error) {
-      console.error('API updateBoard error:', error)
-      throw error
-    }
-  },
-
-  deleteBoard: async (id: string) => {
-    try {
-      return await api.delete<{ message: string }>(`/boards/${id}`)
-    }
-    catch (error) {
-      console.error('API deleteBoard error:', error)
       throw error
     }
   },

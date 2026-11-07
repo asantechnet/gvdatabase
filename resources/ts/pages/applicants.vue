@@ -456,7 +456,10 @@ onMounted(async () => {
     </VCardText>
     <VChip v-if="focus" closable class="mx-4 mb-3" color="primary" @click:close="focus = ''; page = 1; load()">{{ focusOptions.find(option => option.value === focus)?.title }}</VChip>
     <p v-if="!service" class="text-caption text-medium-emphasis px-4 pt-4 mb-0">{{ $t('educational.serviceStageHint') }}</p>
-    <VTabs v-if="service" v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
+    <!-- Do not mount the tabs before their items exist: Vuetify writes an
+         unmatched model value back as empty, which silently drops the stage
+         carried by a deep link such as ?service=scholarship&stage=consultation. -->
+    <VTabs v-if="service && stages.length" v-model="stage" show-arrows class="px-3" @update:model-value="onTabChange">
       <VTab value="">{{ $t('educational.allApplications') }}</VTab>
       <VTab v-for="item in pipelineStages" :key="item.id" :value="item.key">{{ translateApplicantStage(item) }}</VTab>
       <VDivider v-if="terminalStages.length && pipelineStages.length" vertical class="stage-tabs-divider align-self-center" />

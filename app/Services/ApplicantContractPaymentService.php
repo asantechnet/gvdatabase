@@ -156,6 +156,7 @@ class ApplicantContractPaymentService
     {
         return Income::query()
             ->where('applicant_contract_id', $line->id)
+            ->where('status', Income::APPROVED)
             ->get();
     }
 }

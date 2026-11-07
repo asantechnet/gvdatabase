@@ -27,7 +27,12 @@ class EnforceEditWindow
     private const SELF_ENFORCED_ACTIONS = [
         'App\Http\Controllers\SubtaskController@update',
         'App\Http\Controllers\CommentController@update',
-        'App\Http\Controllers\PendingTransactionController@update',
+        // Approving or rejecting a draft is a workflow transition, not an edit
+        // of the record's content, so the one-hour edit window does not apply.
+        'App\Http\Controllers\IncomeController@approve',
+        'App\Http\Controllers\IncomeController@reject',
+        'App\Http\Controllers\ExpenseController@approve',
+        'App\Http\Controllers\ExpenseController@reject',
     ];
 
     public function handle(Request $request, Closure $next): Response

@@ -231,9 +231,11 @@ const actionRows = computed(() => {
       title: t("educational.awaitingApproval"),
       reference: n(data.value.attention.pending_approvals),
       count: data.value.attention.pending_approvals,
-      route: canAccess("view_pending_transactions")
-        ? { name: "payment-requests" }
-        : { name: "applications" },
+      route:
+        canAccess("view_all_finance_records") ||
+        canAccess("view_own_finance_records")
+          ? { name: "income" }
+          : { name: "applications" },
       icon: "tabler-circle-check",
       tone: "warning",
     },

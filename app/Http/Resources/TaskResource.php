@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\TaskAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -12,12 +13,12 @@ class TaskResource extends JsonResource
     {
         return [
             'id' => (string) $this->id,
+            'can_view' => TaskAccess::canViewTask($request->user(), $this->resource),
             'boardId' => (string) $this->board_id,
             'applicantId' => $this->applicant_id,
             'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'status' => $this->applicant->status] : null),
             'title' => $this->title,
             'description' => $this->description ?? '',
-            'results' => $this->results ?? '',
             'priority' => $this->priority,
             'progress' => (int) $this->progress,
             'startDate' => $this->start_date ? Carbon::parse($this->start_date)->format('Y-m-d') : '',

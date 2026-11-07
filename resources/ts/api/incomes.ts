@@ -72,6 +72,8 @@ export const setContractPaymentOverride = async (lineId: number, data: ContractP
   return response.data.data
 }
 
+export type FinanceRecordStatus = 'draft' | 'approved' | 'rejected'
+
 export interface Income {
   id: number
   receipt_number: string
@@ -96,6 +98,12 @@ export interface Income {
   date: string
   recorded_by?: number | null
   recordedBy?: { id: number; name: string } | null
+  status: FinanceRecordStatus
+  approved_by?: number | null
+  approved_at?: string | null
+  rejected_at?: string | null
+  rejection_reason?: string | null
+  approver?: { id: number; name: string } | null
   created_at?: string
   updated_at?: string
 }
@@ -110,6 +118,8 @@ export interface IncomeCreateData {
   quantity: number
   rate: number
   date: string
+  /** Omitted means the record is approved and posted directly. */
+  status?: Extract<FinanceRecordStatus, 'draft' | 'approved'>
 }
 
 export interface IncomeUpdateData {
@@ -129,6 +139,7 @@ export interface IncomeUpdateData {
 export interface IncomeParams {
   search?: string
   type?: string
+  status?: FinanceRecordStatus
   currency_id?: number
   applicant_id?: number
   applicant_contract_id?: number
@@ -209,6 +220,18 @@ export const updateIncome = async (id: number, data: IncomeUpdateData): Promise<
     console.error(`Error updating income ${id}:`, error)
     throw error
   }
+}
+
+export const approveIncome = async (id: number): Promise<Income> => {
+  const response = await api.patch(`/incomes/${id}/approve`)
+
+  return response.data.data
+}
+
+export const rejectIncome = async (id: number, rejectionReason: string): Promise<Income> => {
+  const response = await api.patch(`/incomes/${id}/reject`, { rejection_reason: rejectionReason })
+
+  return response.data.data
 }
 
 export const deleteIncome = async (id: number): Promise<void> => {

@@ -52,7 +52,7 @@ class CatalogueIssuanceRetirementTest extends TestCase
         $this->assertDatabaseCount('universities', 3);
         $this->assertDatabaseCount('semesters', 1);
         $this->assertSame($before, Contract::count());
-        foreach (['applicants', 'incomes', 'pending_transactions', 'educational_bonus_sources', 'applicant_attachments'] as $table) {
+        foreach (['applicants', 'incomes', 'educational_bonus_sources', 'applicant_attachments'] as $table) {
             $this->assertDatabaseCount($table, 0);
         }
     }

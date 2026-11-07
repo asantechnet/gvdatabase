@@ -9,9 +9,9 @@ use App\Models\ApplicantStageHistory;
 use App\Models\CaseWin;
 use App\Models\Contract;
 use App\Models\Employee;
+use App\Models\Expense;
 use App\Models\Income;
 use App\Models\Notification;
-use App\Models\PendingTransaction;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\BuiltInService;
@@ -248,34 +248,39 @@ class EducationalWorkflowNotificationService
         );
     }
 
-    public function pendingSubmitted(PendingTransaction $pending): void
+    /** A draft income or expense is waiting for a finance decision. */
+    public function financeDraftSubmitted(Income|Expense $record): void
     {
-        $recipientIds = $this->usersWithPermission('approve_pending_transactions')
-            ->reject(fn (int $id) => $id === (int) $pending->requested_by);
+        $record->loadMissing(['applicant', 'recorder']);
+        $recipientIds = $this->usersWithPermission('approve_draft_finance_records')
+            ->reject(fn (int $id) => $id === (int) $record->recorded_by);
+        $kind = $record instanceof Income ? 'income' : 'expense';
 
         $this->notifyOnce(
-            "finance.pending.submitted.{$pending->id}",
+            "finance.draft.submitted.{$kind}.{$record->id}",
             'finance',
-            'Financial request awaiting review',
-            "Pending {$pending->transaction_type} request #{$pending->id} is ready for review.",
-            [...$this->pendingData($pending), 'translation_key' => 'finance.pendingSubmitted'],
-            '/pending-transactions',
+            'Draft finance record awaiting approval',
+            "Draft {$kind} #{$record->id} is ready for review.",
+            [...$this->financeDraftData($record, $kind), 'translation_key' => 'finance.draftSubmitted'],
+            $kind === 'income' ? '/income' : '/expenses',
             $recipientIds,
         );
     }
 
-    public function pendingStatusChanged(PendingTransaction $pending, string $status, ?int $actorId = null): void
+    public function financeDraftStatusChanged(Income|Expense $record, string $status, ?int $actorId = null): void
     {
-        $recipientIds = collect([$pending->requested_by])
+        $record->loadMissing(['applicant', 'recorder']);
+        $recipientIds = collect([$record->recorded_by])
             ->filter(fn ($id) => $id && (int) $id !== $actorId);
+        $kind = $record instanceof Income ? 'income' : 'expense';
 
         $this->notifyOnce(
-            "finance.pending.{$status}.{$pending->id}",
-            $status === PendingTransaction::REJECTED ? 'error' : 'finance',
-            'Financial request updated',
-            "Pending {$pending->transaction_type} request #{$pending->id} is now ".str_replace('_', ' ', $status).'.',
-            [...$this->pendingData($pending), 'status' => $status, 'reason' => $pending->rejection_reason, 'translation_key' => 'finance.pendingStatus'],
-            '/pending-transactions',
+            "finance.draft.{$status}.{$kind}.{$record->id}",
+            $status === Income::REJECTED ? 'error' : 'finance',
+            'Draft finance record updated',
+            "Draft {$kind} #{$record->id} is now {$status}.",
+            [...$this->financeDraftData($record, $kind), 'status' => $status, 'reason' => $record->rejection_reason, 'translation_key' => 'finance.draftStatus'],
+            $kind === 'income' ? '/income' : '/expenses',
             $recipientIds,
         );
     }
@@ -407,13 +412,14 @@ class EducationalWorkflowNotificationService
         return $applicant->name ?: "Case #{$applicant->id}";
     }
 
-    private function pendingData(PendingTransaction $pending): array
+    private function financeDraftData(Income|Expense $record, string $kind): array
     {
         return [
-            'pending_transaction_id' => $pending->id,
-            'transaction_type' => $pending->transaction_type,
-            'amount' => (string) $pending->amount,
-            'requester' => $pending->requester?->name,
+            'record_type' => $kind,
+            'record_id' => $record->id,
+            'amount' => (string) $record->amount,
+            'applicant' => $record->applicant ? $this->applicantLabel($record->applicant) : null,
+            'recorded_by' => $record->recorder?->name,
         ];
     }
 }

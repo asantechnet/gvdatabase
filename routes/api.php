@@ -44,7 +44,6 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OffDayController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\LeaveRequestController;
-use App\Http\Controllers\PendingTransactionController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\RecurringEventController;
@@ -141,15 +140,13 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     });
 
     // 1. Fetch entire Kanban state (Boards with nested tasks, assignees, tags, etc.)
-    Route::get('/kanban', [KanbanController::class, 'index'])->middleware('permission:view_all_boards,view_assigned_boards');
+    $boardReadPermissions = 'permission:view_all_boards,view_assigned_boards,view_private_contracts,view_scholarship_contracts,view_test_offer_contracts,view_academy_contracts,view_other_contracts';
+    Route::get('/kanban', [KanbanController::class, 'index'])->middleware($boardReadPermissions);
 
-    // 2. Board Management (Columns)
-    Route::get('/boards', [BoardController::class, 'index'])->middleware('permission:view_all_boards,view_assigned_boards');
-    Route::post('/boards', [BoardController::class, 'store']);
-    Route::put('/boards/reorder', [BoardController::class, 'reorder']);
-    Route::put('/boards/{board}/members', [BoardController::class, 'syncMembers']);
-    Route::put('/boards/{board}', [BoardController::class, 'update']); // Rename board
-    Route::delete('/boards/{board}', [BoardController::class, 'destroy']);
+    // 2. Board reads. Boards are product-owned and cannot be created, renamed,
+    // reordered, shared or deleted through the API. Service-board access is
+    // derived from the matching contract-category permission in the model scope.
+    Route::get('/boards', [BoardController::class, 'index'])->middleware($boardReadPermissions);
 
     // 3. Task Management (Cards)
     Route::get('/task-assignees', [TaskAssigneeController::class, 'index'])->middleware('permission:assign_task_members');
@@ -278,12 +275,15 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('update', 'permission:edit_salaries')
         ->middlewareFor('destroy', 'permission:delete_salaries');
 
-    // Expense routes (new correct spelling)
+    // Expense routes (new correct spelling). A row is a draft until a finance
+    // approver accepts it; the own/all grants decide which rows a list shows.
     Route::apiResource('expenses', ExpenseController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_expenses')
-        ->middlewareFor('store', 'permission:create_expenses')
-        ->middlewareFor('update', 'permission:edit_expenses')
-        ->middlewareFor('destroy', 'permission:delete_expenses');
+        ->middlewareFor(['index', 'show'], 'permission:view_expenses,view_own_finance_records,view_all_finance_records')
+        ->middlewareFor('store', 'permission:create_expenses,create_draft_finance_records')
+        ->middlewareFor('update', 'permission:edit_expenses,create_draft_finance_records')
+        ->middlewareFor('destroy', 'permission:delete_expenses,create_draft_finance_records');
+    Route::patch('expenses/{expense}/approve', [ExpenseController::class, 'approve'])->middleware('permission:approve_draft_finance_records');
+    Route::patch('expenses/{expense}/reject', [ExpenseController::class, 'reject'])->middleware('permission:approve_draft_finance_records');
     Route::post('expenses/{expense}/document', [ExpenseController::class, 'uploadDocument'])->middleware('permission:edit_expenses');
     Route::get('expenses/{expense}/document', [ExpenseController::class, 'downloadDocument'])->middleware('permission:view_expenses');
     Route::delete('expenses/{expense}/document', [ExpenseController::class, 'removeDocument'])->middleware('permission:edit_expenses');
@@ -306,24 +306,26 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // Payments attach to a contracted service line, so the picker needs the
     // applicant's own lines (declared before the resource route below).
     Route::get('incomes/applicants', [IncomeController::class, 'applicants'])
-        ->middleware('permission:view_incomes');
+        ->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
     Route::get('incomes/applicant-contracts', [IncomeController::class, 'applicantContracts'])
-        ->middleware('permission:view_incomes');
+        ->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
     Route::put('incomes/applicant-contracts/{line}/payment-override', [IncomeController::class, 'paymentOverride'])
         ->middleware(['permission:view_incomes', 'permission:override_contract_payments']);
     Route::prefix('finance-types/{kind}')->whereIn('kind', ['income', 'expense'])->group(function () {
-        Route::get('/', [FinanceTypeController::class, 'index'])->middleware('permission:view_incomes,view_expenses,view_settings,create_incomes,edit_incomes,create_expenses,edit_expenses');
+        Route::get('/', [FinanceTypeController::class, 'index'])->middleware('permission:view_incomes,view_expenses,view_settings,create_incomes,edit_incomes,create_expenses,edit_expenses,create_draft_finance_records,approve_draft_finance_records,view_own_finance_records,view_all_finance_records');
         Route::get('/{id}', [FinanceTypeController::class, 'show'])->middleware('permission:view_settings');
         Route::post('/', [FinanceTypeController::class, 'store'])->middleware('permission:edit_settings');
         Route::put('/{id}', [FinanceTypeController::class, 'update'])->middleware('permission:edit_settings');
         Route::delete('/{id}', [FinanceTypeController::class, 'destroy'])->middleware('permission:edit_settings');
     });
     Route::apiResource('incomes', IncomeController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_incomes')
-        ->middlewareFor('store', 'permission:create_incomes')
-        ->middlewareFor('update', 'permission:edit_incomes')
-        ->middlewareFor('destroy', 'permission:delete_incomes');
-    Route::get('incomes/{income}/receipt', [IncomeController::class, 'receipt'])->middleware('permission:view_incomes');
+        ->middlewareFor(['index', 'show'], 'permission:view_incomes,view_own_finance_records,view_all_finance_records')
+        ->middlewareFor('store', 'permission:create_incomes,create_draft_finance_records')
+        ->middlewareFor('update', 'permission:edit_incomes,create_draft_finance_records')
+        ->middlewareFor('destroy', 'permission:delete_incomes,create_draft_finance_records');
+    Route::patch('incomes/{income}/approve', [IncomeController::class, 'approve'])->middleware('permission:approve_draft_finance_records');
+    Route::patch('incomes/{income}/reject', [IncomeController::class, 'reject'])->middleware('permission:approve_draft_finance_records');
+    Route::get('incomes/{income}/receipt', [IncomeController::class, 'receipt'])->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
 
     // Shared attachment sections. One implementation serves expenses, incomes
     // and staff; the controller enforces each resource's view/edit permission.
@@ -422,21 +424,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('educational-bonus-sources', [EducationalBonusSourceController::class, 'index'])->middleware('permission:view_bonuses');
     Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_educational_bonuses');
     Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');
-    // Payment requests are the canonical public workflow: an admission officer
-    // or counselor raises one, and the finance manager approves, posts and
-    // prints it. The legacy `loans` and `pending-transactions` paths are gone,
-    // so this prefix is the only public address of the workflow.
-    Route::prefix('payment-requests')->group(function () {
-        Route::get('/', [PendingTransactionController::class, 'index'])->middleware('permission:view_pending_transactions');
-        Route::get('options', [PendingTransactionController::class, 'options'])->middleware('permission:create_pending_transactions');
-        Route::post('/', [PendingTransactionController::class, 'store'])->middleware('permission:create_pending_transactions');
-        Route::put('{pendingTransaction}', [PendingTransactionController::class, 'update'])->middleware('permission:create_pending_transactions');
-        Route::post('{pendingTransaction}/review', [PendingTransactionController::class, 'review'])->middleware('permission:approve_pending_transactions');
-        Route::post('{pendingTransaction}/approve', [PendingTransactionController::class, 'approve'])->middleware('permission:approve_pending_transactions');
-        Route::post('{pendingTransaction}/reject', [PendingTransactionController::class, 'reject'])->middleware('permission:approve_pending_transactions');
-        Route::post('{pendingTransaction}/post', [PendingTransactionController::class, 'post'])->middleware('permission:post_pending_transactions');
-        Route::get('{pendingTransaction}/receipt', [PendingTransactionController::class, 'receipt'])->middleware('permission:view_pending_transactions');
-    });
     // Timesheet routes
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
@@ -449,8 +436,15 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
 
     // Currency routes
     Route::apiResource('currencies', CurrencyController::class)
-        ->middlewareFor(['index', 'show'], 'permission:view_currencies')
+        // A draft record names its currency; own-scope viewers need that list
+        // even though they cannot manage the currency catalogue.
+        ->middlewareFor(['index', 'show'], 'permission:view_currencies,view_incomes,view_expenses,create_draft_finance_records,approve_draft_finance_records,view_own_finance_records,view_all_finance_records')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_currencies');
+
+    // Company identity for documents and letterheads. Every signed-in user
+    // prints or views a company document, so this is not gated by the
+    // settings-admin permission; the resource never exposes mail passwords.
+    Route::get('company-profile', [SettingController::class, 'profile']);
 
     // Setting routes
     Route::apiResource('settings', SettingController::class)

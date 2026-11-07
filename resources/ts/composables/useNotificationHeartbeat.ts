@@ -22,10 +22,19 @@ const DING_SOURCE = '/sounds/notification-ding.mp3'
 
 let dingAudio: HTMLAudioElement | null = null
 let launchDingPlayed = false
+let notificationSoundEnabled = false
+
+/**
+ * Applies the account's sound preference for the rest of the session. This
+ * only gates audio: delivery and the inbox are unchanged.
+ */
+export const setNotificationSoundEnabled = (enabled: boolean) => {
+  notificationSoundEnabled = enabled !== false
+}
 
 /** Plays the notification chime once. Autoplay policies may reject it. */
 export const playNotificationDing = () => {
-  if (typeof window === 'undefined' || !isBackgroundActive())
+  if (!notificationSoundEnabled || typeof window === 'undefined' || !isBackgroundActive())
     return
 
   try {
@@ -43,7 +52,7 @@ export const playNotificationDing = () => {
  * already had unread notifications when the app opened (never once per item).
  */
 export const playLaunchDingOnce = (hasUnread: boolean) => {
-  if (launchDingPlayed || !hasUnread || !isBackgroundActive())
+  if (launchDingPlayed || !hasUnread || !notificationSoundEnabled || !isBackgroundActive())
     return
 
   launchDingPlayed = true

@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\ApplicantTaskService;
+use App\Support\ServiceBoard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -105,15 +106,20 @@ class ApplicantTaskIntegrationTest extends TestCase
     public function test_task_api_links_the_applicant(): void
     {
         $a = $this->postJson('/api/applicants', ['name' => 'Task Case'])->assertCreated()->json('data');
-        $board = Board::factory()->create();
+        $board = ServiceBoard::personalFor(auth()->user());
 
         $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Call the student', 'applicant_id' => $a['id']])
             ->assertCreated();
         $this->assertDatabaseHas('tasks', ['applicant_id' => $a['id'], 'title' => 'Call the student']);
 
+        // A case task may only be created on the caller's personal board.
+        $sharedBoard = Board::factory()->create();
+        $this->postJson('/api/tasks', ['board_id' => $sharedBoard->id, 'title' => 'Shared case task', 'applicant_id' => $a['id']])
+            ->assertUnprocessable();
+
         // Without an applicant the task is simply unlinked; there is no board
         // or project relationship to inherit from any more.
-        $this->postJson('/api/tasks', ['board_id' => $board->id, 'title' => 'Internal task'])
+        $this->postJson('/api/tasks', ['board_id' => $sharedBoard->id, 'title' => 'Internal task'])
             ->assertCreated();
         $this->assertDatabaseHas('tasks', ['applicant_id' => null, 'title' => 'Internal task']);
     }

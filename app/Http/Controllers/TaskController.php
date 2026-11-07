@@ -26,7 +26,6 @@ class TaskController extends Controller
             'board_id' => 'required|exists:boards,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'results' => 'nullable|string',
             'priority' => 'nullable|in:low,medium,high,urgent',
             'start_date' => 'nullable|date',
             'due_date' => 'nullable|date|after_or_equal:start_date',
@@ -39,6 +38,16 @@ class TaskController extends Controller
         ]);
 
         $board = Board::findOrFail($validated['board_id']);
+        // Case-level tasks are personal work. Contract delivery tasks are
+        // created by the workflow service on their service board, so only the
+        // manual applicant-linked path needs this guard.
+        if (! empty($validated['applicant_id'])) {
+            abort_unless(
+                $board->isPersonal() && (int) $board->user_id === (int) $request->user()->id,
+                422,
+                'business.case_task_requires_personal_board'
+            );
+        }
         Gate::authorize('create', [Task::class, $board]);
 
         if ($request->has('assignees')) {
@@ -80,7 +89,6 @@ class TaskController extends Controller
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'results' => 'nullable|string',
             'priority' => 'sometimes|in:low,medium,high,urgent',
             'progress' => ['sometimes', 'integer', Rule::in([0, 100])],
             'start_date' => 'nullable|date',

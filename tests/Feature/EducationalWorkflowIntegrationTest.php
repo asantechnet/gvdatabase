@@ -9,12 +9,12 @@ use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Notification;
-use App\Models\PendingTransaction;
 use App\Models\Role;
 use App\Models\University;
 use App\Models\User;
 use App\Services\EducationalWorkflowNotificationService;
 use Carbon\CarbonImmutable;
+use Database\Seeders\FinanceTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesBuiltInContracts;
@@ -56,8 +56,9 @@ class EducationalWorkflowIntegrationTest extends TestCase
         $this->assertSame(1, Notification::query()->where('notification_key', 'like', "applicant.stalled.{$applicant->id}.%")->count());
     }
 
-    public function test_financial_requests_notify_reviewers_and_staff_only_see_their_own_requests(): void
+    public function test_draft_finance_records_notify_reviewers_and_staff_only_see_their_own_records(): void
     {
+        $this->seed(FinanceTypeSeeder::class);
         $manager = $this->userWithRole('manager');
         $creator = $this->userWithRole('staff');
         $other = $this->userWithRole('staff');
@@ -66,32 +67,39 @@ class EducationalWorkflowIntegrationTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
 
         Sanctum::actingAs($creator, ['access']);
-        $pending = $this->postJson('/api/payment-requests', [
-            'transaction_type' => 'income',
-            'reason' => 'Applicant deposit',
+        $draft = $this->postJson('/api/incomes', [
+            'type' => 'Service',
+            'description' => 'Applicant deposit',
             'amount' => 25000,
+            'quantity' => 1,
             'currency_id' => $currency->id,
+            'rate' => 1,
+            'date' => now()->toDateString(),
+            'status' => 'draft',
         ])->assertCreated()->json('data');
 
-        PendingTransaction::create([
-            'transaction_type' => 'income',
-            'reason' => 'Another agent request',
+        Sanctum::actingAs($other, ['access']);
+        $this->postJson('/api/incomes', [
+            'type' => 'Service',
+            'description' => 'Another agent draft',
             'amount' => 100,
+            'quantity' => 1,
             'currency_id' => $currency->id,
-            'requested_by' => $other->id,
-            'approval_status' => PendingTransaction::SUBMITTED,
-            'requested_at' => now(),
-        ]);
+            'rate' => 1,
+            'date' => now()->toDateString(),
+            'status' => 'draft',
+        ])->assertCreated();
 
-        $this->getJson('/api/payment-requests')
+        Sanctum::actingAs($creator, ['access']);
+        $this->getJson('/api/incomes?per_page=25')
             ->assertOk()
-            ->assertJsonCount(1, 'data.data')
-            ->assertJsonPath('data.data.0.id', $pending['id']);
-        $this->assertSame(1, $manager->notifications()->where('notification_key', "finance.pending.submitted.{$pending['id']}")->count());
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $draft['id']);
+        $this->assertSame(1, $manager->notifications()->where('notification_key', "finance.draft.submitted.income.{$draft['id']}")->count());
 
         Sanctum::actingAs($manager, ['access']);
-        $this->postJson("/api/payment-requests/{$pending['id']}/approve")->assertOk();
-        $this->assertSame(1, $creator->notifications()->where('notification_key', "finance.pending.approved.{$pending['id']}")->count());
+        $this->patchJson("/api/incomes/{$draft['id']}/approve")->assertOk();
+        $this->assertSame(1, $creator->notifications()->where('notification_key', "finance.draft.approved.income.{$draft['id']}")->count());
     }
 
     public function test_staff_cannot_assign_cases_or_sales_to_another_employee(): void

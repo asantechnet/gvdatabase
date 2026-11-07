@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ApplicantContract;
 use App\Models\AuditLog;
+use App\Models\AuditResourceSetting;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Employee;
@@ -71,7 +72,7 @@ class VisaFirmComplianceTest extends TestCase
         }
     }
 
-    public function test_each_builtin_lifecycle_is_audited_and_notifies_once_without_resetting_read_state(): void
+    public function test_each_builtin_lifecycle_is_audited_and_notification_read_state_is_preserved(): void
     {
         $actor = $this->administrator();
         $owner = Employee::factory()->create();
@@ -82,27 +83,48 @@ class VisaFirmComplianceTest extends TestCase
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $notifier = app(EducationalWorkflowNotificationService::class);
 
-        foreach (['scholarship' => 'scholarship_applicant_details', 'test_offer' => 'test_applicant_details', 'academy' => 'academy_applicant_details'] as $service => $detail) {
-            $created = $this->createBuiltInContract($service, [
+        // Auditing is opt-in; this lifecycle test verifies the audit trail.
+        AuditRegistry::ensureSettings();
+        AuditResourceSetting::query()->update(['enabled' => true]);
+
+        $services = [
+            'scholarship' => ['detail' => 'scholarship_applicant_details', 'admission' => true],
+            'test_offer' => ['detail' => 'test_applicant_details', 'admission' => false],
+            'academy' => ['detail' => 'academy_applicant_details', 'admission' => false],
+        ];
+
+        foreach ($services as $service => $config) {
+            $detail = $config['detail'];
+            $payload = [
                 'responsible_employee_id' => $owner->id,
-                'admission_employee_id' => $admission->id,
                 'currency_id' => $currency->id,
                 'discount' => 10,
-            ]);
+            ];
+            // Admission assignment is valid only for scholarship/private.
+            if ($config['admission']) {
+                $payload['admission_employee_id'] = $admission->id;
+            }
+            $created = $this->createBuiltInContract($service, $payload);
             $contract = Contract::findOrFail($created['id']);
             $line = ApplicantContract::where('contract_id', $contract->id)->firstOrFail();
             foreach (['contracts' => $contract->id, 'applicant_contracts' => $line->id, $detail => $contract->applicant_id] as $resource => $id) {
                 $query = AuditLog::where('subject_type', $resource)->where('event', 'created');
                 $this->assertTrue($resource === $detail ? $query->exists() : $query->where('auditable_id', $id)->exists(), $resource);
             }
-            $generated = Notification::where('notification_key', "contract.generated.{$contract->id}")->firstOrFail();
-            $this->assertSame($service, $generated->data['service']);
-            $this->assertSame('/contracts/'.str_replace('_', '-', $service).'?contractId='.$contract->id, $generated->go_to_url);
-            $this->assertSame([$admission->user_id], $generated->recipients()->pluck('users.id')->all());
-            $generated->recipients()->updateExistingPivot($admission->user_id, ['is_read' => true]);
-            $notifier->contractGenerated($contract, $actor->id);
-            $this->assertSame(1, Notification::where('notification_key', $generated->notification_key)->count());
-            $this->assertEquals(1, DB::table('notification_user')->where('notification_id', $generated->id)->value('is_read'));
+            $notificationKey = "contract.generated.{$contract->id}";
+            if ($config['admission']) {
+                $generated = Notification::where('notification_key', $notificationKey)->firstOrFail();
+                $this->assertSame($service, $generated->data['service']);
+                $this->assertSame('/contracts/'.str_replace('_', '-', $service).'?contractId='.$contract->id, $generated->go_to_url);
+                $this->assertSame([$admission->user_id], $generated->recipients()->pluck('users.id')->all());
+                $generated->recipients()->updateExistingPivot($admission->user_id, ['is_read' => true]);
+                $notifier->contractGenerated($contract, $actor->id);
+                $this->assertSame(1, Notification::where('notification_key', $notificationKey)->count());
+                $this->assertEquals(1, DB::table('notification_user')->where('notification_id', $generated->id)->value('is_read'));
+            }
+            else {
+                $this->assertNull(Notification::where('notification_key', $notificationKey)->first());
+            }
 
             $payment = $this->postJson('/api/incomes', [
                 'applicant_id' => $contract->applicant_id, 'applicant_contract_id' => $line->id,

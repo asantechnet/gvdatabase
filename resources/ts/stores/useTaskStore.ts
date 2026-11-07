@@ -163,7 +163,6 @@ export const useTaskStore = defineStore('taskManager', () => {
       boards.value = response.data.data
       tasks.value = response.data.data.flatMap(board => board.tasks).map(task => ({
         ...task,
-        results: task.results ?? '',
         attachments: task.attachments ?? [],
       }))
     }
@@ -248,7 +247,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       if (index !== -1) {
         const returnedTask = response.data.data
         if (returnedTask) {
-          tasks.value[index] = { ...returnedTask, results: returnedTask.results ?? '', attachments: returnedTask.attachments ?? [] }
+          tasks.value[index] = { ...returnedTask, attachments: returnedTask.attachments ?? [] }
 
           return
         }
@@ -261,8 +260,6 @@ export const useTaskStore = defineStore('taskManager', () => {
           updatedTask.title = data.title
         if (data.description !== undefined)
           updatedTask.description = data.description
-        if (data.results !== undefined)
-          updatedTask.results = data.results
         if (data.priority)
           updatedTask.priority = data.priority
         if (data.progress !== undefined)
@@ -409,38 +406,6 @@ export const useTaskStore = defineStore('taskManager', () => {
     }
   }
 
-  const reorderBoards = async (boardIds: string[]) => {
-    if (!canAccess('reorder_boards'))
-      return
-
-    const currentIds = [...boards.value]
-      .sort((a, b) => a.order - b.order)
-      .map(board => board.id)
-
-    if (currentIds.length !== boardIds.length || currentIds.every((id, index) => id === boardIds[index]))
-      return
-
-    try {
-      isLoading.value = true
-      error.value = null
-      await BoardApi.reorder(boardIds)
-
-      const orderById = new Map(boardIds.map((id, index) => [id, index]))
-
-      boards.value.forEach(board => {
-        board.order = orderById.get(board.id) ?? board.order
-      })
-    }
-    catch (err) {
-      error.value = 'Failed to reorder boards'
-      console.error('Failed to reorder boards:', err)
-      await fetchBoardData()
-    }
-    finally {
-      isLoading.value = false
-    }
-  }
-
   const addSubTask = async (
     taskId: string,
     title: string,
@@ -574,72 +539,6 @@ export const useTaskStore = defineStore('taskManager', () => {
     Object.assign(comment, response.data.data)
   }
 
-  const createBoard = async (title: string) => {
-    if (!canAccess('create_boards'))
-      return
-    try {
-      isLoading.value = true
-      error.value = null
-
-      const response = await BoardApi.create({ title })
-
-      boards.value.push(response.data.data)
-    }
-    catch (err) {
-      error.value = 'Failed to create board'
-      console.error('Failed to create board:', err)
-    }
-    finally {
-      isLoading.value = false
-    }
-  }
-
-  const updateBoard = async (id: string, title: string) => {
-    if (!canAccess('edit_assigned_boards'))
-      return
-    // A private personal board is an internal workspace; keep its title stable.
-    if (boards.value.find(board => board.id === id)?.is_personal)
-      return
-    try {
-      isLoading.value = true
-      error.value = null
-      await BoardApi.update(id, { title })
-
-      const index = boards.value.findIndex(board => board.id === id)
-      if (index !== -1)
-        boards.value[index].title = title
-    }
-    catch (err) {
-      error.value = 'Failed to update board'
-      console.error('Failed to update board:', err)
-    }
-    finally {
-      isLoading.value = false
-    }
-  }
-
-  const deleteBoard = async (id: string) => {
-    if (!canAccess('delete_assigned_boards'))
-      return
-    // Never remove the caller's private personal workspace.
-    if (boards.value.find(board => board.id === id)?.is_personal)
-      return
-    try {
-      isLoading.value = true
-      error.value = null
-      await BoardApi.delete(id)
-      boards.value = boards.value.filter(board => board.id !== id)
-      tasks.value = tasks.value.filter(task => task.boardId !== id)
-    }
-    catch (err) {
-      error.value = 'Failed to delete board'
-      console.error('Failed to delete board:', err)
-    }
-    finally {
-      isLoading.value = false
-    }
-  }
-
   const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
     activeView.value = view
   }
@@ -670,16 +569,12 @@ export const useTaskStore = defineStore('taskManager', () => {
     updateTaskDates,
     deleteTask,
     moveTaskBoard,
-    reorderBoards,
     addSubTask,
     toggleSubTask,
     updateSubTask,
     deleteSubTask,
     addComment,
     updateComment,
-    createBoard,
-    updateBoard,
-    deleteBoard,
     setView,
     selectTask,
   }

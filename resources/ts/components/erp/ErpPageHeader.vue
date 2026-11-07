@@ -15,6 +15,8 @@ interface HeaderLink {
   color: string
   /** Permission required to see this destination; omit for permission-free pages. */
   permission?: string
+  /** Any one of these permissions opens the destination. */
+  permissions?: string[]
   /**
    * Query for the destination. Two destinations may share one route when the
    * query selects the mode, e.g. the CRM Visitors / Follow-up list pair.
@@ -40,12 +42,12 @@ const navigation = ref<HTMLElement | null>(null)
 // what interconnects the Contracts, CRM and Applications pages).
 const sections: Record<HeaderSection, HeaderLink[]> = {
   contracts: [
-    { name: 'private-contracts', label: 'educational.builtInServices.private', icon: 'tabler-user', color: 'info', permission: 'view_contracts' },
-    { name: 'scholarship-contracts', label: 'educational.builtInServices.scholarship', icon: 'tabler-school', color: 'primary', permission: 'view_contracts' },
-    { name: 'test-offer-contracts', label: 'educational.builtInServices.testOffer', icon: 'tabler-certificate', color: 'success', permission: 'view_contracts' },
-    { name: 'academy-contracts', label: 'educational.builtInServices.academy', icon: 'tabler-book', color: 'tertiary', permission: 'view_contracts' },
-    { name: 'other-contracts', label: 'common.navigation.otherContracts', icon: 'tabler-files', color: 'secondary', permission: 'view_contracts' },
-    { name: 'cancelled-contracts', label: 'common.navigation.cancelledContracts', icon: 'tabler-ban', color: 'error', permission: 'view_contracts' },
+    { name: 'private-contracts', label: 'educational.builtInServices.private', icon: 'tabler-user', color: 'info', permission: 'view_private_contracts' },
+    { name: 'scholarship-contracts', label: 'educational.builtInServices.scholarship', icon: 'tabler-school', color: 'primary', permission: 'view_scholarship_contracts' },
+    { name: 'test-offer-contracts', label: 'educational.builtInServices.testOffer', icon: 'tabler-certificate', color: 'success', permission: 'view_test_offer_contracts' },
+    { name: 'academy-contracts', label: 'educational.builtInServices.academy', icon: 'tabler-book', color: 'tertiary', permission: 'view_academy_contracts' },
+    { name: 'other-contracts', label: 'common.navigation.otherContracts', icon: 'tabler-files', color: 'secondary', permission: 'view_other_contracts' },
+    { name: 'cancelled-contracts', label: 'common.navigation.cancelledContracts', icon: 'tabler-ban', color: 'error', permissions: ['view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_employment_contracts', 'view_other_contracts'] },
   ],
   crm: [
     { name: 'visitor', label: 'common.navigation.visitor', icon: 'tabler-user-search', color: 'primary', permission: 'view_visitors' },
@@ -61,7 +63,11 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   finance: [],
 }
 
-const links = computed(() => sections[props.section].filter(link => !link.permission || canAccess(link.permission)))
+const links = computed(() => sections[props.section].filter(link =>
+  link.permissions?.length
+    ? link.permissions.some(canAccess)
+    : !link.permission || canAccess(link.permission),
+))
 
 // Destinations on the same route are told apart by the query markers the strip
 // itself declares (`?list=follow-up`). Only those keys are compared, so unrelated

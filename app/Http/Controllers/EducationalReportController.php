@@ -12,7 +12,6 @@ use App\Models\EducationalBonusSource;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
-use App\Models\PendingTransaction;
 use App\Models\Salary;
 use App\Support\AcceptedLocale;
 use App\Support\BuiltInService;
@@ -336,10 +335,10 @@ class EducationalReportController extends Controller
                 }
             }
             $rows = $rows->merge($query->limit(2500)->get()->map(fn ($r) => [
-                // Payroll reports its persisted payment state; income and expense
-                // rows have no posting marker, so they are labelled recorded.
+                // Payroll reports its persisted payment state; ledger rows now
+                // report draft/approved/rejected directly.
                 'record_type' => $type, 'id' => $r->id,
-                'status' => $type === 'salary' ? ($r->payment_status ?? 'open') : 'recorded',
+                'status' => $type === 'salary' ? ($r->payment_status ?? 'open') : $r->status,
                 'category' => $r->type ?? $type,
                 'applicant' => $r->applicant?->name ?? '—',
                 'employee' => $r->employee?->name ?? '—', 'amount' => (float) $r->{$amount},
@@ -348,18 +347,7 @@ class EducationalReportController extends Controller
             ]));
         }
 
-        $pending = PendingTransaction::query()->with(['applicant:id,name', 'employee:id,name'])
-            ->when(! empty($filters['employee_id']), fn ($q) => $q->where('employee_id', $filters['employee_id']))
-            ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('requested_at', '>=', $filters['date_from']))
-            ->when(! empty($filters['date_to']), fn ($q) => $q->whereDate('requested_at', '<=', $filters['date_to']))
-            ->limit(2500)->get()->map(fn (PendingTransaction $r) => [
-                'record_type' => 'pending_transaction', 'id' => $r->id, 'status' => $r->approval_status,
-                'category' => $r->transaction_type, 'applicant' => $r->applicant?->name ?? '—',
-                'employee' => $r->employee?->name ?? '—',
-                'amount' => (float) $r->amount, 'currency' => $codes[$r->currency_id] ?? '',
-                'date' => $r->requested_at?->format('Y-m-d') ?? '', 'reason' => $r->reason,
-            ]);
-        $rows = $rows->merge($pending)->sortByDesc('date')->values();
+        $rows = $rows->sortByDesc('date')->values();
         if (! $paginate) {
             return ['columns' => $columns, 'rows' => $rows->all(), 'total' => $rows->count()];
         }

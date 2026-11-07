@@ -23,7 +23,7 @@ export default [
         icon: { icon: 'tabler-file-text' },
         to: 'employee-contracts',
         action: 'read',
-        subject: 'view_contracts',
+        subject: 'view_employment_contracts',
       },
       {
         title: 'common.navigation.timesheet',

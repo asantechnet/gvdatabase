@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { layoutConfig } from '@layouts'
-import { can } from '@layouts/plugins/casl'
+import { canViewNavLink } from '@layouts/plugins/casl'
 import { useCookie } from '@core/composable/useCookie'
 import { useLayoutConfigStore } from '@layouts/stores/config'
 import type { NavLink } from '@layouts/types'
@@ -22,7 +22,7 @@ const hasRequiredRole = (item: NavLink) => !item.requiredRole || userData.value?
 
 <template>
   <li
-    v-if="can(item.action, item.subject) && hasRequiredRole(item)"
+    v-if="canViewNavLink(item) && hasRequiredRole(item)"
     class="nav-link"
     :class="{ disabled: item.disable }"
   >

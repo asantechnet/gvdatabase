@@ -9,13 +9,11 @@ import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
 import TaskApi from '@/api/task'
 import type { Task, TaskAttachment } from '@/api/kanban'
-import type { KanbanId } from '@/types/legacyKanban'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 
 interface AddNewKanbanItem { boardId: string | number; itemTitle: string }
 interface EditKanbanItem { item: { id: string | number } }
 interface KanbanState { boardId: string | number; ids: Array<string | number> }
-interface RenameKanbanBoard { boardId: string | number; newName: string }
 
 const store = useTaskStore()
 const { t: translate } = useI18n()
@@ -242,22 +240,6 @@ onBeforeUnmount(() => {
 const handleDeleteItem = (payload: EditKanbanItem) => {
   store.deleteTask(String(payload.item.id))
 }
-
-const handleRenameBoard = (payload: RenameKanbanBoard) => {
-  store.updateBoard(String(payload.boardId), payload.newName)
-}
-
-const handleAddNewBoard = (title: string) => {
-  store.createBoard(title)
-}
-
-const handleDeleteBoard = (boardId: KanbanId) => {
-  store.deleteBoard(String(boardId))
-}
-
-const handleUpdateBoardState = async (boardIds: KanbanId[]) => {
-  await store.reorderBoards(boardIds.map(String))
-}
 </script>
 
 <template>
@@ -297,12 +279,8 @@ const handleUpdateBoardState = async (boardIds: KanbanId[]) => {
               @edit-item="handleEditItem"
               @delete-item="handleDeleteItem"
               @update-items-state="handleUpdateItemsState"
-              @rename-board="handleRenameBoard"
               @comments-click="handleCommentsClick"
               @attachments-click="handleAttachmentsClick"
-              @add-new-board="handleAddNewBoard"
-              @delete-board="handleDeleteBoard"
-              @update-board-state="handleUpdateBoardState"
             />
           </VCardText>
         </VCard>
@@ -375,7 +353,7 @@ const handleUpdateBoardState = async (boardIds: KanbanId[]) => {
                   {{ attachment.name }}
                 </div>
                 <div class="text-caption text-medium-emphasis">
-                  {{ attachment.section === 'input' ? $t('components.taskManager.kanbanview.taskFiles') : $t('components.taskManager.kanbanview.resultFiles') }}
+                  {{ $t('components.taskManager.kanbanview.taskFiles') }}
                 </div>
               </div>
               <VBtn

@@ -42,6 +42,7 @@ class ContractGenerationService
     public function create(string $service, StoreServiceContractRequest $request): Contract
     {
         abort_unless(BuiltInService::isValid($service), 404);
+        abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
 
         return DB::transaction(function () use ($service, $request, $data): Contract {
@@ -185,6 +186,7 @@ class ContractGenerationService
     public function update(string $service, int $id, StoreServiceContractRequest $request): Contract
     {
         abort_unless(BuiltInService::isValid($service), 404);
+        abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
 
         return DB::transaction(function () use ($service, $id, $request, $data): Contract {

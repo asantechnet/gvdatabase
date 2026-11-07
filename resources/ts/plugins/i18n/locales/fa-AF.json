@@ -279,7 +279,6 @@
       "pastDue": "گذشته از موعد",
       "terminated": "???????????",
       "noContracts": "بدون قرارداد",
-      "pendingTransaction": "درخواست پرداخت",
       "closed": "بسته شده",
       "applied": "درخواست شده",
       "admitted": "پذیرفته شده",
@@ -513,7 +512,6 @@
       "myVisaCase": "پرونده ویزه من",
       "sales": "فروش",
       "serviceSales": "فروش خدمات",
-      "paymentRequests": "درخواست‌های پرداخت",
       "educationalData": "داده‌های تحصیلی",
       "contractStages": "مراحل قرارداد",
       "announcements": "اعلامیه‌ها",
@@ -778,13 +776,13 @@
       "required": "الزامی است."
     },
     "ui": {
-      "newFinancialRequest": "درخواست پرداخت جدید",
+      "newFinancialRequest": "ثبت مالی پیش‌نویس",
       "attachCaseDocument": "ضمیمه سند پرونده",
       "caseTask": "وظیفه پرونده",
       "document": "سند",
       "documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail": "اسناد به‌عنوان ضمایم ورودی وظیفه پرونده ذخیره می‌شوند و تابع همان کنترل دسترسی و سابقه بررسی هستند.",
-      "unableToLoadFinancialRequestOptions": "گزینه‌های درخواست پرداخت بارگیری نشد.",
-      "financialRequestLinkedToThisVisaCase": "درخواست پرداخت به این پرونده ویزه پیوند شد.",
+      "unableToLoadFinancialRequestOptions": "بارگیری گزینه‌های مالی ممکن نشد.",
+      "financialRequestLinkedToThisVisaCase": "مالی پیش‌نویس برای این پرونده ویزه ذخیره شد.",
       "documentAttachedToThisVisaCase": "سند به این پرونده ویزه ضمیمه شد.",
       "allocatedTo": "تخصیص به",
       "whatIsMonitored": "موارد تحت بررسی",
@@ -1102,10 +1100,24 @@
         "verifiedMessage": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید.",
         "requestNew": "لینک تایید جدید را در زیر درخواست کنید.",
         "resend": "ارسال ایمیل تایید",
-        "verified": { "title": "ایمیل تایید شد", "description": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید." },
-        "pending": { "title": "ایمیل خود را تایید کنید", "description": "آدرس ایمیل خود را وارد کنید تا لینک تایید را ارسال کنیم." },
-        "expired": { "title": "لینک تایید منقضی شد", "description": "برای امنیت شما، لینک‌های تایید منقضی می‌شوند. در زیر لینک جدید درخواست کنید.", "notice": "این لینک تایید منقضی شده است." },
-        "invalid": { "title": "لینک تایید قابل استفاده نیست", "description": "این لینک قابل استفاده نیست. در زیر ایمیل تایید جدید درخواست کنید.", "notice": "این لینک تایید نامعتبر یا ناقص است." }
+        "verified": {
+          "title": "ایمیل تایید شد",
+          "description": "آدرس ایمیل شما تایید شد. اکنون می‌توانید وارد شوید."
+        },
+        "pending": {
+          "title": "ایمیل خود را تایید کنید",
+          "description": "آدرس ایمیل خود را وارد کنید تا لینک تایید را ارسال کنیم."
+        },
+        "expired": {
+          "title": "لینک تایید منقضی شد",
+          "description": "برای امنیت شما، لینک‌های تایید منقضی می‌شوند. در زیر لینک جدید درخواست کنید.",
+          "notice": "این لینک تایید منقضی شده است."
+        },
+        "invalid": {
+          "title": "لینک تایید قابل استفاده نیست",
+          "description": "این لینک قابل استفاده نیست. در زیر ایمیل تایید جدید درخواست کنید.",
+          "notice": "این لینک تایید نامعتبر یا ناقص است."
+        }
       },
       "invitation": {
         "title": "رمز عبور خود را تنظیم کنید",
@@ -2690,14 +2702,14 @@
           "captureOutgoingCashWithItsLiveCurrencyRelationship": "ثبت پول نقد خروجی با رابطه زنده ارزی آن.",
           "saveExpense": "ذخیره مصرف",
           "saveModeDirect": "ثبت مستقیم",
-          "saveModeLoan": "ارسال به درخواست‌های پرداخت",
           "saveModeDirectHint": "مصرف بلافاصله در دفتر کل ثبت می‌شود.",
-          "saveModeLoanHint": "مبلغ به عنوان درخواست پرداخت ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
-          "loanSubmitted": "درخواست مصرف برای تأیید به درخواست‌های پرداخت ارسال شد.",
           "editExpense": "ویرایش مصرف",
           "updateTheRecordedSpendAndItsCurrency": "بروزرسانی مصرف ثبت‌شده و واحد پول آن.",
           "deleteExpense": "حذف مصرف؟",
-          "thisRemovesTheSelectedExpenseRecordPermanently": "این عمل رکورد مصرف انتخاب‌شده را برای همیشه حذف می‌کند."
+          "thisRemovesTheSelectedExpenseRecordPermanently": "این عمل رکورد مصرف انتخاب‌شده را برای همیشه حذف می‌کند.",
+          "saveModeDraft": "ذخیره به عنوان پیش‌نویس",
+          "saveModeDraftHint": "پیش‌نویس فقط برای شما و بخش مالی قابل مشاهده است و پس از تأیید به دفتر مالی اضافه می‌شود.",
+          "draftSaved": "پیش‌نویس برای تأیید ذخیره شد."
         }
       },
       "finance": {
@@ -2745,10 +2757,7 @@
           "incomeLedger": "دفتر کل درآمد",
           "saveMode": "روش ذخیره",
           "saveModeDirect": "ثبت مستقیم",
-          "saveModeLoan": "ارسال به درخواست‌های پرداخت",
           "saveModeDirectHint": "رسید بلافاصله در دفتر کل درآمد ثبت می‌شود.",
-          "saveModeLoanHint": "مبلغ به عنوان درخواست پرداخت ارسال می‌شود و تنها پس از تأیید در دفتر کل ثبت می‌گردد.",
-          "loanSubmitted": "درخواست درآمد برای تأیید به درخواست‌های پرداخت ارسال شد.",
           "liveReceiptActivityAndCurrencyTotalsInOneView": "فعالیت زنده رسیدها و مجموع ارزها در یک نما",
           "printIncomeRecords": "چاپ رکوردهای درآمد",
           "recordIncome": "ثبت درآمد",
@@ -2780,7 +2789,10 @@
           "paymentExceedsRemainingBalance": "مبلغ پرداختی نمی‌تواند از باقی‌مانده این خدمت بیشتر باشد:",
           "selectTheContractedServiceThisReceiptPaysFor": "خدمت قراردادی را که این رسید برای آن پرداخت می‌شود انتخاب کنید",
           "customerTypeQuantityCurrencyAndExchangeRateComeFromTheSelectedService": "مشتری، تعداد، واحد پولی و نرخ تبادله از خدمت انتخاب‌شده می‌آید. تنها مبلغ دریافتی را وارد کنید.",
-          "servicePayments": "پرداخت‌های خدمت"
+          "servicePayments": "پرداخت‌های خدمت",
+          "saveModeDraft": "ذخیره به عنوان پیش‌نویس",
+          "saveModeDraftHint": "پیش‌نویس فقط برای شما و بخش مالی قابل مشاهده است و پس از تأیید به دفتر مالی اضافه می‌شود.",
+          "draftSaved": "پیش‌نویس برای تأیید ذخیره شد."
         }
       },
       "currencies": {
@@ -3404,7 +3416,6 @@
         "educational_bonus_sources": "منابع پاداش",
         "languages": "زبان‌ها",
         "leaves": "رخصتی",
-        "pending_transactions": "درخواست‌های پرداخت",
         "salary_payments": "پرداخت معاش",
         "semesters": "سمسترها",
         "attachments": "ضمیمه‌ها",
@@ -3992,8 +4003,6 @@
         "itemProgress": "{completed} / {total} مورد",
         "noDescriptionProvidedForThisTask": "هیچ توضیحاتی برای این وظیفه ارائه نشده است.",
         "taskContent": "محتوای وظیفه",
-        "results": "نتایج",
-        "noResultsRecorded": "هنوز نتیجه‌ای ثبت نشده است.",
         "downloadAttachment": "دریافت پیوست",
         "youAreAboutToDelete": "شما در حال حذف کردن هستید",
         "yesDeleteIt": "بله، آن را حذف کن!"
@@ -4008,7 +4017,6 @@
         "viewAttachments": "نمایش پیوست‌ها",
         "downloadAttachment": "دریافت پیوست",
         "taskFiles": "فایل‌های وظیفه",
-        "resultFiles": "فایل‌های نتیجه",
         "noAttachments": "برای این وظیفه فایلی پیوست نشده است.",
         "dueDate": "تاریخ مهلت",
         "assignees": "مسئولین"
@@ -4036,13 +4044,7 @@
         "noTaskContent": "برای این وظیفه محتوایی ثبت نشده است.",
         "attachTaskFile": "پیوست کردن فایل وظیفه",
         "attach": "پیوست",
-        "results": "نتایج",
-        "saveResults": "ذخیره نتایج",
-        "recordTaskResults": "نتایج وظیفه را ثبت کنید...",
-        "noResultsRecorded": "هنوز نتیجه‌ای ثبت نشده است.",
-        "attachResultFile": "پیوست کردن فایل نتیجه",
         "taskAttachments": "فایل‌های وظیفه",
-        "resultAttachments": "فایل‌های نتیجه",
         "downloadAttachment": "دریافت پیوست",
         "removeAttachment": "حذف پیوست",
         "attachmentUploadFailed": "بارگذاری پیوست ممکن نشد.",
@@ -4428,7 +4430,7 @@
       "noServices": "هنوز خدمت قراردادی ثبت نشده است.",
       "paperSize": "اندازه کاغذ",
       "paperA3Landscape": "A3 افقی (۲ نسخه)",
-      "paperA4Portrait": "A4 عمودی (۲ نسخه)",
+      "paperA4Portrait": "A4 عمودی",
       "paperA4Landscape": "A4 افقی (۲ نسخه)",
       "paperA4TwoA5": "A4 عمودی (۲ نسخه A5 افقی)",
       "paperA5Two": "A5 عمودی (۲ نسخه)",
@@ -4445,43 +4447,6 @@
       "service": "خدمت",
       "paymentStatus": "وضعیت پرداخت",
       "paymentSummary": "خلاصه پرداخت"
-    },
-    "paymentVoucher": {
-      "title": "سند پرداخت",
-      "date": "تاریخ سند",
-      "print": "چاپ سند",
-      "payTo": "پرداخت به",
-      "approval": "تصویب",
-      "voucherType": "نوع سند",
-      "reason": "دلیل / هدف",
-      "approvedAt": "تاریخ تصویب",
-      "requestedBy": "درخواست‌کننده",
-      "approvedBy": "تصویب‌کننده",
-      "rejectionReason": "دلیل رد",
-      "breakdown": "تفکیک پرداخت",
-      "totalPayout": "مجموع پرداخت",
-      "paidStatus": "وضعیت سند",
-      "baseAmount": "مبلغ پایه",
-      "note": "این سند یک پرداخت خروجی را ثبت می‌کند که دفتر مالی آن را تصویب کرده است.",
-      "preparedBy": "تهیه‌کننده",
-      "approvedBySignature": "تصویب‌کننده"
-    },
-    "loan": {
-      "title": "درخواست پرداخت",
-      "requestedBy": "درخواست کننده",
-      "requestSummary": "خلاصه درخواست",
-      "reason": "دلیل",
-      "reference": "شناسه درخواست پرداخت",
-      "details": "جزئیات درخواست پرداخت",
-      "item": "مورد",
-      "amount": "مبلغ",
-      "requestedAmount": "مبلغ درخواست‌شده",
-      "approvedAmount": "مبلغ تاییدشده",
-      "remaining": "تاییدنشده",
-      "status": "وضعیت",
-      "requestedAt": "تاریخ درخواست",
-      "footerNote": "این سند درخواست پرداخت به‌صورت سیستمی تولید شده است.",
-      "print": "چاپ درخواست پرداخت"
     },
     "academySlip": {
       "title": "برگه ثبت نام آکادمی",
@@ -4903,13 +4868,13 @@
       }
     },
     "finance": {
-      "pendingSubmitted": {
-        "title": "درخواست پرداخت منتظر بررسی است",
-        "message": "درخواست {type} به مبلغ {amount} آماده بررسی است."
+      "draftSubmitted": {
+        "title": "مالی پیش‌نویس در انتظار بررسی",
+        "message": "یک {type} به مبلغ {amount} آماده بررسی است."
       },
-      "pendingStatus": {
-        "title": "درخواست پرداخت به‌روز شد",
-        "message": "درخواست {type} شما اکنون {status} است. {reason}"
+      "draftStatus": {
+        "title": "مالی پیش‌نویس به‌روزرسانی شد",
+        "message": "{type} شما اکنون {status} است. {reason}"
       }
     },
     "contract": {
@@ -5299,6 +5264,8 @@
     "applicantUpdates": "به‌روزرسانی پرونده متقاضی",
     "applicantCaseAssignmentsStagesAndReminders": "تعیین پرونده، تغییر مرحله و یادآوری پرونده‌های متوقف.",
     "subtitle": "انتخاب کنید کدام رویدادهای شرکت در صندوق اعلان داخل برنامه نمایش داده شود.",
+    "sound": "صدای اعلان",
+    "soundDescription": "هنگام رسیدن اعلان جدید صدا پخش شود.",
     "loadFailed": "ترجیحات اعلان بارگذاری نشد.",
     "saveFailed": "ترجیحات اعلان ذخیره نشد."
   },
@@ -5354,6 +5321,9 @@
       "stageTransition": "{from} ← {to}",
       "tasks": "وظایف",
       "newTask": "وظیفه جدید پرونده",
+      "personalBoardOnly": "وظایف پرونده در تخته شخصی شما ایجاد می‌شوند.",
+      "personalBoardMissing": "تخته شخصی شما هنوز آماده نیست. صفحه را دوباره بارگیری کنید.",
+      "openInTaskMatrix": "باز کردن در ماتریس وظایف",
       "taskPermission": "ایجاد وظیفه به صلاحیت نیاز دارد. وظایف خودکار مرحله همچنان اینجا نمایش داده می‌شوند.",
       "taskSummary": "{progress}٪ تکمیل · {priority} · سررسید {date}",
       "complete": "تکمیل",
@@ -5366,7 +5336,6 @@
       "primary": "اصلی",
       "noApplications": "هنوز درخواستی ثبت نشده است. هر دانشگاهی را که دانشجو درخواست می‌دهد جداگانه اضافه کنید.",
       "finance": "مالی",
-      "pendingWorkspace": "درخواست‌های پرداخت",
       "financeSummary": "عاید ثبت‌شده {income} · مصارف ثبت‌شده {expenses}.",
       "transactionTitle": "{type} — {reason}",
       "transactionSummary": "{amount} · {status} · {rejection}",
@@ -5432,6 +5401,12 @@
       "portalUserDeleted": "کاربر پورتال حذف شد.",
       "caseUpdated": "پرونده به‌روز شد.",
       "caseUpdateFailed": "پرونده به‌روز نشد.",
+      "universityNotes": "یادداشت‌های دانشگاه",
+      "universityNotesHint": "این یادداشت‌ها فقط برای همین دانشگاه در همین پرونده نگهداری می‌شوند.",
+      "universityNotesSaved": "یادداشت‌های دانشگاه ذخیره شد.",
+      "universityNotesSaveFailed": "ذخیره یادداشت‌های دانشگاه ممکن نشد.",
+      "openPortal": "باز کردن پورتال",
+      "visitWebsite": "بازدید وب‌سایت",
       "universityAdded": "درخواست دانشگاه افزوده شد.",
       "universityAddFailed": "درخواست دانشگاه افزوده نشد.",
       "applicationMarked": "درخواست به {status} تغییر کرد.",
@@ -5441,7 +5416,11 @@
       "applicationRemoveFailed": "درخواست دانشگاه حذف نشد.",
       "primaryUpdated": "دانشگاه اصلی به‌روز شد.",
       "primaryUpdateFailed": "دانشگاه اصلی به‌روز نشد.",
-      "loadUniversitiesFailed": "گزینه‌های پرونده بارگذاری نشد."
+      "loadUniversitiesFailed": "گزینه‌های پرونده بارگذاری نشد.",
+      "draftRecords": "سوابق پیش‌نویس",
+      "noDrafts": "هیچ سابقه پیش‌نویسی وجود ندارد.",
+      "draftRecordTitle": "{type}: {description}",
+      "draftSummary": "{amount} · {status} · {rejection}"
     },
     "applicantCases": "درخواست‌ها",
     "applications": "درخواست‌ها",
@@ -5469,7 +5448,6 @@
     "allCaughtUp": "همه کارها به‌روز است",
     "noActivePipeline": "برای این فیلترها مرحله فعالی وجود ندارد.",
     "financialSnapshot": "خلاصه مالی",
-    "postedRecordsOnly": "فقط اسناد ثبت‌شده؛ درخواست‌های معلق جدا نمایش داده می‌شوند.",
     "salesHelp": "قراردادها و فروش خدمات تحصیلی ثبت‌شده.",
     "countryHelp": "پرونده‌های فعال در مقایسه با تمام پرونده‌ها.",
     "performanceHelp": "حجم کار و سهم فروش هر کارمند.",
@@ -5603,17 +5581,11 @@
     "loadReportFailed": "گزارش بارگیری نشد.",
     "exported": "گزارش دریافت شد.",
     "exportFailed": "دریافت گزارش ممکن نشد.",
-    "pendingSubtitle": "درخواست‌ها فقط پس از تأیید و ثبت، اسناد رسمی مالی می‌شوند.",
     "newRequest": "درخواست جدید",
-    "paymentRequestsSubtitle": "مسئول پذیرش یا مشاور درخواست پرداخت ثبت می‌کند؛ دفتر مالی آن را تأیید و رسید دریافت یا سند پرداخت را چاپ می‌کند.",
-    "paymentRequestsNew": "درخواست پرداخت جدید",
     "transactionType": "نوع معامله",
     "reason": "دلیل",
     "amount": "مبلغ",
     "requested": "درخواست‌شده",
-    "noTransactions": "هیچ درخواست پرداختی نیست.",
-    "newPending": "درخواست پرداخت جدید",
-    "editPending": "ویرایش درخواست پرداخت",
     "applicantOptional": "متقاضی / پرونده (اختیاری)",
     "employeeOptional": "کارمند (اختیاری)",
     "rejectTransaction": "رد معامله",
@@ -5675,6 +5647,10 @@
       "transitionNotAllowed": "این تغییر مرحله مجاز نیست."
     },
     "masterData": {
+      "phone": "شماره تلفن",
+      "email": "آدرس ایمیل",
+      "portalUrl": "آدرس پورتال",
+      "portalUrlHint": "دقیقاً همان‌گونه که وارد می‌کنید ذخیره می‌شود. پرونده ویزه آن را به لینک تبدیل می‌کند.",
       "title": "داده‌های اساسی تحصیلی — {catalog}",
       "academyTitle": "داده‌های آکادمی — {catalog}",
       "countries": "کشورها",
@@ -5719,24 +5695,6 @@
       "provinces": "ولایات",
       "englishLevels": "سطح‌های انگلیسی",
       "acquisitionRoutes": "چگونه مراجعه‌کنندگان با ما آشنا شدند"
-    },
-    "pendingUi": {
-      "customerEmployee": "مشتری / کارمند",
-      "searchReason": "جستجوی دلیل پرداخت",
-      "saved": "درخواست پرداخت ذخیره شد.",
-      "submitted": "درخواست پرداخت برای تأیید ارسال شد.",
-      "selfApproval": "شما نمی‌توانید درخواست پرداخت خود را تأیید، رد یا ثبت کنید. یک تأییدکننده دیگر باید آن را بررسی کند.",
-      "saveFailed": "معامله ذخیره نشد؛ شاید قفل یا مهلت ویرایش آن تمام شده باشد.",
-      "transitioned": "وضعیت معامله اکنون {status} است.",
-      "rejected": "معامله رد شد.",
-      "rejectFailed": "معامله رد نشد.",
-      "actions": {
-        "edit": "ویرایش این درخواست پرداخت",
-        "review": "ارسال برای بررسی",
-        "approve": "تأیید این درخواست",
-        "reject": "رد با ذکر دلیل",
-        "post": "ثبت در اسناد رسمی"
-      }
     },
     "search": {
       "title": "جستجو",
@@ -5810,6 +5768,20 @@
       "paid": "پرداخت‌شده",
       "unpaid": "پرداخت‌نشده",
       "partially_paid": "تا حدی پرداخت‌شده"
+    },
+    "drafts": {
+      "saveDraft": "ذخیره به عنوان پیش‌نویس",
+      "saveDraftHint": "پیش‌نویس فقط برای شما و بخش مالی قابل مشاهده است و پس از تأیید به دفتر مالی اضافه می‌شود.",
+      "draftSaved": "پیش‌نویس برای تأیید ذخیره شد.",
+      "filterByStatus": "فیلتر بر اساس وضعیت",
+      "approve": "تأیید پیش‌نویس",
+      "reject": "رد پیش‌نویس",
+      "rejectTitle": "رد پیش‌نویس",
+      "rejectionReason": "دلیل رد",
+      "approved": "پیش‌نویس تأیید و در دفتر ثبت شد.",
+      "rejected": "پیش‌نویس رد شد.",
+      "approveFailed": "تأیید پیش‌نویس ممکن نشد.",
+      "rejectFailed": "رد پیش‌نویس ممکن نشد."
     }
   },
   "tasksPage": {

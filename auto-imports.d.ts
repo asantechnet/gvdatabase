@@ -98,6 +98,7 @@ declare global {
   const effectScope: typeof import('vue')['effectScope']
   const emailValidator: typeof import('./resources/ts/@core/utils/validators')['emailValidator']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const externalUrl: typeof import('./resources/ts/utils/externalUrl')['externalUrl']
   const extractPlaceholderKeys: typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']
   const fieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']
   const fieldLabel: typeof import('./resources/ts/utils/apiValidation')['fieldLabel']
@@ -240,6 +241,7 @@ declare global {
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setDisplayCurrency: typeof import('./resources/ts/utils/displayCurrency')['setDisplayCurrency']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
+  const setNotificationSoundEnabled: typeof import('./resources/ts/composables/useNotificationHeartbeat')['setNotificationSoundEnabled']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
@@ -607,6 +609,7 @@ declare module 'vue' {
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly emailValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['emailValidator']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly externalUrl: UnwrapRef<typeof import('./resources/ts/utils/externalUrl')['externalUrl']>
     readonly extractPlaceholderKeys: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['extractPlaceholderKeys']>
     readonly fieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['fieldErrorMessages']>
     readonly fieldLabel: UnwrapRef<typeof import('./resources/ts/utils/apiValidation')['fieldLabel']>
@@ -744,6 +747,7 @@ declare module 'vue' {
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setDisplayCurrency: UnwrapRef<typeof import('./resources/ts/utils/displayCurrency')['setDisplayCurrency']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
+    readonly setNotificationSoundEnabled: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['setNotificationSoundEnabled']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>

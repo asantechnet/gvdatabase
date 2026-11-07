@@ -3,6 +3,8 @@ import type { Attachment } from './attachments'
 import type { Currency } from './currency'
 import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
+export type FinanceRecordStatus = 'draft' | 'approved' | 'rejected'
+
 export interface Expense {
   id: number
   applicant_id: number | null
@@ -21,6 +23,12 @@ export interface Expense {
   date: string
   recorded_by?: number | null
   recordedBy?: { id: number; name: string } | null
+  status: FinanceRecordStatus
+  approved_by?: number | null
+  approved_at?: string | null
+  rejected_at?: string | null
+  rejection_reason?: string | null
+  approver?: { id: number; name: string } | null
   created_at?: string
   updated_at?: string
 }
@@ -34,6 +42,8 @@ export interface ExpenseCreateData {
   quantity: number
   rate: number
   date: string
+  /** Omitted means the row is approved and posted directly. */
+  status?: Extract<FinanceRecordStatus, 'draft' | 'approved'>
 }
 
 export interface ExpenseUpdateData {
@@ -52,6 +62,7 @@ export type ExpenseFormData = (Expense | ExpenseCreateData) & { base_amount?: nu
 export interface ExpenseParams {
   search?: string
   type?: string
+  status?: FinanceRecordStatus
   currency_id?: number
   date_from?: string
   date_to?: string
@@ -126,6 +137,18 @@ export const updateExpense = async (
     console.error(`Error updating expense ${id}:`, error)
     throw error
   }
+}
+
+export const approveExpense = async (id: number): Promise<Expense> => {
+  const response = await api.patch(`/expenses/${id}/approve`)
+
+  return response.data.data
+}
+
+export const rejectExpense = async (id: number, rejectionReason: string): Promise<Expense> => {
+  const response = await api.patch(`/expenses/${id}/reject`, { rejection_reason: rejectionReason })
+
+  return response.data.data
 }
 
 export const deleteExpense = async (id: number): Promise<void> => {

@@ -11,7 +11,7 @@ class Country extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['name', 'code', 'is_active'];
+    protected $fillable = ['name', 'code', 'phone', 'email', 'portal_url', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { translate } from '@/utils/localization'
 import { animations, handleEnd, performTransfer } from '@formkit/drag-and-drop'
 import { dragAndDrop } from '@formkit/drag-and-drop/vue'
 import { VForm } from 'vuetify/components/VForm'
 import KanbanCard from './KanbanCard.vue'
-import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId, KanbanState, RenameKanbanBoard } from '@/types/legacyKanban'
+import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId, KanbanState } from '@/types/legacyKanban'
 import { canAccess } from '@/utils/authorization'
 
 const props = defineProps<{
@@ -16,8 +15,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'renameBoard', value: RenameKanbanBoard): void
-  (e: 'deleteBoard', value: KanbanId): void
   (e: 'addNewItem', value: AddNewKanbanItem): void
   (e: 'editItem', value: EditKanbanItem | undefined): void
   (e: 'updateItemsState', value: KanbanState): void
@@ -27,44 +24,11 @@ const emit = defineEmits<{
 }>()
 
 const refKanbanBoard = ref<HTMLElement>()
-const localBoardName = ref(props.boardName)
 const localIds = ref<KanbanId[]>(props.kanbanIds)
 
 const isAddNewFormVisible = ref(false)
-const isBoardNameEditing = ref(false)
 const refForm = ref<VForm>()
 const newTaskTitle = ref<string>('')
-const refKanbanBoardTitle = ref<VForm>()
-
-const boardActions = computed(() => [
-  ...(canAccess('edit_assigned_boards')
-    ? [{
-      title: translate('pages.tasks.kanbanitems.kanbanitems.rename'),
-      prependIcon: 'tabler-pencil',
-      onClick: () => { isBoardNameEditing.value = true },
-    }]
-    : []),
-  ...(canAccess('delete_assigned_boards')
-    ? [{
-      title: translate('common.actions.delete'),
-      prependIcon: 'tabler-trash',
-      onClick: () => (emit('deleteBoard', props.boardId)),
-    }]
-    : []),
-])
-
-const renameBoard = () => {
-  refKanbanBoardTitle.value?.validate().then(valid => {
-    if (valid.valid) {
-      emit('renameBoard', {
-        oldName: props.boardName,
-        newName: localBoardName.value,
-        boardId: props.boardId,
-      })
-      isBoardNameEditing.value = false
-    }
-  })
-}
 
 const addNewItem = () => {
   refForm.value?.validate().then(valid => {
@@ -116,12 +80,6 @@ const hideAddNewForm = () => {
 }
 
 onClickOutside(refForm, hideAddNewForm)
-onClickOutside(refKanbanBoardTitle, () => { isBoardNameEditing.value = false })
-
-const hideResetBoardNameForm = () => {
-  isBoardNameEditing.value = false
-  localBoardName.value = props.boardName
-}
 
 const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
   if (event.key === 'Enter' && !event.shiftKey)
@@ -132,43 +90,7 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
 <template>
   <div class="kanban-board">
     <div class="kanban-board-header pb-4">
-      <VForm
-        v-if="isBoardNameEditing"
-        ref="refKanbanBoardTitle"
-        class="app-form"
-        @submit.prevent="renameBoard"
-      >
-        <VTextField
-          v-model="localBoardName"
-          autofocus
-          variant="underlined"
-          :rules="[requiredValidator]"
-          hide-details
-          class="border-0"
-          @keydown.esc="hideResetBoardNameForm"
-        >
-          <template #append-inner>
-            <VIcon
-              size="20"
-              color="success"
-              icon="tabler-check"
-              class="me-1"
-              @click="renameBoard"
-            />
-            <VIcon
-              size="20"
-              color="error"
-              icon="tabler-x"
-              @click="hideResetBoardNameForm"
-            />
-          </template>
-        </VTextField>
-      </VForm>
-
-      <div
-        v-else
-        class="d-flex align-center justify-space-between gap-2"
-      >
+      <div class="d-flex align-center justify-space-between gap-2">
         <h4 class="text-lg font-weight-medium text-truncate">
           {{ boardName }}
         </h4>
@@ -196,22 +118,6 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
             </template>
             {{ $t('pages.tasks.kanbanitems.kanbanitems.addNewItem') }}
           </VTooltip>
-
-          <VIcon
-            v-if="canAccess('reorder_boards')"
-            class="drag-handler"
-            size="20"
-            icon="tabler-arrows-move"
-          />
-
-          <MoreBtn
-            v-if="boardActions.length"
-            size="28"
-            icon-size="20"
-            class="text-high-emphasis"
-            :menu-list="boardActions"
-            item-props
-          />
         </div>
       </div>
     </div>
@@ -275,22 +181,3 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
     </div>
   </div>
 </template>
-
-<style lang="scss">
-.kanban-board-header {
-  .drag-handler {
-    cursor: grab;
-    opacity: 0;
-
-    &:active {
-      cursor: grabbing;
-    }
-  }
-
-  &:hover {
-    .drag-handler {
-      opacity: 1;
-    }
-  }
-}
-</style>

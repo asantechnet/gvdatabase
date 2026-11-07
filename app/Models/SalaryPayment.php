@@ -12,7 +12,7 @@ class SalaryPayment extends Model
 {
     use Auditable, HasDocumentNumber, SoftDeletes;
 
-    protected $fillable = ['salary_id', 'expense_id', 'pending_transaction_id', 'amount', 'payment_date', 'remarks', 'recorded_by'];
+    protected $fillable = ['salary_id', 'expense_id', 'amount', 'payment_date', 'remarks', 'recorded_by'];
 
     protected function casts(): array
     {

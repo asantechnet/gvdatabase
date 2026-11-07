@@ -11,11 +11,13 @@ const props = defineProps<{
   currencyOptions: Array<{ title: string; value: number; rate: number }>
   typeOptions: Array<{ title: string; value: string }>
   mode: 'create' | 'edit'
+  canCreateDirect: boolean
+  canCreateDraft: boolean
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; submit: [value: ExpenseFormData, mode: 'direct' | 'loan'] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; submit: [value: ExpenseFormData, mode: 'direct' | 'draft'] }>()
 const form = ref<Partial<ExpenseFormData>>({})
-const saveMode = ref<'direct' | 'loan'>('direct')
+const saveMode = ref<'direct' | 'draft'>('direct')
 const formError = ref('')
 const errors = ref<Record<string, string>>({})
 const applicants = ref<Array<{ id: number; name: string }>>([])
@@ -62,7 +64,7 @@ watch(() => props.modelValue, open => {
     return
   }
   form.value = { ...props.initialExpense }
-  saveMode.value = 'direct'
+  saveMode.value = props.canCreateDirect ? 'direct' : 'draft'
   errors.value = {}
   formError.value = ''
   applicantSearch.value = ''
@@ -194,6 +196,7 @@ function submit() {
             >
               <div class="d-flex flex-wrap gap-4 mb-1">
                 <VBtn
+                  v-if="canCreateDirect"
                   :color="saveMode === 'direct' ? 'primary' : 'secondary'"
                   :variant="saveMode === 'direct' ? 'flat' : 'outlined'"
                   prepend-icon="tabler-device-floppy"
@@ -202,16 +205,17 @@ function submit() {
                   {{ $t('pages.finance.expenses.expenses.saveModeDirect') }}
                 </VBtn>
                 <VBtn
-                  :color="saveMode === 'loan' ? 'primary' : 'secondary'"
-                  :variant="saveMode === 'loan' ? 'flat' : 'outlined'"
+                  v-if="canCreateDraft"
+                  :color="saveMode === 'draft' ? 'primary' : 'secondary'"
+                  :variant="saveMode === 'draft' ? 'flat' : 'outlined'"
                   prepend-icon="tabler-send"
-                  @click="saveMode = 'loan'"
+                  @click="saveMode = 'draft'"
                 >
-                  {{ $t('pages.finance.expenses.expenses.saveModeLoan') }}
+                  {{ $t('pages.finance.expenses.expenses.saveModeDraft') }}
                 </VBtn>
               </div>
               <p class="text-caption text-medium-emphasis mb-0">
-                {{ saveMode === 'loan' ? $t('pages.finance.expenses.expenses.saveModeLoanHint') : $t('pages.finance.expenses.expenses.saveModeDirectHint') }}
+                {{ saveMode === 'draft' ? $t('pages.finance.expenses.expenses.saveModeDraftHint') : $t('pages.finance.expenses.expenses.saveModeDirectHint') }}
               </p>
             </VCol>
             <VCol cols="12">

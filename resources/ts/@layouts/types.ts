@@ -45,6 +45,8 @@ export interface LayoutConfig {
 export interface AclProperties {
   action: string
   subject: string
+  /** Any one of these permission subjects opens the item. */
+  anyPermissions?: string[]
 }
 
 // 👉 Vertical nav section title

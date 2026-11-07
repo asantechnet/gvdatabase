@@ -29,8 +29,10 @@ export interface MasterDataRecord {
   country_id?: number | null
   city?: string | null
   website?: string | null
-  contact?: string | null
+  phone?: string | null
   email?: string | null
+  portal_url?: string | null
+  contact?: string | null
   sort_order?: number
   is_active: boolean
 }

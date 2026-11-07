@@ -147,11 +147,6 @@ class Applicant extends Model
         return $this->hasMany(Contract::class);
     }
 
-    public function pendingTransactions(): HasMany
-    {
-        return $this->hasMany(PendingTransaction::class);
-    }
-
     public function incomes(): HasMany
     {
         return $this->hasMany(Income::class);
