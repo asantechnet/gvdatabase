@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { VAutocomplete, VSelect, VTextField, VTextarea } from 'vuetify/components'
 import { useI18n } from 'vue-i18n'
 
@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<{
 const model = defineModel<any>()
 const { t } = useI18n()
 const fieldId = useId()
+const inputRef = ref<{ focus?: () => void } | null>(null)
 const input = computed(() => {
   if (props.kind === 'select')
     return VSelect
@@ -38,6 +39,10 @@ const input = computed(() => {
   return VTextField
 })
 const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 0 : value !== null && value !== undefined && String(value).trim() !== '') || t('erp.required')
+
+defineExpose({
+  focus: () => inputRef.value?.focus?.(),
+})
 </script>
 
 <template>
@@ -55,6 +60,7 @@ const requiredRule = (value: unknown) => (Array.isArray(value) ? value.length > 
     <component
       :is="input"
       :id="fieldId"
+      ref="inputRef"
       v-model="model"
       v-bind="$attrs"
       :aria-label="label"

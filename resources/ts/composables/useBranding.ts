@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useTheme } from 'vuetify'
 // `?url` is required: vite-svg-loader otherwise imports the file as a Vue
 // component, which turns `logoUrl` into an object. `<img :src>` then renders
@@ -7,8 +7,8 @@ import { useTheme } from 'vuetify'
 import SettingApi from '@/api/setting'
 import { type ThemeColorPreferences, persistThemeColors, readStoredThemeColors, themeColorFields, themeWithPalette } from '@/utils/themePersistence'
 
-const logoUrl = ref<string | null>(null)
-const hasCompanyLogo = ref(false)
+const lightLogoUrl = ref<string | null>(null)
+const darkLogoUrl = ref<string | null>(null)
 const logoFailed = ref(false)
 const isLogoSquare = ref<boolean | null>(null)
 const isMonochromeLogo = ref(false)
@@ -64,7 +64,9 @@ const detectLogoShape = (source: string) => {
 
 interface BrandingSettings {
   website_logo_url?: string | null
-  website_title?: string
+  website_dark_logo_url?: string | null
+  favicon_url?: string | null
+  website_title?: string | null
   short_company_name?: string | null
   original_company_name?: string | null
   company_email?: string | null
@@ -73,6 +75,8 @@ interface BrandingSettings {
   contract_cover_design_url?: string | null
   primary_color?: string | null
   secondary_color?: string | null
+  dark_primary_color?: string | null
+  dark_secondary_color?: string | null
   light_background_color?: string | null
   light_surface_color?: string | null
   dark_background_color?: string | null
@@ -81,17 +85,24 @@ interface BrandingSettings {
 
 export const useBranding = () => {
   const vuetifyTheme = useTheme()
+  const logoUrl = computed(() => vuetifyTheme.global.current.value.dark
+    ? darkLogoUrl.value || lightLogoUrl.value
+    : lightLogoUrl.value || darkLogoUrl.value)
+  const hasCompanyLogo = computed(() => Boolean(logoUrl.value))
 
-  const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
-    hasCompanyLogo.value = Boolean(branding.website_logo_url)
-    logoUrl.value = branding.website_logo_url || null
+  watch(logoUrl, source => {
     logoFailed.value = false
-    isMonochromeLogo.value = false
-    if (logoUrl.value)
-      detectLogoShape(logoUrl.value)
+    if (source)
+      detectLogoShape(source)
     else
       isLogoSquare.value = null
-    updateFavicon(branding.website_logo_url || null)
+  }, { immediate: true })
+
+  const applyBranding = (branding: BrandingSettings, persistApiFallbacks = false) => {
+    lightLogoUrl.value = branding.website_logo_url || null
+    darkLogoUrl.value = branding.website_dark_logo_url || null
+    isMonochromeLogo.value = false
+    updateFavicon(branding.favicon_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
     originalCompanyName.value = branding.original_company_name || branding.website_title || originalCompanyName.value
 

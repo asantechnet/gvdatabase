@@ -10,7 +10,7 @@ export interface SupportTicket {
   category_label: string
   severity: SupportTicketSeverity
   subject: string
-  description: string
+  description: string | null
   page_url: string | null
   status: string
   submitted_at: string | null
@@ -30,7 +30,7 @@ export interface CreateSupportTicketData {
   category: SupportTicketCategory
   severity: SupportTicketSeverity
   subject: string
-  description: string
+  description?: string
   page_url?: string
 }
 

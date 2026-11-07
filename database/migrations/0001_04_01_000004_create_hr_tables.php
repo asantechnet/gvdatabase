@@ -23,7 +23,6 @@ return new class extends Migration
         Schema::create('departments', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
-            $table->string('code', 40)->nullable()->unique();
             $table->text('description')->nullable();
             // FK added in the completion pass (employees live below in the
             // final schema, but historically this column predates them).

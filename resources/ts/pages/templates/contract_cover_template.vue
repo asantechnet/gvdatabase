@@ -93,7 +93,7 @@ const waitForLogoLoad = () => {
 
 const printContractCover = async () => {
   if (!contractCoverRef.value) return
-  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractCoverRef.value })
+  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: contractCoverRef.value, printPageSelector: '.contract-cover' })
 }
 
 defineExpose({

@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
+import ErpField from '@/components/erp/ErpField.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -25,6 +27,19 @@ const requestedDays = computed(() => {
 
   return Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start ? 0 : Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
 })
+
+function dockDatePickerCalendar(_: unknown, __: unknown, instance: any) {
+  requestAnimationFrame(() => {
+    const calendar = instance?.calendarContainer as HTMLElement | undefined
+
+    if (!calendar)
+      return
+
+    calendar.style.transform = 'translateY(0) scale(0.86)'
+    calendar.style.transformOrigin = 'top left'
+    calendar.style.zIndex = '2500'
+  })
+}
 
 async function load() {
   loading.value = true
@@ -66,6 +81,7 @@ watch(year, () => {
     v-model="visible"
     max-width="960"
     scrollable
+    class="paid-time-off-overlay"
   >
     <VCard class="paid-time-off-dialog">
       <VCardTitle class="pto-header pa-5 pa-sm-6">
@@ -90,12 +106,13 @@ watch(year, () => {
             </div>
           </div>
           <VSpacer />
-          <VTextField
+          <ErpField
             v-model.number="year"
             type="number"
-            density="comfortable"
-            hide-details
-            variant="outlined"
+            :label="translate('pages.leaveRequests.calendarYear', { year })"
+            :placeholder="String(year)"
+            min="2000"
+            max="3000"
             class="pto-year"
           />
         </div>
@@ -230,51 +247,63 @@ watch(year, () => {
               sm="6"
               md="3"
             >
-              <AppDateTimePicker
-                v-model="form.start_date"
-                :label="translate('pages.leaveRequests.from')"
-                :config="{ dateFormat: 'Y-m-d' }"
-              />
+              <div class="erp-field">
+                <label class="erp-field-label">{{ translate('pages.leaveRequests.from') }}</label>
+                <AppDateTimePicker
+                  v-model="form.start_date"
+                  class="erp-field-control"
+                  :placeholder="translate('pages.leaveRequests.from')"
+                  persistent-placeholder
+                  :config="{ dateFormat: 'Y-m-d', static: false, maxDate: form.end_date || undefined, onOpen: dockDatePickerCalendar }"
+                />
+              </div>
             </VCol>
             <VCol
               cols="12"
               sm="6"
               md="3"
             >
-              <AppDateTimePicker
-                v-model="form.end_date"
-                :label="translate('pages.leaveRequests.to')"
-                :config="{ dateFormat: 'Y-m-d' }"
-              />
+              <div class="erp-field">
+                <label class="erp-field-label">{{ translate('pages.leaveRequests.to') }}</label>
+                <AppDateTimePicker
+                  v-model="form.end_date"
+                  class="erp-field-control"
+                  :placeholder="translate('pages.leaveRequests.to')"
+                  persistent-placeholder
+                  :config="{ dateFormat: 'Y-m-d', static: false, minDate: form.start_date || undefined, onOpen: dockDatePickerCalendar }"
+                />
+              </div>
             </VCol>
             <VCol
               cols="12"
               md="3"
             >
-              <VTextField
+              <ErpField
                 v-model="form.reason"
                 :label="translate('common.fields.reason')"
+                :placeholder="translate('common.fields.reason')"
                 maxlength="1000"
               />
             </VCol>
             <VCol
-              v-if="requestedDays === 1"
               cols="12"
-              md="2"
+              md="3"
             >
-              <VSelect
+              <ErpField
                 v-model="form.duration_days"
+                kind="select"
                 :items="[{ title: translate('pages.leaveRequests.fullDay'), value: 1 }, { title: translate('pages.leaveRequests.halfDay'), value: 0.5 }]"
                 :label="translate('pages.leaveRequests.duration')"
+                :placeholder="translate('pages.leaveRequests.duration')"
+                :disabled="requestedDays !== 1"
               />
             </VCol>
             <VCol
               cols="12"
-              md="3"
+              class="d-flex justify-end"
             >
               <VBtn
-                block
-                size="large"
+                size="small"
                 :disabled="requestedDays < 1 || requestedDays > remaining || !form.reason.trim()"
                 :loading="loading"
                 @click="submit"
@@ -286,18 +315,6 @@ watch(year, () => {
               </VBtn>
             </VCol>
           </VRow>
-          <VAlert
-            v-if="requestedDays > remaining"
-            type="warning"
-            variant="tonal"
-            density="comfortable"
-            class="mt-2"
-          >
-            <VIcon
-              icon="tabler-alert-triangle"
-              start
-            />{{ translate('pages.leaveRequests.rangeExceeds', { count: remaining }) }}
-          </VAlert>
         </VSheet>
 
         <section>
@@ -324,6 +341,14 @@ watch(year, () => {
               :items="rows"
               :headers="[{ title: translate('common.fields.date'), key: 'date' }, { title: translate('common.fields.reason'), key: 'reason' }, { title: translate('common.fields.status'), key: 'status' }, { title: translate('common.messages.actions'), key: 'actions', sortable: false, align: 'end' }]"
               :loading="loading"
+              item-value="id"
+              mobile-cards
+              mobile-expand-all
+              mobile-title-key="date"
+              mobile-action-key="actions"
+              :mobile-fields="['reason', 'status']"
+              :skeleton-rows="5"
+              :show-scroll-affordance="false"
             >
               <template #item.status="{ item }">
                 <VChip
@@ -336,6 +361,14 @@ watch(year, () => {
               </template>
               <template #item.actions="{ item }">
                 <FullDetailsButton :item="item" />
+              </template>
+              <template #no-data>
+                <TableEmptyState
+                  icon="tabler-beach"
+                  :title="translate('pages.leaveRequests.historyTitle')"
+                  :description="translate('pages.leaveRequests.noRequests')"
+                  :min-height="240"
+                />
               </template>
             </ResponsiveDataTable>
           </VSheet>
@@ -359,12 +392,19 @@ watch(year, () => {
   overflow: hidden;
 }
 
+:global(.paid-time-off-overlay .v-overlay__scrim),
+:global(.v-overlay:has(.paid-time-off-dialog) .v-overlay__scrim) {
+  background: rgba(var(--v-theme-on-surface), 0.26) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
+}
+
 .pto-header {
   background: linear-gradient(135deg, rgb(var(--v-theme-primary), 0.08), rgb(var(--v-theme-surface)) 58%);
 }
 
 .pto-year {
-  max-inline-size: 116px;
+  max-inline-size: 156px;
 }
 
 .pto-stat {
@@ -380,12 +420,17 @@ watch(year, () => {
 }
 
 .pto-footer {
+  background: rgb(var(--v-theme-primary) / 0.04);
   border-block-start: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 @media (max-width: 599px) {
-  .pto-header :deep(.v-text-field) {
-    max-inline-size: 88px;
+  .pto-header {
+    align-items: flex-start;
+  }
+
+  .pto-year {
+    max-inline-size: 132px;
   }
 }
 </style>

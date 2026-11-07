@@ -64,6 +64,8 @@ const uploadAttachment = async (file: File, label?: string) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   })).data.data as ApplicantPortalAttachment
 }
+const deleteAttachment = async (attachmentId: number) => api.delete(`/applicant-portal/attachments/${attachmentId}`)
+const previewAttachment = async (attachmentId: number) => api.get(`/applicant-portal/attachments/${attachmentId}/preview`, { responseType: 'blob' })
 const invite = async (applicantId: number, data: { name: string; email: string; phone?: string | null; address?: string | null; password?: string | null }) =>
   (await api.post(`/applicants/${applicantId}/portal-invitation`, data)).data.data as { user_id: number; email: string; verified: boolean; message: string }
 
@@ -77,4 +79,4 @@ const credentials = async (data: { service: BuiltInService; name: string; email?
 
 const remove = async (applicantId: number) => api.delete(`/applicants/${applicantId}/portal-user`)
 
-export default { get, updateProfile, listAttachments, uploadAttachment, invite, setAccess, credentials, remove }
+export default { get, updateProfile, listAttachments, uploadAttachment, deleteAttachment, previewAttachment, invite, setAccess, credentials, remove }

@@ -6,23 +6,16 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import ContractCover from './templates/contract_cover_template.vue'
-import ContractPageTemplate, { type CompanyDetails } from './templates/contract_page_template.vue'
 import ContractApi from '@/api/contracts'
-import ContractTemplateApi from '@/api/contractTemplate'
 import type { Contract, ContractParams } from '@/api/contracts'
-import SettingApi, { type Setting } from '@/api/setting'
 import ContractForm, { type ContractFormPayload } from '@/components/ContractForm.vue'
+import ContractDocumentPrinter from '@/components/contract/ContractDocumentPrinter.vue'
 import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useContracts } from '@/composables/useContracts'
-import { legacyContentToHtml } from '@/utils/contractPlaceholders'
 import { printDocument } from '@/utils/printDocument'
-import { resolveContractArtwork } from '@/utils/printArtwork'
-import { canPrintPartyDetails, partyDetailsFor } from '@/utils/contractPartyDetails'
-import { buildContractPrintHeader, canPrintContractHeader } from '@/composables/useContractPrintHeader'
 
 const props = withDefaults(defineProps<{
   contractAudience?: 'employees' | 'other'
@@ -76,18 +69,8 @@ const selectedContract = ref<Contract | null>(null)
 // Set only while the form creates an extension of an existing agreement.
 const extensionParent = ref<Contract | null>(null)
 
-// Print Specific State
 const isPrintDialogVisible = ref(false)
-const includeEmptyLastPage = ref(false)
-const includeSignatureSection = ref(true)
-const includeCustomCover = ref(true)
-const includeCustomLetterhead = ref(true)
-const includePartyDetails = ref(false)
-const includeContractHeader = ref(false)
 const contractToPrint = ref<Contract | null>(null)
-
-const combinedPrintRef = ref<HTMLElement | null>(null)
-const isPrintLoading = ref(false)
 const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
@@ -105,9 +88,6 @@ const pageTitle = computed(() => t(audienceCopy.value.title))
 const pageDescription = computed(() => t(audienceCopy.value.description))
 
 const statuses = ['draft', 'active', 'completed', 'terminated', 'cancelled']
-const canShowPartyDetails = computed(() => !isOtherAudience.value && contractToPrint.value !== null && canPrintPartyDetails(contractToPrint.value))
-const canShowContractHeader = computed(() => contractToPrint.value !== null && canPrintContractHeader(contractToPrint.value))
-const contractHeader = computed(() => (contractToPrint.value ? buildContractPrintHeader(contractToPrint.value) : null))
 const audienceCopy = computed(() => ({
   employees: {
     title: 'pages.contracts.allContracts.allContracts.employeeContracts',
@@ -305,101 +285,6 @@ const employeeContractDetailFields = computed(() => [
   { key: 'content', label: t('common.messages.contract') },
 ])
 
-const companySetting = ref<Setting | null>(null)
-const snapshotDesign = computed(() => contractToPrint.value?.snapshot_data?.document_design)
-const printedContractTitle = computed(() => {
-  const name = contractToPrint.value?.contract || contractToPrint.value?.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
-  const version = contractToPrint.value?.snapshot_data?.template_version
-
-  return version?.version_number ? [name, version.name, `v${version.version_number}`, version.country_name, version.language_name].filter(Boolean).join(' - ') : name
-})
-
-const company = computed<CompanyDetails>(() => ({
-  brandName: companySetting.value?.original_company_name || companySetting.value?.short_company_name || companySetting.value?.website_title || 'Company',
-  logo: companySetting.value?.website_logo_url || undefined,
-  address: companySetting.value?.physical_address || undefined,
-  phone: companySetting.value?.phone || undefined,
-  website: companySetting.value?.website_address || undefined,
-  email: companySetting.value?.company_email || undefined,
-  licence: companySetting.value?.business_licence || undefined,
-  signatureUrl: companySetting.value?.company_signature_url || undefined,
-  letterheadUrl: snapshotDesign.value?.letterhead_url || companySetting.value?.contract_letterhead_url || undefined,
-  letterheadSafeX: snapshotDesign.value?.safe_x ?? companySetting.value?.contract_letterhead_safe_x,
-  letterheadSafeY: snapshotDesign.value?.safe_y ?? companySetting.value?.contract_letterhead_safe_y,
-  letterheadSafeWidth: snapshotDesign.value?.safe_width ?? companySetting.value?.contract_letterhead_safe_width,
-  letterheadSafeHeight: snapshotDesign.value?.safe_height ?? companySetting.value?.contract_letterhead_safe_height,
-}))
-
-// Configured artwork whose file is gone must never replace the built-in cover
-// or letterhead with a blank page (see `utils/printArtwork`).
-const coverArtworkAvailable = ref(true)
-const letterheadArtworkAvailable = ref(true)
-const useCustomCover = computed(() => includeCustomCover.value
-  && Boolean(snapshotDesign.value?.cover_design_url || companySetting.value?.contract_cover_design_url)
-  && coverArtworkAvailable.value)
-const printableCompany = computed<CompanyDetails>(() => ({
-  ...company.value,
-  letterheadUrl: includeCustomLetterhead.value && letterheadArtworkAvailable.value ? company.value.letterheadUrl : undefined,
-}))
-const printedPages = computed(() => (contractToPrint.value ? getContractPagesHtml(contractToPrint.value) : []))
-
-const loadPrintArtwork = async () => {
-  coverArtworkAvailable.value = true
-  letterheadArtworkAvailable.value = true
-
-  const coverUrl = snapshotDesign.value?.cover_design_url || companySetting.value?.contract_cover_design_url || null
-  const letterheadUrl = company.value.letterheadUrl || null
-  const availability = await resolveContractArtwork({ cover: coverUrl, letterhead: letterheadUrl })
-
-  coverArtworkAvailable.value = availability.cover
-  letterheadArtworkAvailable.value = availability.letterhead
-
-  if ((coverUrl && !availability.cover) || (letterheadUrl && !availability.letterhead))
-    toast.info(translate('pages.contracts.allContracts.allContracts.artworkUnavailable'))
-}
-
-const getContractPagesHtml = (contract: Contract): string[] => {
-  // Contracts retain their own content snapshot so later template edits never
-  // rewrite a document that has already been issued.
-  const content = contract.content
-  const html = legacyContentToHtml(content)
-  if (html)
-    return [html]
-
-  // Fallback to default content if no template content is available
-  const startDate = formatLocalizedDate(contract.start_date)
-  const contractName = contract.contract || contract.contract_template?.name || translate('pages.contracts.allContracts.allContracts.untitledContract')
-
-  return [
-    `
-    <h1>${translate('pages.contracts.shared.contractAgreement')}</h1>
-    <p>${translate('pages.contracts.shared.fallbackOpening')} <strong>${company.value.brandName}</strong> ${translate('pages.contracts.shared.and')} <strong>${contract.counterparty || '________________'}</strong> on <strong>${startDate}</strong>.</p>
-
-    <h2>1. ${translate('pages.contracts.shared.contractParties')}</h2>
-    <p><strong>${translate('pages.contracts.shared.serviceProvider')}:</strong> ${company.value.brandName}, ${translate('pages.contracts.shared.locatedAt')} ${company.value.address || translate('pages.contracts.shared.registeredCompanyAddress')}</p>
-    <p><strong>${translate('pages.contracts.shared.client')}:</strong> ${contract.counterparty || '________________'}</p>
-
-    <h2>2. ${translate('pages.contracts.shared.contractDetails')}</h2>
-    <p><strong>${translate('pages.contracts.shared.contractName')}:</strong> ${contractName}</p>
-    <p><strong>${translate('pages.contracts.shared.status')}:</strong> ${contract.status}</p>
-    <p><strong>${translate('pages.contracts.shared.startDate')}:</strong> ${startDate}</p>
-    `,
-
-    `
-    <h2>3. ${translate('pages.contracts.shared.termsAndConditions')}</h2>
-    <p>${translate('pages.contracts.shared.partiesAgree')}</p>
-    <ol>
-      <li>${translate('pages.contracts.shared.obligationsTerm')}</li>
-      <li>${translate('pages.contracts.shared.changesTerm')}</li>
-      <li>${translate('pages.contracts.shared.durationTerm')}</li>
-    </ol>
-
-    <h2>4. ${translate('pages.contracts.shared.termination')}</h2>
-    <p>${translate('pages.contracts.shared.terminationNotice')}</p>
-    `,
-  ]
-}
-
 // Print is global: the report walks the filtered pages so it covers the whole
 // result set instead of the 25 rows on screen.
 const printTable = async () => {
@@ -428,63 +313,9 @@ const printTable = async () => {
   }
 }
 
-const resetPrintOptions = () => {
-  includeEmptyLastPage.value = false
-  includeSignatureSection.value = true
-  includePartyDetails.value = false
-  includeContractHeader.value = false
-}
-
-const printContract = async (contract: Contract) => {
-  try {
-    isPrintLoading.value = true
-
-    // The print body renders from the freshest contract: the server resolves
-    // the artwork scoped to this contract's type (and service) — including the
-    // print-safe area — for contracts that carry no design snapshot yet.
-    let printable = contract
-
-    try {
-      printable = await ContractApi.getById(contract.id)
-    }
-    catch (error) {
-      console.warn('Failed to refresh the contract before printing, using the listed row.', error)
-    }
-
-    // If the contract template is not loaded, fetch it
-    if (!printable.contract_template && printable.template_id) {
-      const template = await ContractTemplateApi.getById(printable.template_id)
-
-      printable.contract_template = {
-        id: template.id,
-        name: template.name,
-        type: template.type,
-        cover_text: template.cover_text,
-        content: template.content,
-      }
-    }
-
-    contractToPrint.value = printable
-    resetPrintOptions()
-    await loadPrintArtwork()
-    isPrintDialogVisible.value = true
-  }
-  catch (err) {
-    console.error('Failed to load contract template:', err)
-    toast.warning(translate('pages.contracts.allContracts.allContracts.failedToLoadContractTemplateUsingDefaultContent'))
-    contractToPrint.value = contract
-    resetPrintOptions()
-    isPrintDialogVisible.value = true
-  }
-  finally {
-    isPrintLoading.value = false
-  }
-}
-
-const executePrint = async () => {
-  if (!combinedPrintRef.value) return
-  await printDocument({ bodyClass: 'printing-contract-document', pageStyle: 'size: A4; margin: 0;', element: combinedPrintRef.value })
-  isPrintDialogVisible.value = false
+const printContract = (contract: Contract) => {
+  contractToPrint.value = contract
+  isPrintDialogVisible.value = true
 }
 
 const addNew = () => {
@@ -638,19 +469,13 @@ onMounted(async () => {
     if (contract)
       search.value = contract.contract_number || contract.counterparty || contract.contract
   }
-  try {
-    companySetting.value = (await SettingApi.getCompanyProfile()).data
-  }
-  catch {
-    // Printing still works with neutral fallback company details.
-  }
 })
 
 </script>
 
 <template>
   <div class="erp-workspace">
-  <ErpPageHeader :title="pageTitle" section="contracts" />
+  <ErpPageHeader :title="pageTitle" :section="isEmployeeAudience ? 'hr' : 'contracts'" />
   <VCard>
     <VCardText>
       <VRow
@@ -874,90 +699,19 @@ onMounted(async () => {
         </VChip>
       </template>
       <template #item.actions="{ item }">
-        <FullDetailsButton
-          :item="item"
-          :title="item.contract_number || item.contract"
-          :fields="isEmployeeAudience ? employeeContractDetailFields : []"
-        />
-        <VBtn
-          v-if="ability.can('read', 'cancel_contracts') && !item.is_cancelled && ['draft', 'active'].includes(item.status)"
-          icon="tabler-ban"
-          variant="text"
-          size="small"
-          :loading="isCancelling"
-          class="me-2"
-          color="error"
-          @click="cancelContract(item)"
-        >
-          <VIcon icon="tabler-ban" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.cancelContract') }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="item.status === 'draft' && !item.is_cancelled"
-          icon="tabler-edit"
-          variant="text"
-          size="small"
-          class="me-2"
-          @click="editContractUI(item)"
-        >
-          <VIcon icon="tabler-edit" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.editContract') }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="item.status === 'draft' && !item.is_cancelled"
-          icon="tabler-trash"
-          variant="text"
-          size="small"
-          class="me-2"
-          @click="deleteContractUI(item)"
-        >
-          <VIcon icon="tabler-trash" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.deleteContract') }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="canExtend(item)"
-          icon="tabler-file-plus"
-          variant="text"
-          size="small"
-          class="me-2"
-          @click="extendContract(item)"
-        >
-          <VIcon icon="tabler-file-plus" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.extendContract') }}
-          </VTooltip>
-        </VBtn>
-        <!-- A cancelled contract keeps its history but is not printable; View
-             stays as its only action. -->
-        <VBtn
-          v-if="!item.is_cancelled"
-          icon="tabler-printer"
-          variant="text"
-          size="small"
-          :loading="isPrintLoading"
-          @click="printContract(item)"
-        >
-          <VIcon icon="tabler-printer" /><VTooltip
-            activator="parent"
-            location="top"
-          >
-            {{ $t('pages.contracts.allContracts.allContracts.printContract') }}
-          </VTooltip>
-        </VBtn>
+        <div class="d-flex align-center ga-1 justify-end">
+          <VBtn v-if="!item.is_cancelled" icon="tabler-printer" variant="text" size="small" :aria-label="$t('pages.contracts.allContracts.allContracts.printContract')" @click="printContract(item)" />
+          <VMenu location="bottom end">
+            <template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" class="contract-actions-trigger" :aria-label="$t('common.messages.actions')" /></template>
+            <VList density="compact" min-width="220">
+              <FullDetailsButton :item="item" :title="item.contract_number || item.contract" :fields="isEmployeeAudience ? employeeContractDetailFields : []" menu-action />
+              <VListItem v-if="canExtend(item)" prepend-icon="tabler-file-plus" :title="$t('pages.contracts.allContracts.allContracts.extendContract')" @click="extendContract(item)" />
+              <VListItem v-if="item.status === 'draft' && !item.is_cancelled" prepend-icon="tabler-edit" :title="$t('pages.contracts.allContracts.allContracts.editContract')" @click="editContractUI(item)" />
+              <VListItem v-if="ability.can('read', 'cancel_contracts') && !item.is_cancelled && ['draft', 'active'].includes(item.status)" prepend-icon="tabler-ban" :title="$t('pages.contracts.allContracts.allContracts.cancelContract')" @click="cancelContract(item)" />
+              <VListItem v-if="item.status === 'draft' && !item.is_cancelled" prepend-icon="tabler-trash" class="contract-actions-menu__delete" :title="$t('pages.contracts.allContracts.allContracts.deleteContract')" @click="deleteContractUI(item)" />
+            </VList>
+          </VMenu>
+        </div>
       </template>
     </ResponsiveDataTableServer>
   </VCard>
@@ -971,20 +725,20 @@ onMounted(async () => {
   <!-- Contract Form Dialog -->
   <VDialog
     v-model="isDialogVisible" class="erp-form"
-    :max-width="isEmployeeAudience ? '800px' : '900px'"
-    :content-class="isOtherAudience ? 'other-contract-form-dialog' : undefined"
+    :max-width="isEmployeeAudience ? '900px' : '900px'"
+    :content-class="(isOtherAudience || isEmployeeAudience) ? 'other-contract-form-dialog' : undefined"
     scrollable
   >
-    <VCard :class="isOtherAudience && 'other-contract-form-card'">
-      <VCardTitle :class="isOtherAudience && 'other-contract-dialog-title px-5 py-5'">
+    <VCard :class="(isOtherAudience || isEmployeeAudience) && 'other-contract-form-card'">
+      <VCardTitle :class="(isOtherAudience || isEmployeeAudience) && 'other-contract-dialog-title px-5 py-5'">
         <span class="headline">{{ extensionParent ? $t('pages.contracts.allContracts.allContracts.extendContract') : dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
-        <template v-if="isOtherAudience">
+        <template v-if="isOtherAudience || isEmployeeAudience">
           <VSpacer />
           <VBtn icon="tabler-x" variant="tonal" color="error" class="other-contract-dialog-close" :aria-label="$t('common.actions.close')" @click="isDialogVisible = false" />
         </template>
       </VCardTitle>
 
-      <VCardText :class="['contract-form-dialog__body', isOtherAudience && 'other-contract-dialog-body pa-5 pa-sm-6']">
+      <VCardText :class="['contract-form-dialog__body', (isOtherAudience || isEmployeeAudience) && 'other-contract-dialog-body pa-5 pa-sm-6']">
         <ContractForm
           :key="extensionParent ? `extend-${extensionParent.id}` : dialogMode === 'edit' ? `edit-${selectedContract?.id}` : 'add'"
           :contract="selectedContract || undefined"
@@ -1002,25 +756,26 @@ onMounted(async () => {
   <VDialog
     v-model="isContractActionDialogVisible"
     max-width="460px"
+    class="contract-action-overlay"
   >
-    <VCard>
-      <VCardTitle>{{ $t('pages.contracts.allContracts.allContracts.confirmContractAction') }}</VCardTitle>
-      <VCardText>
+    <VCard class="contract-action-dialog">
+      <VCardText class="contract-action-dialog__content">
+        <div class="contract-action-dialog__icon"><VIcon :icon="pendingContractAction?.type === 'delete' ? 'tabler-trash' : 'tabler-ban'" size="30" /></div>
+        <h2 class="contract-action-dialog__title">{{ $t('pages.contracts.allContracts.allContracts.confirmContractAction') }}</h2>
         {{ pendingContractAction?.type === 'delete'
           ? $t('pages.contracts.allContracts.allContracts.deleteContractConfirmation', { contract: pendingContractAction ? contractName(pendingContractAction.contract) : '' })
           : $t('pages.contracts.allContracts.allContracts.cancelContractConfirmation', { contract: pendingContractAction ? contractName(pendingContractAction.contract) : '' }) }}
       </VCardText>
-      <VCardActions>
-        <VSpacer />
+      <VCardActions class="contract-action-dialog__actions">
         <VBtn
-          variant="tonal"
-          color="secondary"
+          class="contract-action-dialog__button contract-action-dialog__button--cancel"
           @click="isContractActionDialogVisible = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn
-          :color="pendingContractAction?.type === 'delete' ? 'error' : 'warning'"
+          class="contract-action-dialog__button contract-action-dialog__button--confirm"
+          :class="{ 'contract-action-dialog__button--delete': pendingContractAction?.type === 'delete' }"
           @click="confirmContractAction"
         >
           {{ pendingContractAction?.type === 'delete' ? $t('common.actions.delete') : $t('pages.contracts.allContracts.allContracts.cancelContract') }}
@@ -1029,146 +784,7 @@ onMounted(async () => {
     </VCard>
   </VDialog>
 
-  <!-- Print Options Dialog -->
-  <VDialog
-    v-model="isPrintDialogVisible"
-    max-width="480px"
-  >
-    <VCard>
-      <VCardTitle class="d-flex align-center gap-2">
-        <VIcon icon="tabler-printer" />
-        <span>{{ $t('pages.contracts.allContracts.allContracts.printContractOptions') }}</span>
-      </VCardTitle>
-      <VCardText>
-        <p class="mb-4">
-          {{ $t('pages.contracts.allContracts.allContracts.prepare') }} <strong>{{ contractToPrint?.contract || contractToPrint?.contract_template?.name
-            || $t('pages.contracts.allContracts.allContracts.untitledContract') }}</strong> {{ $t('pages.contracts.allContracts.allContracts.forA4PrintingTheDocumentWillIncludeTheCoverPageAndAllContractTerms') }}
-        </p>
-        <div class="d-flex flex-column gap-2">
-          <VCheckbox
-            v-model="includeSignatureSection"
-            :label="$t('pages.contracts.allContracts.allContracts.includeFormalSignatureStampSectionAtTheEnd')"
-            density="compact"
-            hide-details
-          />
-          <VCheckbox
-            v-model="includeCustomCover"
-            :label="$t('pages.contracts.allContracts.allContracts.useCustomCoverPageFromSettings')"
-            density="compact"
-            hide-details
-          />
-          <VCheckbox
-            v-model="includeCustomLetterhead"
-            :label="$t('pages.contracts.allContracts.allContracts.useCustomLetterheadFromSettings')"
-            density="compact"
-            hide-details
-          />
-          <VCheckbox
-            v-if="canShowPartyDetails"
-            v-model="includePartyDetails"
-            :label="$t('pages.contracts.shared.includePartyDetails')"
-            density="compact"
-            hide-details
-          />
-          <VCheckbox
-            v-if="canShowContractHeader"
-            v-model="includeContractHeader"
-            :label="$t('pages.contracts.shared.header.includeContractHeader')"
-            :hint="$t('pages.contracts.shared.header.includeContractHeaderHint')"
-            density="compact"
-            hide-details
-            persistent-hint
-          />
-          <VCheckbox
-            v-model="includeEmptyLastPage"
-            :label="$t('pages.contracts.allContracts.allContracts.addALastFullyEmptyPage')"
-            density="compact"
-            hide-details
-          />
-        </div>
-      </VCardText>
-      <VCardActions class="justify-end px-4 pb-4">
-        <VBtn
-          variant="outlined"
-          color="secondary"
-          @click="isPrintDialogVisible = false"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          @click="executePrint"
-        >
-          {{ $t('pages.contracts.allContracts.allContracts.printA4Document') }}
-        </VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-
-  <!-- Hidden Printable Document Structure -->
-  <div
-    ref="combinedPrintRef"
-    style="display: none;"
-  >
-    <template v-if="contractToPrint">
-        <div
-          v-if="useCustomCover"
-        class="custom-cover-page"
-      >
-        <img
-            :src="snapshotDesign?.cover_design_url || companySetting?.contract_cover_design_url || ''"
-          alt=""
-          @error="coverArtworkAvailable = false"
-        >
-      </div>
-      <ContractCover
-        v-else
-        :contractee-name="contractToPrint.counterparty || ''"
-        :logo="company.logo"
-        cover-design-url=""
-        :contract-number="contractToPrint.contract_number || ''"
-            :contract-title="printedContractTitle"
-        :cover-description="contractToPrint.cover_text || contractToPrint.contract_template?.cover_text || ''"
-        :company-website="company.website || ''"
-        :company-address="company.address || ''"
-        :company-email="company.email || ''"
-        :company-number="company.phone || ''"
-      />
-
-      <ContractPageTemplate
-        v-if="includePartyDetails && canShowPartyDetails"
-        :document-title="$t('pages.contracts.shared.contractParties')"
-        :document-number="contractToPrint.contract_number || ''"
-        :company="printableCompany"
-        :party-details="partyDetailsFor(contractToPrint, company)"
-        :contractee-name="contractToPrint.counterparty || ''"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: 1, total: printedPages.length + 1 })"
-        :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
-        class="contract-content"
-      />
-
-      <ContractPageTemplate
-        v-for="(pageHtml, idx) in printedPages"
-        :key="idx"
-        :document-number="contractToPrint.contract_number || ''"
-            :document-title="printedContractTitle"            :company="printableCompany"
-        :header-details="includeContractHeader && idx === 0 ? contractHeader : null"
-        :html-content="pageHtml"
-        :page-number-string="$t('pages.contracts.allContracts.allContracts.pageNumber', { page: idx + (includePartyDetails && canShowPartyDetails ? 2 : 1), total: printedPages.length + (includePartyDetails && canShowPartyDetails ? 1 : 0) })"
-        :show-signature="includeSignatureSection && idx === printedPages.length - 1"
-        :contractee-name="contractToPrint.counterparty || ''"
-        :company-signatory-name="contractToPrint.company_signatory_name || null"
-        :footer-text="$t('pages.contracts.allContracts.allContracts.confidentialAllRightsReserved')"
-        class="contract-content"
-      />
-
-      <div
-        v-if="includeEmptyLastPage"
-        class="empty-print-page"
-        style="width: 210mm; height: 297mm; background: white;"
-      />
-    </template>
-  </div>
+  <ContractDocumentPrinter v-model="isPrintDialogVisible" :contract="contractToPrint" />
   </div>
 </template>
 
@@ -1194,13 +810,43 @@ onMounted(async () => {
 
 :global(.other-contract-form-dialog .app-form__actions) {
   border-width: 1px 0 0;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-inline: -1.5rem;
   padding: 1rem 1.5rem;
 }
 
+:global(.other-contract-form-dialog .other-contract-form-actions__save) {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: rgb(var(--v-theme-on-primary)) !important;
+}
+:global(.other-contract-form-dialog .other-contract-form-actions__cancel) {
+  border: 1px solid rgba(var(--v-theme-error), .62) !important;
+  background-color: rgba(var(--v-theme-error), .12) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+:global(.other-contract-form-dialog .other-contract-form-actions__cancel:hover),
+:global(.other-contract-form-dialog .other-contract-form-actions__cancel:focus-visible),
+:global(.other-contract-form-dialog .other-contract-form-actions__cancel:active) {
+  border-color: rgb(var(--v-theme-error)) !important;
+  background-color: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-on-error)) !important;
+}
+:global(.other-contract-form-dialog .other-contract-form-actions__save:hover) { filter: brightness(.9); }
 :global(.other-contract-form-dialog .app-form__actions .v-btn) { min-inline-size: 104px; }
 :global(.other-contract-form-dialog .other-contract-dialog-close:hover) { background-color: rgba(var(--v-theme-error), .18) !important; }
+:global(.v-overlay:has(.other-contract-form-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .24); backdrop-filter: blur(4px); opacity: 1 !important; }
+:global(.other-contract-form-dialog .v-card-text) { scrollbar-width: none; }
+:global(.other-contract-form-dialog .v-card-text::-webkit-scrollbar) { display: none; }
+
+.contract-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; text-align: center; }
+.contract-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
+.contract-action-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; place-items: center; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); }
+.contract-action-dialog__title { margin: 0 0 .7rem; font-size: 1.2rem; font-weight: 700; }
+.contract-action-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }
+.contract-action-dialog__button { min-block-size: 2.85rem; border-radius: 10px !important; background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; font-weight: 700; }
+.contract-action-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.contract-action-dialog__button--delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 
 .contract-table :deep(.v-data-table__wrapper) {
   overflow-x: auto;

@@ -445,6 +445,13 @@ class ContractController extends Controller
             ? $data['contract_template_version_id']
             : ($template->id === $contract->template_id ? $contract->contract_template_version_id : null);
         $version = $versionId ? ContractTemplateVersion::findOrFail($versionId) : null;
+        // Language is an optional operator choice. When a concrete version is
+        // selected, its fixed locale is the contract locale instead of making
+        // the operator choose that same value a second time.
+        if ($version && ! $isEmployment) {
+            $countryId ??= $version->country_id;
+            $languageId ??= $version->language_id;
+        }
         if (! $version && $isEmployment) {
             $version = $template->versions()->where('is_current', true)->where('status', 'active')->first();
         }

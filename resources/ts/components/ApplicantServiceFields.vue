@@ -75,40 +75,42 @@ onMounted(async () => {
       <template v-if="visibleOnStep(2)">
         <slot v-if="props.contractLayout && model.service === 'scholarship'" name="scholarship-staff" />
         <slot v-if="props.contractLayout && model.service === 'private'" name="private-prefix" />
-        <VCol cols="12" sm="6" md="3"><ErpField v-model="model.grade_score" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('erp.percentage')" :placeholder="t('serviceContracts.placeholders.gradeScore')" required clearable /></VCol>
-        <VCol cols="12" sm="6" md="3"><ErpField v-model="model.country_id" kind="select" :items="options('countries')" :label="t('educational.destinationCountry')" :placeholder="t('serviceContracts.placeholders.country')" required clearable /></VCol>
+        <VCol cols="12" sm="6" :md="['private', 'scholarship'].includes(model.service) ? 6 : 3"><ErpField v-model="model.grade_score" type="number" min="0" max="100" step="0.01" suffix="%" :label="t('erp.percentage')" :placeholder="t('serviceContracts.placeholders.gradeScore')" required clearable /></VCol>
+        <VCol cols="12" sm="6" :md="['private', 'scholarship'].includes(model.service) ? 6 : 3"><ErpField v-model="model.country_id" kind="select" :items="options('countries')" :label="t('educational.destinationCountry')" :placeholder="t('serviceContracts.placeholders.country')" required clearable /></VCol>
         <slot v-if="props.contractLayout && model.service === 'scholarship'" name="scholarship-version" />
         <slot v-if="props.contractLayout && model.service === 'private'" name="private-version" />
-        <VCol v-if="props.showLanguage" cols="12" sm="6" md="3"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
-        <VCol cols="12" sm="6" md="3"><ErpField v-model="model.education_level_id" kind="select" :items="options('education-levels')" :label="t('educational.educationLevel')" :placeholder="t('serviceContracts.placeholders.educationLevel')" required clearable /></VCol>
-        <VCol v-if="model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.semester_id" kind="select" :items="options('semesters')" :label="t('educational.semester')" :placeholder="t('serviceContracts.placeholders.semester')" required clearable /></VCol>
-        <VCol v-if="model.service === 'private'" cols="12" sm="6" md="3"><ErpField v-model="model.contract_type_id" kind="select" :items="contractTypeOptions" :label="t('educational.contractType')" :placeholder="t('serviceContracts.placeholders.contractType')" clearable /></VCol>
-        <VCol cols="12" sm="6" md="3"><ErpField v-model="model.favorite_subject_ids" class="requested-subjects" kind="select" :items="options('subjects')" :label="t('erp.requestedFields')" :placeholder="t('serviceContracts.placeholders.subjects')" multiple chips closable-chips clearable /></VCol>
+        <VCol v-if="props.showLanguage" cols="12" sm="6" :md="['private', 'scholarship'].includes(model.service) ? 6 : 3"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
+        <VCol cols="12" sm="6" :md="['private', 'scholarship'].includes(model.service) ? 6 : 3"><ErpField v-model="model.education_level_id" kind="select" :items="options('education-levels')" :label="t('educational.educationLevel')" :placeholder="t('serviceContracts.placeholders.educationLevel')" required clearable /></VCol>
+        <VCol v-if="model.service === 'private'" cols="12" sm="6" md="6"><ErpField v-model="model.semester_id" kind="select" :items="options('semesters')" :label="t('educational.semester')" :placeholder="t('serviceContracts.placeholders.semester')" required clearable /></VCol>
+        <VCol v-if="model.service === 'private'" cols="12" sm="6" md="6"><ErpField v-model="model.contract_type_id" kind="select" :items="contractTypeOptions" :label="t('educational.contractType')" :placeholder="t('serviceContracts.placeholders.contractType')" clearable /></VCol>
+        <VCol cols="12" sm="6" :md="['private', 'scholarship'].includes(model.service) ? 6 : 3"><ErpField v-model="model.favorite_subject_ids" class="requested-subjects" kind="select" :items="options('subjects')" :label="t('erp.requestedFields')" :placeholder="t('serviceContracts.placeholders.subjects')" multiple chips closable-chips clearable /></VCol>
       </template>
       <template v-if="model.service === 'private' && visibleOnStep(3)">
-        <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="model.university_fee" type="number" min="0" step="0.01" :label="t('educational.serviceFields.universityFee')" :placeholder="t('serviceContracts.placeholders.universityFee')" clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.university_fee" type="number" min="0" step="0.01" :label="t('educational.serviceFields.universityFee')" :placeholder="t('serviceContracts.placeholders.universityFee')" clearable /></VCol>
         <slot v-if="props.contractLayout" name="private-fees" />
       </template>
     </template>
     <template v-else-if="model.service === 'test_offer'">
       <template v-if="visibleOnStep(props.contractLayout ? 1 : 2)">
-        <VCol cols="12" sm="6" md="3"><ErpField v-model="model.test_id" kind="select" :items="options('tests')" :label="t('educational.masterData.tests')" :placeholder="t('serviceContracts.placeholders.test')" required clearable /></VCol>
-        <VCol v-if="props.showLanguage" cols="12" sm="6" md="3"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
-        <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="model.skill_ids" class="requested-subjects" kind="select" :items="options('skills')" :label="t('educational.masterData.skills')" :placeholder="t('serviceContracts.placeholders.skills')" required multiple chips closable-chips clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.test_id" kind="select" :items="options('tests')" :label="t('educational.masterData.tests')" :placeholder="t('serviceContracts.placeholders.test')" required clearable /></VCol>
+        <slot v-if="props.contractLayout" name="test-offer-version" />
+        <VCol v-if="props.showLanguage" cols="12" sm="6" md="6"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.skill_ids" class="requested-subjects" kind="select" :items="options('skills')" :label="t('educational.masterData.skills')" :placeholder="t('serviceContracts.placeholders.skills')" required multiple chips closable-chips clearable /></VCol>
       </template>
-      <slot v-if="props.contractLayout && visibleOnStep(2)" name="test-offer-booking-fee" />
     </template>
     <template v-else-if="model.service === 'academy'">
-      <slot v-if="props.contractLayout && visibleOnStep(1)" name="academy-student-basics" />
-      <template v-if="visibleOnStep(2)">
+      <template v-if="visibleOnStep(1)">
+        <slot v-if="props.contractLayout" name="academy-student-basics" />
         <slot v-if="props.contractLayout" name="academy-version" />
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" :placeholder="t('serviceContracts.placeholders.studentId')" maxlength="64" required /></VCol>
-        <VCol v-if="props.showLanguage" cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.time_id" kind="select" :items="options('times')" :label="t('educational.masterData.times')" :placeholder="t('serviceContracts.placeholders.classTime')" required clearable /></VCol>
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.teacher_ids" class="requested-subjects" kind="select" :items="options('teachers')" :label="t('educational.masterData.teachers')" :placeholder="t('serviceContracts.placeholders.teachers')" required multiple chips closable-chips clearable /></VCol>
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.duration_id" kind="select" :items="options('durations')" :label="t('educational.masterData.durations')" :placeholder="t('serviceContracts.placeholders.duration')" required clearable /></VCol>
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.program_id" kind="select" :items="options('programs')" :label="t('educational.masterData.programs')" :placeholder="t('serviceContracts.placeholders.program')" required clearable /></VCol>
-        <VCol cols="12" sm="6" :md="props.contractLayout ? 3 : 4"><ErpField v-model="model.class_id" kind="select" :items="options('classes')" :label="t('erp.class')" :placeholder="t('serviceContracts.placeholders.class')" required clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" :placeholder="t('serviceContracts.placeholders.studentId')" maxlength="64" required /></VCol>
+        <VCol v-if="props.showLanguage" cols="12" sm="6" md="6"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
+      </template>
+      <template v-if="visibleOnStep(2)">
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.time_id" kind="select" :items="options('times')" :label="t('educational.masterData.times')" :placeholder="t('serviceContracts.placeholders.classTime')" required clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.teacher_ids" class="requested-subjects" kind="select" :items="options('teachers')" :label="t('educational.masterData.teachers')" :placeholder="t('serviceContracts.placeholders.teachers')" required multiple chips closable-chips clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.duration_id" kind="select" :items="options('durations')" :label="t('educational.masterData.durations')" :placeholder="t('serviceContracts.placeholders.duration')" required clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.program_id" kind="select" :items="options('programs')" :label="t('educational.masterData.programs')" :placeholder="t('serviceContracts.placeholders.program')" required clearable /></VCol>
+        <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="model.class_id" kind="select" :items="options('classes')" :label="t('erp.class')" :placeholder="t('serviceContracts.placeholders.class')" required clearable /></VCol>
       </template>
       <slot v-if="props.contractLayout && visibleOnStep(3)" name="academy-payment" />
     </template>

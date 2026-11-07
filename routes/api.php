@@ -228,7 +228,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('departments', [DepartmentController::class, 'store'])->middleware('permission:manage_departments');
     Route::put('departments/{department}', [DepartmentController::class, 'update'])->middleware('permission:manage_departments');
     Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])->middleware('permission:manage_departments');
-    Route::get('employees/assignment-options', [EmployeeController::class, 'assignmentOptions'])->middleware('permission:view_applicants,view_visitors,create_contracts');
+    Route::get('employees/assignment-options', [EmployeeController::class, 'assignmentOptions'])->middleware('permission:view_applicants,view_visitors,create_contracts,view_financial_reports,view_employees');
     Route::get('employees/account-options', [EmployeeController::class, 'accountOptions'])->middleware('permission:view_employees');
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
@@ -387,6 +387,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::put('applicant-portal/profile', [ApplicantPortalController::class, 'updateProfile'])->middleware('permission:edit_own_applicant_profile');
     Route::get('applicant-portal/attachments', [ApplicantPortalController::class, 'attachments'])->middleware('permission:view_own_applicant_portal');
     Route::post('applicant-portal/attachments', [ApplicantPortalController::class, 'uploadAttachment'])->middleware('permission:edit_own_applicant_profile');
+    Route::get('applicant-portal/attachments/{attachment}/preview', [ApplicantPortalController::class, 'previewAttachment'])->middleware('permission:view_own_applicant_portal');
+    Route::delete('applicant-portal/attachments/{attachment}', [ApplicantPortalController::class, 'destroyAttachment'])->middleware('permission:edit_own_applicant_profile');
     // Credential suggestion for a contract that has not been saved yet; the
     // contract's creation issues the account with exactly these values.
     Route::post('applicants/portal-credentials', [ApplicantPortalController::class, 'credentials'])->middleware('permission:create_contracts');
@@ -417,8 +419,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('educational-dashboard', [EducationalDashboardController::class, 'index'])->middleware('permission:view_agency_overview');
     // Visa-agency tabular reports plus CSV export. New controller on purpose:
     // the finance report surface stays untouched by agency reporting.
-    Route::get('educational-reports/{type}', [EducationalReportController::class, 'show'])->middleware('permission:view_visa_reports');
-    Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export'])->middleware('permission:view_visa_reports');
+    // Report authorization is type-specific in the controller: application,
+    // finance and HR reports belong to their respective workspaces.
+    Route::get('educational-reports/{type}', [EducationalReportController::class, 'show']);
+    Route::get('educational-reports/{type}/export', [EducationalReportController::class, 'export']);
     Route::get('educational-bonus-sources', [EducationalBonusSourceController::class, 'index'])->middleware('permission:view_bonuses');
     Route::post('educational-bonus-sources', [EducationalBonusSourceController::class, 'store'])->middleware('permission:manage_educational_bonuses');
     Route::put('educational-bonus-sources/{educationalBonusSource}', [EducationalBonusSourceController::class, 'update'])->middleware('permission:manage_educational_bonuses');

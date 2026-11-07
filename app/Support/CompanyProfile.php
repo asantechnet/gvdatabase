@@ -33,7 +33,10 @@ class CompanyProfile
 
         return [
             'address' => $setting->company_email,
-            'name' => $setting->mail_from_name ?: $setting->short_company_name ?: $setting->website_title,
+            'name' => $setting->mail_from_name
+                ?: $setting->short_company_name
+                ?: $setting->website_title
+                ?: config('mail.from.name', config('app.name', 'Company')),
         ];
     }
 

@@ -5,6 +5,7 @@ import { type CreateSupportTicketData, type SupportTicket, createSupportTicket, 
 import { currentLocale } from '@/utils/localization'
 import { SUPPORT_CONTACT } from '@/utils/constants'
 import { useSettingsValidation } from '@/composables/useSettingsValidation'
+import ErpField from '@/components/erp/ErpField.vue'
 
 // Rendered both as a standalone route and as a tab inside Settings.
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
@@ -18,11 +19,25 @@ const submitting = ref(false)
 const loading = ref(true)
 const tickets = ref<SupportTicket[]>([])
 const attachments = ref<File[]>([])
+const attachmentPicker = ref<File[]>([])
+
+const supportAddress = computed(() => ({
+  'fa-AF': 'کابل، شهرنو، فاریاب مارکیت',
+  'ps-AF': 'کابل، شهرنو، فاریاب مارکېټ',
+}[currentLocale()] ?? 'Kabul, Shar-e-Naw, Faryab Market'))
+const whatsappHref = computed(() => {
+  const message = {
+    'fa-AF': 'سلام تیم پشتیبانی آسان‌تک، برای استفاده از سیستم به کمک نیاز دارم.',
+    'ps-AF': 'سلام د آسان‌ټېک د ملاتړ ټیم، زه د سیسټم لپاره مرستې ته اړتیا لرم.',
+  }[currentLocale()] ?? 'Hello Asantech Support, I need help with the system.'
+
+  return `https://wa.me/93745625625?text=${encodeURIComponent(message)}`
+})
+const mapsHref = computed(() => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(supportAddress.value)}`)
 
 const contactChannels = computed(() => [
   { key: 'phone', icon: 'tabler-phone', color: 'primary', value: SUPPORT_CONTACT.phone, href: SUPPORT_CONTACT.phoneHref, external: false },
-  { key: 'whatsapp', icon: 'tabler-brand-whatsapp', color: 'success', value: SUPPORT_CONTACT.whatsapp, href: SUPPORT_CONTACT.whatsappHref, external: true },
-  { key: 'telegram', icon: 'tabler-brand-telegram', color: 'info', value: SUPPORT_CONTACT.telegram, href: SUPPORT_CONTACT.telegramHref, external: true },
+  { key: 'whatsapp', icon: 'tabler-brand-whatsapp', color: 'success', value: SUPPORT_CONTACT.whatsapp, href: whatsappHref.value, external: true },
   { key: 'email', icon: 'tabler-mail', color: 'warning', value: SUPPORT_CONTACT.email, href: SUPPORT_CONTACT.emailHref, external: false },
 ])
 
@@ -48,6 +63,22 @@ const severityColor = (severity: SupportTicket['severity']) => ({ low: 'info', n
 const severityLabel = (severity: SupportTicket['severity']) => t(`pages.support.severities.${severity}`)
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—'
 const formatFileSize = (bytes: number) => bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+
+function addAttachments(files: File[] | File | null) {
+  const selected = Array.isArray(files) ? files : files ? [files] : []
+  const available = Math.max(0, 3 - attachments.value.length)
+
+  if (selected.length > available)
+    toast.error(t('pages.support.messages.attachmentLimit'))
+
+  attachments.value.push(...selected.slice(0, available))
+  attachmentPicker.value = []
+}
+
+function removeAttachment(index: number) {
+  if (window.confirm(t('pages.support.removeAttachmentConfirm')))
+    attachments.value.splice(index, 1)
+}
 
 async function loadTickets() {
   loading.value = true
@@ -77,6 +108,7 @@ async function submit() {
     tickets.value.unshift(ticket)
     ticketForm.value = blankForm()
     attachments.value = []
+    attachmentPicker.value = []
     form.value?.resetValidation()
     toast.success(t('pages.support.messages.sent', { ticket: ticket.ticket_number }))
   }
@@ -119,14 +151,6 @@ onMounted(loadTickets)
           <VCardSubtitle>{{ $t('pages.support.contact.subtitle') }}</VCardSubtitle>
         </VCardItem>
         <VCardText>
-          <VAlert
-            type="info"
-            variant="tonal"
-            density="compact"
-            class="mb-4"
-          >
-            {{ $t('pages.support.contact.developerNotice') }}
-          </VAlert>
           <div class="support-contact-grid">
             <a
               v-for="channel in contactChannels"
@@ -158,7 +182,12 @@ onMounted(loadTickets)
               />
             </a>
           </div>
-          <div class="support-contact-address">
+          <a
+            class="support-contact-address"
+            :href="mapsHref"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <VAvatar
               color="secondary"
               variant="tonal"
@@ -168,9 +197,10 @@ onMounted(loadTickets)
             </VAvatar>
             <div class="support-contact-tile__body">
               <span class="support-contact-tile__label">{{ $t('pages.support.contact.address') }}</span>
-              <span class="support-contact-tile__value">{{ SUPPORT_CONTACT.address }}</span>
+              <span class="support-contact-tile__value">{{ supportAddress }}</span>
             </div>
-          </div>
+            <VIcon icon="tabler-external-link" size="18" class="support-contact-tile__arrow" />
+          </a>
         </VCardText>
       </VCard>
     </VCol>
@@ -194,61 +224,73 @@ onMounted(loadTickets)
           <VForm ref="form" @submit.prevent="submit">
             <VRow>
               <VCol cols="12" sm="6">
-                <AppSelect
+                <ErpField
                   v-model="ticketForm.category"
+                  kind="select"
                   v-bind="inputProps('category')"
                   name="category"
                   :label="$t('pages.support.category')"
+                  :placeholder="$t('pages.support.category')"
                   :items="categoryOptions"
                   :rules="[requiredField('category')]"
                 />
               </VCol>
               <VCol cols="12" sm="6">
-                <AppSelect
+                <ErpField
                   v-model="ticketForm.severity"
+                  kind="select"
                   v-bind="inputProps('severity')"
                   name="severity"
                   :label="$t('pages.support.severity')"
+                  :placeholder="$t('pages.support.severity')"
                   :items="severityOptions"
                   :rules="[requiredField('severity')]"
                 />
               </VCol>
               <VCol cols="12">
-                <AppTextField
+                <ErpField
                   v-model="ticketForm.subject"
                   v-bind="inputProps('subject')"
                   name="subject"
                   :label="$t('pages.support.subject')"
                   :placeholder="$t('pages.support.subjectPlaceholder')"
-                  :rules="[requiredField('subject'), (value: string) => String(value ?? '').length >= 5 || $t('pages.support.validation.subjectMin')]"
+                  :rules="[requiredField('subject')]"
                 />
               </VCol>
               <VCol cols="12">
-                <AppTextarea
+                <ErpField
                   v-model="ticketForm.description"
+                  kind="textarea"
                   v-bind="inputProps('description')"
                   name="description"
-                  :label="$t('pages.support.description')"
+                  :label="$t('pages.support.descriptionOptional')"
                   :placeholder="$t('pages.support.descriptionPlaceholder')"
                   rows="6"
                   counter="5000"
-                  :rules="[requiredField('description'), (value: string) => String(value ?? '').length >= 20 || $t('pages.support.validation.descriptionMin')]"
                 />
               </VCol>
               <VCol cols="12">
                 <VFileInput
-                  v-model="attachments"
+                  v-model="attachmentPicker"
                   v-bind="inputProps('attachments')"
                   :label="$t('pages.support.attachments')"
-                  :hint="$t('pages.support.attachmentsHint')"
-                  persistent-hint
                   multiple
-                  show-size
-                  chips
-                  counter
+                  :placeholder="$t('pages.support.attachmentsHint')"
+                  hide-details="auto"
                   accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx"
                   prepend-icon="tabler-paperclip"
+                  @update:model-value="addAttachments"
                 />
+                <div v-if="attachments.length" class="support-attachment-list mt-3">
+                  <div v-for="(attachment, index) in attachments" :key="`${attachment.name}-${attachment.lastModified}-${index}`" class="support-attachment-item">
+                    <VIcon icon="tabler-paperclip" size="18" />
+                    <span class="support-attachment-item__name">{{ attachment.name }}</span>
+                    <span class="text-caption text-medium-emphasis">{{ formatFileSize(attachment.size) }}</span>
+                    <VBtn icon variant="text" color="error" size="x-small" :aria-label="$t('pages.support.removeAttachment')" @click="removeAttachment(index)">
+                      <VIcon icon="tabler-trash" size="18" />
+                    </VBtn>
+                  </div>
+                </div>
               </VCol>
               <VCol cols="12" class="d-flex align-center justify-space-between flex-wrap gap-3">
                 <span class="text-caption text-medium-emphasis">{{ $t('pages.support.attachmentsPrivacy') }}</span>
@@ -268,20 +310,25 @@ onMounted(loadTickets)
           <VCardTitle>{{ $t('pages.support.historyTitle') }}</VCardTitle>
           <VCardSubtitle>{{ $t('pages.support.historySubtitle') }}</VCardSubtitle>
         </VCardItem>
-        <VList v-if="tickets.length" lines="three" class="py-0">
-          <template v-for="(ticket, index) in tickets" :key="ticket.id">
-            <VListItem>
-              <VListItemTitle class="d-flex align-center flex-wrap gap-2">
+        <VCardText v-if="tickets.length" class="support-history-list">
+          <article v-for="ticket in tickets" :key="ticket.id" class="support-history-item">
+            <div class="d-flex align-start justify-space-between gap-3">
+              <div>
+              <div class="d-flex align-center flex-wrap gap-2 font-weight-medium">
                 <span>{{ ticket.subject }}</span>
                 <VChip :color="severityColor(ticket.severity)" size="x-small" label>
                   {{ severityLabel(ticket.severity) }}
                 </VChip>
-              </VListItemTitle>
-              <VListItemSubtitle class="support-ticket-summary">
+              </div>
+              <p class="support-ticket-summary mb-0 mt-1">
                 {{ ticket.ticket_number }} · {{ $t(`pages.support.categories.${ticket.category}`) }} · {{ $t('pages.support.open') }}<br>
                 {{ formatDate(ticket.submitted_at) }}
-              </VListItemSubtitle>
-              <div v-if="ticket.attachments.length" class="d-flex flex-wrap ga-2 mt-2">
+              </p>
+              </div>
+              <VIcon icon="tabler-message-circle" size="20" class="text-medium-emphasis" />
+            </div>
+            <p v-if="ticket.description" class="support-history-item__description mb-0 mt-3">{{ ticket.description }}</p>
+              <div v-if="ticket.attachments.length" class="d-flex flex-wrap ga-2 mt-3">
                 <VBtn
                   v-for="attachment in ticket.attachments"
                   :key="attachment.id"
@@ -294,12 +341,14 @@ onMounted(loadTickets)
                   {{ attachment.name }} ({{ formatFileSize(attachment.size) }})
                 </VBtn>
               </div>
-            </VListItem>
-            <VDivider v-if="index < tickets.length - 1" />
-          </template>
-        </VList>
-        <VCardText v-else-if="!loading" class="text-medium-emphasis">
-          {{ $t('pages.support.empty') }}
+          </article>
+        </VCardText>
+        <VCardText v-else-if="!loading" class="support-history-empty">
+          <VAvatar color="primary" variant="tonal" size="48"><VIcon icon="tabler-message-circle-2" /></VAvatar>
+          <div>
+            <div class="font-weight-medium">{{ $t('pages.support.emptyTitle') }}</div>
+            <div class="text-body-2 text-medium-emphasis">{{ $t('pages.support.empty') }}</div>
+          </div>
         </VCardText>
       </VCard>
     </VCol>
@@ -328,7 +377,8 @@ onMounted(loadTickets)
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.support-contact-tile:hover {
+.support-contact-tile:hover,
+.support-contact-address:hover {
   background-color: rgba(var(--v-theme-primary), 0.06);
   border-color: rgba(var(--v-theme-primary), 0.35);
 }
@@ -357,5 +407,49 @@ onMounted(loadTickets)
 
 .support-contact-address {
   margin-block-start: 12px;
+}
+
+.support-attachment-list,
+.support-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.support-attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+}
+
+.support-attachment-item__name {
+  overflow: hidden;
+  flex: 1;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-history-item {
+  padding: 14px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+}
+
+.support-history-item__description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.support-history-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-block-size: 132px;
 }
 </style>

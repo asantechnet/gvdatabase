@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
-import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
-import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -15,6 +14,7 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -24,7 +24,8 @@ const toast = useToast()
 const deepLinkContactId = computed(() => (route.query.contact ? String(route.query.contact) : ''))
 const applicants = ref<Applicant[]>([])
 const admissionEmployees = ref<Employee[]>([])
-const loading = ref(false)
+const loading = ref(true)
+const filterMenu = ref(false)
 const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
@@ -68,7 +69,15 @@ function resetFilters() {
   service.value = ''
   dateFrom.value = ''
   dateTo.value = ''
+  filterMenu.value = false
   applyFilters()
+}
+const dockFilterCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+    instance.calendarContainer.style.setProperty('z-index', '2400', 'important')
+  })
 }
 function updateOptions(options: { page: number; itemsPerPage: number }) {
   page.value = options.page
@@ -90,7 +99,7 @@ async function save() {
   } catch { toast.error(t('educational.messages.createCaseFailed')) }
 }
 async function remove(row: Applicant) {
-  if (!confirm(t('common.messages.areYouSure'))) return
+  if (!await confirmActionWarning({ key: `delete-customer-${row.id}`, title: t('educational.caseUi.deleteApplicantTitle'), message: t('educational.caseUi.deleteApplicantConfirm', { name: row.name }), confirmText: t('common.actions.delete'), cancelText: t('common.actions.cancel'), icon: 'tabler-trash', tone: 'error' })) return
   try { await ApplicantApi.delete(row.id); await load() } catch { toast.error(t('common.messages.failedToDelete')) }
 }
 onMounted(async () => {
@@ -104,44 +113,42 @@ onMounted(async () => {
   <ErpPageHeader :title="$t('common.navigation.applicants')" section="crm" />
   <VCard>
     <VCardText class="crm-applicants-toolbar">
-      <VTextField v-model="search" class="data-table-search" :label="$t('educational.searchApplicant')" prepend-inner-icon="tabler-search" clearable hide-details @keyup.enter="applyFilters" />
+      <ErpSearchField v-model="search" :placeholder="$t('educational.searchApplicant')" @keyup.enter="applyFilters" />
       <div class="crm-applicants-toolbar__actions">
-        <DataTableFilterMenu :active="hasFilters" @reset="resetFilters">
-          <VSelect v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable />
-          <ErpDateRange v-model:from="dateFrom" v-model:to="dateTo" @apply="applyFilters" />
-        </DataTableFilterMenu>
-        <VBtn icon="tabler-printer" variant="text" class="flex-shrink-0" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
+<VMenu v-model="filterMenu" location="bottom start" origin="top start" :close-on-content-click="false"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-filter" size="small" :variant="hasFilters ? 'flat' : 'tonal'" :color="hasFilters ? 'primary' : undefined" :aria-label="$t('common.messages.filters')"><VIcon icon="tabler-filter" /><VTooltip activator="parent">{{ t('common.messages.filters') }}</VTooltip></VBtn></template><VCard class="crm-customers-filter-card"><VCardText class="pa-4"><VRow><VCol cols="12"><ErpField v-model="service" kind="select" :items="serviceOptions" :label="$t('educational.service')" :placeholder="$t('educational.service')" clearable /></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.startDate') }}</label><AppDateTimePicker v-model="dateFrom" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.endDate') }}</label><AppDateTimePicker v-model="dateTo" class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol></VRow></VCardText><VCardActions class="px-4 py-3 d-flex ga-2"><VBtn color="primary" variant="tonal" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="filterMenu = false; applyFilters()">{{ $t('educational.apply') }}</VBtn></VCardActions></VCard></VMenu>
+        <VBtn icon="tabler-printer" variant="tonal" size="small" class="flex-shrink-0" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
       </div>
     </VCardText>
-    <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" class="crm-responsive-table" mobile-cards mobile-title-key="name" mobile-action-key="actions" @update:options="updateOptions">
+    <ResponsiveDataTableServer :headers="headers" :items="applicants" :items-length="total" :loading="loading" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" item-value="id" class="crm-responsive-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :sticky-key-column="false" :sticky-action-column="false" :skeleton-rows="5" :show-scroll-affordance="false" pagination @update:options="updateOptions">
       <template #loading>
         <TableLoadingSkeleton :columns="headers.length" :label="$t('common.messages.loading')" />
       </template>
-      <template #no-data>
-        <TableEmptyState icon="tabler-users" :description="$t('educational.noApplicants')" />
-      </template>
+      <template #no-data><TableEmptyState icon="tabler-users" :title="$t('pages.contracts.visitor.visitor.noApplicants')" :description="$t('educational.noApplicants')" /></template>
       <template #item.name="{ item }"><span class="crm-applicant-name" :class="{ 'crm-applicant-name--focused': String(item.id) === deepLinkContactId }">{{ item.name }}</span></template>
       <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" audience="applicant" :context="item" :auto-open="String(item.id) === deepLinkContactId" /></template>
       <template #item.email="{ item }"><ContactActionMenu kind="email" :value="item.email" contactable-type="applicant" :contactable-id="item.id" /></template>
-      <template #item.actions="{ item }"><div class="d-flex justify-end ga-1" @click.stop><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" /><VBtn v-if="canEdit" icon="tabler-edit" variant="text" @click="openEdit(item)" /><VBtn v-if="canDelete" icon="tabler-trash" color="error" variant="text" @click="remove(item)" /></div></template>
+      <template #item.actions="{ item }"><div class="d-flex justify-end" @click.stop><VMenu location="bottom end"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="tonal" size="small" :aria-label="$t('common.messages.actions')" /></template><VList density="compact" min-width="210"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" menu-action /><VListItem v-if="canEdit" prepend-icon="tabler-edit" :title="$t('common.actions.edit')" @click="openEdit(item)" /><VListItem v-if="canDelete" prepend-icon="tabler-trash" base-color="error" :title="$t('common.actions.delete')" @click="remove(item)" /></VList></VMenu></div></template>
     </ResponsiveDataTableServer>
   </VCard>
   <PrintableListReport :title="t('common.navigation.applicants')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="applicants.map(row => [row.name, row.contact, row.email])" />
-  <VDialog v-model="dialog" max-width="900" scrollable class="erp-form">
-    <VCard :title="editing ? $t('common.actions.edit') : $t('common.actions.add')">
-      <VCardText>
+  <VDialog v-model="dialog" max-width="900" content-class="crm-customer-form-dialog" scrollable>
+    <VCard class="crm-customer-form-card">
+      <VForm class="app-form" @submit.prevent="save">
+      <VCardTitle class="crm-customer-form-dialog__title px-5 py-4"><span>{{ editing ? $t('common.actions.edit') : $t('common.actions.add') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="crm-customer-form-dialog__close" :aria-label="$t('common.actions.close')" @click="dialog = false" /></VCardTitle>
+      <VCardText class="crm-customer-form-dialog__body pa-5">
         <VRow>
-          <VCol cols="12" md="4"><ErpField v-model="form.name" required :label="$t('common.fields.name')" /></VCol>
-          <VCol cols="12" md="4"><ErpField v-model="form.contact" :label="$t('common.messages.contact')" /></VCol>
-          <VCol cols="12" md="4"><ErpField v-model="form.email" :label="$t('common.fields.email')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.father_name" :label="$t('serviceContracts.fatherName')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.father_phone" :label="$t('serviceContracts.fatherPhone')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.tax_number" :label="$t('common.fields.taxNumber')" /></VCol>
-          <VCol cols="12" md="6"><ErpField kind="select" v-model="form.admission_employee_id" :items="admissionEmployees.map(row => ({ title: row.name, value: row.id }))" :label="$t('agencyStaff.admission')" clearable /></VCol>
-          <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="form.address" :label="$t('common.fields.address')" /></VCol>
+          <VCol cols="12" md="4"><ErpField v-model="form.name" required :label="$t('common.fields.name')" :placeholder="$t('common.fields.name')" /></VCol>
+          <VCol cols="12" md="4"><ErpField v-model="form.contact" :label="$t('common.messages.contact')" :placeholder="$t('common.messages.contact')" /></VCol>
+          <VCol cols="12" md="4"><ErpField v-model="form.email" type="email" :label="$t('common.fields.email')" :placeholder="$t('common.fields.email')" /></VCol>
+          <VCol cols="12" md="6"><ErpField v-model="form.father_name" :label="$t('serviceContracts.fatherName')" :placeholder="$t('serviceContracts.fatherName')" /></VCol>
+          <VCol cols="12" md="6"><ErpField v-model="form.father_phone" :label="$t('serviceContracts.fatherPhone')" :placeholder="$t('serviceContracts.fatherPhone')" /></VCol>
+          <VCol cols="12" md="6"><ErpField v-model="form.tax_number" :label="$t('common.fields.taxNumber')" :placeholder="$t('common.fields.taxNumber')" /></VCol>
+          <VCol cols="12" md="6"><ErpField kind="select" v-model="form.admission_employee_id" :items="admissionEmployees.map(row => ({ title: row.name, value: row.id }))" :label="$t('agencyStaff.admission')" :placeholder="$t('agencyStaff.admission')" clearable /></VCol>
+          <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="form.address" :label="$t('common.fields.address')" :placeholder="$t('common.fields.address')" /></VCol>
         </VRow>
       </VCardText>
-      <VCardActions><VSpacer /><VBtn color="secondary" variant="tonal" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn color="primary" :disabled="!form.name.trim()" @click="save">{{ $t('common.actions.save') }}</VBtn></VCardActions>
+      <VCardActions class="crm-customer-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="crm-customer-form-dialog__cancel" color="error" variant="flat" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn class="crm-customer-form-dialog__save" color="primary" variant="flat" type="submit" :disabled="!form.name.trim()">{{ $t('common.actions.save') }}</VBtn></VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
   </div>
@@ -159,6 +166,13 @@ onMounted(async () => {
   flex-wrap: wrap;
   justify-content: space-between;
 }
+
+.crm-applicants-toolbar > :deep(.erp-search-field) {
+  flex: 0 1 420px;
+  inline-size: 420px;
+  max-inline-size: 100%;
+}
+
 
 .crm-applicants-toolbar__actions {
   flex: 0 0 auto;
@@ -182,5 +196,16 @@ onMounted(async () => {
     inline-size: 100%;
     justify-content: space-between;
   }
+
+  .crm-applicants-toolbar > :deep(.erp-search-field) {
+    flex-basis: 100%;
+    inline-size: 100%;
+  }
 }
+</style>
+
+<style lang="scss">
+.crm-customers-filter-card { border: 1px solid rgb(var(--v-border-color) / .42); border-radius: 12px; inline-size: min(28rem, calc(100vw - 24px)); overflow: hidden; }.crm-customers-filter-card .v-card-actions { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-block-start: 1px solid rgb(var(--v-border-color) / .3); }
+.v-overlay:has(.crm-customer-form-dialog) .v-overlay__scrim { background: rgba(var(--v-theme-on-surface), .26) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+.crm-customer-form-card { overflow: hidden; }.crm-customer-form-dialog__title, .crm-customer-form-dialog__actions { display: flex; align-items: center; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-color: rgba(var(--v-theme-on-surface), .06); border-style: solid; border-width: 0; }.crm-customer-form-dialog__title { border-block-end-width: 1px; font-size: 1.35rem; font-weight: 700; }.crm-customer-form-dialog__actions { border-block-start-width: 1px; }.crm-customer-form-dialog__body { background: rgb(var(--v-theme-surface)); }.crm-customer-form-dialog__close { border: 1px solid rgba(var(--v-theme-error), .34) !important; border-radius: 50% !important; }.crm-customer-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }.crm-customer-form-dialog__cancel:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }.crm-customer-form-dialog__save { color: rgb(var(--v-theme-on-primary)) !important; }
 </style>

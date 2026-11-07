@@ -25,7 +25,7 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
           <template #subtitle><span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--subtitle" /></template>
           <template #append><span class="applicant-pipeline-skeleton__chip" /></template>
         </VCardItem>
-        <VCardText class="d-flex flex-column gap-2">
+        <VCardText class="d-flex flex-column gap-3 pa-3">
           <VCard v-for="card in cardIndexes" :key="card" variant="tonal" class="applicant-pipeline-skeleton__card">
             <VCardText class="py-2">
               <span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--name" />
@@ -45,9 +45,11 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
 
 .applicant-pipeline-skeleton__scroller { display: flex; gap: 0.75rem; overflow-x: auto; padding-block-end: 0.5rem; }
 
-.applicant-pipeline-skeleton__column { flex: 0 0 260px; inline-size: 260px; }
+.applicant-pipeline-skeleton__column { background: rgb(var(--v-theme-surface)); border-radius: 14px; flex: 0 0 260px; inline-size: 260px; }
 
-.applicant-pipeline-skeleton__card { min-block-size: 8rem; }
+.applicant-pipeline-skeleton__card { background: rgb(var(--v-theme-surface)); border: 1px solid rgb(var(--v-border-color) / 0.28); border-radius: 7px; min-block-size: 9.25rem; }
+
+:global(.v-theme--dark) .applicant-pipeline-skeleton__card { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, black 4%); border-color: rgb(var(--v-border-color) / 0.38); }
 
 .applicant-pipeline-skeleton__line,
 .applicant-pipeline-skeleton__chip,

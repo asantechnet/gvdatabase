@@ -25,6 +25,8 @@ const props = defineProps<{
   consultants: Employee[]
   consultantLocked?: boolean
   canReview?: boolean
+  /** Limits the shared field set to a visitor-form wizard step. */
+  step?: 1 | 2
   errors?: Partial<Record<'name' | 'contact' | 'service', string>>
 }>()
 
@@ -36,9 +38,8 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
 
 <template>
   <VRow class="visitor-profile-fields">
-    <!-- The 12-column grid keeps four related fields on a laptop, two on a
-         tablet and one on a phone without shrinking the controls too far. -->
-    <VCol cols="12" sm="6" md="3">
+    <template v-if="!props.step || props.step === 1">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.name"
         :label="$t('common.messages.visitorName')"
@@ -49,7 +50,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         validate-on="submit"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.contact"
         dir="ltr"
@@ -62,7 +63,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         validate-on="submit"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.email"
         :label="$t('common.fields.email')"
@@ -71,7 +72,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         :placeholder="$t('pages.contracts.visitor.visitor.placeholders.email')"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.service"
         kind="select"
@@ -84,7 +85,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         validate-on="submit"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.education_level_id"
         kind="select"
@@ -94,7 +95,17 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
+      <ErpField
+        v-model="model.country_id"
+        kind="select"
+        :items="options('countries')"
+        :label="$t('common.fields.country')"
+        :placeholder="$t('pages.contracts.visitor.visitor.placeholders.country')"
+        clearable
+      />
+    </VCol>
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.age"
         type="number"
@@ -104,7 +115,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         :placeholder="$t('pages.contracts.visitor.visitor.placeholders.age')"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.grade_score"
         type="number"
@@ -117,7 +128,9 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    </template>
+    <template v-if="!props.step || props.step === 2">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.province_id"
         kind="select"
@@ -127,7 +140,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.english_level_id"
         kind="select"
@@ -137,7 +150,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.acquisition_route_id"
         kind="select"
@@ -147,7 +160,7 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
+    <VCol cols="12" md="6">
       <ErpField
         v-model="model.consultant_employee_id"
         kind="autocomplete"
@@ -160,16 +173,6 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         :clearable="!consultantLocked"
       />
     </VCol>
-    <VCol cols="12" sm="6" md="3">
-      <ErpField
-        v-model="model.country_id"
-        kind="select"
-        :items="options('countries')"
-        :label="$t('common.fields.country')"
-        :placeholder="$t('pages.contracts.visitor.visitor.placeholders.country')"
-        clearable
-      />
-    </VCol>
     <VCol v-if="canReview" cols="12" md="6">
       <ErpField
         v-model="model.consultant_review"
@@ -180,19 +183,22 @@ const options = (catalog: 'countries' | 'education-levels' | 'provinces' | 'engl
         clearable
       />
     </VCol>
-    <VCol cols="12" md="6">
+    <VCol cols="12" md="6" :class="{ 'visitor-profile-fields__full-row': !canReview }">
       <ErpField
         v-model="model.notes"
         :label="$t('common.crmUi.visitorNotes')"
         :placeholder="$t('pages.contracts.visitor.visitor.placeholders.notes')"
       />
     </VCol>
+    </template>
   </VRow>
 </template>
 
 <style scoped>
 .visitor-profile-fields {
-  --v-gutter-x: 12px;
-  --v-gutter-y: 12px;
+  --v-gutter-x: 16px;
+  --v-gutter-y: 16px;
 }
+
+.visitor-profile-fields__full-row { flex-basis: 100%; max-inline-size: 100%; }
 </style>

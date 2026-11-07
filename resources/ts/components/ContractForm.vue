@@ -8,7 +8,6 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import PositionApi, { type Position } from '@/api/position'
 import CounterpartyCard, { type CounterpartyDetails } from '@/components/contract/CounterpartyCard.vue'
-import FormSection from '@/components/forms/FormSection.vue'
 
 const { t } = useI18n()
 const tr = (key: string, values: Record<string, unknown> = {}) => t(`pages.contracts.contractform.contractform.${key}`, values)
@@ -116,6 +115,7 @@ const isApplicantLocked = computed(() => props.applicantId != null)
 // no counterparty identity, only the optional record that feeds placeholders.
 const isOtherAudience = computed(() => props.audience === 'other')
 const isEmployeeAudience = computed(() => props.audience === 'employees')
+const usesOtherContractUi = computed(() => isOtherAudience.value || isEmployeeAudience.value)
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const positions = ref<Position[]>([])
@@ -497,7 +497,7 @@ defineExpose({ submit })
     class="app-form"
     @submit.prevent="submit"
   >
-    <VRow>
+    <VRow class="contract-form-grid">
       <VCol
         v-if="extensionMode && parentContract"
         cols="12"
@@ -511,12 +511,7 @@ defineExpose({ submit })
           {{ tr('extendingNotice', { contract: parentContract.contract || `#${parentContract.id}` }) }}
         </VAlert>
       </VCol>
-      <FormSection
-        v-if="isEmployeeAudience"
-        title-key="common.messages.contract"
-        icon="tabler-file-description"
-      />
-      <VCol cols="12">
+      <VCol cols="12" :md="isOtherAudience ? 6 : undefined">
         <ErpField kind="select"
           v-model="form.template_id"
           :items="visibleTemplates"
@@ -531,7 +526,7 @@ defineExpose({ submit })
       <VCol
         v-if="selectedTemplate && !isEmploymentTemplate"
         cols="12"
-        md="3"
+        :md="isOtherAudience ? 6 : 3"
       >
         <ErpField kind="select"
           v-model="form.country_id"
@@ -545,7 +540,7 @@ defineExpose({ submit })
       <VCol
         v-if="selectedTemplate && !isEmploymentTemplate"
         cols="12"
-        md="3"
+        :md="isOtherAudience ? 6 : 3"
       >
         <ErpField kind="select"
           v-model="form.language_id"
@@ -590,11 +585,6 @@ defineExpose({ submit })
         </VAlert>
       </VCol>
 
-      <FormSection
-        v-if="isEmployeeAudience && context === 'employee'"
-        title-key="common.fields.employee"
-        icon="tabler-user"
-      />
 
       <!-- Context-driven counterparty selection -->
       <VCol
@@ -633,6 +623,7 @@ defineExpose({ submit })
       <VCol
         v-if="context === 'other'"
         cols="12"
+        :md="isOtherAudience ? 6 : undefined"
       >
         <ErpField
           kind="autocomplete"
@@ -681,7 +672,7 @@ defineExpose({ submit })
 
       <!-- Other contracts may optionally link an applicant for template
            placeholders, but they have no counterparty to summarise. -->
-      <VCol v-if="!isOtherAudience" cols="12">
+      <VCol v-if="!isOtherAudience && (context !== 'employee' || selectedEmployee)" cols="12">
         <CounterpartyCard
           :details="counterpartyDetails"
           :title-key="isOtherAudience ? 'components.contractCounterpartyCard.applicantCardTitle' : null"
@@ -727,7 +718,7 @@ defineExpose({ submit })
       </VCol>
       <VCol
         cols="12"
-        md="6"
+        :md="isOtherAudience ? 12 : 6"
       >
         <ErpField
           v-model="form.company_signatory_name"
@@ -742,17 +733,21 @@ defineExpose({ submit })
       </VCol>
     </VRow>
 
-    <VCardActions class="app-form__actions">
+    <VCardActions :class="['app-form__actions', { 'other-contract-form-actions': usesOtherContractUi }]">
       <VBtn
-        variant="outlined"
-        color="secondary"
+        :variant="usesOtherContractUi ? 'flat' : 'outlined'"
+        :color="usesOtherContractUi ? 'error' : 'secondary'"
+        :class="{ 'other-contract-form-actions__cancel': usesOtherContractUi }"
         @click="emit('cancel')"
       >
         {{ $t('common.actions.cancel') }}
       </VBtn>
+      <VSpacer v-if="usesOtherContractUi" />
       <VBtn
         type="submit"
         color="primary"
+        :variant="usesOtherContractUi ? 'flat' : undefined"
+        :class="{ 'other-contract-form-actions__save': usesOtherContractUi }"
       >
         {{ $t('common.actions.save') }}
       </VBtn>
@@ -761,6 +756,15 @@ defineExpose({ submit })
 </template>
 
 <style scoped>
+.contract-form-grid {
+  /* Vuetify applies its default 24px gutter through v-col padding. */
+  margin: -3px !important;
+  row-gap: 0 !important;
+}
+.contract-form-grid > :deep(.v-col) {
+  padding: 3px !important;
+}
+
 .contract-form-preview {
   max-block-size: 360px;
   overflow: auto;
@@ -773,5 +777,22 @@ defineExpose({ submit })
 .contract-form-preview :deep(td), .contract-form-preview :deep(th) {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   padding: 6px 8px;
+}
+
+@media (max-width: 600px) {
+  .contract-form-grid {
+    margin: -2px !important;
+  }
+  .contract-form-grid > :deep(.v-col) {
+    padding: 2px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  /* Match a full field to the combined visible width of two md-6 fields. */
+  .contract-form-grid > :deep(.v-col-12:not([class*="v-col-md-"])),
+  .contract-form-grid > :deep(.v-col-md-12) {
+    padding-inline: 6px !important;
+  }
 }
 </style>

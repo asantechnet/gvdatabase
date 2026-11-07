@@ -9,6 +9,7 @@ import EndDayDialog from '@/components/workday/EndDayDialog.vue'
 import MyPaidTimeOffDialog from '@/components/paid-time-off/MyPaidTimeOffDialog.vue'
 import WorkdayApi, { WorkdayLocationError } from '@/api/workday'
 import { useToast } from 'vue-toastification'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -40,6 +41,18 @@ async function refreshUser() {
 }
 
 async function logout() {
+  const confirmed = await confirmActionWarning({
+    key: 'logout-current-session',
+    title: t('common.messages.areYouSure'),
+    message: 'You will be signed out of this device and returned to the sign-in screen.',
+    confirmText: t('components.navigation.userprofile.logout'),
+    cancelText: t('common.actions.cancel'),
+    icon: 'tabler-logout',
+    tone: 'error',
+  })
+  if (!confirmed)
+    return
+
   try { await AuthApi.logout(getRefreshToken()) }
   catch { /* Clear local state even if the token has already expired. */ }
   useCookie('accessToken').value = null

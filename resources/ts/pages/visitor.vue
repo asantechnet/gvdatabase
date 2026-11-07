@@ -19,6 +19,7 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { useCookie } from '@core/composable/useCookie'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const visitors = ref<Visitor[]>([])
 // Both lists ask the server for one page at a time.
@@ -103,6 +104,13 @@ const emptyVisitorForm = (): VisitorFormData => ({
 })
 
 const visitorData = ref<VisitorFormData>(emptyVisitorForm())
+const visitorInitialData = ref<VisitorFormData | null>(null)
+const isDiscardingVisitorChanges = ref(false)
+const visitorWizardStep = ref<1 | 2>(1)
+const visitorWizardSteps = computed(() => [
+  { number: 1 as const, title: translate('pages.contracts.visitor.visitor.wizard.contactNeeds') },
+  { number: 2 as const, title: translate('pages.contracts.visitor.visitor.wizard.profileFollowUp') },
+])
 
 const formErrors = ref({
   name: '',
@@ -110,8 +118,14 @@ const formErrors = ref({
   service: '',
 })
 
+type VisitorFormMode = 'add' | 'edit'
+const cloneVisitorForm = (data: VisitorFormData): VisitorFormData => ({ ...data })
+const visitorFormIsDirty = computed(() => visitorInitialData.value !== null
+  && JSON.stringify(visitorData.value) !== JSON.stringify(visitorInitialData.value))
+
 const resetForm = () => {
   visitorData.value = emptyVisitorForm()
+  visitorWizardStep.value = 1
   formErrors.value = {
     name: '',
     contact: '',
@@ -121,7 +135,51 @@ const resetForm = () => {
 
 const openAddDialog = () => {
   resetForm()
+  visitorInitialData.value = cloneVisitorForm(visitorData.value)
   isAddNewVisitorDialogVisible.value = true
+}
+
+const finishVisitorForm = (mode: VisitorFormMode) => {
+  if (mode === 'add')
+    isAddNewVisitorDialogVisible.value = false
+  else
+    isEditVisitorDialogVisible.value = false
+
+  visitorInitialData.value = null
+  resetForm()
+}
+
+const requestVisitorFormClose = async (mode: VisitorFormMode) => {
+  if (isSaving.value || isDiscardingVisitorChanges.value)
+    return
+
+  if (visitorFormIsDirty.value) {
+    isDiscardingVisitorChanges.value = true
+    try {
+      const discard = await confirmActionWarning({
+        key: 'discard-form-changes',
+        title: translate('common.actionWarnings.discardTitle'),
+        message: translate('common.actionWarnings.discardMessage'),
+        confirmText: translate('common.actionWarnings.discardConfirm'),
+        cancelText: translate('common.actionWarnings.keepEditing'),
+        icon: 'tabler-file-alert',
+        tone: 'primary',
+      })
+
+      if (!discard)
+        return
+    }
+    finally {
+      isDiscardingVisitorChanges.value = false
+    }
+  }
+
+  finishVisitorForm(mode)
+}
+
+const updateVisitorDialog = (mode: VisitorFormMode, visible: boolean) => {
+  if (!visible)
+    void requestVisitorFormClose(mode)
 }
 
 const validateForm = () => {
@@ -169,6 +227,25 @@ const validateForm = () => {
   }
 
   return isValid
+}
+
+const nextVisitorWizardStep = () => {
+  if (validateForm())
+    visitorWizardStep.value = 2
+}
+
+const submitVisitorWizard = (submit: () => Promise<void>) => {
+  if (visitorWizardStep.value === 1) {
+    nextVisitorWizardStep()
+    return
+  }
+
+  if (!validateForm()) {
+    visitorWizardStep.value = 1
+    return
+  }
+
+  void submit()
 }
 
 const consultantLabel = (record: Pick<Visitor, 'consultant'>) => record.consultant?.name || translate('educational.unassigned')
@@ -381,8 +458,7 @@ const addNewVisitor = async () => {
       visitors.value = [created, ...visitors.value].slice(0, perPage.value)
       total.value += 1
     }
-    isAddNewVisitorDialogVisible.value = false
-    resetForm()
+    finishVisitorForm('add')
   }
   catch (error) {
     console.error('Error creating visitor:', error)
@@ -412,8 +488,7 @@ const editVisitor = async () => {
     const index = visitors.value.findIndex(visitor => visitor.id === updated.id)
     if (index !== -1)
       visitors.value[index] = updated
-    isEditVisitorDialogVisible.value = false
-    resetForm()
+    finishVisitorForm('edit')
   }
   catch (error) {
     console.error('Error updating visitor:', error)
@@ -443,6 +518,8 @@ const openEditDialog = (visitor: Visitor) => {
     consultant_review: visitor.consultant_review || '',
     notes: visitor.notes || '',
   }
+  visitorWizardStep.value = 1
+  visitorInitialData.value = cloneVisitorForm(visitorData.value)
   isEditVisitorDialogVisible.value = true
 }
 
@@ -845,12 +922,14 @@ onMounted(async () => {
 
   <!-- Add New Visitor Dialog -->
   <VDialog
-    v-model="isAddNewVisitorDialogVisible"
-    max-width="1180"
+    :model-value="isAddNewVisitorDialogVisible"
+    :persistent="isSaving"
+    max-width="800"
     content-class="visitor-form-dialog"
-    scrollable
+    scroll-strategy="block"
+    @update:model-value="updateVisitorDialog('add', $event)"
   >
-    <VCard class="visitor-form-card">
+    <VCard class="visitor-form-card visitor-form-card--wizard">
       <VCardTitle class="visitor-dialog-title px-5 py-5">
         <span class="text-h5 visitor-dialog-heading visitor-dialog-heading--primary">{{ $t('pages.contracts.visitor.visitor.addNewVisitor') }}</span>
         <VSpacer />
@@ -859,49 +938,58 @@ onMounted(async () => {
           variant="tonal"
           color="error"
           class="visitor-dialog-close"
+          data-skip-form-warning
           :aria-label="$t('common.actions.close')"
           :disabled="isSaving"
-          @click="isAddNewVisitorDialogVisible = false; resetForm()"
+          @click="requestVisitorFormClose('add')"
         />
       </VCardTitle>
-
-      <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
-        <VForm
-          class="app-form"
-          @submit.prevent="addNewVisitor"
+      <div class="visitor-wizard-progress" role="list" :aria-label="$t('pages.contracts.visitor.visitor.wizard.progress')">
+        <button
+          v-for="step in visitorWizardSteps"
+          :key="step.number"
+          type="button"
+          class="visitor-wizard-progress__step"
+          :class="{ 'visitor-wizard-progress__step--active': visitorWizardStep === step.number, 'visitor-wizard-progress__step--complete': visitorWizardStep > step.number }"
+          :disabled="step.number > visitorWizardStep || isSaving"
+          :aria-current="visitorWizardStep === step.number ? 'step' : undefined"
+          @click="step.number < visitorWizardStep && (visitorWizardStep = step.number)"
         >
-          <VisitorProfileFields
-            v-model="visitorData"
-            :catalogs="catalogs"
-            :consultants="consultantDirectory"
-            :consultant-locked="consultantLocked"
-            :can-review="canReview"
-            :errors="formErrors"
-          />
-        </VForm>
-      </VCardText>
-
-      <VCardActions class="visitor-dialog-actions px-5 py-4">
-        <VSpacer />
-        <VBtn
-          variant="flat"
-          color="error"
-          class="visitor-dialog-cancel"
-          :disabled="isSaving"
-          @click="isAddNewVisitorDialogVisible = false; resetForm()"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          variant="flat"
-          class="visitor-dialog-submit"
-          :loading="isSaving"
-          @click="addNewVisitor"
-        >
-          {{ $t('common.actions.add') }}
-        </VBtn>
-      </VCardActions>
+          <span class="visitor-wizard-progress__indicator"><VIcon v-if="visitorWizardStep > step.number" icon="tabler-check" size="15" /><span v-else>{{ step.number }}</span></span>
+          <span class="visitor-wizard-progress__label">{{ step.title }}</span>
+        </button>
+      </div>
+      <VForm class="app-form visitor-form-wizard" @submit.prevent="submitVisitorWizard(addNewVisitor)">
+        <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
+          <Transition name="visitor-wizard-step" mode="out-in">
+            <VisitorProfileFields
+              :key="visitorWizardStep"
+              v-model="visitorData"
+              :step="visitorWizardStep"
+              :catalogs="catalogs"
+              :consultants="consultantDirectory"
+              :consultant-locked="consultantLocked"
+              :can-review="canReview"
+              :errors="formErrors"
+            />
+          </Transition>
+        </VCardText>
+        <VCardActions class="visitor-dialog-actions visitor-wizard-footer px-5 py-4">
+          <VBtn v-if="visitorWizardStep === 1" variant="flat" color="error" class="visitor-dialog-cancel" data-skip-form-warning :disabled="isSaving" @click="requestVisitorFormClose('add')">
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn v-else variant="tonal" color="secondary" prepend-icon="tabler-arrow-left" :disabled="isSaving" @click="visitorWizardStep = 1">
+            {{ $t('pages.contracts.visitor.visitor.wizard.back') }}
+          </VBtn>
+          <VSpacer />
+          <VBtn v-if="visitorWizardStep === 1" type="submit" color="primary" variant="flat" class="visitor-dialog-submit" append-icon="tabler-arrow-right" :disabled="isSaving">
+            {{ $t('pages.contracts.visitor.visitor.wizard.next') }}
+          </VBtn>
+          <VBtn v-else type="submit" color="primary" variant="flat" class="visitor-dialog-submit" prepend-icon="tabler-check" :loading="isSaving" :disabled="isSaving">
+            {{ $t('common.actions.add') }}
+          </VBtn>
+        </VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
 
@@ -1011,12 +1099,14 @@ onMounted(async () => {
 
   <!-- Edit Visitor Dialog -->
   <VDialog
-    v-model="isEditVisitorDialogVisible"
-    max-width="1180"
+    :model-value="isEditVisitorDialogVisible"
+    :persistent="isSaving"
+    max-width="800"
     content-class="visitor-form-dialog"
-    scrollable
+    scroll-strategy="block"
+    @update:model-value="updateVisitorDialog('edit', $event)"
   >
-    <VCard class="visitor-form-card">
+    <VCard class="visitor-form-card visitor-form-card--wizard">
       <VCardTitle class="visitor-dialog-title px-5 py-5">
         <span class="text-h5 visitor-dialog-heading">{{ $t('pages.contracts.visitor.visitor.editVisitor') }}</span>
         <VSpacer />
@@ -1025,49 +1115,58 @@ onMounted(async () => {
           variant="tonal"
           color="error"
           class="visitor-dialog-close"
+          data-skip-form-warning
           :aria-label="$t('common.actions.close')"
           :disabled="isSaving"
-          @click="isEditVisitorDialogVisible = false; resetForm()"
+          @click="requestVisitorFormClose('edit')"
         />
       </VCardTitle>
-
-      <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
-        <VForm
-          class="app-form"
-          @submit.prevent="editVisitor"
+      <div class="visitor-wizard-progress" role="list" :aria-label="$t('pages.contracts.visitor.visitor.wizard.progress')">
+        <button
+          v-for="step in visitorWizardSteps"
+          :key="step.number"
+          type="button"
+          class="visitor-wizard-progress__step"
+          :class="{ 'visitor-wizard-progress__step--active': visitorWizardStep === step.number, 'visitor-wizard-progress__step--complete': visitorWizardStep > step.number }"
+          :disabled="step.number > visitorWizardStep || isSaving"
+          :aria-current="visitorWizardStep === step.number ? 'step' : undefined"
+          @click="step.number < visitorWizardStep && (visitorWizardStep = step.number)"
         >
-          <VisitorProfileFields
-            v-model="visitorData"
-            :catalogs="catalogs"
-            :consultants="consultantDirectory"
-            :consultant-locked="consultantLocked"
-            :can-review="canReview"
-            :errors="formErrors"
-          />
-        </VForm>
-      </VCardText>
-
-      <VCardActions class="visitor-dialog-actions px-5 py-4">
-        <VSpacer />
-        <VBtn
-          variant="flat"
-          color="error"
-          class="visitor-dialog-cancel"
-          :disabled="isSaving"
-          @click="isEditVisitorDialogVisible = false; resetForm()"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          variant="flat"
-          class="visitor-dialog-submit"
-          :loading="isSaving"
-          @click="editVisitor"
-        >
-          {{ $t('common.actions.save') }}
-        </VBtn>
-      </VCardActions>
+          <span class="visitor-wizard-progress__indicator"><VIcon v-if="visitorWizardStep > step.number" icon="tabler-check" size="15" /><span v-else>{{ step.number }}</span></span>
+          <span class="visitor-wizard-progress__label">{{ step.title }}</span>
+        </button>
+      </div>
+      <VForm class="app-form visitor-form-wizard" @submit.prevent="submitVisitorWizard(editVisitor)">
+        <VCardText class="visitor-dialog-body pa-5 pa-sm-6">
+          <Transition name="visitor-wizard-step" mode="out-in">
+            <VisitorProfileFields
+              :key="visitorWizardStep"
+              v-model="visitorData"
+              :step="visitorWizardStep"
+              :catalogs="catalogs"
+              :consultants="consultantDirectory"
+              :consultant-locked="consultantLocked"
+              :can-review="canReview"
+              :errors="formErrors"
+            />
+          </Transition>
+        </VCardText>
+        <VCardActions class="visitor-dialog-actions visitor-wizard-footer px-5 py-4">
+          <VBtn v-if="visitorWizardStep === 1" variant="flat" color="error" class="visitor-dialog-cancel" data-skip-form-warning :disabled="isSaving" @click="requestVisitorFormClose('edit')">
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn v-else variant="tonal" color="secondary" prepend-icon="tabler-arrow-left" :disabled="isSaving" @click="visitorWizardStep = 1">
+            {{ $t('pages.contracts.visitor.visitor.wizard.back') }}
+          </VBtn>
+          <VSpacer />
+          <VBtn v-if="visitorWizardStep === 1" type="submit" color="primary" variant="flat" class="visitor-dialog-submit" append-icon="tabler-arrow-right" :disabled="isSaving">
+            {{ $t('pages.contracts.visitor.visitor.wizard.next') }}
+          </VBtn>
+          <VBtn v-else type="submit" color="primary" variant="flat" class="visitor-dialog-submit" prepend-icon="tabler-check" :loading="isSaving" :disabled="isSaving">
+            {{ $t('common.actions.save') }}
+          </VBtn>
+        </VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
 
@@ -1262,6 +1361,10 @@ onMounted(async () => {
   overflow: hidden;
 }
 
+.visitor-form-dialog .visitor-form-card--wizard {
+  max-block-size: calc(100vh - 32px);
+}
+
 .visitor-form-dialog .visitor-dialog-title,
 .visitor-form-dialog .visitor-dialog-actions {
   display: flex;
@@ -1300,6 +1403,81 @@ onMounted(async () => {
 
 .visitor-form-dialog .visitor-dialog-body {
   background-color: rgb(var(--v-theme-surface));
+}
+
+.visitor-form-wizard .visitor-dialog-body {
+  max-block-size: calc(100vh - 200px);
+  padding-block-end: 0 !important;
+  overflow: hidden;
+}
+
+.visitor-wizard-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 20px;
+  border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.06);
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-primary)) 4%);
+}
+
+.visitor-wizard-progress__step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-inline-size: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  cursor: default;
+  font: inherit;
+  text-align: start;
+}
+
+.visitor-wizard-progress__step:not(:last-child)::after {
+  position: absolute;
+  inset-inline-start: calc(100% - 4px);
+  inline-size: 8px;
+  block-size: 1px;
+  background: rgba(var(--v-theme-on-surface), 0.14);
+  content: '';
+}
+
+.visitor-wizard-progress__step--complete { cursor: pointer; }
+.visitor-wizard-progress__step:disabled { opacity: 1; }
+.visitor-wizard-progress__indicator {
+  display: grid;
+  flex: 0 0 auto;
+  inline-size: 25px;
+  block-size: 25px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+  border-radius: 50%;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.visitor-wizard-progress__label { overflow: hidden; font-size: 0.8rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.visitor-wizard-progress__step--active { color: rgb(var(--v-theme-primary)); }
+.visitor-wizard-progress__step--active .visitor-wizard-progress__indicator { border-color: rgba(var(--v-theme-primary), 0.3); background: rgba(var(--v-theme-primary), 0.12); }
+.visitor-wizard-progress__step--complete { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
+.visitor-wizard-progress__step--complete .visitor-wizard-progress__indicator { border-color: transparent; background: rgba(var(--v-theme-on-surface), 0.08); }
+.visitor-wizard-progress__step--complete::after { background: rgba(var(--v-theme-on-surface), 0.24); }
+
+.visitor-form-wizard .visitor-profile-fields {
+  --v-gutter-x: 16px;
+  --v-gutter-y: 16px;
+}
+
+.visitor-wizard-step-enter-active,
+.visitor-wizard-step-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.visitor-wizard-step-enter-from { opacity: 0; transform: translateY(8px); }
+.visitor-wizard-step-leave-to { opacity: 0; transform: translateY(-6px); }
+
+.visitor-wizard-footer {
+  margin-block-start: 16px;
+  padding-block: 10px;
 }
 
 .visitor-form-dialog .visitor-dialog-close {

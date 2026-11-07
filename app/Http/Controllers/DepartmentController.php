@@ -149,7 +149,6 @@ class DepartmentController extends Controller
     {
         $data = $request->validate([
             'name' => [$department ? 'sometimes' : 'required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department?->id)],
-            'code' => ['nullable', 'string', 'max:40', Rule::unique('departments', 'code')->ignore($department?->id)],
             'description' => ['nullable', 'string', 'max:5000'],
             'manager_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'is_active' => ['sometimes', 'boolean'],
@@ -251,7 +250,6 @@ class DepartmentController extends Controller
         $payload = [
             'id' => $department->id,
             'name' => $department->name,
-            'code' => $department->code,
             'description' => $department->description,
             'is_active' => (bool) $department->is_active,
             'manager_employee_id' => $department->manager_employee_id,

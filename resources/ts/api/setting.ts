@@ -22,14 +22,20 @@ export interface Setting {
   id: number
   primary_color: string
   secondary_color: string
+  dark_primary_color: string
+  dark_secondary_color: string
   light_background_color: string
   light_surface_color: string
   dark_background_color: string
   dark_surface_color: string
   off_day_allowance_days_per_year: number
-  website_title: string
+  website_title: string | null
   website_logo: string | null
   website_logo_url: string | null
+  website_dark_logo: string | null
+  website_dark_logo_url: string | null
+  favicon: string | null
+  favicon_url: string | null
   company_signature: string | null
   company_signature_url: string | null
   contract_letterhead: string | null
@@ -82,11 +88,15 @@ export interface Setting {
 
 export interface PublicCompanyBranding {
   website_logo_url: string | null
-  website_title: string
+  website_dark_logo_url: string | null
+  favicon_url: string | null
+  website_title: string | null
   short_company_name: string | null
   original_company_name: string | null
   primary_color?: string | null
   secondary_color?: string | null
+  dark_primary_color?: string | null
+  dark_secondary_color?: string | null
   light_background_color?: string | null
   light_surface_color?: string | null
   dark_background_color?: string | null
@@ -96,6 +106,8 @@ export interface PublicCompanyBranding {
 export interface SettingForm {
   primary_color?: string | null
   secondary_color?: string | null
+  dark_primary_color?: string | null
+  dark_secondary_color?: string | null
   light_background_color?: string | null
   light_surface_color?: string | null
   dark_background_color?: string | null
@@ -104,6 +116,10 @@ export interface SettingForm {
   website_title: string
   website_logo?: File | null
   remove_website_logo?: boolean
+  website_dark_logo?: File | null
+  remove_website_dark_logo?: boolean
+  favicon?: File | null
+  remove_favicon?: boolean
   company_signature?: File | null
   remove_company_signature?: boolean
   contract_letterhead?: File | null
@@ -167,7 +183,7 @@ function toFormData(data: Partial<SettingForm>) {
     if (value === undefined)
       return
     if (value === null) {
-      if (!['website_logo', 'company_signature', 'contract_letterhead', 'contract_cover_design', 'receipt_letterhead', 'payslip_letterhead'].includes(key))
+      if (!['website_logo', 'website_dark_logo', 'favicon', 'company_signature', 'contract_letterhead', 'contract_cover_design', 'receipt_letterhead', 'payslip_letterhead'].includes(key))
         formData.append(key, '')
 
       return

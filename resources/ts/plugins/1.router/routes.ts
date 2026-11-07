@@ -100,12 +100,12 @@ const routeDefinitions: Array<{
   // Private is the main contracts workspace. Keep a direct /contracts URL so
   // menu links and old bookmarks land on the same default service.
   { path: '/contracts', redirect: { name: 'private-contracts' }, name: 'contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
-  { path: '/contracts/scholarship', component: 'serviceContracts', name: 'scholarship-contracts', meta: { builtInService: 'scholarship', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
-  { path: '/contracts/test-offer', component: 'serviceContracts', name: 'test-offer-contracts', meta: { builtInService: 'test_offer', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/contracts/scholarship', component: 'serviceContracts', name: 'scholarship-contracts', meta: { builtInService: 'scholarship', navActiveLink: 'private-contracts', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/contracts/test-offer', component: 'serviceContracts', name: 'test-offer-contracts', meta: { builtInService: 'test_offer', navActiveLink: 'private-contracts', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/contracts/private', component: 'serviceContracts', name: 'private-contracts', meta: { builtInService: 'private', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
-  { path: '/contracts/academy', component: 'serviceContracts', name: 'academy-contracts', meta: { builtInService: 'academy', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/contracts/academy', component: 'serviceContracts', name: 'academy-contracts', meta: { builtInService: 'academy', navActiveLink: 'private-contracts', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   { path: '/employee-contracts', component: 'employeeContracts', name: 'employee-contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
-  { path: '/other-contracts', component: 'otherContracts', name: 'other-contracts', meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' } },
+  { path: '/other-contracts', component: 'otherContracts', name: 'other-contracts', meta: { navActiveLink: 'private-contracts', requiresAuth: true, action: 'read', subject: 'view_contracts' } },
   {
     path: '/all-customers',
     component: 'allCustomers',
@@ -116,7 +116,7 @@ const routeDefinitions: Array<{
     path: '/cancelled-contracts',
     component: 'cancelledContracts',
     name: 'cancelled-contracts',
-    meta: { requiresAuth: true, action: 'read', subject: 'view_contracts' },
+    meta: { navActiveLink: 'private-contracts', requiresAuth: true, action: 'read', subject: 'view_contracts' },
   },
   { path: '/tasks', component: 'tasks', name: 'tasks', meta: { requiresAuth: true, anyPermissions: ['view_all_boards', 'view_assigned_boards'] } },
   { path: '/projects', redirect: { name: 'tasks' } },
@@ -156,12 +156,15 @@ const routeDefinitions: Array<{
   // `/applicants?contact=12` must keep working after the rename).
   { path: '/applicants', name: 'applicants', redirect: to => ({ name: 'applications', query: to.query }), meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   // The service-line board: one service at a time, one card per contract line.
-  { path: '/applicant-pipeline', component: 'applicantPipeline', name: 'applicant-pipeline', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
+  { path: '/applicant-pipeline', redirect: { name: 'applications', query: { view: 'kanban' } }, name: 'applicant-pipeline', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   // Editing a stage additionally requires `manage_applicant_stages`; the page
   // itself is readable with `view_applicant_stages`, matching the nav item.
   { path: '/applicant-stages', component: 'applicantStages', name: 'applicant-stages', meta: { requiresAuth: true, action: 'read', subject: 'view_applicant_stages' } },
   { path: '/agency-overview', component: 'educationalDashboard', name: 'agency-overview', meta: { requiresAuth: true, action: 'read', subject: 'view_agency_overview' } },
-  { path: '/visa-reports', component: 'educationalReports', name: 'visa-reports', meta: { requiresAuth: true, action: 'read', subject: 'view_visa_reports' } },
+  { path: '/application-reports', component: 'educationalReports', name: 'application-reports', meta: { reportWorkspace: 'applications', navActiveLink: 'applications', requiresAuth: true, action: 'read', subject: 'view_visa_reports' } },
+  { path: '/visa-reports', name: 'visa-reports', redirect: { name: 'application-reports' } },
+  { path: '/finance/activity-report', component: 'educationalReports', name: 'finance-activity-report', meta: { reportWorkspace: 'finance', requiresAuth: true, action: 'read', subject: 'view_financial_reports' } },
+  { path: '/hr/employee-performance', component: 'educationalReports', name: 'employee-performance-report', meta: { reportWorkspace: 'hrm', requiresAuth: true, action: 'read', subject: 'view_employees' } },
   { path: '/applicants/:id', component: 'applicantCase', name: 'applicant-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
   // One contracted service line is one case; the line id is the workspace key.
   { path: '/service-cases/:line', component: 'serviceCase', name: 'service-case', meta: { requiresAuth: true, action: 'read', subject: 'view_applicants' } },
