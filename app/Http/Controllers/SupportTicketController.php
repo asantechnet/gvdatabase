@@ -37,7 +37,7 @@ class SupportTicketController extends Controller
             'category' => ['required', 'string', 'in:'.implode(',', SupportTicket::CATEGORIES)],
             'severity' => ['required', 'string', 'in:'.implode(',', SupportTicket::SEVERITIES)],
             'subject' => ['required', 'string', 'min:5', 'max:160'],
-            'description' => ['required', 'string', 'min:20', 'max:5000'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'page_url' => ['nullable', 'string', 'max:2048', 'regex:/^\/(?!\/)/'],
             'attachments' => ['nullable', 'array', 'max:3'],
             'attachments.*' => ['file', 'max:5120', 'mimes:pdf,txt,csv,doc,docx,xls,xlsx,png,jpg,jpeg,webp'],

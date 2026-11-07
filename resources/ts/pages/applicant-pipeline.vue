@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
 import ApplicantPipelineSkeleton from '@/components/ApplicantPipelineSkeleton.vue'
@@ -17,8 +16,11 @@ import { translateApplicantStage, translateBackendValue } from '@/utils/localiza
 const toast = useToast()
 const router = useRouter()
 const { t } = useI18n()
+const props = withDefaults(defineProps<{ embedded?: boolean; externalFilters?: ApplicantListParams }>(), { embedded: false, externalFilters: undefined })
 
-const loading = ref(false)
+// Start in the skeleton state so swapping to Kanban never flashes an empty
+// board before the first request resolves.
+const loading = ref(true)
 const movingId = ref<string | null>(null)
 const dragCard = ref<PipelineCard | null>(null)
 const pipelineScroller = ref<HTMLElement | null>(null)
@@ -52,6 +54,18 @@ const perColumnCap = 30
 const activeCountries = computed(() => countries.value.filter(c => c.is_active))
 const activeUniversities = computed(() => universities.value.filter(u => u.is_active && (!filters.value.country_id || u.country_id === filters.value.country_id)))
 const activeLevels = computed(() => levels.value.filter(l => l.is_active))
+const hasCards = computed(() => Object.values(cards.value).some(column => column.length > 0))
+
+watch(() => props.externalFilters, incoming => {
+  if (!props.embedded || !incoming)
+    return
+
+  // Kanban deliberately shares the Applications toolbar filters. It still
+  // needs one service to resolve its stage catalogue, so use Scholarship only
+  // while no service has been selected in the shared filter.
+  filters.value = { ...filters.value, ...incoming, service: incoming.service || 'scholarship' }
+  void load()
+}, { deep: true, immediate: true })
 
 // Destination is part of the board's stage catalogue, not just a row filter:
 // a country or university adds its own stages to the columns. Reload as soon
@@ -111,6 +125,9 @@ async function load() {
       grouped[stage.key] = []
 
     for (const card of pipeline.cards) {
+      // Keep the board scannable: university/family detail belongs in the case,
+      // not on the compact workflow card.
+      card.university = undefined
       const key = card.current_stage?.key ?? stages.value[0]?.key
 
       if (!key)
@@ -262,22 +279,20 @@ function stageListQuery(stageKey: string) {
 }
 
 onMounted(async () => {
-  await loadCatalogs()
-  await load()
+  if (!props.embedded) {
+    await loadCatalogs()
+    await load()
+  }
 })
 </script>
 
 <template>
-  <div class="education-workspace erp-workspace">
-    <ErpPageHeader :title="$t('educational.applicantPipeline')" section="applications" />
+  <div :class="props.embedded ? 'applicant-pipeline-embedded' : 'education-workspace erp-workspace'">
     <VCard class="education-panel">
-    <VCardItem :subtitle="$t('educational.pipelineInstructions')">
+    <VCardItem v-if="!props.embedded">
       <template #append>
         <div class="pipeline-header-actions">
           <VBtn v-if="canAccess('view_applicant_stages')" size="small" variant="text" :to="{ name: 'applicant-stages' }">{{ $t('educational.stage') }}</VBtn>
-          <VChip color="success" size="small">{{ $t('educational.activeCasesCount', { count: totals.active }) }}</VChip>
-          <VChip color="secondary" size="small">{{ $t('educational.closedCasesCount', { count: totals.closed }) }}</VChip>
-          <VChip color="primary" size="small">{{ $t('educational.allCasesCount', { count: totals.all }) }}</VChip>
           <DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters">
             <VSelect v-model="filters.service" :items="serviceOptions" :label="$t('educational.service')" />
             <VTextField v-model="filters.search" :label="$t('educational.searchApplicant')" clearable @keyup.enter="applyFilters" />
@@ -293,18 +308,17 @@ onMounted(async () => {
       </template>
     </VCardItem>
     <VCardText>
-      <p class="text-caption text-medium-emphasis mb-4">{{ $t('educational.pipelineCountsNote') }}</p>
       <VAlert v-if="!canMove" type="info" variant="tonal" density="compact" class="mb-4">{{ $t('educational.stageMovePermission') }}</VAlert>
       <ApplicantPipelineSkeleton v-if="loading" />
-      <TableEmptyState v-else-if="!stages.length" icon="tabler-layout-kanban" :description="$t('educational.noActiveStages')" />
+      <TableEmptyState v-else-if="!stages.length || !hasCards" icon="tabler-clipboard-list" :title="$t('pages.contracts.visitor.visitor.noApplicants')" :description="$t('educational.noApplicants')" />
       <div v-else ref="pipelineScroller" class="d-flex gap-3 overflow-x-auto pb-2 pipeline-scroller" @dragover.prevent="onPipelineDragOver">
         <VCard v-for="stage in stages" :key="stage.key" variant="outlined" min-width="260" class="flex-shrink-0 pipeline-column" :class="{ 'pipeline-column--allowed': isAllowedDropStage(stage), 'pipeline-column--blocked': dragCard && !isAllowedDropStage(stage) }" style="inline-size: 260px;" @dragover.prevent @drop="onDrop(stage)">
           <VCardItem :subtitle="$t('educational.pipelineCardCount', { count: stage.count })">
             <template #title><VTooltip location="top"><template #activator="{ props }"><span v-bind="props" class="d-inline-block text-truncate" style="max-inline-size: 185px">{{ translateApplicantStage(stage) }}</span></template>{{ translateApplicantStage(stage) }}</VTooltip></template>
             <template #append><VChip size="small" :color="stage.is_terminal ? 'secondary' : 'primary'">{{ stage.count }}</VChip></template>
           </VCardItem>
-          <VCardText class="d-flex flex-column gap-2" style="min-block-size: 120px;">
-            <VCard v-for="card in (cards[stage.key] || [])" :key="card.id" variant="tonal" :draggable="canMove && movingId !== card.id" @dragstart="onDragStart(card)" @dragend="onDragEnd">
+          <VCardText class="d-flex flex-column gap-3 pa-3" style="min-block-size: 150px;">
+            <VCard v-for="card in (cards[stage.key] || [])" :key="card.id" variant="tonal" class="pipeline-case-card" :draggable="canMove && movingId !== card.id" @dragstart="onDragStart(card)" @dragend="onDragEnd">
               <VCardText class="py-2">
                 <div class="font-weight-medium">{{ card.name || $t('educational.applicantNumber', { id: card.applicant_id }) }}</div>
                 <div class="text-caption text-medium-emphasis">#{{ card.applicant_id }} · {{ translateBackendValue(card.status) }}<span v-if="card.contract_number"> · {{ card.contract_number }}</span></div>
@@ -323,7 +337,7 @@ onMounted(async () => {
                 </div>
               </VCardText>
             </VCard>
-            <div v-if="!(cards[stage.key] || []).length" class="text-caption text-medium-emphasis text-center py-4">{{ $t('educational.dropAllowedCases') }}</div>
+            <div v-if="!(cards[stage.key] || []).length" class="pipeline-column-empty text-center py-5"><VIcon icon="tabler-arrows-down" size="20" /><span>{{ $t('educational.dropAllowedCases') }}</span></div>
             <VBtn v-if="stage.count > perColumnCap" size="x-small" variant="text" :to="{ name: 'applications', query: stageListQuery(stage.key) }">{{ $t('educational.viewAllCount', { count: stage.count }) }}</VBtn>
           </VCardText>
         </VCard>
@@ -343,7 +357,47 @@ onMounted(async () => {
 }
 
 .pipeline-column {
+  background: rgb(var(--v-theme-surface));
+  border-color: rgb(var(--v-border-color) / 0.45) !important;
+  border-radius: 14px;
   transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.pipeline-case-card {
+  /* A gentle lifted white surface in light mode; the dark-theme rule below
+     mirrors it with a slightly deeper surface rather than a bright tint. */
+  background: rgb(var(--v-theme-surface)) !important;
+  border: 1px solid rgb(var(--v-border-color) / 0.28);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 0.025);
+}
+
+:global(.v-theme--dark) .pipeline-case-card {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, black 4%) !important;
+  border-color: rgb(var(--v-border-color) / 0.38);
+}
+
+.pipeline-case-card :deep(.v-card-text) {
+  padding: 0.875rem !important;
+}
+
+.pipeline-case-card :deep(.v-card-text > div + div) {
+  margin-block-start: 0.45rem;
+}
+
+.pipeline-case-card :deep(.v-card-text > .mt-2) {
+  margin-block-start: 0.7rem !important;
+}
+
+.pipeline-column-empty {
+  align-items: center;
+  background: rgb(var(--v-theme-surface) / 0.34);
+  border: 1px dashed rgb(var(--v-border-color) / 0.46);
+  border-radius: 10px;
+  color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity));
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .pipeline-header-actions {

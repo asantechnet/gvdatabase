@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   @php($setting = app(\App\Support\CompanyProfile::class)->current())
   @php($appName = $setting?->short_company_name ?: ($setting?->website_title ?: 'Educational Agency Portal'))
-  <link rel="icon" href="{{ $setting?->website_logo ? \Illuminate\Support\Facades\Storage::url($setting->website_logo) : asset('favicon.svg') }}" />
+  <link rel="icon" href="{{ $setting?->favicon ? \Illuminate\Support\Facades\Storage::url($setting->favicon) : asset('favicon.svg') }}" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ $setting?->website_title ?: 'Educational Agency Portal' }}</title>

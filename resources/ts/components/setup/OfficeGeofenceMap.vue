@@ -24,6 +24,7 @@ let map: MapboxMap | null = null
 let officeMarker: Marker | null = null
 let radiusMarker: Marker | null = null
 let currentMarker: Marker | null = null
+let resizeObserver: ResizeObserver | null = null
 let syncing = false
 
 const fallback = { latitude: 34.5553, longitude: 69.2075 }
@@ -32,6 +33,16 @@ const center = () => ({
   latitude: props.latitude ?? props.currentLatitude ?? fallback.latitude,
   longitude: props.longitude ?? props.currentLongitude ?? fallback.longitude,
 })
+
+// The Settings tab finishes its card/layout transition just after this
+// component mounts. Mapbox otherwise retains that intermediate canvas size,
+// which can leave the map blank even though tiles were initially visible.
+function resizeAfterLayout() {
+  requestAnimationFrame(() => {
+    map?.resize()
+    requestAnimationFrame(() => map?.resize())
+  })
+}
 
 function destination(latitude: number, longitude: number, distanceMeters: number, bearingDegrees: number) {
   const earthRadius = 6371008.8
@@ -124,6 +135,8 @@ onMounted(() => {
     },
   })
   map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+  resizeObserver = new ResizeObserver(resizeAfterLayout)
+  resizeObserver.observe(container.value)
 
   officeMarker = new mapboxgl.Marker({ color: '#7367f0', draggable: !props.readonly }).setLngLat([location.longitude, location.latitude]).addTo(map)
   radiusMarker = new mapboxgl.Marker({ color: '#ff9f43', draggable: !props.readonly, scale: 0.7 }).setLngLat([location.longitude, location.latitude]).addTo(map)
@@ -152,6 +165,8 @@ onMounted(() => {
     map!.addLayer({ id: 'office-radius-fill', type: 'fill', source: 'office-radius', paint: { 'fill-color': '#7367f0', 'fill-opacity': 0.16 } })
     map!.addLayer({ id: 'office-radius-line', type: 'line', source: 'office-radius', paint: { 'line-color': '#7367f0', 'line-width': 2 } })
     syncMap()
+    resizeAfterLayout()
+    window.setTimeout(resizeAfterLayout, 200)
   })
 })
 
@@ -161,6 +176,8 @@ watch(() => props.readonly, value => {
 })
 watch(() => [props.latitude, props.longitude, props.radiusMeters, props.currentLatitude, props.currentLongitude], () => syncMap(true))
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
   currentMarker?.remove()
   officeMarker?.remove()
   radiusMarker?.remove()
@@ -178,6 +195,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .office-geofence-map {
+  min-block-size: 280px;
   overflow: hidden;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;

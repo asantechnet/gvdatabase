@@ -138,7 +138,7 @@ const selectedVersion = computed(() => compatibleVersions.value.find(version => 
 const wizardStepCount = computed(() => service.value === 'test_offer' ? 2 : 3)
 const wizardSteps = computed(() => {
   const titles: Record<BuiltInService, string[]> = {
-    private: ['wizard.personalContact', 'wizard.academicProgram', 'wizard.financialAccess'],
+    private: ['wizard.applicantContact', 'wizard.academicDetails', 'wizard.financialAccess'],
     scholarship: ['wizard.applicantContact', 'wizard.academicDetails', 'wizard.financialAccess'],
     academy: ['wizard.studentContact', 'wizard.classProgram', 'wizard.financialAccess'],
     test_offer: ['wizard.applicantTest', 'wizard.financialAccess'],
@@ -517,8 +517,13 @@ watch(visitorId, id => {
   const visitor = visitors.value.find(row => row.id === id)
   if (visitor)
     form.value = { ...emptyApplicantForm(), ...visitorApplicantFields(visitor) }
-  else if (!parent.value && !editing.value)
+  else if (!parent.value && !editing.value) {
+    // Clearing the visitor must clear every application value that selection
+    // supplied, including the matching version derived from its destination.
     form.value = emptyApplicantForm()
+    languageId.value = null
+    selectedVersionId.value = null
+  }
 })
 watch(currencyId, id => { rate.value = currencies.value.find(row => row.id === id)?.rate ?? 1 })
 // A form-level API error describes the payload that was just submitted. Once
@@ -593,6 +598,9 @@ const currentStepHasRequiredValues = () => {
   if (wizardStep.value === 1) {
     const hasContact = !!parent.value || (hasValue(form.value.name) && hasValue(form.value.contact)
       && (service.value !== 'test_offer' || hasValue(form.value.backup_phone)))
+
+    if (service.value === 'academy')
+      return hasContact && !!selectedVersionId.value && hasValue(form.value.student_id)
 
     return service.value !== 'test_offer' || (hasContact && !!selectedVersionId.value
       && hasValue(form.value.test_id) && hasValue(form.value.skill_ids))
@@ -759,7 +767,7 @@ async function save() {
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1 justify-end">
           <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" />
-          <VBtn v-if="!item.is_cancelled && service !== 'academy'" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
+          <VBtn v-if="!item.is_cancelled" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
           <VBtn v-if="!item.is_cancelled && service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
           <VMenu v-if="!item.is_cancelled" location="bottom end">
             <template #activator="{ props: menuProps }">
@@ -788,14 +796,14 @@ async function save() {
       </template>
       </ResponsiveDataTableServer>
     </VCard>
-    <VDialog v-model="open" :persistent="saving" max-width="800" content-class="service-contract-form-dialog">
+    <VDialog v-model="open" :persistent="saving" scrollable scroll-strategy="block" max-width="980" content-class="service-contract-form-dialog">
       <VCard class="service-contract-form-card">
         <VCardTitle class="service-contract-dialog-title px-5 py-5">
           <span class="text-h5 service-contract-dialog-heading service-contract-dialog-heading--primary">{{ t(labelKey) }}</span>
           <VSpacer />
           <VBtn icon="tabler-x" variant="tonal" color="error" class="service-contract-dialog-close" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false" />
         </VCardTitle>
-        <div class="service-contract-wizard-progress" :class="{ 'service-contract-wizard-progress--two-steps': wizardStepCount === 2 }" role="list" :aria-label="t('serviceContracts.wizard.progress')">
+        <div v-if="wizardStepCount > 1" class="service-contract-wizard-progress" :class="{ 'service-contract-wizard-progress--two-steps': wizardStepCount === 2 }" role="list" :aria-label="t('serviceContracts.wizard.progress')">
           <button
             v-for="step in wizardSteps"
             :key="step.number"
@@ -813,90 +821,96 @@ async function save() {
         <VCardText class="service-contract-dialog-body pa-5 pa-sm-6">
           <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
           <div v-if="parent && wizardStep === 1" class="service-contract-parent-context">{{ parent.contract_number }}: {{ parent.counterparty }}</div>
-          <VForm ref="formRef" class="app-form service-contract-wizard" @submit.prevent="handleWizardSubmit">
+          <VForm ref="formRef" :class="['app-form', 'service-contract-wizard', { 'service-contract-wizard--two-column': ['private', 'scholarship'].includes(service) }]" @submit.prevent="handleWizardSubmit">
+            <Transition name="service-contract-wizard-step" mode="out-in">
+              <div :key="wizardStep" class="service-contract-wizard-step">
             <template v-if="wizardStep === 1 && (!parent || service === 'academy')">
               <template v-if="service === 'private'">
                 <VRow class="service-contract-field-grid">
-                  <VCol v-if="!editing && ability.can('read', 'view_visitors')" cols="12" sm="6" md="3"><ErpField v-model="visitorId" kind="autocomplete" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :placeholder="t('serviceContracts.placeholders.visitor')" :disabled="preparing" clearable /></VCol>
-                  <VCol cols="12" sm="6" md="3" :class="{ 'contract-wizard-full-row': editing || !ability.can('read', 'view_visitors') }"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="form.email" :label="t('serviceContracts.email')" :placeholder="t('serviceContracts.placeholders.email')" type="email" maxlength="255" /></VCol>
-                  <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
+                   <VCol v-if="!editing && ability.can('read', 'view_visitors')" cols="12" sm="6" md="6"><ErpField v-model="visitorId" kind="autocomplete" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :placeholder="t('serviceContracts.placeholders.visitor')" :disabled="preparing" clearable /></VCol>
+                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
+                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
+                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
+                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
+                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.email" :label="t('serviceContracts.email')" :placeholder="t('serviceContracts.placeholders.email')" type="email" maxlength="255" /></VCol>
+                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
+                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
                 </VRow>
               </template>
               <VRow v-if="service !== 'academy' && service !== 'private'" class="service-contract-field-grid">
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
-                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
-                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="3"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
-                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="3"><ErpField v-model="form.backup_phone" dir="ltr" inputmode="tel" :label="t('erp.backupPhone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="50" required /></VCol>
-                <VCol v-if="!parent && service !== 'scholarship'" cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
+                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="6"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
+                <VCol v-if="['scholarship', 'private'].includes(service)" cols="12" sm="6" md="6"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
+                <VCol v-if="service === 'test_offer'" cols="12" sm="6" md="6"><ErpField v-model="form.backup_phone" dir="ltr" inputmode="tel" :label="t('erp.backupPhone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="50" required /></VCol>
+                <VCol v-if="!parent && service !== 'scholarship'" cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
               </VRow>
             </template>
-            <VRow v-if="wizardStep === 1 && service === 'test_offer' && !parent" class="service-contract-field-grid">
-              <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
-            </VRow>
             <ApplicantServiceFields v-if="!parent || service === 'academy'" v-model="form" v-model:language-id="languageId" fixed-service show-language contract-layout :contract-step="wizardStep" :languages="languages">
-              <template #private-prefix>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+              <template v-if="parent" #private-prefix>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </template>
               <template #private-version>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
               </template>
               <template #private-fees>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="applicationFeeFrom" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMinimum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="applicationFeeTo" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMaximum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
-                <VCol v-if="editing" cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="charges.visa_fee" type="number" min="0" step="0.01" :label="chargeLabel('visa_fee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="charges.visa_fee" type="number" min="0" step="0.01" :label="chargeLabel('visa_fee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="applicationFeeFrom" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMinimum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="applicationFeeTo" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMaximum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
+                <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="form.notes" :label="t('erp.admissionNotes')" :placeholder="t('serviceContracts.placeholders.admissionNotes')" maxlength="10000" /></VCol>
               </template>
               <template #scholarship-staff>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
               </template>
               <template #scholarship-version>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
               </template>
-              <template #test-offer-booking-fee>
-                <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="charges.booking_fee" type="number" min="0" step="0.01" :label="chargeLabel('booking_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+              <template #test-offer-version>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
               </template>
               <template #academy-student-basics>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.name" :label="t('serviceContracts.studentFullName')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
-                <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.name" :label="t('serviceContracts.studentFullName')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
               </template>
               <template #academy-version>
-                <VCol cols="12" sm="6" md="3"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
               </template>
               <template #academy-payment>
-                <VCol cols="12" sm="6" md="3" class="contract-wizard-full-row"><ErpField v-model="charges.service_fee" type="number" min="0" step="0.01" :label="chargeLabel('service_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="charges.service_fee" type="number" min="0" step="0.01" :label="chargeLabel('service_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
+                <VCol v-if="canRecordIncome && !editing" cols="12" sm="6" md="6"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
               </template>
             </ApplicantServiceFields>
-            <VRow v-if="wizardStep === 3 && service === 'academy'" class="service-contract-field-grid">
-              <VCol cols="12" sm="6" md="4"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
-              <VCol cols="12" sm="6" md="4"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
-              <VCol v-if="canRecordIncome && !editing" cols="12" sm="6" md="4" class="contract-wizard-full-row"><ErpField v-model="paidFee" type="number" min="0" :max="fee" step="0.01" :label="t('serviceContracts.paidFee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
-            </VRow>
             <section v-if="wizardStep === wizardStepCount && service !== 'academy'" class="service-contract-section">
               <VRow>
-                <template v-if="service === 'private'">
-                  <VCol v-if="!editing" cols="12" sm="6" md="3"><ErpField v-model="charges.visa_fee" type="number" min="0" step="0.01" :label="chargeLabel('visa_fee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
-                  <VCol cols="12" sm="6" :md="editing ? 4 : 3" :class="{ 'contract-wizard-full-row': editing }"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
-                  <VCol cols="12" sm="6" :md="editing ? 4 : 3" class="contract-wizard-full-row"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
-                  <VCol cols="12" sm="6" :md="editing ? 4 : 3" class="contract-wizard-full-row"><ErpField v-model="form.notes" :label="t('erp.admissionNotes')" :placeholder="t('serviceContracts.placeholders.admissionNotes')" maxlength="10000" /></VCol>
+                <template v-if="service === 'private' && parent">
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="form.university_fee" type="number" min="0" step="0.01" :label="t('educational.serviceFields.universityFee')" :placeholder="t('serviceContracts.placeholders.universityFee')" clearable /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="charges.visa_fee" type="number" min="0" step="0.01" :label="chargeLabel('visa_fee')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="applicationFeeFrom" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMinimum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="applicationFeeTo" type="number" min="0" step="0.01" :label="t('serviceContracts.applicationFeeMaximum')" :placeholder="t('serviceContracts.placeholders.amount')" /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
+                  <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="form.notes" :label="t('erp.admissionNotes')" :placeholder="t('serviceContracts.placeholders.admissionNotes')" maxlength="10000" /></VCol>
                 </template>
                 <template v-else-if="service === 'scholarship'">
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="charges.application_fee" type="number" min="0" step="0.01" :label="chargeLabel('application_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="form.notes" :label="t('erp.admissionNotes')" :placeholder="t('serviceContracts.placeholders.admissionNotes')" maxlength="10000" /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="charges.application_fee" type="number" min="0" step="0.01" :label="chargeLabel('application_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
+                  <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="form.notes" :label="t('erp.admissionNotes')" :placeholder="t('serviceContracts.placeholders.admissionNotes')" maxlength="10000" /></VCol>
                 </template>
                 <template v-else-if="service === 'test_offer'">
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="charges.service_fee" type="number" min="0" step="0.01" :label="chargeLabel('service_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="charges.remote_fee" type="number" min="0" step="0.01" :label="chargeLabel('remote_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
-                  <VCol cols="12" sm="6" md="3"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="charges.booking_fee" type="number" min="0" step="0.01" :label="chargeLabel('booking_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="charges.service_fee" type="number" min="0" step="0.01" :label="chargeLabel('service_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                  <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="charges.remote_fee" type="number" min="0" step="0.01" :label="chargeLabel('remote_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="currencyId" kind="select" :items="currencies" item-title="code" item-value="id" :label="t('serviceContracts.currency')" :placeholder="t('serviceContracts.placeholders.currency')" required /></VCol>
+                  <VCol cols="12" sm="6" md="6"><ErpField v-model="rate" type="number" min="0.00000001" step="0.00000001" :label="t('serviceContracts.rate')" :placeholder="t('serviceContracts.placeholders.rate')" required /></VCol>
                 </template>
               </VRow>
             </section>
@@ -924,6 +938,8 @@ async function save() {
               <strong>{{ t('erp.totalFee') }}: {{ feeMin.toFixed(2) }}<template v-if="service === 'private'"> – {{ fee.toFixed(2) }}</template> {{ currencies.find(row => row.id === currencyId)?.code }}</strong>
               <span>{{ t('serviceContracts.discount') }}: {{ discount }}</span>
             </div>
+              </div>
+            </Transition>
             <div class="service-contract-footer service-contract-dialog-actions px-5 py-4">
               <VBtn
                 v-if="wizardStep === 1"
@@ -967,19 +983,20 @@ async function save() {
       </VCard>
     </VDialog>
     <PrintableListReport :title="t(labelKey)" :subtitle="[search, status, dateFrom, dateTo].filter(Boolean).join(' · ')" :columns="[t('serviceContracts.number'), t('serviceContracts.applicant'), t('erp.phone'), t('agencyStaff.contractVersion'), t('erp.totalFee'), t('serviceContracts.startDate'), t('serviceContracts.status')]" :rows="reportRows" />
-    <VDialog v-model="credentialsDialog" max-width="460">
-      <VCard :title="t('serviceContracts.portalCredentialsTitle')">
-        <VCardText>
-          <p class="text-body-2 mb-3">{{ t('serviceContracts.portalCredentialsSubtitle') }}</p>
-          <div v-if="createdCredentials" class="portal-credentials">
-            <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalEmail') }}</span> <strong>{{ createdCredentials.email }}</strong></div>
-            <div><span class="text-medium-emphasis">{{ t('serviceContracts.portalPassword') }}</span> <strong class="portal-password">{{ createdCredentials.password }}</strong></div>
+    <VDialog v-model="credentialsDialog" max-width="480" content-class="portal-credentials-dialog">
+      <VCard class="portal-credentials-dialog__card">
+        <VCardText class="portal-credentials-dialog__content">
+          <div class="portal-credentials-dialog__icon" aria-hidden="true"><VIcon icon="tabler-circle-check" size="32" /></div>
+          <h2 class="portal-credentials-dialog__title">{{ t('serviceContracts.portalCredentialsTitle') }}</h2>
+          <p class="portal-credentials-dialog__description">{{ t('serviceContracts.portalCredentialsSubtitle') }}</p>
+          <div v-if="createdCredentials" class="portal-credentials portal-credentials-dialog__details">
+            <div><span>{{ t('serviceContracts.portalEmail') }}</span><strong dir="ltr">{{ createdCredentials.email }}</strong></div>
+            <div><span>{{ t('serviceContracts.portalPassword') }}</span><strong class="portal-password" dir="ltr">{{ createdCredentials.password }}</strong></div>
           </div>
         </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="tonal" color="secondary" @click="credentialsDialog = false">{{ t('common.actions.close') }}</VBtn>
-          <VBtn color="primary" prepend-icon="tabler-copy" @click="copyCredentials(createdCredentials)">{{ t('serviceContracts.copyCredentials') }}</VBtn>
+        <VCardActions class="portal-credentials-dialog__actions">
+          <VBtn class="portal-credentials-dialog__close" variant="flat" color="secondary" @click="credentialsDialog = false">{{ t('common.actions.close') }}</VBtn>
+          <VBtn class="portal-credentials-dialog__copy" color="primary" variant="flat" prepend-icon="tabler-copy" @click="copyCredentials(createdCredentials)">{{ t('serviceContracts.copyCredentials') }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
@@ -1002,11 +1019,6 @@ async function save() {
 </template>
 
 <style scoped>
-.service-contract-field-grid {
-  --v-gutter-x: 16px;
-  --v-gutter-y: 16px;
-}
-
 .service-contract-form-card {
   max-block-size: calc(100vh - 32px);
   overflow: hidden;
@@ -1027,11 +1039,16 @@ async function save() {
 :global(.service-contract-form-dialog .service-contract-dialog-title) { border-block-end-width: 1px; }
 :global(.service-contract-form-dialog .service-contract-dialog-actions) { border-block-start-width: 1px; }
 :global(.service-contract-form-dialog .service-contract-dialog-body) {
-  max-block-size: calc(100vh - 200px);
+  flex: 1 1 auto;
+  min-block-size: 0;
+  max-block-size: none;
   padding-block-end: 0 !important;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background-color: rgb(var(--v-theme-surface));
 }
+:global(.service-contract-form-dialog) { max-block-size: calc(100dvh - 2rem); }
+:global(.service-contract-form-dialog .service-contract-form-card) { display: flex; flex-direction: column; max-block-size: calc(100dvh - 2rem); }
 :global(.service-contract-form-dialog .service-contract-dialog-heading) { font-size: 1.625rem; font-weight: 700; }
 :global(.service-contract-form-dialog .service-contract-dialog-heading--primary) { font-size: 2rem; }
 :global(.service-contract-form-dialog .service-contract-dialog-close) {
@@ -1112,24 +1129,50 @@ async function save() {
   font-size: .875rem;
 }
 
-.service-contract-wizard :deep(.v-row),
-.service-contract-wizard :deep(.applicant-service-fields) {
-  --v-gutter-x: 16px;
-  --v-gutter-y: 16px;
+.service-contract-wizard :deep(.v-row) {
+  /* Vuetify spaces fields with the row's negative margin plus v-col padding.
+     Its gutter variables do not control this version, so set the actual values. */
+  margin: -3px !important;
+  row-gap: 0 !important;
 }
+.service-contract-wizard--two-column .service-contract-portal { margin-block-start: 1.5rem; }
 .service-contract-wizard :deep(.v-row > .v-col) {
   flex: 0 0 50% !important;
   max-inline-size: 50% !important;
+  padding: 3px !important;
   animation: service-contract-step-in .22s ease-out both;
 }
 .service-contract-wizard :deep(.v-row > .v-col.contract-wizard-full-row) {
   flex-basis: 100% !important;
   max-inline-size: 100% !important;
 }
+.service-contract-wizard :deep(.v-row > .v-col.service-contract-quarter-row) {
+  flex-basis: 25% !important;
+  max-inline-size: 25% !important;
+}
+.service-contract-wizard :deep(.v-row > .v-col.service-contract-third-row) {
+  flex-basis: 33.333333% !important;
+  max-inline-size: 33.333333% !important;
+}
 
 @keyframes service-contract-step-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.service-contract-wizard-step-enter-active,
+.service-contract-wizard-step-leave-active {
+  transition: opacity .22s ease, transform .22s ease;
+}
+
+.service-contract-wizard-step-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.service-contract-wizard-step-leave-to {
+  opacity: 0;
+  transform: translateY(-7px);
 }
 
 .service-contract-section {
@@ -1235,6 +1278,41 @@ async function save() {
   overflow-wrap: anywhere;
 }
 
+.portal-credentials-dialog__card {
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-primary), .2);
+  border-radius: 18px;
+  background: linear-gradient(150deg, rgba(var(--v-theme-primary), .09), rgb(var(--v-theme-surface)) 50%);
+}
+
+.portal-credentials-dialog__content {
+  display: grid;
+  justify-items: center;
+  padding: 2rem 2rem 1.5rem !important;
+  text-align: center;
+}
+
+.portal-credentials-dialog__icon {
+  display: grid;
+  inline-size: 4rem;
+  block-size: 4rem;
+  margin-block-end: 1rem;
+  border-radius: 50%;
+  background: rgba(var(--v-theme-primary), .14);
+  color: rgb(var(--v-theme-primary));
+  place-items: center;
+  box-shadow: 0 10px 28px rgba(var(--v-theme-primary), .18);
+}
+
+.portal-credentials-dialog__title { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: 1.35rem; font-weight: 750; line-height: 1.25; }
+.portal-credentials-dialog__description { max-inline-size: 23rem; margin: .65rem 0 1.25rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .9rem; line-height: 1.55; }
+.portal-credentials-dialog__details { inline-size: 100%; padding: .85rem 1rem; border: 1px solid rgba(var(--v-theme-secondary), .22); border-radius: .75rem; background: rgba(var(--v-theme-secondary), .07); text-align: start; }
+.portal-credentials-dialog__details > div { display: grid; padding-block: .35rem; gap: .2rem; }.portal-credentials-dialog__details span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; }.portal-credentials-dialog__details strong { color: rgb(var(--v-theme-on-surface)); overflow-wrap: anywhere; }
+.portal-credentials-dialog__actions { display: grid; padding: 1rem 1.25rem 1.25rem !important; gap: .75rem; grid-template-columns: 1fr 1fr; }.portal-credentials-dialog__close { background: rgba(var(--v-theme-secondary), .14) !important; color: rgb(var(--v-theme-secondary)) !important; }.portal-credentials-dialog__copy { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+:global(.v-overlay:has(.portal-credentials-dialog) .v-overlay__scrim) { background-color: rgba(var(--v-theme-on-surface), .25); backdrop-filter: blur(4px); }
+
+@media (max-width: 460px) { .portal-credentials-dialog__content { padding: 1.5rem 1rem 1.25rem !important; }.portal-credentials-dialog__actions { padding-inline: 1rem !important; grid-template-columns: 1fr; } }
+
 .service-contract-table :deep(.v-table__wrapper),
 .service-contract-table :deep(.v-data-table__wrapper) {
   overflow-x: auto;
@@ -1302,6 +1380,20 @@ async function save() {
 }
 
 @media (max-width: 600px) {
+  .service-contract-wizard :deep(.v-row) {
+    margin: -2px !important;
+  }
+  .service-contract-wizard :deep(.v-row > .v-col) {
+    padding: 2px !important;
+  }
+  .service-contract-wizard :deep(.v-row > .v-col.service-contract-quarter-row) {
+    flex-basis: 100% !important;
+    max-inline-size: 100% !important;
+  }
+  .service-contract-wizard :deep(.v-row > .v-col.service-contract-third-row) {
+    flex-basis: 100% !important;
+    max-inline-size: 100% !important;
+  }
   .service-contract-wizard-progress { gap: 2px; padding-inline: 10px; }
   .service-contract-wizard-progress__step { gap: 5px; padding-inline: 2px; }
   .service-contract-wizard-progress__step:not(:last-child)::after { display: none; }
@@ -1309,6 +1401,14 @@ async function save() {
   .service-contract-wizard-progress__label { font-size: .68rem; }
   .service-contract-wizard :deep(.erp-field-label) { margin-block-end: 4px; font-size: .75rem; }
   .service-contract-summary { align-items: flex-start; flex-direction: column; gap: 3px; margin-block-start: 12px; }
+}
+
+@media (min-width: 600px) {
+  /* A full field otherwise includes the 6px gap that sits between two half
+     fields. Match the visible width of a 6 + 6 row without changing the grid. */
+  .service-contract-wizard :deep(.v-row > .v-col.contract-wizard-full-row) {
+    padding-inline: 6px !important;
+  }
 }
 
 @media (max-width: 959px) {

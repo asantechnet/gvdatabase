@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { translateApplicantStage, translate } from '@/utils/localization'
-import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
-import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
@@ -25,11 +23,13 @@ import CurrencyApi, { type Currency } from '@/api/currency'
 import TaskApi from '@/api/task'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate, translateBackendValue } from '@/utils/localization'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const toast = useToast()
 const route = useRoute()
 const { t, n } = useI18n()
 const applicant = ref<Applicant | null>(null)
+const caseLoading = ref(true)
 const stages = ref<ApplicantStage[]>([])
 // Vuetify can preserve an item value as a string after a component remount.
 // Keep the UI tolerant of that, but always convert it before posting to the
@@ -181,18 +181,6 @@ const taskSubtitle = (task: CaseTask) => [
 ].filter(Boolean).join(' · ')
 const stageHistory = computed(() => [...(applicant.value?.stage_history ?? [])].sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime()))
 const documents = computed(() => (applicant.value?.tasks ?? []).flatMap(task => (task.attachments ?? []).map(a => ({ ...a, task_id: task.id, task_title: task.title }))))
-// Only approved rows are ledger money; drafts and rejections stay in the
-// separate draft list below.
-const postedIncomeTotal = computed(() => (applicant.value?.incomes ?? []).filter(row => row.status === 'approved').reduce((sum, row) => sum + Number(row.amount || 0), 0))
-const postedExpenseTotal = computed(() => (applicant.value?.expenses ?? []).filter(row => row.status === 'approved').reduce((sum, row) => sum + Number(row.amount || 0), 0))
-const draftFinanceRows = computed<DraftFinanceRow[]>(() => [
-  ...(applicant.value?.incomes ?? [])
-    .filter(row => row.status === 'draft' || row.status === 'rejected')
-    .map(row => ({ ...row, status: row.status as 'draft' | 'rejected', kind: 'income' as const })),
-  ...(applicant.value?.expenses ?? [])
-    .filter(row => row.status === 'draft' || row.status === 'rejected')
-    .map(row => ({ ...row, status: row.status as 'draft' | 'rejected', kind: 'expense' as const })),
-].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')))
 const money = (value: number | string) => n(Number(value || 0), 'decimal')
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
 const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : ''
@@ -232,8 +220,6 @@ const savingNotes = ref(false)
 const downloadingId = ref<number | null>(null)
 
 const universities = ref<MasterDataRecord[]>([])
-const countries = ref<MasterDataRecord[]>([])
-const levels = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const admissionEmployees = ref<Employee[]>([])
@@ -286,6 +272,7 @@ async function saveUniNotes() {
 
 const editDialog = ref(false)
 const savingCase = ref(false)
+const editStep = ref<1 | 2>(1)
 const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null, admission_employee_id: null as number | null })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 const portalDialog = ref(false)
@@ -325,29 +312,65 @@ watch(() => financeForm.value.transaction_type, () => {
 const documentDialog = ref(false)
 const uploadingDocument = ref(false)
 const documentTaskId = ref<number | null>(null)
+const documentDestination = ref<'applicant' | 'task'>('task')
+const documentLabel = ref('')
 const documentFile = ref<File | null>(null)
 const applicantAttachments = ref<ApplicantAttachment[]>([])
-const attachmentLabel = ref('')
-const attachmentFile = ref<File | File[] | null>(null)
-const uploadingApplicantAttachment = ref(false)
 const canAttachDocuments = computed(() => (applicant.value?.tasks?.length ?? 0) > 0)
+const canOpenDocumentDialog = computed(() => canEditCase.value || canAttachDocuments.value)
+const documentTargetOptions = computed(() => [
+  ...(canEditCase.value ? [{ title: t('educational.caseUi.applicantDocuments'), value: 'applicant' as const }] : []),
+  ...(canAttachDocuments.value ? [{ title: t('common.ui.caseTask'), value: 'task' as const }] : []),
+])
+const documentFileInput = ref<HTMLInputElement | null>(null)
+const documentPreviewDialog = ref(false)
+const documentPreviewUrl = ref('')
+const documentPreviewName = ref('')
+const documentPreviewIsImage = ref(false)
+const previewLoading = ref(false)
+
+const dockDialogCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+    instance.calendarContainer.style.setProperty('z-index', '2400', 'important')
+  })
+}
 
 async function load() {
-  applicant.value = await ApplicantApi.get(Number(route.params.id))
-  // Stages are service-scoped: an academy or test-offer case must only be
-  // offered its own service's pipeline.
-  stages.value = await ApplicantApi.stages({ service: applicant.value.service, country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
-  selected.value = null
-  notesDraft.value = applicant.value.notes ?? ''
-  applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
+  caseLoading.value = true
+  try {
+    applicant.value = await ApplicantApi.get(Number(route.params.id))
+    // Stages are service-scoped: an academy or test-offer case must only be
+    // offered its own service's pipeline.
+    stages.value = await ApplicantApi.stages({ service: applicant.value.service, country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
+    selected.value = null
+    notesDraft.value = applicant.value.notes ?? ''
+    applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
+  }
+  finally {
+    caseLoading.value = false
+  }
 }
 
 // One grant decides whether the case-level writer is offered. A lined applicant
 // has no writer here: each service case is moved from its own page.
 const canMoveStage = computed(() => canAccess('change_applicant_stage'))
 
-async function uploadApplicantAttachment() { const file = Array.isArray(attachmentFile.value) ? attachmentFile.value[0] : attachmentFile.value; if (!applicant.value || !file || !attachmentLabel.value.trim()) return; uploadingApplicantAttachment.value = true; try { applicantAttachments.value.unshift(await ApplicantAttachmentApi.upload(applicant.value.id, file, attachmentLabel.value.trim())); attachmentFile.value = null; attachmentLabel.value = ''; toast.success(t('educational.caseUi.documentAdded')) } catch { toast.error(t('educational.caseUi.documentAddFailed')) } finally { uploadingApplicantAttachment.value = false } }
-async function removeApplicantAttachment(id: number) { if (!applicant.value) return; await ApplicantAttachmentApi.remove(applicant.value.id, id); applicantAttachments.value = applicantAttachments.value.filter(item => item.id !== id) }
+async function removeApplicantAttachment(id: number) {
+  if (!applicant.value || !await confirmActionWarning({
+    key: `delete-applicant-attachment-${id}`,
+    title: t('educational.caseUi.removeDocumentTitle'),
+    message: t('educational.caseUi.removeDocumentConfirm'),
+    confirmText: t('common.actions.remove'),
+    cancelText: t('common.actions.cancel'),
+    icon: 'tabler-trash',
+    tone: 'error',
+  })) return
+
+  await ApplicantAttachmentApi.remove(applicant.value.id, id)
+  applicantAttachments.value = applicantAttachments.value.filter(item => item.id !== id)
+}
 
 async function loadBoards() {
   try {
@@ -527,6 +550,70 @@ async function downloadDoc(taskId: number, attachmentId: number, filename: strin
   }
 }
 
+async function downloadApplicantDocument(attachmentId: number, filename: string) {
+  if (!applicant.value)
+    return
+
+  downloadingId.value = attachmentId
+  try {
+    const response = await ApplicantAttachmentApi.download(applicant.value.id, attachmentId)
+    const url = URL.createObjectURL(response.data as Blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+  catch {
+    toast.error(t('educational.caseUi.downloadFailed'))
+  }
+  finally {
+    downloadingId.value = null
+  }
+}
+
+function showDocumentPreview(url: string, name: string) {
+  if (documentPreviewUrl.value.startsWith('blob:'))
+    URL.revokeObjectURL(documentPreviewUrl.value)
+
+  documentPreviewUrl.value = url
+  documentPreviewName.value = name
+  documentPreviewIsImage.value = /\.(png|jpe?g|webp)$/i.test(name)
+  documentPreviewDialog.value = true
+}
+
+async function previewApplicantDocument(attachmentId: number, filename: string) {
+  if (!applicant.value)
+    return
+
+  previewLoading.value = true
+  try {
+    const response = await ApplicantAttachmentApi.download(applicant.value.id, attachmentId)
+    showDocumentPreview(URL.createObjectURL(response.data as Blob), filename)
+  }
+  catch {
+    toast.error(t('educational.caseUi.downloadFailed'))
+  }
+  finally {
+    previewLoading.value = false
+  }
+}
+
+async function previewTaskDocument(taskId: number, attachmentId: number, filename: string) {
+  previewLoading.value = true
+  try {
+    const response = await TaskApi.downloadAttachment(String(taskId), String(attachmentId))
+    showDocumentPreview(URL.createObjectURL(response.data as Blob), filename)
+  }
+  catch {
+    toast.error(t('educational.caseUi.downloadFailed'))
+  }
+  finally {
+    previewLoading.value = false
+  }
+}
+
 function openEditCase() {
   if (!applicant.value)
     return
@@ -539,6 +626,7 @@ function openEditCase() {
     admission_employee_id: applicant.value.admission_employee_id ?? null,
   }
   serviceForm.value = { service: applicant.value.service, ...applicant.value.details, favorite_subject_ids: [...(applicant.value.favorite_subject_ids ?? [])], skill_ids: [...(applicant.value.skill_ids ?? [])], teacher_ids: [...(applicant.value.teacher_ids ?? [])] }
+  editStep.value = 1
   editDialog.value = true
 }
 
@@ -687,7 +775,15 @@ async function setUniStatus(id: number, status: string) {
 }
 
 async function removeUni(id: number) {
-  if (!applicant.value || !confirm(t('educational.caseUi.removeUniversityConfirm')))
+  if (!applicant.value || !await confirmActionWarning({
+    key: `delete-applicant-university-${id}`,
+    title: t('educational.caseUi.removeUniversityTitle'),
+    message: t('educational.caseUi.removeUniversityConfirm'),
+    confirmText: t('common.actions.remove'),
+    cancelText: t('common.actions.cancel'),
+    icon: 'tabler-trash',
+    tone: 'error',
+  }))
     return
 
   try {
@@ -821,22 +917,48 @@ async function rejectDraftFinance() {
 
 function openDocumentDialog() {
   documentTaskId.value = applicant.value?.tasks?.[0]?.id ?? null
+  documentDestination.value = canAttachDocuments.value ? 'task' : 'applicant'
+  documentLabel.value = ''
   documentFile.value = null
+  if (documentFileInput.value)
+    documentFileInput.value.value = ''
   documentDialog.value = true
 }
 
+function chooseDocumentFile() {
+  documentFileInput.value?.click()
+}
+
+function selectDocumentFile(event: Event) {
+  documentFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
+}
+
 async function uploadDocument() {
-  if (!documentTaskId.value || !documentFile.value)
+  if (!applicant.value || !documentFile.value)
     return
 
   uploadingDocument.value = true
   try {
-    // Reuse the task's input-attachment flow: documents therefore retain the
-    // same access controls, audit trail, download handling, and file limits.
-    await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value)
+    if (documentDestination.value === 'applicant') {
+      if (!documentLabel.value.trim())
+        return
+
+      applicantAttachments.value.unshift(await ApplicantAttachmentApi.upload(applicant.value.id, documentFile.value, documentLabel.value.trim()))
+      toast.success(t('educational.caseUi.documentAdded'))
+    }
+    else {
+      if (!documentTaskId.value)
+        return
+
+      // Reuse the task's input-attachment flow: documents therefore retain
+      // the same access controls, audit trail, download handling, and file
+      // limits as the assigned case task.
+      await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value, 'input')
+      await load()
+      toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
+    }
+
     documentDialog.value = false
-    await load()
-    toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
   }
   catch {
     // The shared API notifier displays the exact upload or permission error.
@@ -851,18 +973,14 @@ onMounted(async () => {
   await loadBoards()
 
   try {
-    const [universityRows, countryRows, levelRows, semesterRows, employeeRows, admissionRows] = await Promise.all([
+    const [universityRows, semesterRows, employeeRows, admissionRows] = await Promise.all([
       MasterDataApi.list('universities'),
-      MasterDataApi.list('countries'),
-      MasterDataApi.list('education-levels'),
       MasterDataApi.list('semesters'),
       EmployeeApi.getOptions(),
       canAssignAdmission.value ? EmployeeApi.getAssignmentOptions('admission') : Promise.resolve([]),
     ])
 
     universities.value = universityRows
-    countries.value = countryRows
-    levels.value = levelRows
     semesters.value = semesterRows
     employees.value = employeeRows
     admissionEmployees.value = admissionRows
@@ -871,26 +989,34 @@ onMounted(async () => {
     toast.error(t('educational.caseUi.loadUniversitiesFailed'))
   }
 })
+
+onBeforeUnmount(() => {
+  if (documentPreviewUrl.value.startsWith('blob:'))
+    URL.revokeObjectURL(documentPreviewUrl.value)
+})
 </script>
 <template>
   <VCard v-if="applicant" class="visa-case-card">
-    <VCardTitle class="d-flex flex-wrap align-center ga-2">
-      <RouterLink class="case-title-link" :to="{ name: 'all-customers', query: { contact: applicant.id } }" :title="t('educational.openContactInCrm')">{{ applicant.name }}</RouterLink>
-      <span class="text-caption text-medium-emphasis">{{ serviceLabel }}</span>
-      <ContactActionMenu v-if="applicant.contact" kind="phone" :value="applicant.contact" contactable-type="applicant" :contactable-id="applicant.id" audience="applicant" :context="applicant" />
-      <ContactActionMenu v-if="applicant.email" kind="email" :value="applicant.email" contactable-type="applicant" :contactable-id="applicant.id" />
-      <CrmRelationshipDetails type="applicant" :id="applicant.id" :title="applicant.name" />
-      <VSpacer />
-      <VChip v-if="applicant.user_id" size="small" :color="applicant.portal_access_status === 'active' ? 'success' : 'warning'">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.portalActive' : 'educational.caseUi.portalDisabledStatus') }}</VChip>
-      <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="tonal" :color="applicant.portal_access_status === 'active' ? 'error' : 'success'" :prepend-icon="applicant.portal_access_status === 'active' ? 'tabler-lock' : 'tabler-lock-open'" @click="portalAccessDialog = true">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal') }}</VBtn>
-      <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="text" color="error" prepend-icon="tabler-user-minus" @click="portalDeleteDialog = true">{{ t('educational.caseUi.deletePortalUser') }}</VBtn>
-      <VBtn v-if="!applicant.user_id && canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
-      <VBtn v-if="canEditCase" size="small" variant="text" prepend-icon="tabler-pencil" @click="openEditCase">{{ t('educational.caseUi.editCase') }}</VBtn>
-    </VCardTitle>
-    <VCardSubtitle v-if="guardianSummary.length" class="d-flex flex-wrap ga-4">
-      <span v-for="row in guardianSummary" :key="row.key">{{ row.label }}: <strong>{{ row.value }}</strong></span>
-    </VCardSubtitle>
     <VCardText class="visa-case-content">
+      <section class="case-section case-section--profile">
+        <div class="case-profile-hero">
+          <div class="case-profile-hero__identity">
+            <VAvatar color="primary" variant="tonal" size="64"><VIcon icon="tabler-user" size="32" /></VAvatar>
+            <div class="min-w-0">
+              <p class="case-section__eyebrow mb-1">{{ t('educational.applicant') }}</p>
+              <RouterLink class="case-title-link" :to="{ name: 'all-customers', query: { contact: applicant.id } }" :title="t('educational.openContactInCrm')">{{ applicant.name }}</RouterLink>
+              <div class="d-flex flex-wrap align-center ga-2 mt-1"><VChip size="x-small" variant="tonal">{{ serviceLabel }}</VChip><CrmRelationshipDetails type="applicant" :id="applicant.id" :title="applicant.name" /></div>
+            </div>
+          </div>
+          <div class="case-profile-hero__actions">
+            <VChip v-if="applicant.user_id" size="small" class="case-portal-status" :color="applicant.portal_access_status === 'active' ? 'success' : 'warning'">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.portalActive' : 'educational.caseUi.portalDisabledStatus') }}</VChip>
+            <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="tonal" color="warning" :prepend-icon="applicant.portal_access_status === 'active' ? 'tabler-lock' : 'tabler-lock-open'" @click="portalAccessDialog = true">{{ t(applicant.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal') }}</VBtn>
+            <VBtn v-if="applicant.user_id && canInvitePortal" size="small" variant="tonal" color="error" prepend-icon="tabler-user-minus" @click="portalDeleteDialog = true">{{ t('educational.caseUi.deletePortalUser') }}</VBtn>
+            <VBtn v-if="!applicant.user_id && canInvitePortal" size="small" variant="tonal" color="primary" prepend-icon="tabler-send" @click="openPortalInvite">{{ t('educational.caseUi.invitePortal') }}</VBtn>
+            <VBtn v-if="canEditCase" size="small" variant="tonal" prepend-icon="tabler-pencil" @click="openEditCase">{{ t('educational.caseUi.editCase') }}</VBtn>
+          </div>
+        </div>
+        <div class="case-profile-body">
       <div class="visa-case-stage-panel">
       <VChip color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ t('educational.caseUi.openTasks', { count: n(openTasks.length) }) }}</VChip>
@@ -905,21 +1031,7 @@ onMounted(async () => {
       </VAlert>
       <template v-else>
         <VAlert v-if="caseIsClosed" type="info" variant="tonal" density="compact" class="mt-5 mb-0">{{ t('educational.caseUi.caseClosedReopen', { stage: translateApplicantStage(applicant.current_stage) }) }}</VAlert>
-        <VSelect
-          v-model="selected"
-          :items="transitionItems"
-          :item-title="translateApplicantStage"
-          :item-props="transitionItemProps"
-          item-value="id"
-          :label="t('educational.caseUi.moveStage')"
-          class="mt-5 mb-4"
-        >
-          <template #subheader="{ props: item }">
-            <VListSubheader>{{ item.title }}</VListSubheader>
-          </template>
-        </VSelect>
-        <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
-        <VBtn color="primary" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+        <div class="case-stage-change mt-5"><ErpField v-model="selected" kind="select" :items="transitionOptions.map(stage => ({ title: translateApplicantStage(stage), value: stage.id }))" :label="t('educational.caseUi.moveStage')" :placeholder="t('educational.caseUi.moveStage')" class="mb-4" /><ErpField v-model="note" kind="textarea" :label="t('educational.caseUi.stageNote')" :placeholder="t('educational.caseUi.stageNote')" rows="3" class="mb-4" /><VBtn color="primary" variant="flat" :loading="moving" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn></div>
       </template>
       </template>
       </div>
@@ -931,7 +1043,6 @@ onMounted(async () => {
         </section>
         <section class="case-section case-section--cases">
           <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.serviceCases') }}</h3></div></div>
-          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.serviceCasesHint') }}</p>
           <div v-for="line in applicant.services" :key="line.id" class="case-case-row">
             <div class="case-case-row__identity">
               <div class="d-flex flex-wrap align-center ga-2">
@@ -943,6 +1054,7 @@ onMounted(async () => {
               <p class="text-caption text-medium-emphasis mb-0 mt-1">
                 {{ t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') }) }}
               </p>
+              <VBtn size="small" variant="tonal" color="primary" class="mt-3" :to="{ name: 'service-case', params: { line: line.id } }" :aria-label="`${t('educational.caseUi.openServiceCase')}: ${line.contract_number ?? line.type ?? line.service}`">{{ t('educational.caseUi.openServiceCase') }}</VBtn>
             </div>
             <div class="case-case-row__meta">
               <VChip size="small" color="primary">{{ translateApplicantStage(line.current_stage) }}</VChip>
@@ -951,11 +1063,12 @@ onMounted(async () => {
                 {{ translateBackendValue(line.payment_status ?? 'unpaid') }}
               </VChip>
             </div>
-            <VBtn size="small" variant="tonal" color="primary" :to="{ name: 'service-case', params: { line: line.id } }" :aria-label="`${t('educational.caseUi.openServiceCase')}: ${line.contract_number ?? line.type ?? line.service}`">{{ t('educational.caseUi.openServiceCase') }}</VBtn>
           </div>
           <p v-if="!applicant.services?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.serviceCasesEmpty') }}</p>
         </section>
       </div>
+        </div>
+      </section>
 
       <section v-if="!applicant.services?.length" class="case-section case-section--timeline mt-5">
         <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.timeline') }}</h3></div></div>
@@ -963,27 +1076,15 @@ onMounted(async () => {
       </section>
 
       <div class="case-content-grid mt-5">
-        <section class="case-section">
-          <div class="case-section__heading"><h3>{{ t('educational.caseUi.tasks') }}</h3><VBtn v-if="canCreateTask" size="small" prepend-icon="tabler-plus" @click="openTaskDialog">{{ t('educational.caseUi.newTask') }}</VBtn></div>
+        <section class="case-section case-section--tasks">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.tasks') }}</h3><VBtn v-if="canCreateTask" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openTaskDialog">{{ t('educational.caseUi.newTask') }}</VBtn></div>
           <p v-if="!canCreateTask" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.taskPermission') }}</p>
-          <VList><VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSubtitle(task)"><template #append><VBtn v-if="task.can_view" size="small" variant="text" color="primary" :to="{ name: 'tasks', query: { view: 'todos', task: task.id } }" :aria-label="`${t('educational.caseUi.openInTaskMatrix')}: ${task.title}`" :title="t('educational.caseUi.openInTaskMatrix')"><VIcon icon="tabler-arrow-up-right" size="18" /></VBtn><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" :disabled="!!taskCompleteBlock(task)" :aria-label="`${t('educational.caseUi.complete')}: ${task.title}`" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}<VTooltip v-if="taskCompleteBlock(task)" activator="parent">{{ taskCompleteBlock(task) }}</VTooltip></VBtn></template></VListItem><VListItem v-for="task in doneTasks" :key="`done-${task.id}`" :title="task.title" :subtitle="taskSubtitle(task)"><template #prepend><VIcon icon="tabler-check" color="success" /></template><template #append><VBtn v-if="task.can_view" size="small" variant="text" color="primary" :to="{ name: 'tasks', query: { view: 'todos', task: task.id } }" :aria-label="`${t('educational.caseUi.openInTaskMatrix')}: ${task.title}`" :title="t('educational.caseUi.openInTaskMatrix')"><VIcon icon="tabler-arrow-up-right" size="18" /></VBtn></template></VListItem></VList>
+          <VList><VListItem v-for="task in openTasks" :key="task.id" :title="task.title" :subtitle="taskSubtitle(task)"><template #append><VBtn size="small" variant="text" color="success" :loading="completingId === task.id" :disabled="!!taskCompleteBlock(task)" :aria-label="`${t('educational.caseUi.complete')}: ${task.title}`" @click="completeTask(task.id)">{{ t('educational.caseUi.complete') }}<VTooltip v-if="taskCompleteBlock(task)" activator="parent">{{ taskCompleteBlock(task) }}</VTooltip></VBtn></template></VListItem><VListItem v-for="task in doneTasks" :key="`done-${task.id}`" class="case-task-item--done" :title="task.title" :subtitle="taskSubtitle(task)"><template #prepend><VIcon icon="tabler-check" color="success" /></template></VListItem></VList>
           <p v-if="!applicant.tasks?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noTasks') }}</p>
         </section>
 
-        <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section">
-          <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
-          <div v-if="caseCountry" class="case-country-contact">
-            <div class="case-country-contact__identity">
-              <span class="text-caption text-medium-emphasis">{{ t('educational.destinationCountry') }}</span>
-              <strong>{{ caseCountry.name }}</strong>
-            </div>
-            <ContactActionMenu v-if="caseCountry.phone" kind="phone" :value="caseCountry.phone" />
-            <ContactActionMenu v-if="caseCountry.email" kind="email" :value="caseCountry.email" />
-            <a v-if="portalHref(caseCountry.portal_url)" :href="portalHref(caseCountry.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">
-              <VIcon icon="tabler-world" size="16" />
-              <span>{{ t('educational.caseUi.visitWebsite') }}</span>
-            </a>
-          </div>
+        <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section case-section--universities">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
           <p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.primaryChoiceHint') }}</p>
           <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
           <h4 class="mt-2">{{ t('educational.caseUi.trackedApplications') }}</h4>
@@ -1026,228 +1127,156 @@ onMounted(async () => {
           <p v-if="!applicant.universities?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noApplications') }}</p>
         </section>
 
-        <section v-if="canViewFinance" class="case-section">
-          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreateDraftFinance" size="small" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn></div></div>
+        <section v-if="canViewFinance" class="case-section case-section--finance">
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreatePendingTransactions" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn><VBtn size="small" color="primary" variant="tonal" :to="{ name: 'payment-requests' }">{{ t('educational.caseUi.pendingWorkspace') }}</VBtn></div></div>
           <VList v-if="applicant.services?.length" density="compact">
             <VListItem v-for="line in applicant.services" :key="`balance-${line.id}`" :title="line.contract_number ?? line.type ?? line.service" :subtitle="t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') })" />
           </VList>
-          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.postedLedgerNote') }}</p>
-          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.financeSummary', { income: money(postedIncomeTotal), expenses: money(postedExpenseTotal) }) }}</p>
-          <h4 class="mt-2">{{ t('educational.caseUi.draftRecords') }}</h4>
-          <VList density="compact">
-            <VListItem v-for="row in draftFinanceRows" :key="`draft-${row.kind}-${row.id}`" :title="t('educational.caseUi.draftRecordTitle', { type: translateBackendValue(row.kind), description: row.description || t('common.messages.notAvailable') })" :subtitle="t('educational.caseUi.draftSummary', { amount: money(row.amount), status: translateBackendValue(row.status), rejection: row.rejection_reason || t('common.messages.notAvailable') })">
-              <template v-if="canApproveDrafts && row.status === 'draft'" #append>
-                <VBtn size="x-small" variant="text" color="success" @click="approveDraftFinance(row)">{{ t('finance.drafts.approve') }}</VBtn>
-                <VBtn size="x-small" variant="text" color="error" @click="openRejectDraft(row)">{{ t('finance.drafts.reject') }}</VBtn>
-              </template>
-            </VListItem>
-          </VList>
-          <p v-if="!draftFinanceRows.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noDrafts') }}</p>
+          <VList><VListItem v-for="row in applicant.pending_transactions" :key="`pt-${row.id}`" :title="t('educational.caseUi.transactionTitle', { type: translateBackendValue(row.transaction_type), reason: row.reason })" :subtitle="t('educational.caseUi.transactionSummary', { amount: money(row.amount), status: translateBackendValue(row.approval_status), rejection: row.rejection_reason || t('common.messages.notAvailable') })" /></VList>
           <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem></VList>
           <p v-if="!applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
         </section>
 
         <section class="case-section case-section--documents">
-          <div class="case-section__heading"><div><h3>{{ t('educational.caseUi.documents') }}</h3><p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.profileDocumentCount', { count: applicantAttachments.length }) }}</p></div><VBtn v-if="canAttachDocuments" size="small" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn></div>
-          <h4>{{ t('educational.caseUi.applicantDocuments') }}</h4>
-          <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.profileDocumentsHint') }}</p>
-          <VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-download" size="x-small" variant="text" :aria-label="`${t('educational.caseUi.download')}: ${file.label}`" :href="file.download_url"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" :aria-label="`${t('common.actions.remove')}: ${file.label}`" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList>
-          <div v-if="canEditCase" class="case-document-upload"><VTextField v-model="attachmentLabel" :label="t('educational.caseUi.documentLabel')" density="compact" hide-details/><VFileInput v-model="attachmentFile" density="compact" hide-details/><VBtn color="primary" :loading="uploadingApplicantAttachment" :disabled="!attachmentFile || !attachmentLabel.trim()" @click="uploadApplicantAttachment">{{ t('educational.caseUi.attach') }}</VBtn></div>
+          <div class="case-section__heading"><div><h3>{{ t('educational.caseUi.documents') }}</h3><p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.profileDocumentCount', { count: applicantAttachments.length }) }}</p></div><VBtn v-if="canOpenDocumentDialog" size="small" color="primary" variant="flat" prepend-icon="tabler-paperclip" @click="openDocumentDialog">{{ $t('common.ui.attachDocument') }}</VBtn></div>
+          <VList density="compact"><VListItem v-for="file in applicantAttachments" :key="file.id" :title="file.label" :subtitle="file.name"><template #append><VBtn icon="tabler-eye" size="x-small" variant="text" :loading="previewLoading" :aria-label="file.name" @click="previewApplicantDocument(file.id, file.name)"/><VBtn icon="tabler-download" size="x-small" variant="text" :loading="downloadingId === file.id" :aria-label="`${t('educational.caseUi.download')}: ${file.label}`" @click="downloadApplicantDocument(file.id, file.name)"/><VBtn v-if="canEditCase" icon="tabler-trash" size="x-small" variant="text" color="error" :aria-label="`${t('common.actions.remove')}: ${file.label}`" @click="removeApplicantAttachment(file.id)"/></template></VListItem></VList>
           <VDivider class="my-4" />
-          <VList><VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="t('educational.caseUi.fromTask', { task: doc.task_title })"><template #append><VBtn size="small" variant="text" :loading="downloadingId === doc.id" @click="downloadDoc(doc.task_id, doc.id, doc.original_name)">{{ t('educational.caseUi.download') }}</VBtn></template></VListItem></VList>
-          <p v-if="!documents.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noDocuments') }}</p>
+          <VList><VListItem v-for="doc in documents" :key="doc.id" :title="doc.original_name" :subtitle="t('educational.caseUi.fromTask', { task: doc.task_title })"><template #append><VBtn icon="tabler-eye" size="small" variant="text" :loading="previewLoading" :aria-label="doc.original_name" @click="previewTaskDocument(doc.task_id, doc.id, doc.original_name)"/><VBtn size="small" variant="text" :loading="downloadingId === doc.id" @click="downloadDoc(doc.task_id, doc.id, doc.original_name)">{{ t('educational.caseUi.download') }}</VBtn></template></VListItem></VList>
         </section>
 
         <section class="case-section case-section--notes">
           <div class="case-section__heading"><h3>{{ t('educational.caseUi.notes') }}</h3></div>
-          <VTextarea v-model="notesDraft" :label="t('educational.caseUi.caseNotes')" :disabled="!canEditCase" class="mb-4" />
-          <VBtn v-if="canEditCase" color="primary" :loading="savingNotes" @click="saveNotes">{{ t('educational.caseUi.saveNotes') }}</VBtn>
+          <ErpField v-model="notesDraft" kind="textarea" :label="t('educational.caseUi.caseNotes')" :placeholder="t('educational.caseUi.caseNotes')" :disabled="!canEditCase" rows="5" class="mb-4" />
+          <VBtn v-if="canEditCase" color="primary" variant="flat" :loading="savingNotes" @click="saveNotes">{{ t('educational.caseUi.saveNotes') }}</VBtn>
           <p v-else class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.notesPermission') }}</p>
         </section>
       </div>
     </VCardText>
   </VCard>
-  <VDialog v-model="terminalDialog" max-width="520">
-    <VCard :title="t('educational.caseUi.terminalConfirmTitle')">
-      <VCardText>
-        <VAlert :type="pendingIsCompletion ? 'success' : 'warning'" variant="tonal" density="compact" class="mb-4">
-          {{ pendingIsCompletion
-            ? t('educational.caseUi.completedMoveNote', { stage: translateApplicantStage(pendingTerminalStage) })
-            : t('educational.caseUi.exitMoveNote', { stage: translateApplicantStage(pendingTerminalStage) }) }}
-        </VAlert>
-        <p class="mb-0">{{ t('educational.caseUi.terminalConfirm', { stage: translateApplicantStage(pendingTerminalStage) }) }}</p>
+  <VCard v-else-if="caseLoading" class="visa-case-card case-loading-card">
+    <VCardText class="visa-case-content">
+      <section class="case-section case-section--profile"><div class="case-profile-hero"><div class="d-flex align-center ga-3"><VSkeletonLoader type="avatar" /><div><VSkeletonLoader type="heading" width="220" /><VSkeletonLoader type="text" width="140" /></div></div><VSkeletonLoader type="button" /></div><div class="case-overview-grid mt-6"><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /></div></section>
+      <div class="case-content-grid mt-5"><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /></div>
+    </VCardText>
+  </VCard>
+  <VDialog v-model="terminalDialog" max-width="480" class="case-confirm-overlay">
+    <VCard :class="['case-confirm-dialog', pendingIsCompletion ? 'case-confirm-dialog--success' : 'case-confirm-dialog--warning']"><VCardText class="case-confirm-dialog__content"><div class="case-confirm-dialog__icon"><VIcon :icon="pendingIsCompletion ? 'tabler-circle-check' : 'tabler-alert-triangle'" size="30" /></div><h2 class="case-confirm-dialog__title">{{ t('educational.caseUi.terminalConfirmTitle') }}</h2><p class="case-confirm-dialog__description">{{ pendingIsCompletion ? t('educational.caseUi.completedMoveNote', { stage: translateApplicantStage(pendingTerminalStage) }) : t('educational.caseUi.exitMoveNote', { stage: translateApplicantStage(pendingTerminalStage) }) }}</p><p class="case-confirm-dialog__description">{{ t('educational.caseUi.terminalConfirm', { stage: translateApplicantStage(pendingTerminalStage) }) }}</p></VCardText><VCardActions class="case-confirm-dialog__actions"><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--cancel" :disabled="moving" @click="cancelTerminalMove">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--confirm" :loading="moving" @click="confirmTerminalMove">{{ t('educational.caseUi.recordStage') }}</VBtn></VCardActions>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="taskDialog" max-width="560" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="createTask">
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.newTask') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="creatingTask" @click="taskDialog = false" /></VCardTitle>
+        <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+          <ErpField v-model="taskForm.board_id" kind="select" :items="boards.map(board => ({ title: board.title, value: board.id }))" :label="t('common.fields.board')" :placeholder="t('common.fields.board')" class="mb-3" />
+          <ErpField v-model="taskForm.title" :label="t('common.fields.title')" :placeholder="t('common.fields.title')" class="mb-3" />
+          <ErpField v-model="taskForm.priority" kind="select" :items="['low', 'medium', 'high', 'urgent'].map(value => ({ value, title: translateBackendValue(value) }))" :label="t('common.fields.priority')" :placeholder="t('common.fields.priority')" class="mb-3" />
+          <div class="erp-field"><label class="erp-field-label">{{ t('educational.caseUi.dueDate') }}</label><AppDateTimePicker v-model="taskForm.due_date" class="erp-field-control" :placeholder="t('educational.caseUi.dueDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }" /></div>
+        </VCardText>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="creatingTask" @click="taskDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="creatingTask" :disabled="!taskForm.board_id || !taskForm.title.trim()">{{ t('common.actions.create') }}</VBtn></VCardActions>
+      </VForm>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="uniDialog" max-width="560" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="saveUni">
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.addUniversityApplication') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingUni" @click="uniDialog = false" /></VCardTitle>
+        <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+          <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" label="Intake" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
+          <ErpField v-model="uniForm.notes" kind="textarea" :label="t('common.fields.notes')" :placeholder="t('common.fields.notes')" rows="3" />
+        </VCardText>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingUni" @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingUni" :disabled="!uniForm.university_id">{{ t('common.actions.add') }}</VBtn></VCardActions>
+      </VForm>
+    </VCard>
+  </VDialog>
+  <VDialog v-model="editDialog" max-width="820" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="saveCase">
+      <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.editCase') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingCase" @click="editDialog = false" /></VCardTitle>
+      <div class="case-edit-wizard" role="list"><button type="button" class="case-edit-wizard__step" :class="{ 'case-edit-wizard__step--active': editStep === 1, 'case-edit-wizard__step--complete': editStep > 1 }" :disabled="savingCase" @click="editStep = 1"><span class="case-edit-wizard__indicator"><VIcon v-if="editStep > 1" icon="tabler-check" size="15" /><span v-else>1</span></span><span>{{ t('common.crmDetails.profileTitle') }}</span></button><button type="button" class="case-edit-wizard__step" :class="{ 'case-edit-wizard__step--active': editStep === 2 }" :disabled="savingCase || editStep < 2" @click="editStep = 2"><span class="case-edit-wizard__indicator">2</span><span>{{ t('educational.service') }}</span></button></div>
+      <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+        <Transition name="case-edit-step" mode="out-in"><div :key="editStep"><template v-if="editStep === 1"><ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" :placeholder="t('educational.responsibleEmployee')" clearable class="mb-3" /><ErpField kind="select" v-if="canAssignAdmission && applicant?.service !== 'academy'" v-model="editForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="t('agencyStaff.admission')" :placeholder="t('agencyStaff.admission')" clearable class="mb-3" /><VRow dense><VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" :placeholder="t('educational.fatherName')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" :placeholder="t('educational.fatherPhone')" clearable /></VCol></VRow><ErpField v-if="applicant?.service === 'test_offer'" v-model="editForm.backup_phone" :label="t('erp.backupPhone')" :placeholder="t('erp.backupPhone')" class="mt-3" /></template><ApplicantServiceFields v-else v-model="serviceForm" /></div></Transition>
       </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn variant="tonal" color="secondary" @click="cancelTerminalMove">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="moving" @click="confirmTerminalMove">{{ t('educational.caseUi.recordStage') }}</VBtn>
+      <VCardActions class="case-form-dialog__actions px-5 py-4">
+        <VBtn v-if="editStep === 1" class="case-form-dialog__cancel" color="error" variant="flat" :disabled="savingCase" @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn v-else color="secondary" variant="tonal" prepend-icon="tabler-arrow-left" :disabled="savingCase" @click="editStep = 1">{{ t('serviceContracts.wizard.back') }}</VBtn><VSpacer /><VBtn v-if="editStep === 1" class="case-form-dialog__submit" color="primary" variant="flat" append-icon="tabler-arrow-right" :disabled="savingCase" @click="editStep = 2">{{ t('serviceContracts.wizard.next') }}</VBtn><VBtn v-else class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingCase">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
-  <VDialog v-model="taskDialog" max-width="560">
-    <VCard :title="t('educational.caseUi.newTask')">
-      <VCardText class="case-dialog-body">
-        <VAlert type="info" variant="tonal" density="compact" class="mb-3">
-          {{ t('educational.caseUi.personalBoardOnly') }}
-        </VAlert>
-        <VTextField v-model="taskForm.title" :label="t('common.fields.title')" class="mb-3" />
-        <VSelect v-model="taskForm.priority" :items="['low', 'medium', 'high', 'urgent'].map(value => ({ value, title: translateBackendValue(value) }))" :label="t('common.fields.priority')" class="mb-3" />
-        <VTextField v-model="taskForm.due_date" type="date" :label="t('educational.caseUi.dueDate')" clearable />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="taskDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="creatingTask" :disabled="!personalBoard || !taskForm.title.trim()" @click="createTask">{{ t('common.actions.create') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="portalAccessDialog" max-width="480" class="case-confirm-overlay">
+    <VCard :class="['case-confirm-dialog', applicant?.portal_access_status === 'active' ? 'case-confirm-dialog--error' : 'case-confirm-dialog--success']">
+      <VCardText class="case-confirm-dialog__content"><div class="case-confirm-dialog__icon" aria-hidden="true"><VIcon :icon="applicant?.portal_access_status === 'active' ? 'tabler-lock' : 'tabler-lock-open'" size="30" /></div><h2 class="case-confirm-dialog__title">{{ t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal') }}</h2><p class="case-confirm-dialog__description">{{ t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortalConfirm' : 'educational.caseUi.enablePortalConfirm') }}</p></VCardText>
+      <VCardActions class="case-confirm-dialog__actions"><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--cancel" :disabled="updatingPortalAccess" @click="portalAccessDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--confirm" :loading="updatingPortalAccess" @click="updatePortalAccess">{{ t('common.actions.confirm') }}</VBtn></VCardActions>
     </VCard>
   </VDialog>
-  <VDialog v-model="uniDialog" max-width="560">
-    <VCard :title="t('educational.caseUi.addUniversityApplication')">
-      <VCardText class="case-dialog-body">
-        <VSelect v-model="uniForm.university_id" :items="universities.filter(u => u.is_active && u.country_id === applicant?.details?.country_id).map(u => ({ title: u.name, value: u.id }))" :label="t('educational.university')" class="mb-3" />
-        <VSelect v-model="uniForm.semester_id" :items="semesters.filter(s => s.is_active).map(s => ({ title: s.name, value: s.id }))" :label="t('educational.semester')" clearable class="mb-3" />
-        <VSelect v-model="uniForm.status" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" class="mb-3" />
-        <VTextField v-model="uniForm.intake" :label="t('educational.caseUi.intakeExample')" clearable class="mb-3" />
-        <VTextarea v-model="uniForm.notes" :label="t('common.fields.notes')" />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingUni" :disabled="!uniForm.university_id" @click="saveUni">{{ t('common.actions.add') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="portalDialog" max-width="560" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="sendPortalInvite">
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.inviteTitle') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="sendingPortalInvite" @click="portalDialog = false" /></VCardTitle>
+        <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+          <p class="text-body-2 text-medium-emphasis mb-5">{{ t('educational.caseUi.inviteSubtitle') }}</p>
+          <VRow><VCol cols="12" sm="6"><ErpField v-model="portalForm.name" :label="t('educational.caseUi.applicantName')" :placeholder="t('educational.caseUi.applicantName')" required /></VCol><VCol cols="12" sm="6"><ErpField v-model="portalForm.email" type="email" :label="t('educational.caseUi.applicantEmail')" :placeholder="t('educational.caseUi.applicantEmail')" required /></VCol><VCol cols="12" sm="6"><ErpField v-model="portalForm.password" type="password" autocomplete="new-password" :label="t('educational.caseUi.portalPassword')" :placeholder="t('educational.caseUi.portalPassword')" :hint="t('educational.caseUi.portalPasswordHint')" :error-messages="portalPasswordValid ? [] : [t('educational.caseUi.portalPasswordTooShort')]" persistent-hint /></VCol><VCol cols="12" sm="6"><ErpField v-model="portalForm.phone" :label="t('common.fields.phone')" :placeholder="t('common.fields.phone')" /></VCol></VRow>
+          <ErpField v-model="portalForm.address" kind="textarea" :label="t('common.fields.address')" :placeholder="t('common.fields.address')" rows="2" />
+        </VCardText>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="sendingPortalInvite" @click="portalDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="sendingPortalInvite" :disabled="!portalForm.name.trim() || !portalForm.email.trim() || !portalPasswordValid">{{ t(portalForm.password ? 'educational.caseUi.createPortalAccount' : 'educational.caseUi.sendInvitation') }}</VBtn></VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
-  <VDialog v-model="uniNotesDialog" max-width="560">
-    <VCard :title="t('educational.caseUi.universityNotes')" :subtitle="uniNotesTarget?.university?.name">
-      <VCardText class="case-dialog-body">
-        <p class="text-caption text-medium-emphasis">{{ t('educational.caseUi.universityNotesHint') }}</p>
-        <VTextarea v-model="uniNotesDraft" :label="t('common.fields.notes')" rows="4" autofocus />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="uniNotesDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingUniNotes" @click="saveUniNotes">{{ t('common.actions.save') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="portalDeleteDialog" max-width="480" class="case-confirm-overlay">
+    <VCard class="case-confirm-dialog case-confirm-dialog--error">
+      <VCardText class="case-confirm-dialog__content"><div class="case-confirm-dialog__icon" aria-hidden="true"><VIcon icon="tabler-user-minus" size="30" /></div><h2 class="case-confirm-dialog__title">{{ t('educational.caseUi.deletePortalUser') }}</h2><p class="case-confirm-dialog__description">{{ t('educational.caseUi.deletePortalUserConfirm', { name: applicant?.name }) }}</p></VCardText>
+      <VCardActions class="case-confirm-dialog__actions"><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--cancel" :disabled="deletingPortalUser" @click="portalDeleteDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-confirm-dialog__button case-confirm-dialog__button--confirm" :loading="deletingPortalUser" @click="deletePortalUser">{{ t('common.actions.delete') }}</VBtn></VCardActions>
     </VCard>
   </VDialog>
-  <VDialog v-model="editDialog" max-width="1100" class="erp-form">
-    <VCard :title="t('educational.caseUi.editCase')">
-      <VCardText class="case-dialog-body">
-        <ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" clearable class="mb-3" />
-        <ErpField kind="select" v-if="canAssignAdmission && applicant?.service !== 'academy'" v-model="editForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="t('agencyStaff.admission')" clearable class="mb-3" />
-        <VRow dense>
-          <VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" clearable class="mb-3" /></VCol>
-          <VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" clearable class="mb-3" /></VCol>
-        </VRow>
-        <ErpField v-if="applicant?.service === 'test_offer'" v-model="editForm.backup_phone" :label="t('erp.backupPhone')" class="mb-3" />
-        <ApplicantServiceFields v-model="serviceForm" />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn color="secondary" variant="tonal" @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" variant="flat" :loading="savingCase" @click="saveCase">{{ t('common.actions.save') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="financeDialog" max-width="600" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="createFinanceRequest">
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ $t('common.ui.newFinancialRequest') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingFinance" @click="financeDialog = false" /></VCardTitle>
+        <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+          <ErpField v-model="financeForm.transaction_type" kind="select" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" :label="$t('educational.transactionType')" :placeholder="$t('educational.transactionType')" class="mb-3" />
+          <ErpField v-model="financeForm.reason" kind="textarea" :label="$t('common.fields.reason')" :placeholder="$t('common.fields.reason')" rows="3" class="mb-3" />
+          <VRow><VCol cols="12" sm="6"><ErpField v-model.number="financeForm.amount" type="number" min="0.000001" :label="$t('common.fields.amount')" :placeholder="$t('common.fields.amount')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="financeForm.currency_id" kind="select" :items="financeOptions.currencies.map(row => ({ title: `${row.code} - ${row.name}`, value: row.id }))" :label="$t('serviceContracts.currency')" :placeholder="$t('serviceContracts.currency')" /></VCol></VRow>
+          <ErpField v-model="financeForm.employee_id" kind="select" :items="financeOptions.employees.map(row => ({ title: row.name, value: row.id }))" :label="$t('serviceContracts.responsibleEmployee')" :placeholder="$t('serviceContracts.responsibleEmployee')" clearable />
+        </VCardText>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingFinance" @click="financeDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingFinance" :disabled="!financeForm.reason.trim() || financeForm.amount <= 0 || !financeForm.currency_id">{{ t('common.actions.submit') }}</VBtn></VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
-  <VDialog v-model="portalAccessDialog" max-width="520">
-    <VCard :title="t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortal' : 'educational.caseUi.enablePortal')">
-      <VCardText>{{ t(applicant?.portal_access_status === 'active' ? 'educational.caseUi.disablePortalConfirm' : 'educational.caseUi.enablePortalConfirm') }}</VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn variant="tonal" color="secondary" @click="portalAccessDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn :color="applicant?.portal_access_status === 'active' ? 'error' : 'success'" :loading="updatingPortalAccess" @click="updatePortalAccess">{{ t('common.actions.confirm') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="documentDialog" max-width="560" content-class="case-form-dialog">
+    <VCard class="case-form-card">
+      <VForm class="app-form" @submit.prevent="uploadDocument">
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ $t('common.ui.attachCaseDocument') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="uploadingDocument" @click="documentDialog = false" /></VCardTitle>
+        <VCardText class="case-dialog-body case-form-dialog__body pa-5">
+          <p class="text-caption text-medium-emphasis mb-4">{{ documentDestination === 'task' ? $t('common.ui.documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail') : t('educational.caseUi.profileDocumentsHint') }}</p>
+          <ErpField v-if="documentTargetOptions.length > 1" v-model="documentDestination" kind="select" :items="documentTargetOptions" :label="t('educational.caseUi.documentDestination')" :placeholder="t('educational.caseUi.documentDestination')" class="mb-3" />
+          <ErpField v-if="documentDestination === 'task'" v-model="documentTaskId" kind="select" :items="(applicant?.tasks ?? []).map(task => ({ title: task.title, value: task.id }))" :label="$t('common.ui.caseTask')" :placeholder="$t('common.ui.caseTask')" class="mb-3" />
+          <ErpField v-else v-model="documentLabel" :label="t('educational.caseUi.documentLabel')" :placeholder="t('educational.caseUi.documentLabel')" required class="mb-3" />
+          <input ref="documentFileInput" class="d-none" type="file" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" @change="selectDocumentFile">
+          <button type="button" class="case-file-picker" @click="chooseDocumentFile"><span class="case-file-picker__icon"><VIcon :icon="documentFile ? 'tabler-file-check' : 'tabler-upload'" /></span><span class="case-file-picker__copy"><strong>{{ documentFile?.name || $t('applicantPortal.selectDocument') }}</strong><small>{{ documentFile ? `${Math.ceil(documentFile.size / 1024)} KB` : $t('common.attachments.acceptedHint') }}</small></span><span class="case-file-picker__action">{{ documentFile ? $t('common.actions.edit') : $t('common.actions.upload') }}</span></button>
+        </VCardText>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="uploadingDocument" @click="documentDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="uploadingDocument" :disabled="!documentFile || (documentDestination === 'task' ? !documentTaskId : !documentLabel.trim())">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn></VCardActions>
+      </VForm>
     </VCard>
   </VDialog>
-  <VDialog v-model="portalDialog" max-width="560">
-    <VCard :title="t('educational.caseUi.inviteTitle')" :subtitle="t('educational.caseUi.inviteSubtitle')">
-      <VCardText class="case-dialog-body">
-        <VTextField v-model="portalForm.name" :label="t('educational.caseUi.applicantName')" class="mb-3" />
-        <VTextField v-model="portalForm.email" type="email" :label="t('educational.caseUi.applicantEmail')" class="mb-3" />
-        <VTextField
-          v-model="portalForm.password"
-          type="password"
-          autocomplete="new-password"
-          :label="t('educational.caseUi.portalPassword')"
-          :hint="t('educational.caseUi.portalPasswordHint')"
-          :error-messages="portalPasswordValid ? [] : [t('educational.caseUi.portalPasswordTooShort')]"
-          persistent-hint
-          class="mb-4"
-        />
-        <VTextField v-model="portalForm.phone" :label="t('common.fields.phone')" class="mb-3" />
-        <VTextarea v-model="portalForm.address" :label="t('common.fields.address')" rows="2" />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="portalDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="sendingPortalInvite" :disabled="!portalForm.name.trim() || !portalForm.email.trim() || !portalPasswordValid" @click="sendPortalInvite">{{ t(portalForm.password ? 'educational.caseUi.createPortalAccount' : 'educational.caseUi.sendInvitation') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-  <VDialog v-model="portalDeleteDialog" max-width="520">
-    <VCard :title="t('educational.caseUi.deletePortalUser')">
-      <VCardText>{{ t('educational.caseUi.deletePortalUserConfirm', { name: applicant?.name }) }}</VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn variant="tonal" color="secondary" @click="portalDeleteDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="error" :loading="deletingPortalUser" @click="deletePortalUser">{{ t('common.actions.delete') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-  <VDialog v-model="financeDialog" max-width="600">
-    <VCard :title="$t('common.ui.newFinancialRequest')">
-      <VCardText class="case-dialog-body">
-        <VSelect v-model="financeForm.transaction_type" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" :label="$t('educational.transactionType')" class="mb-3" />
-        <VSelect v-model="financeForm.type" :items="financeTypeOptions" :label="$t('common.fields.type')" class="mb-3" />
-        <VTextarea v-model="financeForm.description" :label="$t('common.fields.reason')" class="mb-3" />
-        <VTextField v-model.number="financeForm.amount" type="number" min="0.000001" :label="$t('common.fields.amount')" class="mb-3" />
-        <VSelect v-model="financeForm.currency_id" :items="financeOptions.currencies.map(row => ({ title: `${row.code} — ${row.name}`, value: row.id }))" :label="$t('serviceContracts.currency')" class="mb-3" />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="financeDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="savingFinance" :disabled="!financeForm.type || !financeForm.description.trim() || financeForm.amount <= 0 || !financeForm.currency_id" @click="createFinanceRequest">{{ t('common.actions.submit') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-  <VDialog v-model="rejectFinanceDialog" max-width="480">
-    <VCard :title="$t('finance.drafts.rejectTitle')">
-      <VCardText class="case-dialog-body">
-        <VTextarea v-model="rejectFinanceReason" :label="$t('finance.drafts.rejectionReason')" rows="3" autofocus />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn variant="tonal" color="secondary" @click="rejectFinanceDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="error" :loading="savingRejectFinance" :disabled="!rejectFinanceReason.trim()" @click="rejectDraftFinance">{{ t('finance.drafts.reject') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
-  <VDialog v-model="documentDialog" max-width="560">
-    <VCard :title="$t('common.ui.attachCaseDocument')">
-      <VCardText class="case-dialog-body">
-        <p class="text-caption text-medium-emphasis mb-4">{{ $t('common.ui.documentsAreStoredAsInputAttachmentsOnACaseTaskSoTheyFollowTheSameAccessControlsAndAuditTrail') }}</p>
-        <VSelect v-model="documentTaskId" :items="(applicant?.tasks ?? []).map(task => ({ title: task.title, value: task.id }))" :label="$t('common.ui.caseTask')" class="mb-3" />
-        <VFileInput v-model="documentFile" :label="$t('common.ui.document')" prepend-icon="tabler-paperclip" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" show-size />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="documentDialog = false">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="uploadingDocument" :disabled="!documentTaskId || !documentFile" @click="uploadDocument">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn>
-      </VCardActions>
+  <VDialog v-model="documentPreviewDialog" max-width="960" content-class="case-preview-dialog">
+    <VCard class="case-preview-card">
+      <VCardTitle class="d-flex align-center"><span class="text-truncate">{{ documentPreviewName }}</span><VSpacer /><VBtn icon="tabler-x" variant="text" :aria-label="t('common.actions.close')" @click="documentPreviewDialog = false" /></VCardTitle>
+      <VCardText class="case-preview-card__body pa-0"><img v-if="documentPreviewUrl && documentPreviewIsImage" :src="documentPreviewUrl" :alt="documentPreviewName"><iframe v-else-if="documentPreviewUrl" :src="documentPreviewUrl" :title="documentPreviewName" /></VCardText>
     </VCard>
   </VDialog>
 </template>
 
 <style scoped>
 .case-country-contact {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px 16px;
   margin-block: 8px 12px;
-  padding: 10px 12px;
+  padding-block: 10px;
+  padding-inline: 12px;
 }
 
 .case-country-contact__identity {
@@ -1256,17 +1285,17 @@ onMounted(async () => {
 }
 
 .university-quick-contact {
-  align-items: center;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px 12px;
   margin-block-start: 4px;
 }
 
 .case-portal-link {
+  display: inline-flex;
   align-items: center;
   color: rgb(var(--v-theme-primary));
-  display: inline-flex;
   font-size: 0.8125rem;
   gap: 4px;
   text-decoration: none;
@@ -1295,11 +1324,47 @@ onMounted(async () => {
   padding: 1.5rem;
 }
 
+.case-section--profile {
+  background: linear-gradient(145deg, rgba(var(--v-theme-primary), 0.08), rgb(var(--v-theme-surface)) 48%);
+}
+
+.case-profile-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  gap: 1rem;
+  padding-block-end: 1.25rem;
+}
+
+.case-profile-hero__identity,
+.case-profile-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.case-profile-hero__identity { align-items: flex-start; }
+.case-profile-hero__actions { justify-content: flex-end; }
+.case-profile-body { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block-start: 1.25rem; }
+.case-profile-body > .visa-case-stage-panel { grid-column: 2; }
+.case-profile-body > .case-overview-grid { display: contents; }
+.case-profile-body .case-section--details { grid-column: 1; grid-row: 1 / span 2; }
+.case-profile-body .case-section--cases { grid-column: 2; }
+.case-portal-status { min-block-size: 2rem; padding-inline: 0.75rem !important; }
+
 .visa-case-stage-panel {
   max-inline-size: 46rem;
 }
 
-.case-overview-grid,
+.case-overview-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .case-content-grid {
   display: grid;
   gap: 1.25rem;
@@ -1307,16 +1372,27 @@ onMounted(async () => {
 }
 
 .case-section {
-  background: rgb(var(--v-theme-on-surface) / 0.035);
+  padding: clamp(1rem, 2vw, 1.5rem);
   border: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
   border-radius: 0.75rem;
+  background: rgb(var(--v-theme-on-surface) / 3.5%);
   min-inline-size: 0;
-  padding: clamp(1rem, 2vw, 1.5rem);
 }
 
 .case-section--timeline {
-  background: rgb(var(--v-theme-on-surface) / 0.06);
+  border-color: rgba(var(--v-theme-secondary), 0.18);
+  background: rgba(var(--v-theme-secondary), 0.05);
 }
+
+.case-section--tasks { background: rgba(var(--v-theme-info), 0.045); }
+.case-section--universities { background: rgba(var(--v-theme-primary), 0.045); }
+.case-section--finance { background: rgba(var(--v-theme-success), 0.045); }
+.case-section--documents { background: rgba(var(--v-theme-warning), 0.045); }
+.case-section--notes { background: rgba(var(--v-theme-secondary), 0.045); }
+.case-section--details { border-color: rgba(var(--v-theme-primary), 0.18); background: rgba(var(--v-theme-primary), 0.055); }
+.case-section--cases { border-color: rgba(var(--v-theme-info), 0.18); background: rgba(var(--v-theme-info), 0.055); }
+.case-section--notes { grid-column: 1 / -1; }
+.case-stage-change { padding: 1rem; border: 1px solid rgba(var(--v-theme-primary), 0.18); border-radius: 10px; background: rgba(var(--v-theme-primary), 0.055); }
 
 .case-section--details,
 .case-section--cases {
@@ -1324,21 +1400,21 @@ onMounted(async () => {
 }
 
 .case-section__heading {
-  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 0.75rem;
   margin-block-end: 1rem;
 }
 
 .case-section__heading h3,
 .case-section__heading h4,
 .case-section h4 {
+  margin: 0;
   color: rgb(var(--v-theme-on-surface));
   font-size: 1rem;
   line-height: 1.4;
-  margin: 0;
 }
 
 .case-section h4 {
@@ -1351,7 +1427,8 @@ onMounted(async () => {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  margin: 0 0 0.25rem;
+  margin-block: 0 0.25rem;
+  margin-inline: 0;
   text-transform: uppercase;
 }
 
@@ -1372,15 +1449,19 @@ onMounted(async () => {
 }
 
 .case-case-row {
-  align-items: center;
   display: grid;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid rgb(var(--v-border-color) / 36%);
+  border-radius: 12px;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
+  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 3.5%);
   gap: 0.75rem;
-  grid-template-columns: minmax(10rem, 1fr) auto auto;
-  padding-block: 0.75rem;
+  grid-template-columns: minmax(10rem, 1fr) auto;
 }
 
 .case-case-row + .case-case-row {
-  border-block-start: 1px solid rgb(var(--v-border-color) / var(--v-border-opacity));
+  margin-block-start: 0.5rem;
 }
 
 .case-case-row__identity {
@@ -1388,20 +1469,53 @@ onMounted(async () => {
 }
 
 .case-case-row__meta {
-  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .case-section :deep(.v-list) {
   background: transparent;
 }
 
+.case-section--universities :deep(.v-list-item),
+.case-section--finance :deep(.v-list-item),
+.case-section--documents :deep(.v-list-item),
+.case-task-item--done {
+  overflow: hidden;
+  border: 1px solid rgb(var(--v-border-color) / 34%);
+  border-radius: 12px !important;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 97%, white 3%);
+  box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 2.5%);
+  padding-block: 0.7rem;
+  padding-inline: 0.75rem;
+}
+
+.case-section--universities :deep(.v-list-item + .v-list-item),
+.case-section--finance :deep(.v-list-item + .v-list-item),
+.case-section--documents :deep(.v-list-item + .v-list-item),
+.case-task-item--done {
+  margin-block-start: 0.45rem;
+}
+
+.case-task-item--done {
+  border-color: rgb(var(--v-theme-success) / 34%);
+  background: rgb(var(--v-theme-success) / 3.5%);
+}
+
+:global(.v-theme--dark) .case-case-row,
+:global(.v-theme--dark) .case-section--universities :deep(.v-list-item),
+:global(.v-theme--dark) .case-section--finance :deep(.v-list-item),
+:global(.v-theme--dark) .case-section--documents :deep(.v-list-item) {
+  border-color: rgb(var(--v-border-color) / 42%);
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, black 7%);
+}
+
 .case-document-upload {
-  align-items: center;
   display: grid;
+  align-items: center;
   gap: 0.75rem;
   grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1fr) auto;
   margin-block-start: 1rem;
@@ -1433,10 +1547,19 @@ onMounted(async () => {
 }
 
 @media (max-width: 959px) {
+  .case-profile-body { display: block; }
+  .case-profile-body > .visa-case-stage-panel { margin-block-end: 1.25rem; }
+  .case-profile-body > .case-overview-grid { display: grid; }
+
+  .case-profile-body .case-section--details,
+ .case-profile-body .case-section--cases { grid-column: auto; grid-row: auto; }
+
   .case-overview-grid,
   .case-content-grid {
     grid-template-columns: 1fr;
   }
+
+  .case-section--notes { grid-column: auto; }
 }
 
 @media (max-width: 599px) {
@@ -1456,5 +1579,76 @@ onMounted(async () => {
   .case-section__heading > :last-child:not(:only-child) {
     inline-size: 100%;
   }
+
+  .case-profile-hero__actions { justify-content: flex-start; inline-size: 100%; }
+}
+</style>
+
+<style lang="scss">
+.v-overlay:has(.case-form-dialog) .v-overlay__scrim,
+.case-confirm-overlay .v-overlay__scrim,
+.v-overlay:has(.case-preview-dialog) .v-overlay__scrim {
+  backdrop-filter: blur(7px);
+  background: rgba(var(--v-theme-on-surface), 0.28) !important;
+  opacity: 1 !important;
+}
+
+.case-form-card { overflow: hidden; }
+.case-edit-wizard { display: grid; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 95%, rgb(var(--v-theme-primary)) 5%); border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.06); gap: 0.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0.9rem; padding-inline: 1.25rem; }
+.case-edit-wizard__step { display: flex; align-items: center; padding: 0.35rem; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 600; gap: 0.5rem; min-inline-size: 0; text-align: start; }
+.case-edit-wizard__step:disabled { cursor: default; opacity: 1; }
+.case-edit-wizard__indicator { display: grid; flex: 0 0 auto; border: 1px solid rgba(var(--v-theme-on-surface), 0.18); border-radius: 50%; block-size: 25px; font-size: 0.75rem; font-weight: 700; inline-size: 25px; place-items: center; }
+.case-edit-wizard__step--active { color: rgb(var(--v-theme-primary)); }
+.case-edit-wizard__step--active .case-edit-wizard__indicator { border-color: rgba(var(--v-theme-primary), 0.3); background: rgba(var(--v-theme-primary), 0.12); }
+.case-edit-wizard__step--complete .case-edit-wizard__indicator { border-color: transparent; background: rgba(var(--v-theme-secondary), 0.14); color: rgb(var(--v-theme-secondary)); }
+
+.case-edit-step-enter-active,
+ .case-edit-step-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.case-edit-step-enter-from { opacity: 0; transform: translateY(8px); }
+.case-edit-step-leave-to { opacity: 0; transform: translateY(-6px); }
+
+.case-form-dialog__title,
+.case-form-dialog__actions { display: flex; align-items: center; border-width: 0; border-style: solid; border-color: rgba(var(--v-theme-on-surface), 0.05); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); }
+.case-form-dialog__title { border-block-end-width: 1px; font-size: 1.35rem; font-weight: 700; }
+.case-form-dialog__actions { border-block-start-width: 1px; }
+.case-form-dialog__body { background: rgb(var(--v-theme-surface)); }
+.case-form-dialog__close { border: 1px solid rgba(var(--v-theme-error), 0.38) !important; border-radius: 50% !important; }
+.case-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-error), 0.62) !important; background: rgba(var(--v-theme-error), 0.12) !important; color: rgb(var(--v-theme-error)) !important; }
+.case-form-dialog__cancel:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.case-form-dialog__submit { color: rgb(var(--v-theme-on-primary)) !important; }
+
+.case-confirm-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), 0.2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, 18%) !important; text-align: center; --case-confirm-color: rgb(var(--v-theme-error)); --case-confirm-on-color: rgb(var(--v-theme-on-error)); --case-confirm-tint: rgba(var(--v-theme-error), 0.14); }
+.case-confirm-dialog--success { --case-confirm-color: rgb(var(--v-theme-success)); --case-confirm-on-color: rgb(var(--v-theme-on-success)); --case-confirm-tint: rgba(var(--v-theme-success), 0.14); }
+.case-confirm-dialog--warning { --case-confirm-color: rgb(var(--v-theme-warning)); --case-confirm-on-color: rgb(var(--v-theme-on-warning)); --case-confirm-tint: rgba(var(--v-theme-warning), 0.14); }
+.case-confirm-dialog__content { display: flex; flex-direction: column; align-items: center; padding-block: 2rem 1.25rem !important; padding-inline: 2rem !important; }
+.case-confirm-dialog__icon { display: grid; border-radius: 50%; background: var(--case-confirm-tint); block-size: 4.25rem; color: var(--case-confirm-color); inline-size: 4.25rem; margin-block-end: 1.25rem; place-items: center; }
+.case-confirm-dialog__title { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: 1.2rem; font-weight: 700; line-height: 1.45; }
+.case-confirm-dialog__description { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.65; margin-block: 0.65rem 0; margin-inline: 0; max-inline-size: 24rem; }
+.case-confirm-dialog__actions { display: grid !important; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0 2rem !important; padding-inline: 2rem !important; }
+.case-confirm-dialog__button { border-radius: 10px !important; font-weight: 700; letter-spacing: 0; min-block-size: 2.85rem; text-transform: none; }
+.case-confirm-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), 0.52) !important; background: rgba(var(--v-theme-secondary), 0.13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.case-confirm-dialog__button--confirm { background: var(--case-confirm-color) !important; color: var(--case-confirm-on-color) !important; }
+
+.case-file-picker { display: flex; align-items: center; padding: 1rem; border: 1px dashed rgba(var(--v-theme-on-surface), 0.22); border-radius: 12px; background: rgba(var(--v-theme-primary), 0.035); color: inherit; cursor: pointer; gap: 0.875rem; inline-size: 100%; text-align: start; }
+.case-file-picker:hover { border-color: rgba(var(--v-theme-primary), 0.55); background: rgba(var(--v-theme-primary), 0.07); }
+.case-file-picker__icon { display: grid; flex: 0 0 auto; border-radius: 50%; background: rgba(var(--v-theme-primary), 0.12); block-size: 2.5rem; color: rgb(var(--v-theme-primary)); inline-size: 2.5rem; place-items: center; }
+.case-file-picker__copy { display: grid; flex: 1 1 auto; gap: 0.2rem; min-inline-size: 0; }
+
+.case-file-picker__copy strong,
+ .case-file-picker__copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.case-file-picker__copy small { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
+.case-file-picker__action { flex: 0 0 auto; border-radius: 7px; background: rgba(var(--v-theme-primary), 0.12); color: rgb(var(--v-theme-primary)); font-size: 0.75rem; font-weight: 600; padding-block: 0.38rem; padding-inline: 0.7rem; }
+.case-preview-card { overflow: hidden; }
+.case-preview-card__body { display: grid; overflow: auto; background: rgb(var(--v-theme-surface-variant)); block-size: min(72vh, 760px); place-items: center; }
+.case-preview-card__body img { display: block; max-block-size: 100%; max-inline-size: 100%; object-fit: contain; }
+.case-preview-card__body iframe { border: 0; background: white; block-size: 100%; inline-size: 100%; }
+.case-section--documents :deep(.v-list-item + .v-list-item) { margin-block-start: 0.45rem; }
+
+@media (max-width: 599px) {
+  .case-file-picker { flex-wrap: wrap; align-items: flex-start; }
+  .case-file-picker__action { margin-inline-start: 3.375rem; }
+
+  .case-confirm-dialog__content,
+ .case-confirm-dialog__actions { padding-inline: 1.25rem !important; }
 }
 </style>

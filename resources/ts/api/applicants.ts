@@ -264,6 +264,7 @@ export const ApplicantAttachmentApi = {
   list: async (id: number) => (await api.get(`/applicants/${id}/attachments`)).data.data as ApplicantAttachment[],
   upload: async (id: number, file: File, label: string, category?: string) => { const form = new FormData(); form.append('file', file); form.append('label', label); if (category) form.append('category', category); return (await api.post(`/applicants/${id}/attachments`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data.data as ApplicantAttachment },
   update: async (applicantId: number, id: number, label: string, category?: string) => (await api.put(`/applicants/${applicantId}/attachments/${id}`, { label, category })).data.data as ApplicantAttachment,
+  download: async (applicantId: number, id: number) => api.get(`/applicants/${applicantId}/attachments/${id}/download`, { responseType: 'blob' }),
   remove: async (applicantId: number, id: number) => api.delete(`/applicants/${applicantId}/attachments/${id}`),
 }
 

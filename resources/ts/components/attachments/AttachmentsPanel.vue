@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import AttachmentsApi, { type Attachment, type AttachmentType } from '@/api/attachments'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const props = withDefaults(defineProps<{
   type: AttachmentType
@@ -29,6 +30,10 @@ const removingId = ref<string | null>(null)
 const error = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const pickedFile = ref<File | null>(null)
+const previewingId = ref<string | null>(null)
+const previewAttachment = ref<Attachment | null>(null)
+const previewUrl = ref('')
+const previewOpen = ref(false)
 
 const canUpload = computed(() => props.canEdit && !!props.recordId)
 
@@ -42,6 +47,16 @@ const formatFileSize = (size: number) => {
 }
 
 const isImage = (attachment: Attachment) => attachment.mimeType?.startsWith('image/') ?? false
+const isPdf = (attachment: Attachment) => attachment.mimeType === 'application/pdf'
+const canPreviewInline = (attachment: Attachment) => isImage(attachment) || isPdf(attachment) || attachment.mimeType?.startsWith('text/')
+
+const clearPreview = () => {
+  if (previewUrl.value)
+    URL.revokeObjectURL(previewUrl.value)
+
+  previewUrl.value = ''
+  previewAttachment.value = null
+}
 
 const load = async () => {
   if (!props.recordId) {
@@ -108,9 +123,43 @@ const download = async (attachment: Attachment) => {
   }
 }
 
+const preview = async (attachment: Attachment) => {
+  if (!props.recordId)
+    return
+
+  previewingId.value = attachment.id
+  error.value = ''
+  try {
+    clearPreview()
+    const response = await AttachmentsApi.download(props.type, props.recordId, attachment.id)
+    previewUrl.value = URL.createObjectURL(response.data)
+    previewAttachment.value = attachment
+    previewOpen.value = true
+  }
+  catch (err) {
+    error.value = apiErrorMessage(err, translate('common.attachments.downloadFailed'))
+  }
+  finally {
+    previewingId.value = null
+  }
+}
+
 const remove = async (attachment: Attachment) => {
   if (!props.recordId)
     return
+
+  const confirmed = await confirmActionWarning({
+    key: `remove-attachment-${attachment.id}`,
+    title: translate('common.attachments.remove'),
+    message: `${attachment.name} will be permanently removed. This action cannot be undone.`,
+    confirmText: translate('common.attachments.remove'),
+    cancelText: translate('common.actions.cancel'),
+    icon: 'tabler-trash',
+    tone: 'error',
+  })
+  if (!confirmed)
+    return
+
   removingId.value = attachment.id
   error.value = ''
   try {
@@ -128,13 +177,17 @@ const remove = async (attachment: Attachment) => {
 }
 
 watch(() => [props.type, props.recordId], load, { immediate: true })
+watch(previewOpen, open => {
+  if (!open)
+    clearPreview()
+})
 </script>
 
 <template>
   <div class="attachments-panel">
     <div
       v-if="canEdit"
-      class="attachments-panel__toolbar"
+      class="attachments-panel__dropzone"
     >
       <input
         ref="fileInput"
@@ -144,23 +197,12 @@ watch(() => [props.type, props.recordId], load, { immediate: true })
         :disabled="!canUpload || uploading"
         @change="pickFile"
       >
-      <VBtn
-        color="primary"
-        variant="tonal"
-        size="small"
-        :loading="uploading"
-        :disabled="!canUpload"
-        @click="fileInput?.click()"
-      >
-        <VIcon
-          icon="tabler-file-upload"
-          start
-        />
-        {{ $t('common.attachments.add') }}
-      </VBtn>
-      <span class="text-caption text-medium-emphasis ms-2">
-        {{ $t('common.attachments.acceptedHint') }}
-      </span>
+      <VAvatar color="primary" variant="tonal" size="42"><VIcon icon="tabler-cloud-upload" /></VAvatar>
+      <div class="attachments-panel__dropzone-copy">
+        <div class="text-body-2 font-weight-bold">{{ $t('common.attachments.add') }}</div>
+        <div class="text-caption text-medium-emphasis">{{ $t('common.attachments.acceptedHint') }}</div>
+      </div>
+      <VBtn color="primary" variant="tonal" :loading="uploading" :disabled="!canUpload" @click="fileInput?.click()"><VIcon icon="tabler-file-upload" start />{{ $t('common.attachments.add') }}</VBtn>
     </div>
 
     <VAlert
@@ -219,6 +261,15 @@ watch(() => [props.type, props.recordId], load, { immediate: true })
         <template #append>
           <div class="d-flex align-center">
             <VBtn
+              icon="tabler-eye"
+              variant="text"
+              size="small"
+              :loading="previewingId === attachment.id"
+              :aria-label="$t('common.actions.viewFullDetails')"
+              :title="$t('common.actions.viewFullDetails')"
+              @click="preview(attachment)"
+            />
+            <VBtn
               icon="tabler-download"
               variant="text"
               size="small"
@@ -244,20 +295,38 @@ watch(() => [props.type, props.recordId], load, { immediate: true })
 
     <p
       v-else
-      class="text-body-2 text-medium-emphasis mt-3"
+      class="attachments-panel__empty text-body-2 text-medium-emphasis mt-3"
     >
       {{ $t('common.attachments.empty') }}
     </p>
+
+    <VDialog v-model="previewOpen" max-width="960" content-class="attachments-preview-dialog" @update:model-value="open => !open && clearPreview()">
+      <VCard class="attachments-preview-dialog__card">
+        <VCardTitle class="attachments-preview-dialog__title px-5 py-4"><span class="text-truncate">{{ previewAttachment?.name }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" :aria-label="$t('common.actions.close')" @click="previewOpen = false" /></VCardTitle>
+        <VCardText class="attachments-preview-dialog__body pa-4">
+          <VImg v-if="previewAttachment && isImage(previewAttachment)" :src="previewUrl" :alt="previewAttachment.name" class="attachments-preview-dialog__image" contain />
+          <iframe v-else-if="previewAttachment && canPreviewInline(previewAttachment)" :src="previewUrl" :title="previewAttachment.name" class="attachments-preview-dialog__frame" />
+          <div v-else class="attachments-preview-dialog__fallback"><VIcon icon="tabler-file-description" size="48" color="primary" /><p>{{ previewAttachment?.name }}</p><VBtn color="primary" variant="tonal" prepend-icon="tabler-download" @click="previewAttachment && download(previewAttachment)">{{ $t('common.attachments.download') }}</VBtn></div>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
 <style scoped>
-.attachments-panel__toolbar {
+.attachments-panel__dropzone {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
+  min-block-size: 96px;
+  padding: 16px;
+  border: 1px dashed rgba(var(--v-theme-primary), .45);
+  border-radius: 12px;
+  background: rgba(var(--v-theme-primary), .045);
 }
+.attachments-panel__dropzone-copy { display: grid; flex: 1 1 12rem; gap: 2px; min-inline-size: 0; }
+.attachments-panel__empty { padding: 1.25rem; border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: 12px; text-align: center; }
 
 .attachments-panel__list {
   background: transparent;
@@ -265,7 +334,14 @@ watch(() => [props.type, props.recordId], load, { immediate: true })
 
 .attachments-panel__item {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
+  border-radius: 12px;
   margin-block-end: 6px;
 }
+:global(.v-overlay:has(.attachments-preview-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .28); backdrop-filter: blur(5px); opacity: 1 !important; }
+:global(.attachments-preview-dialog__card) { overflow: hidden; }
+:global(.attachments-preview-dialog__title) { display: flex; align-items: center; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .06); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); font-size: 1rem; font-weight: 700; }
+:global(.attachments-preview-dialog__body) { display: grid; min-block-size: min(60vh, 36rem); place-items: center; background: rgba(var(--v-theme-on-surface), .025); }
+:global(.attachments-preview-dialog__image) { inline-size: 100%; block-size: min(60vh, 36rem); }
+:global(.attachments-preview-dialog__frame) { inline-size: 100%; block-size: min(60vh, 36rem); border: 0; background: rgb(var(--v-theme-surface)); }
+:global(.attachments-preview-dialog__fallback) { display: grid; justify-items: center; gap: 1rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); text-align: center; }
 </style>

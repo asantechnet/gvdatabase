@@ -43,6 +43,25 @@ export interface ContractPartySnapshot {
   [key: string]: unknown
 }
 
+export interface ContractPrintDetailsSnapshot {
+  name?: string | null
+  father_name?: string | null
+  phone?: string | null
+  email?: string | null
+  details?: Record<string, string | number | null>
+  subjects?: string | null
+  skills?: string | null
+  teachers?: string | null
+}
+
+export interface ContractEntitySnapshot {
+  service?: BuiltInService | null
+  applicant_id?: number | null
+  applicant?: Record<string, unknown>
+  print_details?: ContractPrintDetailsSnapshot
+  [key: string]: unknown
+}
+
 export interface ApplicantContractLine {
   id: number
   contract_id: number
@@ -119,7 +138,7 @@ export interface Contract {
   position_id?: number | null
   snapshot_data?: {
     parties?: Record<string, unknown>
-    entity?: Record<string, unknown>
+    entity?: ContractEntitySnapshot
     template_version?: { id: number; name?: string | null; version_number: number; country_id?: number | null; country_name?: string | null; language_id?: number | null; language_name?: string | null; language_code?: string | null } | null
     document_design?: { letterhead_url?: string | null; cover_design_url?: string | null; safe_x?: number; safe_y?: number; safe_width?: number; safe_height?: number } | null
     renewal?: { source_contract_id: number; source_contract_number?: string | null }

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { canAccess } from '@/utils/authorization'
 import './workspace.scss'
 
-type HeaderSection = 'contracts' | 'crm' | 'applications' | 'dashboard' | 'tasks' | 'finance'
+type HeaderSection = 'contracts' | 'crm' | 'applications' | 'dashboard' | 'tasks' | 'finance' | 'hr'
 
 // One in-page destination inside a concept's navigation strip.
 interface HeaderLink {
@@ -55,19 +55,24 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   ],
   applications: [
     { name: 'applications', label: 'educational.applications', icon: 'tabler-clipboard-list', color: 'primary', permission: 'view_applicants' },
-    { name: 'applicant-pipeline', label: 'educational.applicantPipeline', icon: 'tabler-layout-kanban', color: 'warning', permission: 'view_applicants' },
-    { name: 'visa-reports', label: 'common.navigation.visaReports', icon: 'tabler-report-analytics', color: 'tertiary', permission: 'view_visa_reports' },
+    { name: 'application-reports', label: 'common.navigation.applicationReports', icon: 'tabler-report-analytics', color: 'tertiary', permission: 'view_visa_reports' },
   ],
   dashboard: [],
   tasks: [],
   finance: [],
+  hr: [
+    { name: 'staff-list', label: 'common.navigation.staffList', icon: 'tabler-users', color: 'primary', permission: 'view_employees' },
+    { name: 'setup-departments', label: 'common.navigation.departments', icon: 'tabler-sitemap', color: 'info', permission: 'view_departments' },
+    { name: 'employee-contracts', label: 'common.navigation.employmentContracts', icon: 'tabler-file-text', color: 'tertiary', permission: 'view_contracts' },
+    { name: 'leave-requests', label: 'pages.leaveRequests.title', icon: 'tabler-beach', color: 'warning', permission: 'view_leave_requests' },
+    { name: 'payrolls', label: 'common.navigation.payrolls', icon: 'tabler-wallet', color: 'success', permission: 'view_salaries' },
+  ],
 }
 
-const links = computed(() => sections[props.section].filter(link =>
-  link.permissions?.length
-    ? link.permissions.some(canAccess)
-    : !link.permission || canAccess(link.permission),
-))
+const links = computed(() => sections[props.section].filter(link => !link.permission || canAccess(link.permission)))
+const sectionLabel = computed(() => props.section === 'hr'
+  ? t('common.navigation.hrm')
+  : t(`erp.${props.section}`))
 
 // Destinations on the same route are told apart by the query markers the strip
 // itself declares (`?list=follow-up`). Only those keys are compared, so unrelated
@@ -100,7 +105,7 @@ watch(() => route.fullPath, () => revealCurrentDestination('smooth'))
 <template>
   <header class="erp-page-header">
     <div class="erp-page-heading">
-      <VBreadcrumbs v-if="breadcrumbs" :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t(`erp.${section}`), disabled: true }]" density="compact" class="pa-0 mb-1" />
+      <VBreadcrumbs v-if="breadcrumbs" :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: sectionLabel, disabled: true }]" density="compact" class="pa-0 mb-1" />
       <h1 class="text-h5 font-weight-bold">{{ title }}</h1>
       <p
         v-if="description"
@@ -109,7 +114,7 @@ watch(() => route.fullPath, () => revealCurrentDestination('smooth'))
         {{ description }}
       </p>
     </div>
-    <nav ref="navigation" v-if="links.length || $slots.navigation" class="erp-subnav" :aria-label="t(`erp.${section}`)">
+    <nav ref="navigation" v-if="links.length || $slots.navigation" class="erp-subnav" :aria-label="sectionLabel">
       <VChip
         v-for="link in links"
         :key="`${link.name}-${link.query?.list ?? ''}`"

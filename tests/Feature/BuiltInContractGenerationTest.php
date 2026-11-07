@@ -159,6 +159,47 @@ class BuiltInContractGenerationTest extends TestCase
             $this->assertStringContainsString($contract->contract_number, $contract->content);
             $this->assertStringContainsString('New applicant', $contract->content);
             $this->assertStringNotContainsString('{{', $contract->content);
+            $this->assertSame('New applicant', $contract->snapshot_data['entity']['print_details']['name']);
+            $this->assertSame('0701234567', $contract->snapshot_data['entity']['print_details']['phone']);
+            $this->assertSame($this->language->code, $contract->snapshot_data['template_version']['language_code']);
+
+            $printDetails = $contract->snapshot_data['entity']['print_details'];
+            if ($service === BuiltInService::SCHOLARSHIP) {
+                $this->assertSame([
+                    'country' => 'Default destination', 'education_level' => 'Bachelor', 'subjects' => 'Mathematics',
+                ], [
+                    'country' => $printDetails['details']['country'],
+                    'education_level' => $printDetails['details']['education_level'],
+                    'subjects' => $printDetails['subjects'],
+                ]);
+            } elseif ($service === BuiltInService::PRIVATE) {
+                $this->assertSame([
+                    'country' => 'Default destination', 'education_level' => 'Bachelor', 'semester' => 'Fall',
+                ], [
+                    'country' => $printDetails['details']['country'],
+                    'education_level' => $printDetails['details']['education_level'],
+                    'semester' => $printDetails['details']['semester'],
+                ]);
+            } elseif ($service === BuiltInService::TEST_OFFER) {
+                $this->assertSame([
+                    'test' => 'IELTS', 'skills' => 'Writing',
+                ], [
+                    'test' => $printDetails['details']['test'],
+                    'skills' => $printDetails['skills'],
+                ]);
+            } elseif ($service === BuiltInService::ACADEMY) {
+                $this->assertSame([
+                    'student_id' => 'STU-1001', 'program' => 'Foundation', 'academy_class' => 'Class A',
+                    'time' => 'Morning', 'duration' => '6 months', 'teachers' => 'Jane Doe',
+                ], [
+                    'student_id' => $printDetails['details']['student_id'],
+                    'program' => $printDetails['details']['program'],
+                    'academy_class' => $printDetails['details']['academy_class'],
+                    'time' => $printDetails['details']['time'],
+                    'duration' => $printDetails['details']['duration'],
+                    'teachers' => $printDetails['teachers'],
+                ]);
+            }
         }
         $this->assertSame(count(BuiltInService::ALL), Applicant::count());
         $this->assertSame(count(BuiltInService::ALL), Task::count());

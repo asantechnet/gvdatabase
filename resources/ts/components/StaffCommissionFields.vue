@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{
   enabled: boolean
@@ -37,7 +38,7 @@ const { t } = useI18n()
           sm="6"
           md="3"
         >
-          <VTextField
+          <ErpField
             :model-value="props.rate(service.value)"
             type="number"
             min="0"
@@ -45,6 +46,7 @@ const { t } = useI18n()
             step="0.01"
             suffix="%"
             :label="service.title"
+            :placeholder="t('erp.percentage')"
             @update:model-value="emit('update:rate', service.value, $event)"
           />
         </VCol>

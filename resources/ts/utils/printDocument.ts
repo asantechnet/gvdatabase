@@ -5,6 +5,12 @@ interface PrintDocumentOptions {
   pageStyle: string
   element?: HTMLElement | null
   /**
+   * Optional selector for logical pages inside `element`. The isolated host
+   * adds `print-page` to these only, so page-break rules can never affect
+   * unrelated documents visited earlier in the SPA.
+   */
+  printPageSelector?: string
+  /**
    * Padding applied to the isolated print host. This keeps document spacing
    * intact when the browser print dialog overrides the @page margin.
    */
@@ -23,6 +29,7 @@ export const printDocument = async ({
   bodyClass,
   pageStyle,
   element,
+  printPageSelector,
   hostPadding,
   beforePrint,
   afterPrint,
@@ -59,10 +66,9 @@ export const printDocument = async ({
     printHost.id = 'app-print-host'
     printHost.dir = document.documentElement.dir || 'ltr'
     const copy = source.cloneNode(true) as HTMLElement
-    if (bodyClass === 'printing-contract-document') {
-      const pageSelector = '.contract-cover, .custom-cover-page, .contract-page-container, .empty-print-page'
-      if (copy.matches(pageSelector)) copy.classList.add('print-page')
-      copy.querySelectorAll(pageSelector).forEach(page => page.classList.add('print-page'))
+    if (printPageSelector) {
+      if (copy.matches(printPageSelector)) copy.classList.add('print-page')
+      copy.querySelectorAll(printPageSelector).forEach(page => page.classList.add('print-page'))
     }
     printHost.appendChild(copy)
     document.body.appendChild(printHost)

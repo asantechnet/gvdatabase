@@ -49,9 +49,7 @@ onMounted(() => { void loadBranding() })
   overflow: hidden;
   padding: clamp(1rem, 4vw, 3rem);
   background:
-    radial-gradient(ellipse at 12% 15%, rgb(var(--v-theme-primary) / 32%) 0%, transparent 47%),
-    radial-gradient(ellipse at 88% 82%, rgb(var(--v-theme-secondary) / 28%) 0%, transparent 52%),
-    linear-gradient(135deg, rgb(var(--v-theme-primary) / 20%) 0%, rgb(var(--v-theme-background) / 92%) 44%, rgb(var(--v-theme-secondary) / 18%) 100%),
+    linear-gradient(135deg, rgb(var(--v-theme-primary) / 8%) 0%, rgb(var(--v-theme-background) / 96%) 42%, rgb(var(--v-theme-secondary) / 7%) 100%),
     rgb(var(--v-theme-background));
 }
 
@@ -61,25 +59,25 @@ onMounted(() => { void loadBranding() })
   z-index: 0;
   border-radius: 999px;
   content: '';
-  filter: blur(42px);
-  opacity: .62;
+  filter: blur(54px);
+  opacity: .5;
   pointer-events: none;
 }
 
 .auth-shell::before {
-  inset-inline-start: -9rem;
-  inset-block-end: -10rem;
-  inline-size: 28rem;
-  block-size: 28rem;
-  background: rgb(var(--v-theme-primary) / 20%);
+  inset-inline-start: -10rem;
+  inset-block-start: -11rem;
+  inline-size: 31rem;
+  block-size: 31rem;
+  background: radial-gradient(circle, rgb(var(--v-theme-primary) / 34%) 0%, rgb(var(--v-theme-primary) / 10%) 46%, transparent 72%);
 }
 
 .auth-shell::after {
-  inset-inline-end: -8rem;
-  inset-block-start: -8rem;
-  inline-size: 24rem;
-  block-size: 24rem;
-  background: rgb(var(--v-theme-secondary) / 16%);
+  inset-inline-end: -10rem;
+  inset-block-end: -11rem;
+  inline-size: 29rem;
+  block-size: 29rem;
+  background: radial-gradient(circle, rgb(var(--v-theme-secondary) / 30%) 0%, rgb(var(--v-theme-secondary) / 8%) 48%, transparent 72%);
 }
 
 .auth-shell__content {
@@ -91,10 +89,10 @@ onMounted(() => { void loadBranding() })
 
 .auth-shell__card {
   padding: clamp(1.5rem, 4vw, 2.25rem);
-  border: 1px solid rgba(var(--v-border-color), .16);
-  border-radius: 1.125rem;
+  border: 1px solid rgba(var(--v-border-color), .22);
+  border-radius: 1.25rem;
   background: rgb(var(--v-theme-surface));
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 10%), 0 10px 10px -5px rgb(0 0 0 / 4%);
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 18%), 0 12px 24px -16px rgb(0 0 0 / 8%);
 }
 
 .auth-shell__header {
@@ -130,9 +128,9 @@ onMounted(() => { void loadBranding() })
 .auth-shell__footer { margin-block-start: 1.5rem; text-align: center; }
 
 :global(.v-theme--dark) .auth-shell__card {
-  border-color: rgba(var(--v-border-color), .16);
+  border-color: rgba(var(--v-border-color), .28);
   background: rgb(var(--v-theme-surface));
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 32%), 0 10px 10px -5px rgb(0 0 0 / 20%);
+  box-shadow: 0 24px 48px -24px rgb(0 0 0 / 58%), 0 12px 24px -16px rgb(0 0 0 / 30%);
 }
 
 @media (max-width: 599px) {

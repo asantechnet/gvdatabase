@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import type { Notification } from '@layouts/types'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 
 interface Props {
   notifications: Notification[]
@@ -62,7 +63,7 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
 
     <VMenu
       activator="parent"
-      width="380px"
+      width="420px"
       :location="props.location"
       offset="12px"
       :close-on-content-click="false"
@@ -78,7 +79,8 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
             <VChip
               v-show="props.notifications.some(n => !n.isSeen)"
               size="small"
-              color="primary"
+              color="secondary"
+              variant="tonal"
               class="me-2"
             >
               {{ totalUnseenNotifications }} New
@@ -122,6 +124,7 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
                 lines="one"
                 min-height="66px"
                 class="list-item-hover-class"
+                :class="{ 'notification-item--unread': !notification.isSeen }"
                 @click="$emit('click:notification', notification)"
               >
                 <!-- Slot: Prepend -->
@@ -167,7 +170,7 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
                         v-for="label in notification.labels"
                         :key="label"
                         size="x-small"
-                        color="primary"
+                      color="secondary"
                         variant="tonal"
                         label
                       >
@@ -187,7 +190,7 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
                     <VIcon
                       size="10"
                       icon="tabler-circle-filled"
-                      :color="!notification.isSeen ? 'primary' : '#a8aaae'"
+                      :color="!notification.isSeen ? 'secondary' : '#a8aaae'"
                       :class="`${notification.isSeen ? 'visible-in-hover' : ''}`"
                       class="mb-2"
                       @click.stop="toggleReadUnread(notification.isSeen, notification.id)"
@@ -204,13 +207,13 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
               </VListItem>
             </template>
 
-            <VListItem
-              v-show="!props.notifications.length"
-              class="text-center text-medium-emphasis"
-              style="block-size: 56px;"
-            >
-              <VListItemTitle>No Notification Found!</VListItemTitle>
-            </VListItem>
+            <TableEmptyState
+              v-if="!props.notifications.length"
+              icon="tabler-bell"
+              title="No notifications yet"
+              description="You are all caught up. New updates will appear here."
+              :min-height="220"
+            />
           </VList>
         </PerfectScrollbar>
 
@@ -250,6 +253,11 @@ const toggleReadUnread = (isSeen: boolean, Id: number) => {
       display: block;
     }
   }
+}
+
+.notification-item--unread {
+  background: rgb(var(--v-theme-on-surface) / 0.028);
+  border-inline-start: 3px solid rgb(var(--v-theme-on-surface) / 0.14);
 }
 
 .notification-sender {

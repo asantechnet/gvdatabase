@@ -1,5 +1,6 @@
 import api from './axios'
 import { type ApiReadOptions, backgroundReadConfig } from './backgroundRead'
+import { readPage, type ListPage } from './pagination'
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'task' | 'contract' | 'finance' | 'system' | string
 
@@ -58,10 +59,28 @@ export const fetchNotificationHeartbeat = (): Promise<AppNotification[]> =>
   request(() => api.get('/notifications/heartbeat', backgroundReadConfig({ background: true })))
 
 export const getNotifications = (params?: { limit?: number; is_read?: boolean }, options?: ApiReadOptions): Promise<AppNotification[]> => request(() => api.get('/notifications', { ...backgroundReadConfig(options), params }))
+export interface NotificationPage extends ListPage<AppNotification> {
+  unreadCount: number
+}
+
+export const getNotificationsPage = async (params: { page?: number; perPage?: number; is_read?: boolean } = {}): Promise<NotificationPage> => {
+  const response = await api.get('/notifications', {
+    params: {
+      page: params.page,
+      per_page: params.perPage,
+      is_read: params.is_read,
+    },
+  })
+
+  return {
+    ...readPage<AppNotification>(response.data),
+    unreadCount: Number(response.data?.unread_count ?? 0),
+  }
+}
 export const getNotification = (id: number): Promise<AppNotification> => request(() => api.get(`/notifications/${id}`))
 export const createNotification = (data: CreateNotificationData): Promise<AppNotification> => request(() => api.post('/notifications', data))
 export const updateNotification = (id: number, data: Partial<CreateNotificationData> & { is_read?: boolean | null }): Promise<AppNotification> => request(() => api.put(`/notifications/${id}`, data))
 export const markAllNotificationsRead = (): Promise<void> => request(() => api.patch('/notifications/mark-all-read'))
 export const deleteNotification = (id: number): Promise<void> => request(() => api.delete(`/notifications/${id}`))
 
-export default { getNotifications, getNotification, fetchNotificationHeartbeat, createNotification, updateNotification, markAllNotificationsRead, deleteNotification }
+export default { getNotifications, getNotificationsPage, getNotification, fetchNotificationHeartbeat, createNotification, updateNotification, markAllNotificationsRead, deleteNotification }

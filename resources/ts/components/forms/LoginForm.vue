@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{
   form: { email: string; password: string; remember: boolean; twoFactorCode: string; recoveryCode: string }
@@ -30,42 +31,30 @@ watch(() => props.twoFactorRequired, async required => {
   >
     <VRow>
       <VCol cols="12">
-        <VTextField
+        <ErpField
           v-model="form.email"
           name="email"
           :label="$t('common.fields.email')"
           type="email"
           autocomplete="email"
           :placeholder="$t('pages.auth.login.login.enterYourEmail')"
-          :aria-label="$t('common.fields.email')"
           required
           validate-on="blur"
           @blur="form.email = form.email.trim()"
         />
       </VCol>
       <VCol cols="12">
-        <VTextField
+        <ErpField
           v-model="form.password"
           name="password"
           :label="$t('common.fields.password')"
           :placeholder="$t('pages.auth.login.login.enterYourPassword')"
           :type="showPassword ? 'text' : 'password'"
           autocomplete="current-password"
-          :aria-label="$t('common.fields.password')"
+          :append-inner-icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'"
           required
-        >
-          <template #append-inner>
-            <VBtn
-              icon
-              size="small"
-              variant="text"
-              :aria-label="$t(showPassword ? 'pages.auth.common.hidePassword' : 'pages.auth.common.showPassword')"
-              @click="emit('togglePassword')"
-            >
-              <VIcon :icon="showPassword ? 'tabler-eye-off' : 'tabler-eye'" />
-            </VBtn>
-          </template>
-        </VTextField>
+          @click:append-inner="emit('togglePassword')"
+        />
       </VCol>
       <VCol
         v-if="twoFactorRequired"
@@ -74,7 +63,7 @@ watch(() => props.twoFactorRequired, async required => {
         <p class="text-body-2 text-medium-emphasis mb-3">
           {{ $t('pages.auth.login.passwordAccepted') }}
         </p>
-        <VTextField
+        <ErpField
           v-if="!usingRecoveryCode"
           ref="twoFactorInput"
           v-model="form.twoFactorCode"
@@ -86,7 +75,7 @@ watch(() => props.twoFactorRequired, async required => {
           prepend-inner-icon="tabler-shield-lock"
           required
         />
-        <VTextField
+        <ErpField
           v-else
           ref="twoFactorInput"
           v-model="form.recoveryCode"

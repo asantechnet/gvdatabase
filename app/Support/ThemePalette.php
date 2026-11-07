@@ -10,8 +10,10 @@ namespace App\Support;
 final class ThemePalette
 {
     public const DEFAULTS = [
-        'primary_color' => '#0F766E',
-        'secondary_color' => '#475569',
+        'primary_color' => '#80027F',
+        'secondary_color' => '#F47E26',
+        'dark_primary_color' => '#D03FCE',
+        'dark_secondary_color' => '#FF974A',
         'light_background_color' => '#F5F7F4',
         'light_surface_color' => '#FFFEFA',
         'dark_background_color' => '#111313',

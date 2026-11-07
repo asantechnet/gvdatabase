@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
-import { type AppNotification, deleteNotification, getNotifications, markAllNotificationsRead, updateNotification } from '@/api/notification'
+import { type AppNotification, deleteNotification, getNotificationsPage, markAllNotificationsRead, updateNotification } from '@/api/notification'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import TablePaginationFooter from '@/components/responsive-data-table/TablePaginationFooter.vue'
 import { notificationText } from '@/utils/notificationText'
 import { openAuditNotification } from '@/utils/auditNotification'
 
@@ -12,9 +15,13 @@ const { t } = useI18n()
 const notifications = ref<AppNotification[]>([])
 const loading = ref(true)
 const filter = ref<'all' | 'unread'>('all')
+const page = ref(1)
+const perPage = ref(25)
+const total = ref(0)
+const lastPage = ref(1)
+const totalUnread = ref(0)
 
-const visibleNotifications = computed(() => filter.value === 'unread' ? notifications.value.filter(notification => notification.is_read !== true) : notifications.value)
-const unreadCount = computed(() => notifications.value.filter(notification => notification.is_read !== true).length)
+const unreadCount = computed(() => totalUnread.value)
 const iconFor = (type: string) => ({ success: 'tabler-circle-check', warning: 'tabler-alert-triangle', error: 'tabler-alert-circle', task: 'tabler-checkbox', contract: 'tabler-file-description', finance: 'tabler-cash' }[type] ?? 'tabler-info-circle')
 const colorFor = (type: string) => ({ success: 'success', warning: 'warning', error: 'error', task: 'primary', contract: 'secondary', finance: 'success' }[type] ?? 'info')
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -25,7 +32,15 @@ const senderFor = (notification: AppNotification) => notificationText(notificati
 
 async function load() {
   loading.value = true
-  try { notifications.value = await getNotifications({ limit: 100 }) }
+  try {
+    const result = await getNotificationsPage({ page: page.value, perPage: perPage.value, is_read: filter.value === 'unread' ? false : undefined })
+
+    notifications.value = result.rows
+    total.value = result.total
+    lastPage.value = result.lastPage
+    totalUnread.value = result.unreadCount
+    page.value = result.page
+  }
   catch (error: any) { toast.error(error.message || t('notificationInbox.loadFailed')) }
   finally { loading.value = false }
 }
@@ -33,7 +48,11 @@ async function load() {
 async function open(notification: AppNotification) {
   if (notification.is_read !== true) {
     notification.is_read = true
-    try { await updateNotification(notification.id, { is_read: true }) }
+    try {
+      await updateNotification(notification.id, { is_read: true })
+      if (filter.value === 'unread')
+        await load()
+    }
     catch {
       await load(); toast.error(translate('pages.settings.notifications.notifications.couldNotMarkNotificationAsRead'))
 
@@ -56,23 +75,42 @@ async function reviewRecurring(notification: AppNotification) {
 }
 
 async function markAllRead() {
-  try { await markAllNotificationsRead(); notifications.value.forEach(notification => { notification.is_read = true }); toast.success(translate('pages.settings.notifications.notifications.allNotificationsMarkedAsRead')) }
+  try {
+    await markAllNotificationsRead()
+    page.value = 1
+    await load()
+    toast.success(translate('pages.settings.notifications.notifications.allNotificationsMarkedAsRead'))
+  }
   catch (error: any) { toast.error(error.message || t('notificationInbox.updateFailed')) }
 }
 
 async function remove(notification: AppNotification) {
-  try { await deleteNotification(notification.id); notifications.value = notifications.value.filter(item => item.id !== notification.id); toast.success(translate('common.messages.notificationDeleted')) }
+  try {
+    await deleteNotification(notification.id)
+    if (notifications.value.length === 1 && page.value > 1)
+      page.value--
+    await load()
+    toast.success(translate('common.messages.notificationDeleted'))
+  }
   catch (error: any) { toast.error(error.message || t('notificationInbox.deleteFailed')) }
 }
+
+function updateItemsPerPage(value: number) {
+  page.value = 1
+  perPage.value = value
+  void load()
+}
+
+watch(filter, () => {
+  page.value = 1
+  void load()
+})
 
 onMounted(load)
 </script>
 
 <template>
-  <VCard
-    class="notification-inbox"
-    :loading="loading"
-  >
+  <VCard class="notification-inbox">
     <VCardItem>
       <VCardTitle>{{ $t('common.messages.notifications') }}</VCardTitle>
       <VCardSubtitle>{{ $t('pages.settings.notifications.unreadCount', { count: unreadCount }) }}</VCardSubtitle>
@@ -103,12 +141,20 @@ onMounted(load)
       </VBtnToggle>
     </VCardText>
     <VDivider />
+    <div
+      v-if="loading"
+      class="notification-list notification-list--loading"
+      aria-busy="true"
+    >
+      <VSkeletonLoader v-for="index in 5" :key="index" type="list-item-avatar-three-line" />
+    </div>
     <VList
+      v-else-if="notifications.length"
       :lines="false"
       class="notification-list"
     >
       <template
-        v-for="(notification, index) in visibleNotifications"
+        v-for="(notification, index) in notifications"
         :key="notification.id"
       >
         <VDivider v-if="index > 0" />
@@ -130,7 +176,8 @@ onMounted(load)
             <VChip
               v-if="notification.is_read !== true"
               size="x-small"
-              color="primary"
+              color="secondary"
+              variant="tonal"
             >
               {{ $t('pages.settings.notifications.notifications.new') }}
             </VChip>
@@ -177,24 +224,35 @@ onMounted(load)
           </template>
         </VListItem>
       </template>
-      <VListItem
-        v-if="!loading && !visibleNotifications.length"
-        :title="$t('pages.settings.notifications.notifications.noNotificationsFound')"
-        :subtitle="$t('notificationInbox.allCaughtUp')"
-        class="notification-row"
-      />
     </VList>
+    <TableEmptyState
+      v-else
+      icon="tabler-bell"
+      :title="$t('pages.settings.notifications.notifications.noNotificationsFound')"
+      :description="$t('notificationInbox.allCaughtUp')"
+      :min-height="280"
+    />
+    <VDivider v-if="total" />
+    <TablePaginationFooter
+      v-if="total"
+      :page="page"
+      :page-count="lastPage"
+      :items-length="total"
+      :items-per-page="perPage"
+      @update:page="value => { page = value; load() }"
+      @update:items-per-page="updateItemsPerPage"
+    />
   </VCard>
 </template>
 
 <style scoped>
 .notification-inbox {
-  margin-inline: auto;
-  max-inline-size: 960px;
+  inline-size: 100%;
 }
 
 .notification-unread {
-  background: rgba(var(--v-theme-primary), 6%);
+  background: rgb(var(--v-theme-on-surface) / 0.028);
+  border-inline-start: 3px solid rgb(var(--v-theme-on-surface) / 0.14);
 }
 
 /* Vuetify's .v-btn sets `flex: 1 0 auto`, stretching every option to the width
@@ -211,10 +269,14 @@ onMounted(load)
   padding-block: 0;
 }
 
+.notification-list--loading {
+  padding: 0.5rem 1rem;
+}
+
 /* Rows carry a title, a wrapping body and a chip row, so the default
    list-item padding is too tight and consecutive entries merge together. */
 .notification-row {
-  padding-block: 0.875rem;
+  padding: 1rem 1.25rem;
 }
 
 .notification-title {
@@ -256,5 +318,11 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-block-start: 0.625rem;
+}
+
+@media (max-width: 599px) {
+  .notification-row {
+    padding-inline: 1rem;
+  }
 }
 </style>

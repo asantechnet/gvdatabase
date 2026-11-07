@@ -143,6 +143,17 @@ class ContractGenerationService
                     'recorded_by' => $request->user()->id,
                 ]);
             }
+            // A reprint is a historical document. Store display-ready names,
+            // not only catalogue IDs, so later applicant/catalogue edits never
+            // rewrite the official applicant form printed with this contract.
+            $applicant->loadMissing([
+                'privateDetail.country', 'privateDetail.university', 'privateDetail.educationLevel', 'privateDetail.semester',
+                'scholarshipDetail.country', 'scholarshipDetail.educationLevel', 'scholarshipDetail.semester', 'scholarshipDetail.scholarship',
+                'testDetail.test',
+                'academyDetail.program', 'academyDetail.time', 'academyDetail.duration', 'academyDetail.academyClass',
+                'favoriteSubjects', 'skills', 'teachers',
+            ]);
+            $version->loadMissing(['country', 'language']);
             $rendered = $this->resolver->resolve($version->content, [
                 'applicant' => $applicant, 'built_in_line' => $line,
                 'contract_number' => $contract->contract_number, 'start_date' => $contract->start_date->toDateString(),
@@ -153,8 +164,8 @@ class ContractGenerationService
                 'content' => $this->sanitizer->clean($rendered['content']),
                 'snapshot_data' => [
                     'parties' => ['our_company' => PlaceholderRegistry::ourCompanyValues($contract->company_signatory_name), 'counterparty' => $counterparty],
-                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('teachers.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'extension_of' => $primary?->contract_number],
-                    'template_version' => $version->only(['id', 'name', 'version_number', 'country_id', 'language_id']),
+                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'print_details' => $this->officialPrintDetails($applicant), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('teachers.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'extension_of' => $primary?->contract_number],
+                    'template_version' => [...$version->only(['id', 'name', 'version_number', 'country_id', 'language_id']), 'country_name' => $version->country?->name, 'language_name' => $version->language?->name, 'language_code' => $version->language?->code],
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],
             ]);
@@ -180,6 +191,40 @@ class ContractGenerationService
 
             return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
         });
+    }
+
+    /** @return array<string, mixed> */
+    private function officialPrintDetails(Applicant $applicant): array
+    {
+        $detail = $applicant->detail();
+        $relationName = static fn (string $relation) => $detail && method_exists($detail, $relation)
+            ? $detail->{$relation}?->name
+            : null;
+
+        return [
+            'name' => $applicant->name,
+            'father_name' => $applicant->father_name,
+            'phone' => $applicant->contact,
+            'email' => $applicant->email,
+            'details' => [
+                'passport_id' => $detail?->passport_id,
+                'grade_score' => $detail?->grade_score,
+                'student_id' => $detail?->student_id,
+                'country' => $relationName('country'),
+                'university' => $relationName('university'),
+                'education_level' => $relationName('educationLevel'),
+                'semester' => $relationName('semester'),
+                'scholarship' => $relationName('scholarship'),
+                'test' => $relationName('test'),
+                'program' => $relationName('program'),
+                'academy_class' => $relationName('academyClass'),
+                'time' => $relationName('time'),
+                'duration' => $relationName('duration'),
+            ],
+            'subjects' => $applicant->favoriteSubjects->pluck('name')->filter()->implode(', '),
+            'skills' => $applicant->skills->pluck('name')->filter()->implode(', '),
+            'teachers' => $applicant->teachers->pluck('name')->filter()->implode(', '),
+        ];
     }
 
     /** Update the live case and service-line terms without altering the issued document snapshot. */

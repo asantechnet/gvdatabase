@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import AuthApi from '@/api/auth'
 import AuthShell from '@/components/auth/AuthShell.vue'
 import AuthStatus from '@/components/auth/AuthStatus.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -45,7 +46,7 @@ const resend = async () => {
       <VBtn block :to="{ name: 'login' }">{{ $t('pages.auth.common.goToLogin') }}</VBtn>
     </template>
     <template v-else>
-      <VTextField v-model="email" type="email" :label="$t('common.fields.email')" autocomplete="email" validate-on="blur" @blur="email = email.trim()" />
+      <ErpField v-model="email" type="email" :label="$t('common.fields.email')" autocomplete="email" validate-on="blur" @blur="email = email.trim()" />
       <VBtn block color="primary" class="mt-4" :loading="loading" @click="resend">{{ $t('pages.auth.verifyEmail.resend') }}</VBtn>
     </template>
     <template #footer><RouterLink v-if="state !== 'verified'" :to="{ name: 'login' }">{{ $t('pages.auth.common.backToLogin') }}</RouterLink></template>

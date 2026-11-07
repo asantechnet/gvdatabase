@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatActiveMoney, translate } from '@/utils/localization'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -10,7 +10,6 @@ import PositionApi, { type Position } from '@/api/position'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import OfficeApi, { type Office } from '@/api/office'
 import DepartmentApi, { type Department } from '@/api/department'
-import LeaveRequestApi, { type LeaveRequest } from '@/api/leaveRequests'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
@@ -18,10 +17,14 @@ import { useCookie } from '@core/composable/useCookie'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import AttachmentsDialog from '@/components/attachments/AttachmentsDialog.vue'
-import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import StaffFormFields from '@/components/hr/StaffFormFields.vue'
+import EmployeePaidTimeOffDialog from '@/components/paid-time-off/EmployeePaidTimeOffDialog.vue'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
 interface Staff {
   id: number
@@ -46,7 +49,7 @@ interface Staff {
   office: Employee['office']
   department_id: number | null
   department_name: string | null
-  departments?: Array<{ id: number; name: string; code: string | null; is_primary?: boolean }>
+  departments?: Array<{ id: number; name: string; is_primary?: boolean }>
   department_ids?: number[]
   primary_department_id?: number | null
   supervisor_id: number | null
@@ -74,6 +77,12 @@ const toast = useToast();
 const isAddStaffDialogVisible = ref(false);
 const isEditStaffDialogVisible = ref(false);
 const isSelfProfileDialogVisible = ref(false);
+const isStaffDetailsDialogVisible = ref(false);
+const isStaffDetailsLoading = ref(false);
+const staffDetails = ref<Staff | null>(null);
+const staffWizardStep = ref<1 | 2 | 3>(1);
+const staffInitialForm = ref<Staff | null>(null);
+const isDiscardingStaffChanges = ref(false);
 const selfProfileForm = ref({
   name: "",
   father_name: "",
@@ -89,20 +98,25 @@ const selfProfileForm = ref({
   guarantor_licence: "",
 });
 const selfProfileId = ref<number | null>(null);
-const isDeleteStaffDialogVisible = ref(false);
-const isLeaveDialogVisible = ref(false);
 const selectedStaff = ref<Staff | null>(null);
 const searchQuery = ref("");
 const filterPosition = ref<string | null>(null);
 // Server-side status filter. The backend returns active employees only unless
 // a management surface explicitly asks for inactive/all rows.
 const statusFilter = ref<"all" | "active" | "inactive">("active");
+const filterMenuOpen = ref(false);
+const filterDraft = reactive({
+  position: null as string | null,
+  status: "active" as "all" | "active" | "inactive",
+});
 const statusFilterOptions = computed(() => [
   { title: translate("common.statuses.all"), value: "all" as const },
   { title: translate("common.statuses.active"), value: "active" as const },
   { title: translate("common.statuses.inactive"), value: "inactive" as const },
 ]);
-const isLoading = ref(false);
+// Start in the loading state so the table never flashes its empty state before
+// the first directory request has a chance to resolve.
+const isLoading = ref(true);
 const isPositionsLoading = ref(false);
 const positionOptions = ref<string[]>([]);
 const positionIdMap = ref<Record<string, number>>({});
@@ -136,35 +150,32 @@ const supervisorDialogName = ref<string | null>(null)
 const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
-const leaveStaff = ref<Staff | null>(null)
-const leaveRequests = ref<LeaveRequest[]>([])
 const userData = useCookie<{ employee?: { id?: number } | null } | null>('userData')
+const leaveStaff = ref<Pick<Staff, 'id' | 'name'> | null>(null)
+const isLeaveDialogVisible = ref(false)
+const pendingStaffAction = ref<{ staff: Staff; type: 'delete' | 'status' } | null>(null)
+const isStaffActionDialogVisible = ref(false)
+// Kept only for the retired markup below while the page transitions to the
+// reusable EmployeePaidTimeOffDialog. It is never mounted.
+const isDeleteStaffDialogVisible = ref(false)
 const leaveYear = ref(new Date().getFullYear())
 const leaveAllowance = ref(0)
 const leaveUsed = ref(0)
 const leaveRemaining = ref(0)
-const leaveForm = ref({
-  id: null as number | null,
-  start_date: new Date().toISOString().slice(0, 10),
-  end_date: new Date().toISOString().slice(0, 10),
-  duration_days: 1 as 0.5 | 1,
-  reason: "",
-});
-const leaveError = ref("");
-const isLeaveLoading = ref(false);
-const leaveRequestDetailFields = computed(() => [
-  { key: "date", label: translate("common.fields.date") },
-  { key: "duration_days", label: translate("pages.leaveRequests.duration") },
-  { key: "treatment", label: translate("pages.leaveRequests.treatment") },
-  { key: "off_day_days", label: translate("common.attendanceStatuses.offDay") },
-  { key: "absent_days", label: translate("common.attendanceStatuses.absent") },
-  { key: "reason", label: translate("common.fields.reason") },
-  { key: "approvedBy.name", label: translate("common.ui.approvedBy") },
-  {
-    key: "approval_note",
-    label: translate("common.leaveApproval.justification"),
-  },
-]);
+const leaveRequests = ref<any[]>([])
+const leaveError = ref('')
+const isLeaveLoading = ref(false)
+const leaveForm = ref({ id: null as number | null, start_date: '', end_date: '', duration_days: 1 as 0.5 | 1, reason: '' })
+const requestedLeaveDays = computed(() => 0)
+const isLeaveFormComplete = computed(() => false)
+const canSaveLeave = computed(() => false)
+const leaveLimitMessage = computed(() => '')
+const changeLeaveYear = async () => {}
+const saveLeave = async () => {}
+const resetLeaveForm = () => {}
+const editLeaveRequest = (_record: any) => {}
+const deleteLeave = async (_id: number) => {}
+const leaveRequestDetailFields = computed(() => [])
 const attachmentTarget = ref<Staff | null>(null);
 const isAttachmentsOpen = ref(false);
 
@@ -172,51 +183,6 @@ function openAttachments(staff: Staff) {
   attachmentTarget.value = staff;
   isAttachmentsOpen.value = true;
 }
-
-// Same range semantics as the self-service request dialog: Fridays are the
-// weekly day off and are not counted as requested leave days.
-const requestedLeaveDays = computed(() => {
-  const start = new Date(`${leaveForm.value.start_date}T00:00:00`);
-  const end = new Date(`${leaveForm.value.end_date}T00:00:00`);
-
-  if (
-    Number.isNaN(start.getTime()) ||
-    Number.isNaN(end.getTime()) ||
-    end < start
-  )
-    return 0;
-
-  let days = 0;
-  for (
-    const day = new Date(start);
-    day <= end;
-    day.setDate(day.getDate() + 1)
-  ) {
-    if (day.getDay() !== 5) days++;
-  }
-
-  return days;
-});
-
-const isLeaveFormComplete = computed(() =>
-  Boolean(
-    leaveForm.value.start_date &&
-    leaveForm.value.end_date &&
-    leaveForm.value.reason.trim(),
-  ),
-);
-
-const canSaveLeave = computed(() =>
-  Boolean(!isLeaveLoading.value && isLeaveFormComplete.value),
-);
-
-const leaveLimitMessage = computed(() => {
-  if (leaveForm.value.id || leaveRemaining.value > 0) return "";
-
-  return leaveAllowance.value === 0
-    ? "No off-day allowance is configured. Set the default in Settings, or give this employee a personal allowance."
-    : `The ${leaveAllowance.value}-day off-day allowance is used; further approved days are recorded as absent unless an authority overrides them.`;
-});
 
 const educationOptions = [
   "High School",
@@ -237,12 +203,10 @@ const avatarText = (name: string) =>
 const staffHeaders = computed(() => [
   { title: translate('common.messages.id'), key: 'id' },
   { title: translate('common.fields.name'), key: 'name' },
-  { title: translate('pages.settings.staffList.staffList.fatherName'), key: 'father_name' },
   { title: translate('common.messages.contact'), key: 'contact' },
   { title: translate('common.messages.position'), key: 'position' },
   { title: translate('common.fields.departments'), key: 'departments' },
   { title: translate('pages.settings.staffList.staffList.salary'), key: 'salary' },
-  { title: translate('pages.settings.staffList.staffList.workedHours'), key: 'total_worked_hours' },
   { title: translate('pages.settings.staffList.staffList.joinDate'), key: 'join_date' },
   { title: translate('common.fields.status'), key: 'status' },
   { title: translate('common.messages.actions'), key: 'actions', sortable: false },
@@ -250,7 +214,6 @@ const staffHeaders = computed(() => [
 
 const staffDetailFields = computed(() => [
   { key: 'name', label: translate('common.fields.name') },
-  { key: 'father_name', label: translate('pages.settings.staffList.staffList.fatherName') },
   { key: 'id_number', label: translate('common.messages.governmentIDNumber') },
   { key: 'contact', label: translate('common.messages.contact') },
   { key: 'email', label: translate('common.fields.email') },
@@ -264,7 +227,6 @@ const staffDetailFields = computed(() => [
   { key: 'supervisor_name', label: translate('common.fields.supervisor') },
   { key: 'join_date', label: translate('common.messages.joinDate') },
   { key: 'salary', label: translate('common.messages.salary') },
-  { key: 'total_worked_hours', label: translate('pages.settings.staffList.staffList.workedHours') },
   { key: 'bank_account_number', label: translate('common.ui.bankAccountNumber') },
   { key: 'addr', label: translate('common.fields.address') },
   { key: 'guarantor_name', label: translate('common.messages.guarantorName') },
@@ -316,146 +278,45 @@ const resetFormErrors = () => {
   }
 }
 
-const validateStaffForm = () => {
-  let isValid = true;
+const validateStaffForm = (throughStep: 1 | 2 | 3 = 3) => {
+  const staff = selectedStaff.value
+  if (!staff)
+    return false
 
-  // Validate Name
-  if (!selectedStaff.value?.name.trim()) {
-    formErrors.value.name = translate(
-      "pages.settings.staffList.staffList.nameIsRequired",
-    );
-    isValid = false;
-  } else if (selectedStaff.value.name.length < 2) {
-    formErrors.value.name = translate(
-      "pages.settings.staffList.staffList.nameMustBeAtLeast2Characters",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.name = "";
+  let isValid = true
+  const invalid = (field: keyof typeof formErrors.value, message: string) => {
+    formErrors.value[field] = message
+    isValid = false
+  }
+  const valid = (field: keyof typeof formErrors.value) => { formErrors.value[field] = '' }
+
+  if (throughStep >= 1) {
+    !staff.name.trim() ? invalid('name', translate('pages.settings.staffList.staffList.nameIsRequired'))
+      : staff.name.length < 2 ? invalid('name', translate('pages.settings.staffList.staffList.nameMustBeAtLeast2Characters')) : valid('name')
+    !staff.father_name.trim() ? invalid('father_name', translate('pages.settings.staffList.staffList.fatherNameIsRequired'))
+      : staff.father_name.length < 2 ? invalid('father_name', translate('pages.settings.staffList.staffList.fatherNameMustBeAtLeast2Characters')) : valid('father_name')
+    !staff.contact.trim() ? invalid('contact', translate('common.messages.contactNumberIsRequired'))
+      : !/^[\d\s\-()+]{8,}$/.test(staff.contact) ? invalid('contact', translate('common.messages.pleaseEnterAValidPhoneNumber')) : valid('contact')
+    !staff.id_number?.trim() ? invalid('id_number', translate('pages.settings.staffList.staffList.governmentIDIsRequired')) : valid('id_number')
+    !staff.user_id && !staff.email.trim() ? invalid('email', translate('pages.settings.staffList.staffList.emailIsRequired'))
+      : !staff.user_id && !/^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/.test(staff.email) ? invalid('email', translate('pages.settings.staffList.staffList.pleaseEnterAValidEmailAddress')) : valid('email')
+    !staff.education_lvl ? invalid('education_lvl', translate('pages.settings.staffList.staffList.educationLevelIsRequired')) : valid('education_lvl')
   }
 
-  // Validate Father Name
-  if (!selectedStaff.value?.father_name.trim()) {
-    formErrors.value.father_name = translate(
-      "pages.settings.staffList.staffList.fatherNameIsRequired",
-    );
-    isValid = false;
-  } else if (selectedStaff.value.father_name.length < 2) {
-    formErrors.value.father_name = translate(
-      "pages.settings.staffList.staffList.fatherNameMustBeAtLeast2Characters",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.father_name = "";
+  if (throughStep >= 2) {
+    !staff.position ? invalid('position', translate('pages.settings.staffList.staffList.positionIsRequired')) : valid('position')
+    staff.salary === null || staff.salary === undefined ? invalid('salary', translate('pages.settings.staffList.staffList.salaryIsRequired'))
+      : Number(staff.salary) < 0 ? invalid('salary', translate('pages.settings.staffList.staffList.salaryCannotBeNegative')) : valid('salary')
+    !staff.join_date ? invalid('join_date', translate('pages.settings.staffList.staffList.joinDateIsRequired')) : valid('join_date')
   }
 
-  // Validate Contact
-  if (!selectedStaff.value?.contact.trim()) {
-    formErrors.value.contact = translate(
-      "common.messages.contactNumberIsRequired",
-    );
-    isValid = false;
-  } else if (!/^[\d\s\-()+]{8,}$/.test(selectedStaff.value.contact)) {
-    formErrors.value.contact = translate(
-      "common.messages.pleaseEnterAValidPhoneNumber",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.contact = "";
+  if (throughStep >= 3) {
+    !staff.addr.trim() ? invalid('addr', translate('pages.settings.staffList.staffList.addressIsRequired'))
+      : staff.addr.length < 5 ? invalid('addr', translate('pages.settings.staffList.staffList.addressMustBeAtLeast5Characters')) : valid('addr')
   }
 
-  // Validate Email
-  if (!selectedStaff.value?.user_id && !selectedStaff.value?.email.trim()) {
-    formErrors.value.email = translate(
-      "pages.settings.staffList.staffList.emailIsRequired",
-    );
-    isValid = false;
-  } else if (
-    !selectedStaff.value?.user_id &&
-    !/^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/.test(selectedStaff.value.email)
-  ) {
-    formErrors.value.email = translate(
-      "pages.settings.staffList.staffList.pleaseEnterAValidEmailAddress",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.email = "";
-  }
-
-  // Validate Address
-  if (!selectedStaff.value?.addr.trim()) {
-    formErrors.value.addr = translate(
-      "pages.settings.staffList.staffList.addressIsRequired",
-    );
-    isValid = false;
-  } else if (selectedStaff.value.addr.length < 5) {
-    formErrors.value.addr = translate(
-      "pages.settings.staffList.staffList.addressMustBeAtLeast5Characters",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.addr = "";
-  }
-
-  if (!selectedStaff.value?.id_number?.trim()) {
-    formErrors.value.id_number = translate(
-      "pages.settings.staffList.staffList.governmentIDIsRequired",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.id_number = "";
-  }
-
-  // Validate Position
-  if (!selectedStaff.value?.position) {
-    formErrors.value.position = translate(
-      "pages.settings.staffList.staffList.positionIsRequired",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.position = "";
-  }
-
-  // Validate Salary
-  if (
-    selectedStaff.value?.salary === null ||
-    selectedStaff.value?.salary === undefined
-  ) {
-    formErrors.value.salary = translate(
-      "pages.settings.staffList.staffList.salaryIsRequired",
-    );
-    isValid = false;
-  } else if (Number(selectedStaff.value.salary) < 0) {
-    formErrors.value.salary = translate(
-      "pages.settings.staffList.staffList.salaryCannotBeNegative",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.salary = "";
-  }
-
-  // Validate Education Level
-  if (!selectedStaff.value?.education_lvl) {
-    formErrors.value.education_lvl = translate(
-      "pages.settings.staffList.staffList.educationLevelIsRequired",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.education_lvl = "";
-  }
-
-  // Validate Join Date
-  if (!selectedStaff.value?.join_date) {
-    formErrors.value.join_date = translate(
-      "pages.settings.staffList.staffList.joinDateIsRequired",
-    );
-    isValid = false;
-  } else {
-    formErrors.value.join_date = "";
-  }
-
-  return isValid;
-};
+  return isValid
+}
 
 // Commission rates are edited per built-in service. The rates live on the
 // selected employee so both the create and edit dialogs share one binding.
@@ -502,6 +363,78 @@ const commissionPayload = () =>
       )
     : [];
 
+type StaffFormMode = 'add' | 'edit'
+const staffWizardSteps = computed(() => [
+  { number: 1 as const, title: 'Personal & contact' },
+  { number: 2 as const, title: 'Employment' },
+  { number: 3 as const, title: 'Address & guarantor' },
+])
+const cloneStaffForm = (staff: Staff): Staff => JSON.parse(JSON.stringify(staff)) as Staff
+const staffFormIsDirty = computed(() => selectedStaff.value !== null
+  && staffInitialForm.value !== null
+  && JSON.stringify(selectedStaff.value) !== JSON.stringify(staffInitialForm.value))
+
+const finishStaffForm = (mode: StaffFormMode) => {
+  if (mode === 'add')
+    isAddStaffDialogVisible.value = false
+  else
+    isEditStaffDialogVisible.value = false
+
+  staffInitialForm.value = null
+  staffWizardStep.value = 1
+  formSubmissionError.value = ''
+}
+
+const setCommissionEnabled = (value: boolean) => {
+  if (selectedStaff.value)
+    selectedStaff.value.is_commission_based = value
+}
+
+const requestStaffFormClose = async (mode: StaffFormMode) => {
+  if (isLoading.value || isDiscardingStaffChanges.value)
+    return
+
+  if (staffFormIsDirty.value) {
+    isDiscardingStaffChanges.value = true
+    try {
+      const discard = await confirmActionWarning({
+        key: 'discard-form-changes',
+        title: translate('common.actionWarnings.discardTitle'),
+        message: translate('common.actionWarnings.discardMessage'),
+        confirmText: translate('common.actionWarnings.discardConfirm'),
+        cancelText: translate('common.actionWarnings.keepEditing'),
+        icon: 'tabler-file-alert',
+        tone: 'primary',
+      })
+      if (!discard)
+        return
+    }
+    finally {
+      isDiscardingStaffChanges.value = false
+    }
+  }
+
+  finishStaffForm(mode)
+}
+
+const updateStaffDialog = (mode: StaffFormMode, visible: boolean) => {
+  if (!visible)
+    void requestStaffFormClose(mode)
+}
+
+const submitStaffWizard = (mode: StaffFormMode) => {
+  if (staffWizardStep.value < 3) {
+    if (validateStaffForm(staffWizardStep.value))
+      staffWizardStep.value = (staffWizardStep.value + 1) as 1 | 2 | 3
+    return
+  }
+
+  if (!validateStaffForm())
+    return
+
+  void (mode === 'add' ? addStaff() : updateStaff())
+}
+
 const openAddStaffDialog = () => {
   selectedStaff.value = {
     id: 0,
@@ -542,6 +475,8 @@ const openAddStaffDialog = () => {
   positionBeforeChange.value = "";
   resetFormErrors();
   formSubmissionError.value = "";
+  staffWizardStep.value = 1;
+  staffInitialForm.value = cloneStaffForm(selectedStaff.value);
   isAddStaffDialogVisible.value = true;
 };
 
@@ -571,7 +506,7 @@ function staffDepartments(staff: Staff) {
     return staff.departments
 
   if (staff.department_id)
-    return [{ id: staff.department_id, name: staff.department_name ?? '', code: null, is_primary: true }]
+    return [{ id: staff.department_id, name: staff.department_name ?? '', is_primary: true }]
 
   return []
 }
@@ -674,6 +609,8 @@ const openEditStaffDialog = (staff: Staff) => {
   positionBeforeChange.value = staff.position;
   resetFormErrors();
   formSubmissionError.value = "";
+  staffWizardStep.value = 1;
+  staffInitialForm.value = cloneStaffForm(selectedStaff.value);
   isEditStaffDialogVisible.value = true;
 };
 
@@ -713,148 +650,15 @@ const saveSelfProfile = async () => {
   }
 };
 
-const openDeleteStaffDialog = (staff: Staff) => {
-  selectedStaff.value = staff;
-  isDeleteStaffDialogVisible.value = true;
-};
+const requestStaffAction = (staff: Staff, type: 'delete' | 'status') => {
+  pendingStaffAction.value = { staff, type }
+  isStaffActionDialogVisible.value = true
+}
 
-const loadLeaveRequests = async () => {
-  if (!leaveStaff.value) return;
-  isLeaveLoading.value = true;
-  leaveError.value = "";
-  try {
-    const ledger = await LeaveRequestApi.getAll(
-      leaveStaff.value.id,
-      leaveYear.value,
-    );
-
-    leaveRequests.value = ledger.data;
-    leaveAllowance.value = ledger.allowance;
-    leaveUsed.value = ledger.used;
-    leaveRemaining.value = ledger.remaining;
-  } catch (error) {
-    leaveError.value = apiErrorMessage(error, "Unable to load leave records.");
-  } finally {
-    isLeaveLoading.value = false;
-  }
-};
-
-const openLeaveDialog = async (staff: Staff) => {
-  leaveStaff.value = staff;
-  leaveYear.value = new Date().getFullYear();
-  const today = new Date().toISOString().slice(0, 10);
-  leaveForm.value = {
-    id: null,
-    start_date: today,
-    end_date: today,
-    duration_days: 1,
-    reason: "",
-  };
-  isLeaveDialogVisible.value = true;
-  await loadLeaveRequests();
-};
-
-const editLeaveRequest = (record: LeaveRequest) => {
-  leaveForm.value = {
-    id: record.id,
-    start_date: record.date,
-    end_date: record.date,
-    duration_days: record.duration_days,
-    reason: record.reason,
-  };
-  leaveError.value = "";
-};
-
-const resetLeaveForm = () => {
-  leaveForm.value = {
-    id: null,
-    start_date: `${leaveYear.value}-01-01`,
-    end_date: `${leaveYear.value}-01-01`,
-    duration_days: 1,
-    reason: "",
-  };
-  leaveError.value = "";
-};
-
-const changeLeaveYear = async () => {
-  if (!leaveForm.value.id) {
-    leaveForm.value.start_date = `${leaveYear.value}-01-01`;
-    leaveForm.value.end_date = `${leaveYear.value}-01-01`;
-  }
-
-  await loadLeaveRequests();
-};
-
-const saveLeave = async () => {
-  if (!leaveStaff.value) return;
-  if (
-    !leaveForm.value.start_date ||
-    !leaveForm.value.end_date ||
-    !leaveForm.value.reason.trim()
-  ) {
-    leaveError.value = translate(
-      !leaveForm.value.start_date
-        ? "pages.users.staffList.dateRequired"
-        : "pages.users.staffList.reasonRequired",
-    );
-
-    return;
-  }
-  if (
-    !leaveForm.value.start_date.startsWith(`${leaveYear.value}-`) ||
-    !leaveForm.value.end_date.startsWith(`${leaveYear.value}-`)
-  ) {
-    leaveError.value = `Date: Choose a date in ${leaveYear.value}.`;
-
-    return;
-  }
-  if (leaveForm.value.end_date < leaveForm.value.start_date) {
-    leaveError.value = translate("pages.leaveRequests.rangeExceeds", {
-      count: leaveRemaining.value,
-    });
-
-    return;
-  }
-  isLeaveLoading.value = true;
-  leaveError.value = "";
-  try {
-    if (leaveForm.value.id) {
-      await LeaveRequestApi.update(leaveStaff.value.id, leaveForm.value.id, {
-        date: leaveForm.value.start_date,
-        duration_days: leaveForm.value.duration_days,
-        reason: leaveForm.value.reason.trim(),
-      });
-    } else {
-      await LeaveRequestApi.createRange(leaveStaff.value.id, {
-        start_date: leaveForm.value.start_date,
-        end_date: leaveForm.value.end_date,
-        duration_days:
-          requestedLeaveDays.value === 1 ? leaveForm.value.duration_days : 1,
-        reason: leaveForm.value.reason.trim(),
-      });
-    }
-    resetLeaveForm();
-    await loadLeaveRequests();
-  } catch (error) {
-    leaveError.value = apiErrorMessage(error, "Unable to save leave.");
-  } finally {
-    isLeaveLoading.value = false;
-  }
-};
-
-const deleteLeave = async (id: number) => {
-  if (!leaveStaff.value) return;
-  isLeaveLoading.value = true;
-  try {
-    await LeaveRequestApi.delete(leaveStaff.value.id, id);
-    if (leaveForm.value.id === id) resetLeaveForm();
-    await loadLeaveRequests();
-  } catch (error) {
-    leaveError.value = apiErrorMessage(error, "Unable to remove leave.");
-  } finally {
-    isLeaveLoading.value = false;
-  }
-};
+const openLeaveDialog = (staff: Staff) => {
+  leaveStaff.value = { id: staff.id, name: staff.name }
+  isLeaveDialogVisible.value = true
+}
 
 const fetchBaseCurrency = async () => {
   try {
@@ -932,6 +736,54 @@ const asStaffRow = (employee: Employee): Staff => ({
     employee.position_id.toString(),
 });
 
+const openStaffDetails = async (staff: Staff) => {
+  staffDetails.value = staff
+  isStaffDetailsDialogVisible.value = true
+  isStaffDetailsLoading.value = true
+  try {
+    // Fetch the full resource when the profile is opened so departments,
+    // supervisor, commissions and the current document never come from a
+    // stale list row.
+    const response = await EmployeeApi.getById(staff.id)
+    if (response.data?.data)
+      staffDetails.value = asStaffRow(response.data.data)
+  }
+  catch (error) {
+    toast.error(apiErrorMessage(error, translate('pages.settings.staffList.staffList.unableToSaveEmployee')))
+  }
+  finally {
+    isStaffDetailsLoading.value = false
+  }
+}
+
+const staffDetailTiles = computed(() => {
+  const staff = staffDetails.value
+  if (!staff)
+    return []
+
+  return [
+    { key: 'contact', label: translate('common.messages.contactPhone'), value: staff.contact, icon: 'tabler-phone' },
+    { key: 'email', label: translate('common.fields.email'), value: staff.email, icon: 'tabler-mail' },
+    { key: 'id-number', label: translate('common.messages.governmentIDNumber'), value: staff.id_number, icon: 'tabler-id-badge-2' },
+    { key: 'position', label: translate('common.messages.position'), value: staff.position, icon: 'tabler-briefcase' },
+    { key: 'office', label: translate('common.fields.office'), value: staff.office?.name, icon: 'tabler-building' },
+    { key: 'departments', label: translate('common.fields.departments'), value: staffDepartments(staff).map(row => row.name).join(', '), icon: 'tabler-sitemap' },
+    { key: 'supervisor', label: translate('common.fields.supervisor'), value: staff.supervisor_name, icon: 'tabler-user-star' },
+    { key: 'join-date', label: translate('common.messages.joinDate'), value: staff.join_date, icon: 'tabler-calendar-event' },
+    { key: 'salary', label: translate('common.messages.salary'), value: formatSalary(staff), icon: 'tabler-cash' },
+    { key: 'education', label: translate('common.messages.educationLevel'), value: staff.education_lvl, icon: 'tabler-school' },
+    { key: 'address', label: translate('common.fields.address'), value: staff.addr, icon: 'tabler-map-pin' },
+    { key: 'bank', label: translate('common.ui.bankAccountNumber'), value: staff.bank_account_number, icon: 'tabler-building-bank' },
+    { key: 'guarantor', label: translate('common.messages.guarantorName'), value: staff.guarantor_name, icon: 'tabler-shield-check' },
+    { key: 'guarantor-phone', label: translate('common.messages.guarantorPhone'), value: staff.guarantor_phone, icon: 'tabler-phone-call' },
+  ]
+})
+
+const staffCommissionSummary = computed(() => (staffDetails.value?.service_commissions ?? [])
+  .filter(row => Number(row.percentage) > 0)
+  .map(row => `${row.service}: ${row.percentage}%`)
+  .join(' · '))
+
 const fetchEmployees = async () => {
   try {
     isLoading.value = true;
@@ -966,9 +818,25 @@ const reloadStaff = () => {
   void fetchEmployees();
 };
 
-// Re-query the backend whenever the management status filter changes so the
-// default (active) view never receives inactive employees in the first place.
-watch(statusFilter, reloadStaff);
+const hasActiveFilters = computed(() => Boolean(
+  filterPosition.value || statusFilter.value !== 'active',
+))
+
+const syncFilterDraft = () => {
+  filterDraft.position = filterPosition.value
+  filterDraft.status = statusFilter.value
+}
+
+const applyStaffFilters = () => {
+  filterPosition.value = filterDraft.position
+  statusFilter.value = filterDraft.status
+  reloadStaff()
+}
+
+watch(filterMenuOpen, open => {
+  if (open)
+    syncFilterDraft()
+})
 
 const fetchUserAccounts = async () => {
   try {
@@ -1094,7 +962,7 @@ const addStaff = async () => {
           response.data.data.position_id.toString(),
       });
     }
-    isAddStaffDialogVisible.value = false;
+    finishStaffForm('add');
   } catch (error) {
     console.error("Error creating employee:", error);
     applyStaffApiErrors(error);
@@ -1159,7 +1027,7 @@ const updateStaff = async () => {
         };
       }
     }
-    isEditStaffDialogVisible.value = false;
+    finishStaffForm('edit');
   } catch (error) {
     console.error("Error updating employee:", error);
     applyStaffApiErrors(error);
@@ -1192,17 +1060,22 @@ const applyStaffApiErrors = (error: unknown) => {
 };
 
 const deleteStaff = async () => {
-  if (!selectedStaff.value) return;
+  const staff = pendingStaffAction.value?.staff
+  if (!staff) return;
 
   try {
     isLoading.value = true;
-    await EmployeeApi.delete(selectedStaff.value.id);
+    await EmployeeApi.delete(staff.id);
     staffList.value = staffList.value.filter(
-      (s) => s.id !== selectedStaff.value?.id,
+      (s) => s.id !== staff.id,
     );
-    isDeleteStaffDialogVisible.value = false;
+    total.value = Math.max(0, total.value - 1)
+    isStaffActionDialogVisible.value = false;
+    pendingStaffAction.value = null
+    toast.success(translate('pages.settings.staffList.staffList.deleteStaffRecord'))
   } catch (error) {
     console.error("Error deleting employee:", error);
+    toast.error(apiErrorMessage(error, translate('pages.settings.staffList.staffList.unableToSaveEmployee')))
   } finally {
     isLoading.value = false;
   }
@@ -1244,6 +1117,21 @@ const toggleStaffStatus = async (staff: Staff) => {
     isLoading.value = false;
   }
 };
+
+const confirmStaffAction = async () => {
+  const action = pendingStaffAction.value
+  if (!action)
+    return
+
+  if (action.type === 'delete') {
+    await deleteStaff()
+    return
+  }
+
+  await toggleStaffStatus(action.staff)
+  isStaffActionDialogVisible.value = false
+  pendingStaffAction.value = null
+}
 
 const staffFilterParams = (): EmployeeParams => ({
   status: statusFilter.value,
@@ -1301,89 +1189,36 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
-    <DataTablePageKpis
-      :items="staffList"
-      :title="$t('components.dataTablePageKpis.pages.staffDirectory.title')"
-      :description="
-        $t('components.dataTablePageKpis.pages.staffDirectory.description')
-      "
-      icon="tabler-users"
-    />
-    <VCard class="mb-6">
+  <div class="erp-workspace staff-workspace">
+    <ErpPageHeader :title="$t('common.navigation.staffList')" section="hr" />
+    <VCard>
       <VCardText>
-        <VRow align="center">
-          <VCol cols="12" md="6">
-            <VTextField
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" md="6" lg="5">
+            <ErpSearchField
               v-model="searchQuery"
-              class="data-table-search"
-              prepend-inner-icon="tabler-search"
-              :placeholder="
-                $t('pages.settings.staffList.staffList.searchStaff')
-              "
-              density="compact"
-              clearable
-              hide-details
-              @update:model-value="debouncedStaffSearch"
+              :placeholder="$t('pages.settings.staffList.staffList.searchStaff')"
+              @input="debouncedStaffSearch"
             />
           </VCol>
-
-          <VCol cols="12" md="6" class="d-flex gap-2 justify-end">
-            <DataTableFilterMenu
-              :active="Boolean(filterPosition) || statusFilter !== 'active'"
-              @reset="resetStaffFilters"
-            >
-              <VSelect
-                v-model="filterPosition"
-                :items="positionOptions"
-                :label="
-                  $t('pages.settings.staffList.staffList.filterByPosition')
-                "
-                density="compact"
-                clearable
-                hide-details
-                :loading="isPositionsLoading"
-                @update:model-value="reloadStaff"
-              />
-              <VSelect
-                v-model="statusFilter"
-                :items="statusFilterOptions"
-                :label="$t('common.fields.status')"
-                density="compact"
-                hide-details
-              />
+          <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+            <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" :show-reset="false">
+              <ErpField v-model="filterDraft.position" kind="select" :items="positionOptions" :label="$t('pages.settings.staffList.staffList.filterByPosition')" placeholder="All positions" clearable :loading="isPositionsLoading" />
+              <ErpField v-model="filterDraft.status" kind="select" :items="statusFilterOptions" :label="$t('common.fields.status')" />
+              <template #actions>
+                <VBtn class="staff-filter-reset" variant="flat" @click="resetStaffFilters">{{ $t('common.messages.reset') }}</VBtn>
+                <VBtn color="primary" variant="flat" class="staff-filter-apply" @click="applyStaffFilters">{{ $t('educational.apply') }}</VBtn>
+              </template>
             </DataTableFilterMenu>
-            <VBtn icon="tabler-printer" variant="text" @click="printTable">
-              <VIcon icon="tabler-printer" /><VTooltip
-                activator="parent"
-                location="top"
-              >
-                {{ $t("pages.settings.staffList.staffList.printStaffRecords") }}
-              </VTooltip>
-            </VBtn>
-            <VBtn color="primary" @click="openAddStaffDialog">
-              <VIcon icon="tabler-plus" class="me-1" />
-              {{ $t("pages.settings.staffList.staffList.addStaff") }}
-            </VBtn>
+            <VBtn icon="tabler-printer" color="primary" variant="text" :aria-label="$t('common.actions.print')" @click="printTable" />
+            <VBtn color="primary" :disabled="isLoading" @click="openAddStaffDialog"><VIcon icon="tabler-plus" class="me-1" />{{ $t('pages.settings.staffList.staffList.addStaff') }}</VBtn>
           </VCol>
         </VRow>
       </VCardText>
     </VCard>
 
-    <VCard>
-      <div class="table-container">
-        <TableLoadingSkeleton
-          v-if="isLoading"
-          :columns="staffHeaders.length"
-          :label="$t('common.messages.loading')"
-        />
-        <TableEmptyState
-          v-else-if="!staffList.length"
-          icon="tabler-user-off"
-          :description="$t('educational.noStaff')"
-        />
-        <ResponsiveDataTableServer
-          v-else
+    <VCard class="staff-list-table-card mt-4">
+      <ResponsiveDataTableServer
           :items="staffList"
           :items-length="total"
           :page="page"
@@ -1391,8 +1226,20 @@ onMounted(async () => {
           :items-per-page-options="[10, 25, 50, 100]"
           :headers="staffHeaders"
           item-value="id"
-          class="text-no-wrap staff-table"
+          class="staff-responsive-table"
           mobile-breakpoint="sm"
+          mobile-cards
+          mobile-expand-all
+          mobile-actions-as-menu
+          mobile-title-key="name"
+          mobile-action-key="actions"
+          :mobile-fields="['position', 'contact', 'status']"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
+          :skeleton-rows="5"
+          :show-scroll-affordance="false"
+          :loading="isLoading"
+          pagination
           density="comfortable"
           @update:options="updateTableOptions"
         >
@@ -1462,137 +1309,33 @@ onMounted(async () => {
           </template>
 
           <template #item.actions="{ item }">
-            <div class="d-flex gap-1">
-              <FullDetailsButton
-                :item="item"
-                :fields="staffDetailFields"
-                :title="item.name"
-              />
-              <VBtn
-                icon="tabler-paperclip"
-                variant="text"
-                size="small"
-                :aria-label="$t('common.attachments.title')"
-                @click="openAttachments(item)"
-              >
-                <VIcon icon="tabler-paperclip" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("common.attachments.title") }}
-                </VTooltip>
+            <div class="d-flex align-center ga-1 justify-end">
+              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" :aria-label="$t('common.ui.printEmploymentContract')" @click="printEmployeeContract(item)">
+                <VTooltip activator="parent" location="top">{{ $t('common.ui.printEmploymentContract') }}</VTooltip>
               </VBtn>
-              <VBtn
-                icon="tabler-file-description"
-                variant="text"
-                size="small"
-                color="primary"
-                :aria-label="$t('common.ui.printEmploymentContract')"
-                @click="printEmployeeContract(item)"
-              >
-                <VIcon icon="tabler-file-description" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("common.ui.printEmploymentContract") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon="tabler-calendar-time"
-                variant="text"
-                size="small"
-                color="primary"
-                :aria-label="
-                  $t('pages.settings.staffList.staffList.managePaidOffDays')
-                "
-                @click="openLeaveDialog(item)"
-              >
-                <VIcon icon="tabler-calendar-time" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{
-                    $t("pages.settings.staffList.staffList.managePaidOffDays")
-                  }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                v-if="canEditStaff(item)"
-                icon="tabler-edit"
-                variant="text"
-                size="small"
-                color="medium-emphasis"
-                :aria-label="
-                  $t('pages.settings.staffList.staffList.editStaffRecord')
-                "
-                @click="openEditStaffDialog(item)"
-              >
-                <VIcon icon="tabler-edit" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("pages.settings.staffList.staffList.editStaffRecord") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon
-                variant="text"
-                size="small"
-                :color="
-                  (item.status ?? 'active') === 'active' ? 'error' : 'success'
-                "
-                :aria-label="
-                  (item.status ?? 'active') === 'active'
-                    ? $t(
-                        'pages.settings.staffList.staffList.deactivateStaffRecord',
-                      )
-                    : $t(
-                        'pages.settings.staffList.staffList.activateStaffRecord',
-                      )
-                "
-                @click="toggleStaffStatus(item)"
-              >
-                <VIcon
-                  :icon="
-                    (item.status ?? 'active') === 'active'
-                      ? 'tabler-user-cancel'
-                      : 'tabler-user-check'
-                  "
-                /><VTooltip activator="parent" location="top">
-                  {{
-                    (item.status ?? "active") === "active"
-                      ? $t(
-                          "pages.settings.staffList.staffList.deactivateStaffRecord",
-                        )
-                      : $t(
-                          "pages.settings.staffList.staffList.activateStaffRecord",
-                        )
-                  }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon="tabler-trash"
-                variant="text"
-                size="small"
-                color="error"
-                :aria-label="
-                  $t('pages.settings.staffList.staffList.deleteStaffRecord')
-                "
-                @click="openDeleteStaffDialog(item)"
-              >
-                <VIcon icon="tabler-trash" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{
-                    $t("pages.settings.staffList.staffList.deleteStaffRecord")
-                  }}
-                </VTooltip>
-              </VBtn>
+              <VMenu location="bottom end">
+                <template #activator="{ props: menuProps }">
+                  <VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" class="staff-actions-trigger" :aria-label="$t('common.messages.actions')" />
+                </template>
+                <VList class="staff-actions-menu" density="compact" min-width="230">
+                  <VListItem prepend-icon="tabler-address-book" :title="$t('common.actions.viewFullDetails')" @click="openStaffDetails(item)" />
+                  <VListItem prepend-icon="tabler-calendar-time" :title="$t('pages.settings.staffList.staffList.managePaidOffDays')" @click="openLeaveDialog(item)" />
+                  <VListItem prepend-icon="tabler-paperclip" :title="$t('common.attachments.title')" @click="openAttachments(item)" />
+                  <VDivider class="my-1" />
+                  <VListItem v-if="canEditStaff(item)" prepend-icon="tabler-edit" :title="$t('pages.settings.staffList.staffList.editStaffRecord')" @click="openEditStaffDialog(item)" />
+                  <VListItem :prepend-icon="(item.status ?? 'active') === 'active' ? 'tabler-user-cancel' : 'tabler-user-check'" :title="$t((item.status ?? 'active') === 'active' ? 'pages.settings.staffList.staffList.deactivateStaffRecord' : 'pages.settings.staffList.staffList.activateStaffRecord')" @click="requestStaffAction(item, 'status')" />
+                  <VListItem prepend-icon="tabler-trash" class="staff-actions-menu__delete" :title="$t('pages.settings.staffList.staffList.deleteStaffRecord')" @click="requestStaffAction(item, 'delete')" />
+                </VList>
+              </VMenu>
+            </div>
+          </template>
+          <template #no-data>
+            <div class="staff-empty-state">
+              <TableEmptyState icon="tabler-user-off" :title="$t('common.navigation.staffList')" :description="$t('educational.noStaff')" :min-height="0" />
+              <VBtn color="primary" variant="tonal" class="staff-empty-state__action" @click="openAddStaffDialog"><VIcon icon="tabler-plus" class="me-1" />{{ $t('pages.settings.staffList.staffList.addStaff') }}</VBtn>
             </div>
           </template>
         </ResponsiveDataTableServer>
-      </div>
     </VCard>
 
     <PrintableListReport
@@ -1602,8 +1345,150 @@ onMounted(async () => {
       :rows="reportRows"
     />
 
+    <VDialog
+      :model-value="isAddStaffDialogVisible"
+      :persistent="isLoading"
+      max-width="980"
+      content-class="staff-form-dialog"
+      scroll-strategy="block"
+      @update:model-value="updateStaffDialog('add', $event)"
+    >
+      <VCard v-if="selectedStaff" class="staff-form-card staff-form-card--wizard">
+        <VCardTitle class="staff-dialog-title px-5 py-5">
+          <span class="text-h5 staff-dialog-heading staff-dialog-heading--primary">{{ $t('pages.settings.staffList.staffList.addNewStaff') }}</span>
+          <VSpacer />
+          <VBtn icon="tabler-x" variant="tonal" color="error" class="staff-dialog-close" :aria-label="$t('common.actions.close')" :disabled="isLoading" @click="requestStaffFormClose('add')" />
+        </VCardTitle>
+        <div class="staff-wizard-progress" role="list" aria-label="Staff profile steps">
+          <button v-for="step in staffWizardSteps" :key="step.number" type="button" class="staff-wizard-progress__step" :class="{ 'staff-wizard-progress__step--active': staffWizardStep === step.number, 'staff-wizard-progress__step--complete': staffWizardStep > step.number }" :disabled="step.number > staffWizardStep || isLoading" :aria-current="staffWizardStep === step.number ? 'step' : undefined" @click="step.number < staffWizardStep && (staffWizardStep = step.number)">
+            <span class="staff-wizard-progress__indicator"><VIcon v-if="staffWizardStep > step.number" icon="tabler-check" size="15" /><span v-else>{{ step.number }}</span></span>
+            <span class="staff-wizard-progress__label">{{ step.title }}</span>
+          </button>
+        </div>
+        <VForm class="app-form staff-form-wizard" @submit.prevent="submitStaffWizard('add')">
+          <VCardText class="staff-dialog-body pa-5 pa-sm-6">
+            <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">{{ formSubmissionError }}</VAlert>
+            <Transition name="staff-wizard-step" mode="out-in">
+              <StaffFormFields
+                :key="staffWizardStep"
+                v-model="selectedStaff"
+                :step="staffWizardStep"
+                :errors="formErrors"
+                :education-options="educationOptions"
+                :position-options="positionOptions"
+                :offices="offices"
+                :departments="departments"
+                :supervisors="supervisorOptions"
+                :accounts="userAccounts"
+                :is-positions-loading="isPositionsLoading"
+                :is-accounts-loading="isUserAccountsLoading"
+                :can-assign-supervisor="canAssignSupervisor"
+                :commission-options="commissionServiceOptions"
+                :commission-rate="commissionRate"
+                @position-change="applyPositionSalary"
+                @account-change="updateSelectedAccountEmail"
+                @departments-change="syncPrimaryDepartment"
+                @supervisor-change="requestSupervisorChange"
+                @commission-enabled="setCommissionEnabled"
+                @commission-rate-change="(service, value) => setCommissionRate(service, value)"
+              />
+            </Transition>
+          </VCardText>
+          <VCardActions class="staff-dialog-actions staff-wizard-footer px-5 py-4">
+            <VBtn v-if="staffWizardStep === 1" variant="flat" color="error" class="staff-dialog-cancel" :disabled="isLoading" @click="requestStaffFormClose('add')">{{ $t('common.actions.cancel') }}</VBtn>
+            <VBtn v-else variant="tonal" color="secondary" prepend-icon="tabler-arrow-left" :disabled="isLoading" @click="staffWizardStep = (staffWizardStep - 1) as 1 | 2 | 3">{{ $t('pages.contracts.visitor.visitor.wizard.back') }}</VBtn>
+            <VSpacer />
+            <VBtn v-if="staffWizardStep < 3" type="submit" color="primary" variant="flat" class="staff-dialog-submit" append-icon="tabler-arrow-right" :disabled="isLoading">{{ $t('pages.contracts.visitor.visitor.wizard.next') }}</VBtn>
+            <VBtn v-else type="submit" color="primary" variant="flat" class="staff-dialog-submit" prepend-icon="tabler-check" :loading="isLoading" :disabled="isLoading">{{ $t('common.actions.add') }}</VBtn>
+          </VCardActions>
+        </VForm>
+      </VCard>
+    </VDialog>
+
+    <VDialog
+      :model-value="isEditStaffDialogVisible"
+      :persistent="isLoading"
+      max-width="980"
+      content-class="staff-form-dialog"
+      scroll-strategy="block"
+      @update:model-value="updateStaffDialog('edit', $event)"
+    >
+      <VCard v-if="selectedStaff" class="staff-form-card staff-form-card--wizard">
+        <VCardTitle class="staff-dialog-title px-5 py-5">
+          <span class="text-h5 staff-dialog-heading">{{ $t('pages.settings.staffList.staffList.editStaff') }}</span>
+          <VSpacer />
+          <VBtn icon="tabler-x" variant="tonal" color="error" class="staff-dialog-close" :aria-label="$t('common.actions.close')" :disabled="isLoading" @click="requestStaffFormClose('edit')" />
+        </VCardTitle>
+        <div class="staff-wizard-progress" role="list" aria-label="Staff profile steps">
+          <button v-for="step in staffWizardSteps" :key="step.number" type="button" class="staff-wizard-progress__step" :class="{ 'staff-wizard-progress__step--active': staffWizardStep === step.number, 'staff-wizard-progress__step--complete': staffWizardStep > step.number }" :disabled="step.number > staffWizardStep || isLoading" :aria-current="staffWizardStep === step.number ? 'step' : undefined" @click="step.number < staffWizardStep && (staffWizardStep = step.number)">
+            <span class="staff-wizard-progress__indicator"><VIcon v-if="staffWizardStep > step.number" icon="tabler-check" size="15" /><span v-else>{{ step.number }}</span></span>
+            <span class="staff-wizard-progress__label">{{ step.title }}</span>
+          </button>
+        </div>
+        <VForm class="app-form staff-form-wizard" @submit.prevent="submitStaffWizard('edit')">
+          <VCardText class="staff-dialog-body pa-5 pa-sm-6">
+            <VAlert v-if="formSubmissionError" type="error" variant="tonal" class="mb-4">{{ formSubmissionError }}</VAlert>
+            <Transition name="staff-wizard-step" mode="out-in">
+              <StaffFormFields
+                :key="staffWizardStep"
+                v-model="selectedStaff"
+                :step="staffWizardStep"
+                :errors="formErrors"
+                :education-options="educationOptions"
+                :position-options="positionOptions"
+                :offices="offices"
+                :departments="departments"
+                :supervisors="supervisorOptions"
+                :accounts="userAccounts"
+                :is-positions-loading="isPositionsLoading"
+                :is-accounts-loading="isUserAccountsLoading"
+                :can-assign-supervisor="canAssignSupervisor"
+                :commission-options="commissionServiceOptions"
+                :commission-rate="commissionRate"
+                @position-change="applyPositionSalary"
+                @account-change="updateSelectedAccountEmail"
+                @departments-change="syncPrimaryDepartment"
+                @supervisor-change="requestSupervisorChange"
+                @commission-enabled="setCommissionEnabled"
+                @commission-rate-change="(service, value) => setCommissionRate(service, value)"
+              />
+            </Transition>
+          </VCardText>
+          <VCardActions class="staff-dialog-actions staff-wizard-footer px-5 py-4">
+            <VBtn v-if="staffWizardStep === 1" variant="flat" color="error" class="staff-dialog-cancel" :disabled="isLoading" @click="requestStaffFormClose('edit')">{{ $t('common.actions.cancel') }}</VBtn>
+            <VBtn v-else variant="tonal" color="secondary" prepend-icon="tabler-arrow-left" :disabled="isLoading" @click="staffWizardStep = (staffWizardStep - 1) as 1 | 2 | 3">{{ $t('pages.contracts.visitor.visitor.wizard.back') }}</VBtn>
+            <VSpacer />
+            <VBtn v-if="staffWizardStep < 3" type="submit" color="primary" variant="flat" class="staff-dialog-submit" append-icon="tabler-arrow-right" :disabled="isLoading">{{ $t('pages.contracts.visitor.visitor.wizard.next') }}</VBtn>
+            <VBtn v-else type="submit" color="primary" variant="flat" class="staff-dialog-submit" prepend-icon="tabler-check" :loading="isLoading" :disabled="isLoading">{{ $t('common.actions.save') }}</VBtn>
+          </VCardActions>
+        </VForm>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="isStaffDetailsDialogVisible" max-width="1040" content-class="staff-form-dialog staff-details-dialog" scrollable>
+      <VCard class="staff-form-card">
+        <VCardTitle class="staff-dialog-title px-5 py-5"><div><div class="staff-details-dialog__eyebrow">{{ $t('common.actions.viewFullDetails') }}</div><div class="staff-dialog-heading">{{ staffDetails?.name }}</div></div><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="staff-dialog-close" :aria-label="$t('common.actions.close')" @click="isStaffDetailsDialogVisible = false" /></VCardTitle>
+        <VCardText class="staff-dialog-body staff-details-dialog__body pa-5 pa-sm-6">
+          <div v-if="isStaffDetailsLoading" class="staff-details-skeleton" aria-busy="true">
+            <div class="staff-details-skeleton__summary"><VSkeletonLoader type="avatar" /><div><VSkeletonLoader type="heading" class="mb-2" /><VSkeletonLoader type="text" /></div></div>
+            <div class="staff-details-grid"><VSkeletonLoader v-for="index in 10" :key="index" type="list-item-two-line" class="staff-detail-tile staff-detail-tile--skeleton" /></div>
+          </div>
+          <template v-else>
+            <div class="staff-details-summary mb-5"><VAvatar size="56" :image="staffDetails?.avatar || undefined" color="primary" variant="tonal">{{ staffDetails ? avatarText(staffDetails.name) : '' }}</VAvatar><div><div class="text-h6 font-weight-bold">{{ staffDetails?.position || '—' }}</div><div class="text-body-2 text-medium-emphasis">{{ staffDetails?.office?.name || $t('common.fields.office') }} · {{ staffDetails?.status === 'inactive' ? $t('common.statuses.inactive') : $t('common.statuses.active') }}</div></div></div>
+            <div class="staff-details-grid"><div v-for="field in staffDetailTiles" :key="field.key" class="staff-detail-tile"><VIcon :icon="field.icon" size="19" class="staff-detail-tile__icon" /><div class="staff-detail-tile__content"><span class="staff-detail-tile__label">{{ field.label }}</span><div v-if="field.key === 'contact' && staffDetails?.contact" dir="ltr" class="staff-contact-value"><ContactActionMenu kind="phone" :value="staffDetails.contact" audience="employee" :context="staffDetails" /></div><div v-else-if="field.key === 'email' && staffDetails?.email" dir="ltr" class="staff-contact-value"><ContactActionMenu kind="email" :value="staffDetails.email" :context="staffDetails" /></div><span v-else class="staff-detail-tile__value">{{ field.value || '—' }}</span></div></div><div v-if="staffCommissionSummary" class="staff-detail-tile staff-detail-tile--wide"><VIcon icon="tabler-percentage" size="19" class="staff-detail-tile__icon" /><div class="staff-detail-tile__content"><span class="staff-detail-tile__label">{{ $t('pages.settings.staffList.staffList.commissionPerService') }}</span><span class="staff-detail-tile__value">{{ staffCommissionSummary }}</span></div></div></div>
+          </template>
+        </VCardText>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="isStaffActionDialogVisible" max-width="480" class="staff-action-overlay">
+      <VCard class="staff-action-dialog"><VCardText class="staff-action-dialog__content"><div class="staff-action-dialog__icon" :class="{ 'staff-action-dialog__icon--danger': pendingStaffAction?.type === 'delete' || pendingStaffAction?.staff.status === 'active' }"><VIcon :icon="pendingStaffAction?.type === 'delete' ? 'tabler-trash' : pendingStaffAction?.staff.status === 'active' ? 'tabler-user-cancel' : 'tabler-user-check'" size="30" /></div><h2 class="staff-action-dialog__title">{{ pendingStaffAction?.type === 'delete' ? $t('common.messages.confirmDelete') : $t(pendingStaffAction?.staff.status === 'active' ? 'pages.settings.staffList.staffList.deactivateStaffRecord' : 'pages.settings.staffList.staffList.activateStaffRecord') }}</h2><p class="staff-action-dialog__description">{{ pendingStaffAction?.type === 'delete' ? $t('common.confirmations.areYouSureYouWantToDeleteThisStaffRecord') : pendingStaffAction?.staff.status === 'active' ? `${pendingStaffAction?.staff.name} will be removed from active staff lists and cannot receive new work until reactivated.` : `${pendingStaffAction?.staff.name} will return to active staff lists and can be assigned work again.` }}</p></VCardText><VCardActions class="staff-action-dialog__actions"><VBtn class="staff-action-dialog__button staff-action-dialog__button--cancel" :disabled="isLoading" @click="isStaffActionDialogVisible = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn class="staff-action-dialog__button" :class="{ 'staff-action-dialog__button--delete': pendingStaffAction?.type === 'delete', 'staff-action-dialog__button--destructive': pendingStaffAction?.type === 'status' && pendingStaffAction?.staff.status === 'active' }" :loading="isLoading" @click="confirmStaffAction">{{ pendingStaffAction?.type === 'delete' ? $t('common.actions.delete') : $t('common.actions.confirm') }}</VBtn></VCardActions></VCard>
+    </VDialog>
+
+    <EmployeePaidTimeOffDialog v-model="isLeaveDialogVisible" :employee="leaveStaff" />
+
     <!-- Add Staff Dialog -->
-    <VDialog v-model="isAddStaffDialogVisible" max-width="1100px" scrollable>
+    <VDialog v-if="false" v-model="isAddStaffDialogVisible" max-width="1100px" scrollable>
       <VCard v-if="selectedStaff">
         <VCardTitle class="pa-5">
           <span class="headline">{{
@@ -1953,7 +1838,7 @@ onMounted(async () => {
     </VDialog>
 
     <!-- Edit Staff Dialog -->
-    <VDialog v-model="isEditStaffDialogVisible" max-width="1100px" scrollable>
+    <VDialog v-if="false" v-model="isEditStaffDialogVisible" max-width="1100px" scrollable>
       <VCard v-if="selectedStaff">
         <VCardTitle class="pa-5">
           <span class="headline">{{
@@ -2305,6 +2190,7 @@ onMounted(async () => {
     </VDialog>
 
     <VDialog
+      v-if="false"
       v-model="isLeaveDialogVisible"
       max-width="900px"
       scrollable
@@ -2605,37 +2491,25 @@ onMounted(async () => {
     <!-- Position / salary confirmation: a position change never rewrites pay silently. -->
     <VDialog
       v-model="isPositionSalaryDialogVisible"
-      max-width="520px"
+      max-width="480"
+      class="staff-action-overlay"
       @update:model-value="handlePositionSalaryDialog"
     >
-      <VCard>
-        <VCardTitle class="pa-5">
-          <span class="headline">{{
-            $t("pages.settings.staffList.staffList.positionSalaryTitle")
-          }}</span>
-        </VCardTitle>
-        <VCardText>
-          {{
-            $t("pages.settings.staffList.staffList.positionSalaryConfirm", {
-              position: pendingPosition,
-              salary: formatSalaryValue(pendingPositionSalary),
-            })
-          }}
+      <VCard class="staff-action-dialog">
+        <VCardText class="staff-action-dialog__content">
+          <div class="staff-action-dialog__icon staff-action-dialog__icon--warning"><VIcon icon="tabler-cash" size="30" /></div>
+          <h2 class="staff-action-dialog__title">{{ $t("pages.settings.staffList.staffList.positionSalaryTitle") }}</h2>
+          <p class="staff-action-dialog__description">{{ $t("pages.settings.staffList.staffList.positionSalaryConfirm", { position: pendingPosition, salary: formatSalaryValue(pendingPositionSalary) }) }}</p>
         </VCardText>
-        <VCardActions class="pa-5">
-          <VSpacer />
-          <VBtn variant="tonal" @click="cancelPositionSalary">
-            {{ $t("common.actions.cancel") }}
-          </VBtn>
-          <VBtn color="primary" @click="confirmPositionSalary">
-            {{ $t("common.actions.confirm") }}
-          </VBtn>
+        <VCardActions class="staff-action-dialog__actions">
+          <VBtn class="staff-action-dialog__button staff-action-dialog__button--cancel" @click="cancelPositionSalary">{{ $t("common.actions.cancel") }}</VBtn>
+          <VBtn class="staff-action-dialog__button" @click="confirmPositionSalary">{{ $t("common.actions.confirm") }}</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
     <!-- Delete Staff Dialog -->
-    <VDialog v-model="isDeleteStaffDialogVisible" max-width="500px">
+    <VDialog v-if="false" v-model="isDeleteStaffDialogVisible" max-width="500px">
       <VCard>
         <VCardTitle class="pa-5">
           <span class="headline">{{
@@ -2724,33 +2598,108 @@ onMounted(async () => {
 }
 </style>
 
-<style scoped>
-.staff-table :deep(tbody td) {
-  padding-block: 0.875rem;
-}
+<style lang="scss">
+.staff-responsive-table tbody td { padding-block: .875rem; }
+.staff-empty-state { display: grid; justify-items: center; padding-block: 1.25rem 2rem; }
+.staff-empty-state__action { margin-block-start: -.25rem; }
+.staff-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
 
-.table-container {
-  overflow-x: auto;
-  scrollbar-width: none;
+.staff-form-dialog .staff-form-card { overflow: hidden; }
+.staff-form-dialog .staff-form-card--wizard { max-block-size: calc(100vh - 32px); }
+.staff-form-dialog .staff-dialog-title,
+.staff-form-dialog .staff-dialog-actions {
+  display: flex;
+  align-items: center;
+  border-color: rgba(var(--v-theme-on-surface), .035);
+  border-style: solid;
+  border-width: 0;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
 }
-
-.table-container::-webkit-scrollbar,
-.staff-table :deep(.v-data-table__wrapper::-webkit-scrollbar) {
-  display: none;
+.staff-form-dialog .staff-dialog-title { border-block-end-width: 1px; }
+.staff-form-dialog .staff-dialog-actions { border-block-start-width: 1px; }
+.staff-form-dialog .staff-dialog-heading { font-size: 1.625rem; font-weight: 700; }
+.staff-form-dialog .staff-dialog-heading--primary { font-size: 2rem; }
+.staff-form-dialog .staff-dialog-body { background-color: rgb(var(--v-theme-surface)); }
+.staff-form-dialog .staff-dialog-close {
+  inline-size: 36px;
+  block-size: 36px;
+  border: 1px solid rgba(var(--v-theme-error), .38);
+  border-radius: 50%;
+  color: rgb(var(--v-theme-error));
 }
-
-.staff-table :deep(.v-data-table__wrapper) {
-  overflow-x: auto;
-  scrollbar-width: none;
+.staff-form-dialog .staff-dialog-close:hover { background: rgba(var(--v-theme-error), .18) !important; }
+.staff-form-dialog button.staff-dialog-cancel.v-btn {
+  border: 1px solid rgba(var(--v-theme-error), .62) !important;
+  background: rgba(var(--v-theme-error), .12) !important;
+  color: rgb(var(--v-theme-error)) !important;
 }
-
-.staff-table :deep(.v-data-table__wrapper > table) {
-  min-inline-size: 1180px;
+.staff-form-dialog button.staff-dialog-cancel.v-btn:hover,
+.staff-form-dialog button.staff-dialog-cancel.v-btn:focus-visible {
+  border-color: rgb(var(--v-theme-error));
+  background: rgb(var(--v-theme-error)) !important;
+  color: rgb(var(--v-theme-on-error)) !important;
 }
+.staff-form-dialog .staff-dialog-submit { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.staff-form-dialog .staff-dialog-submit:hover { filter: brightness(.9); }
+.v-overlay:has(.staff-form-dialog) .v-overlay__scrim,
+.staff-action-overlay .v-overlay__scrim { background: rgba(var(--v-theme-on-surface), .28) !important; backdrop-filter: blur(5px); opacity: 1 !important; }
 
-@media (max-width: 599px) {
-  .staff-table :deep(.v-data-table__wrapper > table) {
-    min-inline-size: 980px;
-  }
+.staff-form-wizard .staff-dialog-body { max-block-size: calc(100vh - 200px); overflow: auto; scrollbar-width: none; }
+.staff-form-wizard .staff-dialog-body::-webkit-scrollbar { display: none; }
+.staff-wizard-progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 14px 20px; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .06); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-primary)) 4%); }
+.staff-wizard-progress__step { position: relative; display: flex; align-items: center; gap: 8px; min-inline-size: 0; padding: 4px; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); cursor: default; font: inherit; text-align: start; }
+.staff-wizard-progress__step:not(:last-child)::after { position: absolute; inset-inline-start: calc(100% - 4px); inline-size: 8px; block-size: 1px; background: rgba(var(--v-theme-on-surface), .14); content: ''; }
+.staff-wizard-progress__step--complete { cursor: pointer; }
+.staff-wizard-progress__step:disabled { opacity: 1; }
+.staff-wizard-progress__indicator { display: grid; flex: 0 0 auto; inline-size: 25px; block-size: 25px; border: 1px solid rgba(var(--v-theme-on-surface), .18); border-radius: 50%; place-items: center; font-size: .75rem; font-weight: 700; }
+.staff-wizard-progress__label { overflow: hidden; font-size: .8rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.staff-wizard-progress__step--active { color: rgb(var(--v-theme-primary)); }
+.staff-wizard-progress__step--active .staff-wizard-progress__indicator { border-color: rgba(var(--v-theme-primary), .3); background: rgba(var(--v-theme-primary), .12); }
+.staff-wizard-progress__step--complete .staff-wizard-progress__indicator { border-color: transparent; background: rgba(var(--v-theme-on-surface), .08); }
+.staff-form-wizard .staff-profile-fields { --v-gutter-x: 16px; --v-gutter-y: 16px; }
+.staff-wizard-step-enter-active, .staff-wizard-step-leave-active { transition: opacity .2s ease, transform .2s ease; }
+.staff-wizard-step-enter-from { opacity: 0; transform: translateY(8px); }
+.staff-wizard-step-leave-to { opacity: 0; transform: translateY(-6px); }
+
+.staff-details-dialog__eyebrow { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.staff-details-summary { display: flex; align-items: center; gap: 1rem; }
+.staff-details-skeleton { display: grid; gap: 1.25rem; }
+.staff-details-skeleton__summary { display: flex; align-items: center; gap: 1rem; }
+.staff-details-skeleton__summary > div { flex: 1; max-inline-size: 15rem; }
+.staff-detail-tile--skeleton { display: block; min-block-size: 5.25rem; }
+.staff-detail-tile--skeleton .v-skeleton-loader__bone { margin: 0; }
+.staff-details-grid { display: grid; gap: .875rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.staff-detail-tile { display: flex; align-items: flex-start; gap: .75rem; min-block-size: 5.25rem; padding: 1rem; border: 1px solid rgba(var(--v-border-color), .42); border-radius: 12px; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); }
+.staff-detail-tile--wide { grid-column: 1 / -1; }
+.staff-detail-tile__icon { flex: none; margin-block-start: .15rem; color: rgb(var(--v-theme-primary)); }
+.staff-detail-tile__content { display: grid; gap: .25rem; min-inline-size: 0; }
+.staff-detail-tile__label { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 600; }
+.staff-detail-tile__value { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: .9375rem; font-weight: 600; line-height: 1.45; }
+
+.staff-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, .18) !important; text-align: center; }
+.staff-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
+.staff-action-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; place-items: center; background: rgba(var(--v-theme-primary), .14); color: rgb(var(--v-theme-primary)); }
+.staff-action-dialog__icon--danger { background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); }
+.staff-action-dialog__icon--warning { background: rgba(var(--v-theme-warning), .16); color: rgb(var(--v-theme-warning)); }
+.staff-action-dialog__title { margin: 0; font-size: 1.2rem; font-weight: 700; line-height: 1.45; }
+.staff-action-dialog__description { max-inline-size: 24rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.65; }
+.staff-action-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }
+.staff-action-dialog__button { min-block-size: 2.85rem; border-radius: 10px !important; background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; font-weight: 700; }
+.staff-action-dialog__button--cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.staff-action-dialog__button--delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.staff-action-dialog__button--destructive { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+
+@media (max-width: 959px) {
+  .staff-responsive-table .v-table__wrapper { overflow: clip; }
+  .staff-responsive-table .v-table__wrapper > table { inline-size: 100%; min-inline-size: 0; table-layout: fixed; }
+  .staff-responsive-table.responsive-data-table--mobile-cards .responsive-data-table__mobile-row > td { padding: .75rem; }
+}
+@media (max-width: 600px) {
+  .staff-details-grid { grid-template-columns: 1fr; }
+  .staff-detail-tile--wide { grid-column: auto; }
+  .staff-action-dialog__content, .staff-action-dialog__actions { padding-inline: 1.25rem !important; }
+  .staff-form-dialog .staff-dialog-title, .staff-form-dialog .staff-dialog-body { padding: 16px !important; }
+  .staff-form-dialog .staff-dialog-actions { padding: 12px 16px !important; }
+  .staff-form-dialog .staff-dialog-heading--primary { font-size: 1.75rem; }
 }
 </style>

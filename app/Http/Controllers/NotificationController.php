@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\PaginatesLists;
 use App\Http\Resources\NotificationResource;
 use App\Models\Employee;
 use App\Models\Notification;
@@ -18,14 +19,32 @@ use Illuminate\Validation\ValidationException;
 
 class NotificationController extends Controller
 {
+    use PaginatesLists;
+
     public function index(Request $request): JsonResponse
     {
-        $notifications = $this->visibleTo($request)
-            ->when($request->filled('is_read'), fn (Builder $query) => $query->whereHas('recipients', fn (Builder $recipients) => $recipients
+        $visible = $this->visibleTo($request);
+        $unreadCount = (clone $visible)
+            ->whereHas('recipients', fn (Builder $recipients) => $recipients
+                ->whereKey($request->user()->id)
+                ->whereNull('notification_user.deleted_at')
+                ->where(fn (Builder $state) => $state
+                    ->whereNull('notification_user.is_read')
+                    ->orWhere('notification_user.is_read', false)))
+            ->count();
+        $query = $visible
+            ->when($request->has('is_read'), fn (Builder $query) => $query->whereHas('recipients', fn (Builder $recipients) => $recipients
                 ->whereKey($request->user()->id)
                 ->where('notification_user.is_read', $request->boolean('is_read'))
                 ->whereNull('notification_user.deleted_at')))
-            ->orderByDesc('date_time')
+            ->orderByDesc('date_time');
+
+        if ($this->requestedPerPage($request)) {
+            return response()->json(['success' => true, 'unread_count' => $unreadCount]
+                + $this->paginatedPayload($request, $query, fn ($rows) => NotificationResource::collection($rows)->resolve()));
+        }
+
+        $notifications = $query
             ->limit(min(max($request->integer('limit', 50), 1), 100))
             ->get();
 

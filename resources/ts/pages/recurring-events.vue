@@ -3,437 +3,78 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { canAccess } from '@/utils/authorization'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 import RecurringEventsApi, { type RecurringEvent, type RecurringEventInput, type RecurringEventType } from '@/api/recurringEvents'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import BoardApi from '@/api/board'
 import type { Board } from '@/api/kanban'
+import ErpField from '@/components/erp/ErpField.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 
-const loading = ref(false)
 const route = useRoute()
 const { t } = useI18n()
-const saving = ref(false)
-const catalogLoading = ref(false)
-const events = ref<RecurringEvent[]>([])
-// The table asks the server for one page at a time.
-const page = ref(1)
-const perPage = ref(25)
-const total = ref(0)
-const currencies = ref<Currency[]>([])
-const boards = ref<Board[]>([])
-const dialog = ref(false)
-const detailDialog = ref(false)
-const selected = ref<RecurringEvent | null>(null)
+const loading = ref(false); const saving = ref(false); const catalogLoading = ref(false)
+const events = ref<RecurringEvent[]>([]); const currencies = ref<Currency[]>([]); const boards = ref<Board[]>([])
+const page = ref(1); const perPage = ref(25); const total = ref(0)
+const dialog = ref(false); const detailDialog = ref(false); const selected = ref<RecurringEvent | null>(null)
 const today = new Date().toISOString().slice(0, 10)
-const form = ref<RecurringEventInput>({ name: '', description: '', event_type: 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: 0, quantity: 1 } })
 const types: RecurringEventType[] = ['income', 'expense', 'task']
-
-const visible = computed(() => events.value)
-const headers = computed(() => [{ title: t('pages.recurringEvents.name'), key: 'name' }, { title: t('pages.recurringEvents.type'), key: 'event_type' }, { title: t('pages.recurringEvents.schedule'), key: 'schedule' }, { title: t('pages.recurringEvents.nextOccurrence'), key: 'next_occurrence_date' }, { title: t('pages.recurringEvents.timeRemaining'), key: 'remaining' }, { title: t('common.fields.status'), key: 'status' }, { title: '', key: 'actions', sortable: false }])
+const form = ref<RecurringEventInput>({ name: '', description: '', event_type: 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: 0, quantity: 1 } })
+const headers = computed(() => [{ title: t('pages.recurringEvents.name'), key: 'name' }, { title: t('pages.recurringEvents.type'), key: 'event_type' }, { title: t('pages.recurringEvents.schedule'), key: 'schedule' }, { title: t('pages.recurringEvents.nextOccurrence'), key: 'next_occurrence_date' }, { title: t('pages.recurringEvents.timeRemaining'), key: 'remaining' }, { title: t('common.fields.status'), key: 'status' }, { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const }])
 const availableTypes = computed(() => types.filter(type => canAccess(`create_recurring_${type}s`)))
 const canViewBoards = computed(() => canAccess('view_all_boards') || canAccess('view_assigned_boards'))
-const incomeExpenseTypes = computed(() => ['Service', 'Product', 'Investment', 'Other'].map(value => ({ title: t(`pages.recurringEvents.recordTypes.${value.toLowerCase()}`), value })))
 const frequencyOptions = computed(() => ['daily', 'weekly', 'monthly', 'yearly'].map(value => ({ title: t(`pages.recurringEvents.frequencies.${value}`), value })))
-// Every currency on record can back a recurring amount.
-const currencyOptions = computed(() => currencies.value)
-
-function remaining(date: string) {
-  const days = Math.ceil((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000)
-
-  return days < 0 ? t('pages.recurringEvents.overdueBy', { count: Math.abs(days) }) : days === 0 ? t('pages.recurringEvents.dueToday') : days === 1 ? t('pages.recurringEvents.dueTomorrow') : t('pages.recurringEvents.inDays', { count: days })
-}
-function schedule(interval: number, frequency: string) { return interval === 1 ? t(`pages.recurringEvents.frequencyLabels.${frequency}`) : t('pages.recurringEvents.everyFrequency', { count: interval, frequency: t(`pages.recurringEvents.frequencies.${frequency}`) }) }
+const incomeExpenseTypes = computed(() => ['Service', 'Product', 'Investment', 'Other'].map(value => ({ title: t(`pages.recurringEvents.recordTypes.${value.toLowerCase()}`), value })))
+const typeColor = (type: RecurringEventType) => type === 'income' ? 'success' : type === 'expense' ? 'error' : 'primary'
+const schedule = (interval: number, frequency: string) => interval === 1 ? t(`pages.recurringEvents.frequencyLabels.${frequency}`) : t('pages.recurringEvents.everyFrequency', { count: interval, frequency: t(`pages.recurringEvents.frequencies.${frequency}`) })
+function remaining(date: string) { const days = Math.ceil((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000); return days < 0 ? t('pages.recurringEvents.overdueBy', { count: Math.abs(days) }) : days === 0 ? t('pages.recurringEvents.dueToday') : days === 1 ? t('pages.recurringEvents.dueTomorrow') : t('pages.recurringEvents.inDays', { count: days }) }
 function reset() { form.value = { name: '', description: '', event_type: availableTypes.value[0] ?? 'income', frequency: 'monthly', interval: 1, start_date: today, next_occurrence_date: today, end_date: null, payload: { type: 'Other', amount: null, quantity: 1, currency_id: null } }; selected.value = null }
-async function load() {
-  loading.value = true
-  try {
-    const result = await RecurringEventsApi.listPage({ page: page.value, perPage: perPage.value })
-
-    events.value = result.rows
-    total.value = result.total
-  }
-  finally { loading.value = false }
-}
-
-function updateTableOptions(options: { page: number; itemsPerPage: number }) {
-  if (page.value === options.page && perPage.value === options.itemsPerPage)
-    return
-
-  page.value = options.page
-  perPage.value = options.itemsPerPage
-  void load()
-}
+async function load() { loading.value = true; try { const result = await RecurringEventsApi.listPage({ page: page.value, perPage: perPage.value }); events.value = result.rows; total.value = result.total } finally { loading.value = false } }
+function updateTableOptions(options: { page: number; itemsPerPage: number }) { if (page.value === options.page && perPage.value === options.itemsPerPage) return; page.value = options.page; perPage.value = options.itemsPerPage; void load() }
 async function openDetail(item: RecurringEvent) { selected.value = await RecurringEventsApi.get(item.id); detailDialog.value = true }
-async function loadCatalogs() {
-  if (catalogLoading.value)
-    return; catalogLoading.value = true; try {
-    const requests: Promise<void>[] = []; if (canAccess('view_currencies'))
-      requests.push(CurrencyApi.getAll().then(response => { currencies.value = response.data })); if (canViewBoards.value)
-      requests.push(BoardApi.getAll().then(response => { boards.value = response.data.data })); await Promise.all(requests)
-  }
-  finally { catalogLoading.value = false }
-}
+async function loadCatalogs() { if (catalogLoading.value) return; catalogLoading.value = true; try { const tasks: Promise<void>[] = []; if (canAccess('view_currencies')) tasks.push(CurrencyApi.getAll().then(r => { currencies.value = r.data })); if (canViewBoards.value) tasks.push(BoardApi.getAll().then(r => { boards.value = r.data.data })); await Promise.all(tasks) } finally { catalogLoading.value = false } }
 async function openCreate() { reset(); dialog.value = true; await loadCatalogs() }
 function setType(type: RecurringEventType) { form.value.event_type = type; form.value.payload = type === 'task' ? { title: '', board_id: null, priority: 'medium' } : { type: 'Other', amount: 0, quantity: 1, currency_id: null } }
 const canSave = computed(() => form.value.name.trim() && (form.value.event_type === 'task' ? Boolean(form.value.payload.title && form.value.payload.board_id) : Boolean(form.value.payload.type && Number(form.value.payload.amount) > 0 && form.value.payload.currency_id)))
-async function save() {
-  if (!canSave.value)
-    return; saving.value = true; try { await RecurringEventsApi.create(form.value); dialog.value = false; await load() }
-  finally { saving.value = false }
-}
+async function save() { if (!canSave.value) return; saving.value = true; try { await RecurringEventsApi.create(form.value); dialog.value = false; await load() } finally { saving.value = false } }
 async function toggle(item: RecurringEvent) { item.status === 'active' ? await RecurringEventsApi.pause(item.id) : await RecurringEventsApi.resume(item.id); await load() }
-async function remove(item: RecurringEvent) { if (confirm(`Delete ${item.name}?`)) { await RecurringEventsApi.remove(item.id); await load() } }
-async function execute(occurrenceId: number) {
-  await RecurringEventsApi.execute(occurrenceId); if (selected.value)
-    await openDetail(selected.value); await load()
-}
-async function skip(occurrenceId: number) {
-  await RecurringEventsApi.skip(occurrenceId); if (selected.value)
-    await openDetail(selected.value); await load()
-}
-onMounted(async () => {
-  await load()
-
-  // A deep-linked schedule may live on another page, so it is looked up from
-  // the API when it is not in the visible page.
-  const id = Number(route.params.id)
-  if (!id)
-    return
-
-  const event = events.value.find(item => item.id === id)
-  if (event)
-    await openDetail(event)
-  else
-    await openDetail({ id } as RecurringEvent)
-})
+async function remove(item: RecurringEvent) { if (!await confirmActionWarning({ key: `delete-recurring-event-${item.id}`, title: `Delete ${item.name}?`, message: 'This recurring schedule will be removed. This cannot be undone.', confirmText: t('common.actions.delete'), cancelText: t('common.actions.cancel'), icon: 'tabler-trash', tone: 'error' })) return; await RecurringEventsApi.remove(item.id); await load() }
+async function execute(id: number) { await RecurringEventsApi.execute(id); if (selected.value) await openDetail(selected.value); await load() }
+async function skip(id: number) { await RecurringEventsApi.skip(id); if (selected.value) await openDetail(selected.value); await load() }
+onMounted(async () => { await load(); const id = Number(route.params.id); if (id) await openDetail(events.value.find(item => item.id === id) ?? { id } as RecurringEvent) })
 </script>
 
 <template>
-  <DataTablePageKpis
-    :items="events"
-    :title="$t('pages.recurringEvents.title')"
-    :description="$t('pages.recurringEvents.description')"
-    icon="tabler-repeat"
-  />
+  <DataTablePageKpis :items="events" :title="$t('pages.recurringEvents.title')" :description="$t('pages.recurringEvents.description')" icon="tabler-repeat" />
   <VCard>
-    <VCardItem
-      :title="$t('pages.recurringEvents.title')"
-      :subtitle="$t('pages.recurringEvents.subtitle')"
-    >
-      <template #append>
-        <VBtn
-          v-if="canAccess('create_recurring_events') && availableTypes.length"
-          prepend-icon="tabler-plus"
-          @click="openCreate"
-        >
-          {{ $t('pages.recurringEvents.create') }}
-        </VBtn>
-      </template>
-    </VCardItem>
-    <ResponsiveDataTableServer
-      :headers="headers"
-      :items="events"
-      :items-length="total"
-      :page="page"
-      :items-per-page="perPage"
-      :items-per-page-options="[10, 25, 50, 100]"
-      :loading="loading"
-      class="text-no-wrap"
-      @update:options="updateTableOptions"
-    >
-      <template #item.name="{ item }">
-        <a
-          href="#"
-          class="text-primary font-weight-medium"
-          @click.prevent="openDetail(item)"
-        >{{ item.name }}</a><div class="text-caption text-medium-emphasis">
-          {{ item.description }}
-        </div>
-      </template>
-      <template #item.event_type="{ item }">
-        <VChip
-          size="small"
-          :color="item.event_type === 'income' ? 'success' : item.event_type === 'expense' ? 'error' : 'primary'"
-        >
-          {{ $t(`pages.recurringEvents.eventTypes.${item.event_type}`) }}
-        </VChip>
-      </template>
-      <template #item.schedule="{ item }">
-        {{ schedule(item.interval, item.frequency) }}
-      </template>
-      <template #item.remaining="{ item }">
-        <span :class="{ 'text-error': item.next_occurrence_date < today }">{{ remaining(item.next_occurrence_date) }}</span>
-      </template>
-      <template #item.status="{ item }">
-        <VChip
-          size="small"
-          :color="item.status === 'active' ? 'success' : 'warning'"
-        >
-          {{ $t(`pages.recurringEvents.eventStatuses.${item.status}`) }}
-        </VChip>
-      </template>
-      <template #item.actions="{ item }">
-        <VBtn
-          icon="tabler-eye"
-          variant="text"
-          size="small"
-          @click="openDetail(item)"
-        /><VBtn
-          v-if="canAccess('manage_recurring_events')"
-          :icon="item.status === 'active' ? 'tabler-player-pause' : 'tabler-player-play'"
-          variant="text"
-          size="small"
-          @click="toggle(item)"
-        /><VBtn
-          v-if="canAccess('delete_recurring_events')"
-          icon="tabler-trash"
-          color="error"
-          variant="text"
-          size="small"
-          @click="remove(item)"
-        />
-      </template>
+    <VCardItem :title="$t('pages.recurringEvents.title')" :subtitle="$t('pages.recurringEvents.subtitle')"><template #append><VBtn v-if="canAccess('create_recurring_events') && availableTypes.length" prepend-icon="tabler-plus" @click="openCreate">{{ $t('pages.recurringEvents.create') }}</VBtn></template></VCardItem>
+    <ResponsiveDataTableServer :headers="headers" :items="events" :items-length="total" :page="page" :items-per-page="perPage" :items-per-page-options="[10, 25, 50, 100]" :loading="loading" item-value="id" class="recurring-events-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :mobile-fields="['event_type', 'schedule', 'next_occurrence_date', 'remaining', 'status']" :skeleton-rows="5" :show-scroll-affordance="false" pagination @update:options="updateTableOptions">
+      <template #item.name="{ item }"><button type="button" class="recurring-event-name" @click="openDetail(item)"><span>{{ item.name }}</span><small>{{ item.description || '—' }}</small></button></template>
+      <template #item.event_type="{ item }"><VChip size="small" :color="typeColor(item.event_type)" variant="tonal" label>{{ $t(`pages.recurringEvents.eventTypes.${item.event_type}`) }}</VChip></template>
+      <template #item.schedule="{ item }">{{ schedule(item.interval, item.frequency) }}</template>
+      <template #item.remaining="{ item }"><span :class="{ 'text-error': item.next_occurrence_date < today }">{{ remaining(item.next_occurrence_date) }}</span></template>
+      <template #item.status="{ item }"><VChip size="small" :color="item.status === 'active' ? 'success' : 'warning'" variant="tonal" label>{{ $t(`pages.recurringEvents.eventStatuses.${item.status}`) }}</VChip></template>
+      <template #item.actions="{ item }"><VMenu location="bottom end"><template #activator="{ props }"><IconBtn v-bind="props" class="recurring-actions-trigger" :aria-label="$t('common.messages.actions')"><VIcon icon="tabler-dots-vertical" /></IconBtn></template><VList min-width="190" density="compact"><VListItem prepend-icon="tabler-eye" @click="openDetail(item)"><VListItemTitle>{{ $t('common.actions.viewFullDetails') }}</VListItemTitle></VListItem><VListItem v-if="canAccess('manage_recurring_events')" :prepend-icon="item.status === 'active' ? 'tabler-player-pause' : 'tabler-player-play'" @click="toggle(item)"><VListItemTitle>{{ item.status === 'active' ? 'Pause' : 'Resume' }}</VListItemTitle></VListItem><VDivider v-if="canAccess('delete_recurring_events')" /><VListItem v-if="canAccess('delete_recurring_events')" class="recurring-actions-menu__delete" prepend-icon="tabler-trash" @click="remove(item)"><VListItemTitle>{{ $t('common.actions.delete') }}</VListItemTitle></VListItem></VList></VMenu></template>
+      <template #no-data><div class="recurring-events-empty-state"><TableEmptyState icon="tabler-repeat" :title="$t('pages.recurringEvents.title')" :description="$t('pages.recurringEvents.subtitle')" :min-height="0" /><VBtn v-if="canAccess('create_recurring_events') && availableTypes.length" color="primary" variant="tonal" class="recurring-events-empty-state__action" @click="openCreate"><VIcon icon="tabler-plus" class="me-1" />{{ $t('pages.recurringEvents.create') }}</VBtn></div></template>
     </ResponsiveDataTableServer>
   </VCard>
 
-  <VDialog
-    v-model="dialog"
-    max-width="720"
-  >
-    <VForm @submit.prevent="save">
-      <VCard class="recurring-event-form">
-        <VCardTitle>{{ $t('pages.recurringEvents.create') }}</VCardTitle>
-        <VCardText>
-          <VRow>
-            <VCol cols="12">
-              <div
-                class="event-type-picker"
-                role="radiogroup"
-                :aria-label="$t('pages.recurringEvents.eventType')"
-              >
-                <VBtn
-                  v-for="type in availableTypes"
-                  :key="type"
-                  :color="form.event_type === type ? 'primary' : undefined"
-                  :variant="form.event_type === type ? 'flat' : 'text'"
-                  class="text-capitalize"
-                  @click="setType(type)"
-                >
-                  {{ $t(`pages.recurringEvents.eventTypes.${type}`) }}
-                </VBtn>
-              </div>
-            </VCol>
-            <VCol
-              cols="12"
-              md="6"
-            >
-              <VTextField
-                v-model="form.name"
-                :label="$t('common.fields.name')"
-                :placeholder="$t('pages.recurringEvents.namePlaceholder')"
-                required
-              />
-            </VCol><VCol
-              cols="12"
-              md="6"
-            >
-              <VSelect
-                v-model="form.frequency"
-                :items="frequencyOptions"
-                :label="$t('pages.recurringEvents.repeat')"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <AppDateTimePicker
-                v-model="form.start_date"
-                :label="$t('common.fields.startDate')"
-                :config="{ dateFormat: 'Y-m-d' }"
-              />
-            </VCol><VCol
-              cols="12"
-              md="4"
-            >
-              <AppDateTimePicker
-                v-model="form.next_occurrence_date"
-                :label="$t('pages.recurringEvents.firstOccurrence')"
-                :config="{ dateFormat: 'Y-m-d', minDate: form.start_date }"
-              />
-            </VCol><VCol
-              cols="12"
-              md="4"
-            >
-              <AppDateTimePicker
-                v-model="form.end_date"
-                :label="$t('common.fields.endDate')"
-                :config="{ dateFormat: 'Y-m-d', minDate: form.start_date }"
-                clearable
-              />
-            </VCol>
-            <template v-if="form.event_type !== 'task'">
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="form.payload.type"
-                  :items="incomeExpenseTypes"
-                  :label="$t('common.fields.type')"
-                />
-              </VCol><VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="form.payload.amount"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  :label="$t('common.fields.amount')"
-                />
-              </VCol><VCol cols="12">
-                <VSelect
-                  v-model="form.payload.currency_id"
-                  :items="currencyOptions"
-                  :item-title="currency => `${currency.code} · ${currency.name}`"
-                  item-value="id"
-                  :label="$t('common.fields.currency')"
-                  :loading="catalogLoading"
-                  :disabled="!canAccess('view_currencies')"
-                  :hint="!canAccess('view_currencies') ? $t('pages.recurringEvents.currencyPermissionRequired') : undefined"
-                  persistent-hint
-                  required
-                />
-              </VCol>
-            </template>
-            <template v-else>
-              <VCol cols="12">
-                <VTextField
-                  v-model="form.payload.title"
-                  :label="$t('pages.recurringEvents.taskTitle')"
-                  required
-                />
-              </VCol><VCol cols="12">
-                <VSelect
-                  v-model="form.payload.board_id"
-                  :items="boards"
-                  item-title="title"
-                  item-value="id"
-                  :label="$t('pages.recurringEvents.board')"
-                  :loading="catalogLoading"
-                  :disabled="!canViewBoards"
-                  :hint="!canViewBoards ? $t('pages.recurringEvents.boardPermissionRequired') : undefined"
-                  persistent-hint
-                  required
-                />
-              </VCol>
-            </template>
-            <VCol cols="12">
-              <VTextarea
-                v-model="form.description"
-                :label="$t('common.fields.description')"
-                :placeholder="$t('pages.recurringEvents.descriptionPlaceholder')"
-                rows="3"
-                auto-grow
-              />
-            </VCol>
-          </VRow>
-        </VCardText>
-        <VCardActions class="px-6 pb-5">
-          <VSpacer /><VBtn
-            variant="text"
-            :disabled="saving"
-            @click="dialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn><VBtn
-            color="primary"
-            type="submit"
-            :loading="saving"
-            :disabled="!canSave"
-          >
-            {{ $t('common.actions.save') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VForm>
-  </VDialog>
-  <VDialog
-    v-model="detailDialog"
-    max-width="820"
-  >
-    <VCard v-if="selected">
-      <VCardTitle>{{ selected.name }}</VCardTitle><VCardText>
-        <VRow>
-          <VCol
-            cols="12"
-            md="6"
-          >
-            <div class="text-caption">
-              {{ $t('pages.recurringEvents.nextOccurrence').toUpperCase() }}
-            </div><div class="text-h6">
-              {{ selected.next_occurrence_date }}
-            </div><div>{{ remaining(selected.next_occurrence_date) }}</div>
-          </VCol><VCol
-            cols="12"
-            md="6"
-          >
-            <div class="text-caption">
-              {{ $t('pages.recurringEvents.schedule').toUpperCase() }}
-            </div><div>{{ schedule(selected.interval, selected.frequency) }}</div><div class="mt-2">
-              {{ selected.description }}
-            </div>
-          </VCol>
-        </VRow><VDivider class="my-5" /><div class="text-h6 mb-3">
-          {{ $t('pages.recurringEvents.occurrenceHistory') }}
-        </div><VTable>
-          <thead><tr><th>{{ $t('common.fields.date') }}</th><th>{{ $t('common.fields.status') }}</th><th>{{ $t('pages.recurringEvents.result') }}</th><th /></tr></thead><tbody>
-            <tr
-              v-for="item in selected.occurrences"
-              :key="item.id"
-            >
-              <td>{{ item.occurrence_date }}</td><td>
-                <VChip size="x-small">
-                  {{ $t(`pages.recurringEvents.statuses.${item.status}`) }}
-                </VChip>
-              </td><td>{{ item.result_id ? `#${item.result_id}` : '—' }}</td><td>
-                <VBtn
-                  v-if="item.status === 'notified' && canAccess('execute_recurring_events')"
-                  size="small"
-                  @click="execute(item.id)"
-                >
-                  {{ $t('pages.recurringEvents.execute') }}
-                </VBtn><VBtn
-                  v-if="item.status === 'notified' && canAccess('manage_recurring_events')"
-                  size="small"
-                  variant="text"
-                  @click="skip(item.id)"
-                >
-                  {{ $t('pages.recurringEvents.skip') }}
-                </VBtn>
-              </td>
-            </tr>
-          </tbody>
-        </VTable>
-      </VCardText>
-    </VCard>
-  </VDialog>
+  <VDialog v-model="dialog" :persistent="saving" max-width="800" content-class="recurring-event-form-dialog" scroll-strategy="block"><VForm @submit.prevent="save"><VCard class="recurring-event-form-card"><VCardTitle class="recurring-event-dialog-title px-5 py-5"><span class="text-h5 recurring-event-dialog-heading recurring-event-dialog-heading--primary">{{ $t('pages.recurringEvents.create') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="recurring-event-dialog-close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="dialog = false" /></VCardTitle><VCardText class="recurring-event-dialog-body pa-5 pa-sm-6"><VRow>
+    <VCol cols="12"><div class="recurring-event-type-picker" role="radiogroup" :aria-label="$t('pages.recurringEvents.eventType')"><VBtn v-for="type in availableTypes" :key="type" :color="form.event_type === type ? typeColor(type) : undefined" :variant="form.event_type === type ? 'flat' : 'text'" @click="setType(type)">{{ $t(`pages.recurringEvents.eventTypes.${type}`) }}</VBtn></div></VCol>
+    <VCol cols="12" md="6"><ErpField v-model="form.name" required :label="$t('common.fields.name')" :placeholder="$t('pages.recurringEvents.namePlaceholder')" /></VCol><VCol cols="12" md="6"><ErpField v-model="form.frequency" kind="select" :items="frequencyOptions" :label="$t('pages.recurringEvents.repeat')" :placeholder="$t('pages.recurringEvents.repeat')" /></VCol>
+    <VCol cols="12" md="4"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.startDate') }}</label><AppDateTimePicker v-model="form.start_date" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false }" /></div></VCol><VCol cols="12" md="4"><div class="erp-field"><label class="erp-field-label">{{ $t('pages.recurringEvents.firstOccurrence') }}</label><AppDateTimePicker v-model="form.next_occurrence_date" class="erp-field-control" :placeholder="$t('pages.recurringEvents.firstOccurrence')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, minDate: form.start_date }" /></div></VCol><VCol cols="12" md="4"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.endDate') }}</label><AppDateTimePicker v-model="form.end_date" clearable class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, minDate: form.start_date }" /></div></VCol>
+    <template v-if="form.event_type !== 'task'"><VCol cols="12" md="4"><ErpField v-model="form.payload.type" kind="select" :items="incomeExpenseTypes" :label="$t('common.fields.type')" :placeholder="$t('common.fields.type')" /></VCol><VCol cols="12" md="4"><ErpField v-model.number="form.payload.amount" type="number" min="0.01" step="0.01" :label="$t('common.fields.amount')" :placeholder="$t('common.fields.amount')" /></VCol><VCol cols="12" md="4"><ErpField v-model="form.payload.currency_id" kind="select" :items="currencies" :item-title="(currency: Currency) => `${currency.code} · ${currency.name}`" item-value="id" :label="$t('common.fields.currency')" :placeholder="$t('common.fields.currency')" :loading="catalogLoading" :disabled="!canAccess('view_currencies')" :hint="!canAccess('view_currencies') ? $t('pages.recurringEvents.currencyPermissionRequired') : undefined" persistent-hint required /></VCol></template>
+    <template v-else><VCol cols="12" md="6"><ErpField v-model="form.payload.title" required :label="$t('pages.recurringEvents.taskTitle')" :placeholder="$t('pages.recurringEvents.taskTitle')" /></VCol><VCol cols="12" md="6"><ErpField v-model="form.payload.board_id" kind="select" :items="boards" item-title="title" item-value="id" :label="$t('pages.recurringEvents.board')" :placeholder="$t('pages.recurringEvents.board')" :loading="catalogLoading" :disabled="!canViewBoards" :hint="!canViewBoards ? $t('pages.recurringEvents.boardPermissionRequired') : undefined" persistent-hint required /></VCol></template>
+    <VCol cols="12"><ErpField v-model="form.description" kind="textarea" :label="$t('common.fields.description')" :placeholder="$t('pages.recurringEvents.descriptionPlaceholder')" rows="2" /></VCol>
+  </VRow></VCardText><VCardActions class="recurring-event-dialog-actions px-5 py-4"><VBtn variant="flat" color="error" class="recurring-event-dialog-cancel" :disabled="saving" @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn><VSpacer /><VBtn color="primary" variant="flat" class="recurring-event-dialog-submit" type="submit" :loading="saving" :disabled="!canSave">{{ $t('common.actions.save') }}</VBtn></VCardActions></VCard></VForm></VDialog>
+
+  <VDialog v-model="detailDialog" max-width="980" content-class="recurring-event-form-dialog recurring-event-details-dialog" scrollable><VCard v-if="selected" class="recurring-event-form-card"><VCardTitle class="recurring-event-dialog-title px-5 py-5"><div><div class="recurring-event-details-dialog__eyebrow">{{ $t('pages.recurringEvents.title') }}</div><div class="recurring-event-dialog-heading">{{ selected.name }}</div></div><VSpacer /><VChip :color="typeColor(selected.event_type)" variant="tonal" label>{{ $t(`pages.recurringEvents.eventTypes.${selected.event_type}`) }}</VChip><VBtn icon="tabler-x" variant="tonal" color="error" class="recurring-event-dialog-close ms-3" :aria-label="$t('common.actions.close')" @click="detailDialog = false" /></VCardTitle><VCardText class="recurring-event-dialog-body recurring-event-details-dialog__body pa-5 pa-sm-6"><div class="recurring-event-detail-grid"><article class="recurring-event-detail-tile"><VIcon icon="tabler-clock" /><div><span>{{ $t('pages.recurringEvents.nextOccurrence') }}</span><strong>{{ selected.next_occurrence_date }}</strong><small>{{ remaining(selected.next_occurrence_date) }}</small></div></article><article class="recurring-event-detail-tile"><VIcon icon="tabler-repeat" /><div><span>{{ $t('pages.recurringEvents.schedule') }}</span><strong>{{ schedule(selected.interval, selected.frequency) }}</strong><small>{{ $t(`pages.recurringEvents.eventStatuses.${selected.status}`) }}</small></div></article><article class="recurring-event-detail-tile"><VIcon icon="tabler-calendar" /><div><span>{{ $t('common.fields.startDate') }}</span><strong>{{ selected.start_date }}</strong><small>{{ selected.end_date || '—' }}</small></div></article><article class="recurring-event-detail-tile"><VIcon icon="tabler-list-details" /><div><span>{{ $t('common.fields.description') }}</span><strong>{{ selected.description || '—' }}</strong></div></article></div><section class="recurring-event-occurrences"><div class="recurring-event-section-heading"><VIcon icon="tabler-history" /><div><h3>{{ $t('pages.recurringEvents.occurrenceHistory') }}</h3><p>{{ $t('pages.recurringEvents.subtitle') }}</p></div></div><div class="recurring-event-occurrences__scroll"><VTable><thead><tr><th>{{ $t('common.fields.date') }}</th><th>{{ $t('common.fields.status') }}</th><th>{{ $t('pages.recurringEvents.result') }}</th><th class="text-end">{{ $t('common.messages.actions') }}</th></tr></thead><tbody><tr v-for="item in selected.occurrences" :key="item.id"><td>{{ item.occurrence_date }}</td><td><VChip size="x-small" variant="tonal" label>{{ $t(`pages.recurringEvents.statuses.${item.status}`) }}</VChip></td><td>{{ item.result_id ? `#${item.result_id}` : '—' }}</td><td class="text-end"><VBtn v-if="item.status === 'notified' && canAccess('execute_recurring_events')" size="small" variant="tonal" @click="execute(item.id)">{{ $t('pages.recurringEvents.execute') }}</VBtn><VBtn v-if="item.status === 'notified' && canAccess('manage_recurring_events')" size="small" variant="text" @click="skip(item.id)">{{ $t('pages.recurringEvents.skip') }}</VBtn></td></tr><tr v-if="!selected.occurrences?.length"><td colspan="4" class="text-center text-medium-emphasis py-6">—</td></tr></tbody></VTable></div></section></VCardText></VCard></VDialog>
 </template>
 
-<style scoped>
-.event-type-picker {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.25rem;
-  padding: 0.25rem;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 0.5rem;
-}
-
-.event-type-picker :deep(.v-btn) {
-  min-inline-size: 0;
-  border-radius: 0.375rem;
-}
+<style lang="scss">
+.recurring-events-table .v-table__wrapper { scrollbar-width: none; }.recurring-events-table .v-table__wrapper::-webkit-scrollbar { display: none; }.recurring-events-table .v-table__wrapper > table { min-inline-size: 960px; }.recurring-events-table .v-table__wrapper > table > thead > tr > th,.recurring-events-table .v-table__wrapper > table > tbody > tr > td { min-inline-size: 8.5rem; white-space: nowrap; }.recurring-events-table .v-table__wrapper > table > thead > tr > th:first-child,.recurring-events-table .v-table__wrapper > table > tbody > tr > td:first-child { min-inline-size: 15rem; white-space: normal; }.recurring-events-table .v-table__wrapper > table > tbody > tr:hover > td { background-color: rgba(var(--v-theme-on-surface), .035) !important; }.recurring-events-table .v-table__wrapper:has(.recurring-events-empty-state) { overflow-x: hidden; }.recurring-events-table .v-table__wrapper > table:has(.recurring-events-empty-state) { min-inline-size: 100%; table-layout: fixed; }.recurring-events-table .v-table__wrapper > table:has(.recurring-events-empty-state) > thead > tr > th,.recurring-events-table .v-table__wrapper > table:has(.recurring-events-empty-state) > tbody > tr > td { min-inline-size: 0 !important; white-space: normal; }.recurring-events-table .v-table__wrapper > table > tbody > tr:has(.recurring-events-empty-state) > td { padding: 0 !important; }.recurring-event-name { display: grid; padding: 0; color: rgb(var(--v-theme-primary)); font: inherit; font-weight: 650; text-align: start; }.recurring-event-name small { overflow: hidden; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }.recurring-actions-trigger { border-radius: 999px !important; background: rgba(var(--v-theme-on-surface), .04) !important; }.recurring-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }.recurring-events-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-block-size: 17rem; padding: 1.25rem 1.25rem 2rem; }.recurring-events-empty-state .table-empty-state { min-block-size: 0 !important; padding-block: 1rem; }.recurring-events-empty-state__action { margin-block-start: -.25rem; background: rgba(var(--v-theme-primary), .12) !important; color: rgb(var(--v-theme-primary)) !important; }
+.recurring-event-form-dialog .recurring-event-form-card { overflow: hidden; border-radius: 1rem !important; }.recurring-event-dialog-title { display: flex; align-items: center; gap: .75rem; background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-primary), .035) 55%, transparent); border-block-end: 1px solid rgba(var(--v-border-color), .12); }.recurring-event-dialog-heading { color: rgb(var(--v-theme-on-surface)); font-size: 1.15rem; font-weight: 700; }.recurring-event-dialog-heading--primary { font-size: 1.35rem; }.recurring-event-dialog-close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38); border-radius: 50%; }.recurring-event-dialog-close:hover { background: rgba(var(--v-theme-error), .18) !important; }.recurring-event-dialog-actions { border-block-start: 1px solid rgba(var(--v-border-color), .12); background: rgba(var(--v-theme-primary), .045); }.recurring-event-dialog-cancel { min-inline-size: 6.5rem; }.recurring-event-dialog-submit { min-inline-size: 7rem; }.recurring-event-form-dialog .v-overlay__scrim,.v-overlay:has(.recurring-event-form-card) .v-overlay__scrim { background: rgba(var(--v-theme-on-surface), .26) !important; backdrop-filter: blur(7px); opacity: 1 !important; }.recurring-event-type-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; padding: .3rem; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: .7rem; background: rgba(var(--v-theme-on-surface), .018); }.recurring-event-type-picker .v-btn { min-inline-size: 0; border-radius: .5rem; }
+.recurring-event-details-dialog__eyebrow { color: rgb(var(--v-theme-primary)); font-size: .7rem; font-weight: 750; letter-spacing: .065em; text-transform: uppercase; }.recurring-event-details-dialog__body { background: rgba(var(--v-theme-on-surface), .018); }.recurring-event-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }.recurring-event-detail-tile { display: flex; min-inline-size: 0; gap: .75rem; padding: 1rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; background: rgb(var(--v-theme-surface)); }.recurring-event-detail-tile > .v-icon { flex: 0 0 38px; block-size: 38px; padding: .6rem; border-radius: .7rem; background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-primary)); }.recurring-event-detail-tile > div { display: grid; min-inline-size: 0; gap: .16rem; }.recurring-event-detail-tile span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .72rem; font-weight: 650; }.recurring-event-detail-tile strong { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: .92rem; }.recurring-event-detail-tile small { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }.recurring-event-occurrences { margin-block-start: 1.5rem; }.recurring-event-section-heading { display: flex; align-items: flex-start; gap: .6rem; margin-block-end: .8rem; color: rgb(var(--v-theme-primary)); }.recurring-event-section-heading h3 { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: .95rem; }.recurring-event-section-heading p { margin: .1rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; }.recurring-event-occurrences__scroll { overflow-x: auto; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; scrollbar-width: none; }.recurring-event-occurrences__scroll::-webkit-scrollbar { display: none; }.recurring-event-occurrences__scroll table { min-inline-size: 38rem; }
+@media (max-width: 959px) { .recurring-events-table.responsive-data-table--mobile-cards .v-table__wrapper > table > tbody > tr:hover > td { background-color: transparent !important; } }@media (max-width: 599px) { .recurring-event-type-picker,.recurring-event-detail-grid { grid-template-columns: 1fr; } }
 </style>

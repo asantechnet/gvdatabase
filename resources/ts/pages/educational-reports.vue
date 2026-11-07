@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ReportApi, { type EducationalReport, type EducationalReportType } from '@/api/educationalReports'
@@ -10,20 +11,29 @@ import EducationalReportPrint from '@/components/educational/EducationalReportPr
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
-import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
 
 const toast = useToast()
 const { t, locale } = useI18n()
+const route = useRoute()
 
-const tab = ref<EducationalReportType>('applicants')
+type ReportWorkspace = 'applications' | 'finance' | 'hrm'
+const workspace = computed<ReportWorkspace>(() => (route.meta.reportWorkspace as ReportWorkspace | undefined) ?? 'applications')
+const workspaceDefault: Record<ReportWorkspace, EducationalReportType> = { applications: 'applicants', finance: 'financial', hrm: 'employee-performance' }
+const tab = ref<EducationalReportType>(workspaceDefault[workspace.value])
 const report = ref<EducationalReport | null>(null)
-const loading = ref(false)
+// Start in the loading state so the table skeleton is the first rendered state;
+// an empty-state decision is only made after the report request completes.
+const loading = ref(true)
+const loadToken = ref(0)
 const exporting = ref(false)
 const page = ref(1)
-const filtersOpen = ref(false)
+const filterDialog = ref(false)
+const search = ref('')
 
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
@@ -40,6 +50,17 @@ const stage = ref('')
 const status = ref<'active' | 'closed' | ''>('')
 const dateFrom = ref('')
 const dateTo = ref('')
+const filterDraft = reactive({
+  countryId: countryId.value,
+  universityId: universityId.value,
+  levelId: levelId.value,
+  employeeId: employeeId.value,
+  service: service.value,
+  stage: stage.value,
+  status: status.value,
+  dateFrom: dateFrom.value,
+  dateTo: dateTo.value,
+})
 
 const canExport = computed(() => canAccess('export_reports'))
 const serviceOptions = computed(() => [
@@ -49,54 +70,71 @@ const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, service.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
-// Reports are grouped by the business domain they serve, so the workspace reads
-// as Educational & CRM / Finance / HRM instead of one flat tab list.
-type ReportDomain = 'educational' | 'finance' | 'hrm'
-
-const tabs: Array<{ value: EducationalReportType; title: string; domain: ReportDomain }> = [
-  { value: 'applicants', title: t('educational.applicants'), domain: 'educational' },
-  { value: 'contracts', title: t('educational.contractsReport'), domain: 'educational' },
-  { value: 'services', title: t('educational.servicesReport'), domain: 'educational' },
-  { value: 'universities', title: t('educational.universityReport'), domain: 'educational' },
-  { value: 'visa-outcomes', title: t('educational.visaOutcomes'), domain: 'educational' },
-  { value: 'financial', title: t('educational.financialReport'), domain: 'finance' },
-  { value: 'employee-performance', title: t('educational.employeePerformance'), domain: 'hrm' },
+const tabs: Array<{ value: EducationalReportType; title: string; workspace: ReportWorkspace }> = [
+  { value: 'applicants', title: t('educational.applicants'), workspace: 'applications' },
+  { value: 'contracts', title: t('educational.contractsReport'), workspace: 'applications' },
+  { value: 'services', title: t('educational.servicesReport'), workspace: 'applications' },
+  { value: 'universities', title: t('educational.universityReport'), workspace: 'applications' },
+  { value: 'visa-outcomes', title: t('educational.visaOutcomes'), workspace: 'applications' },
+  { value: 'financial', title: t('educational.financialReport'), workspace: 'finance' },
+  { value: 'employee-performance', title: t('educational.employeePerformance'), workspace: 'hrm' },
 ]
-const domain = ref<ReportDomain>('educational')
-const domainGroups: Array<{ value: ReportDomain; title: string; icon: string }> = [
-  { value: 'educational', title: t('educational.reportDomains.educational'), icon: 'tabler-school' },
-  { value: 'finance', title: t('educational.reportDomains.finance'), icon: 'tabler-cash-banknote' },
-  { value: 'hrm', title: t('educational.reportDomains.hrm'), icon: 'tabler-users-group' },
-]
-const visibleTabs = computed(() => tabs.filter(item => item.domain === domain.value))
+const visibleTabs = computed(() => tabs.filter(item => item.workspace === workspace.value))
 const activeTab = computed(() => tabs.find(item => item.value === tab.value))
+const pageTitle = computed(() => t(`educational.reportWorkspaces.${workspace.value}.title`))
+const pageDescription = computed(() => workspace.value === 'applications'
+  ? ''
+  : t(`educational.reportWorkspaces.${workspace.value}.description`))
+const pageSection = computed(() => workspace.value === 'applications' ? 'applications' : workspace.value === 'finance' ? 'finance' : 'hr')
+const filteredRows = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  if (!query)
+    return report.value?.rows ?? []
+
+  return (report.value?.rows ?? []).filter(row => Object.values(row).some(value => String(value ?? '').toLocaleLowerCase().includes(query)))
+})
+const emptyTitle = computed(() => search.value || activeFilterCount.value ? t('educational.reportEmpty.filteredTitle') : t('educational.reportEmpty.title'))
+const emptyDescription = computed(() => search.value || activeFilterCount.value ? t('educational.reportEmpty.filteredDescription') : t('educational.reportEmpty.description'))
 
 const applicantStatusColor = (value: unknown) => ({
   active: 'success',
   closed: 'secondary',
+  recorded: 'success',
+  approved: 'success',
+  paid: 'success',
+  completed: 'success',
+  pending: 'warning',
+  open: 'warning',
+  partially_paid: 'warning',
+  rejected: 'error',
+  cancelled: 'error',
+  withdrawn: 'error',
+  unpaid: 'error',
 }[String(value).toLowerCase()] ?? 'default')
 
-const applicantStatusLabel = (value: unknown) => {
+const statusLabel = (value: unknown) => {
   const statusValue = String(value).toLowerCase()
 
   return statusValue === 'active' || statusValue === 'closed'
     ? t(`educational.${statusValue}`)
-    : displayValue('status', value as string | number | null | undefined)
+    : formatToken(value)
 }
 
-// Selecting a domain only reloads when the reported type actually changes, so
-// switching back to a domain keeps the report already on screen.
-watch(domain, () => {
-  if (visibleTabs.value.some(item => item.value === tab.value))
-    return
-
-  const first = visibleTabs.value[0]
-  if (!first)
-    return
-
-  tab.value = first.value
+watch(workspace, async () => {
+  tab.value = workspaceDefault[workspace.value]
+  search.value = ''
+  countryId.value = ''
+  universityId.value = ''
+  levelId.value = ''
+  employeeId.value = ''
+  service.value = ''
+  stage.value = ''
+  status.value = ''
+  dateFrom.value = ''
+  dateTo.value = ''
   page.value = 1
-  void load()
+  await loadCatalogs()
+  await load()
 })
 const columnLabel = (column: string) => t(`educational.reportColumns.${column}`)
 const isDateColumn = (column: string) => column === 'date' || column.endsWith('_date')
@@ -108,7 +146,16 @@ function displayValue(column: string, value: string | number | null | undefined)
   if (isDateColumn(column))
     return formatLocalizedDate(String(value), { year: 'numeric', month: 'short', day: 'numeric' })
 
+  if (['service', 'status', 'record_type', 'contract_type', 'category'].includes(column))
+    return formatToken(value)
+
   return value
+}
+
+function formatToken(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, character => character.toUpperCase())
 }
 
 function params() {
@@ -122,20 +169,32 @@ function params() {
     status: status.value || undefined,
     date_from: dateFrom.value || undefined,
     date_to: dateTo.value || undefined,
+    per_page: 500,
     page: page.value,
   }
 }
 
 async function load() {
+  const token = ++loadToken.value
   loading.value = true
+  report.value = null
+  // Let Vue commit the state, then keep the skeleton visible long enough for a
+  // browser paint even when the report response is already cached.
+  await nextTick()
   try {
-    report.value = await ReportApi.get(tab.value, params())
+    const reportRequest = ReportApi.get(tab.value, params())
+    await new Promise<void>(resolve => window.setTimeout(resolve, 180))
+    const response = await reportRequest
+    if (token === loadToken.value)
+      report.value = response
   }
   catch {
-    toast.error(t('educational.loadReportFailed'))
+    if (token === loadToken.value)
+      toast.error(t('educational.loadReportFailed'))
   }
   finally {
-    loading.value = false
+    if (token === loadToken.value)
+      loading.value = false
   }
 }
 
@@ -147,7 +206,7 @@ async function download() {
     const link = document.createElement('a')
 
     link.href = url
-    link.download = `visa-${tab.value}-report.csv`
+    link.download = `${workspace.value}-${tab.value}-report.csv`
     link.click()
     URL.revokeObjectURL(url)
     toast.success(t('educational.exported'))
@@ -160,9 +219,14 @@ async function download() {
   }
 }
 
-function onTabChange() {
+function onTabChange(value: unknown) {
+  if (!tabs.some(item => item.value === value))
+    return
+
+  tab.value = value as EducationalReportType
   page.value = 1
-  load()
+  search.value = ''
+  void load()
 }
 
 function clearFilters() {
@@ -176,7 +240,47 @@ function clearFilters() {
   dateFrom.value = ''
   dateTo.value = ''
   page.value = 1
-  load()
+  void load()
+}
+
+function syncFilterDraft() {
+  filterDraft.countryId = countryId.value
+  filterDraft.universityId = universityId.value
+  filterDraft.levelId = levelId.value
+  filterDraft.employeeId = employeeId.value
+  filterDraft.service = service.value
+  filterDraft.stage = stage.value
+  filterDraft.status = status.value
+  filterDraft.dateFrom = dateFrom.value
+  filterDraft.dateTo = dateTo.value
+}
+
+function openFilters() {
+  syncFilterDraft()
+  filterDialog.value = true
+}
+
+function applyFilterDialog() {
+  countryId.value = filterDraft.countryId
+  universityId.value = filterDraft.universityId
+  levelId.value = filterDraft.levelId
+  employeeId.value = filterDraft.employeeId
+  service.value = filterDraft.service
+  stage.value = filterDraft.stage
+  status.value = filterDraft.status
+  dateFrom.value = filterDraft.dateFrom
+  dateTo.value = filterDraft.dateTo
+  page.value = 1
+  filterDialog.value = false
+  void load()
+}
+
+function dockFilterCalendar(_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty('transform', 'translateY(0) scale(0.86)', 'important')
+    instance.calendarContainer.style.setProperty('transform-origin', 'top left', 'important')
+    instance.calendarContainer.style.setProperty('z-index', '2400', 'important')
+  })
 }
 
 // The print job renders a dedicated, theme-independent document below instead
@@ -195,7 +299,7 @@ const printRows = computed<Array<Array<string | number>>>(() => {
   if (!current)
     return []
 
-  return current.rows.map(row => current.columns.map(column => displayValue(column, row[column])))
+  return filteredRows.value.map(row => current.columns.map(column => displayValue(column, row[column])))
 })
 const printPeriod = computed(() => {
   if (!dateFrom.value && !dateTo.value)
@@ -250,18 +354,19 @@ function disablePagePrintMode() {
 
 async function loadCatalogs() {
   try {
-    const [countryRows, universityRows, levelRows, employeeRows] = await Promise.all([
-      MasterDataApi.list('countries'),
-      MasterDataApi.list('universities'),
-      MasterDataApi.list('education-levels'),
-      EmployeeApi.getOptions(),
-    ])
+    employees.value = await EmployeeApi.getOptions()
+    if (workspace.value === 'applications') {
+      const [countryRows, universityRows, levelRows] = await Promise.all([
+        MasterDataApi.list('countries'),
+        MasterDataApi.list('universities'),
+        MasterDataApi.list('education-levels'),
+      ])
 
-    countries.value = countryRows
-    universities.value = universityRows
-    levels.value = levelRows
-    employees.value = employeeRows
-    await loadStages()
+      countries.value = countryRows
+      universities.value = universityRows
+      levels.value = levelRows
+      await loadStages()
+    }
   }
   catch {
     toast.error(t('educational.loadFiltersFailed'))
@@ -306,29 +411,26 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="education-workspace erp-workspace">
-    <!-- Same concept frame as the other Applications pages: breadcrumbs plus the
-         shared in-page navigation, with this page's own actions in the slot. -->
-    <ErpPageHeader :title="$t('educational.visaReports')" section="applications">
-      <template #actions><div class="d-flex gap-2 education-header-actions"><DataTableFilterMenu v-model="filtersOpen" :active="activeFilterCount > 0" @reset="clearFilters"><VSelect v-model="countryId" :items="countries.filter(c => c.is_active).map(c => ({ title: c.name, value: c.id }))" :label="$t('educational.country')" clearable /><VSelect v-model="universityId" :items="universities.filter(u => u.is_active).map(u => ({ title: u.name, value: u.id }))" :label="$t('educational.university')" clearable /><VSelect v-model="levelId" :items="levels.filter(l => l.is_active).map(l => ({ title: l.name, value: l.id }))" :label="$t('educational.educationLevel')" clearable /><VSelect v-model="employeeId" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.employee')" clearable /><VSelect v-if="tab === 'applicants'" v-model="service" :items="serviceOptions" :label="$t('educational.service')" clearable /><VSelect v-if="tab === 'applicants'" v-model="stage" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" clearable /><VSelect v-if="tab === 'applicants'" v-model="status" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" clearable /><VTextField v-model="dateFrom" type="date" :label="$t('educational.from')" clearable /><VTextField v-model="dateTo" type="date" :label="$t('educational.to')" clearable /><VBtn color="primary" :loading="loading" @click="page = 1; load()">{{ $t('educational.apply') }}</VBtn></DataTableFilterMenu><VBtn variant="outlined" :disabled="!report" prepend-icon="tabler-printer" @click="printPage">{{ $t('educational.printView') }}</VBtn><VBtn v-if="canExport" color="primary" :loading="exporting" prepend-icon="tabler-download" @click="download">{{ $t('educational.exportCsv') }}</VBtn></div></template>
-    </ErpPageHeader>
+    <ErpPageHeader :title="pageTitle" :description="pageDescription" :section="pageSection" />
 
     <VCard class="education-panel">
-      <div class="d-flex align-center px-3 pt-3 report-domain-bar">
-        <VBtnToggle v-model="domain" class="report-domain-toggle" density="comfortable" variant="tonal" color="primary" mandatory>
-          <VBtn v-for="group in domainGroups" :key="group.value" :value="group.value" :prepend-icon="group.icon">{{ group.title }}</VBtn>
-        </VBtnToggle>
-      </div>
-      <VTabs v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
-      <div class="d-flex align-center flex-wrap gap-2 px-4 py-3 education-result-bar">
-        <VAvatar color="primary" variant="tonal" size="36"><VIcon icon="tabler-chart-bar" size="20" /></VAvatar>
-        <div><strong>{{ activeTab?.title }}</strong><div class="text-caption text-medium-emphasis">{{ $t('educational.resultCount', { count: report?.total ?? 0 }) }}<template v-if="printPeriod"> · {{ printPeriod }}</template></div></div>
-        <VSpacer /><VBtn v-if="activeFilterCount" size="small" variant="text" prepend-icon="tabler-filter" @click="filtersOpen = true">{{ $t('educational.activeFilters', { count: activeFilterCount }) }}</VBtn><span v-if="!canExport" class="text-caption text-medium-emphasis">{{ $t('educational.exportRequired') }}</span>
-      </div>
+      <VTabs v-if="visibleTabs.length > 1" v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
+      <VDivider v-if="visibleTabs.length > 1" />
+      <VCardText>
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="$t('educational.searchReports')" /></VCol>
+          <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+            <VBtn icon="tabler-filter" :variant="activeFilterCount ? 'flat' : 'tonal'" :color="activeFilterCount ? 'primary' : undefined" size="small" :aria-label="$t('common.messages.filters')" @click="openFilters"><VIcon icon="tabler-filter" /><VTooltip activator="parent" location="top">{{ $t('common.messages.filters') }}</VTooltip></VBtn>
+            <VBtn icon="tabler-printer" variant="tonal" class="flex-shrink-0" :disabled="!report" :aria-label="$t('common.actions.print')" @click="printPage"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip></VBtn>
+            <VBtn v-if="canExport" icon="tabler-download" variant="tonal" color="primary" class="flex-shrink-0" :loading="exporting" :aria-label="$t('educational.exportCsv')" @click="download"><VIcon icon="tabler-download" /><VTooltip activator="parent" location="top">{{ $t('educational.exportCsv') }}</VTooltip></VBtn>
+          </VCol>
+        </VRow>
+      </VCardText>
       <TableLoadingSkeleton v-if="loading" :columns="report?.columns.length ?? 6" :label="$t('common.messages.loading')" />
-      <TableEmptyState v-else-if="report && !report.rows.length" icon="tabler-report-off" :description="$t('educational.noRows')" />
+      <TableEmptyState v-else-if="report && !filteredRows.length" icon="tabler-report-off" :title="emptyTitle" :description="emptyDescription" />
       <div v-else-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
         <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
-        <tbody><tr v-for="(row, index) in report.rows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="tab === 'applicants' && column === 'status'" size="small" :color="applicantStatusColor(row[column])">{{ applicantStatusLabel(row[column]) }}</VChip><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
+        <tbody><tr v-for="(row, index) in filteredRows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="column === 'status'" size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
       </VTable></div>
       <VDivider v-if="report?.last_page && report.last_page > 1" />
       <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2 education-pagination"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
@@ -337,7 +439,7 @@ onBeforeUnmount(() => {
     <EducationalReportPrint
       ref="printRef"
       :title="activeTab?.title ?? $t('educational.visaReports')"
-      :subtitle="$t('educational.reportsSubtitle')"
+      :subtitle="pageDescription"
       :columns="printColumns"
       :rows="printRows"
       :facts="printFacts"
@@ -347,6 +449,33 @@ onBeforeUnmount(() => {
       :direction="printDirection"
     />
   </div>
+  <VDialog v-model="filterDialog" max-width="860" content-class="applications-filter-dialog" scroll-strategy="block">
+    <VCard class="applications-filter-card">
+      <VCardTitle class="applications-filter-dialog__title px-5 py-4">
+        <span class="applications-filter-dialog__heading">{{ $t('common.messages.filters') }}</span><VSpacer />
+        <VBtn icon="tabler-x" variant="tonal" color="error" class="applications-filter-dialog__close" :aria-label="$t('common.actions.close')" @click="filterDialog = false" />
+      </VCardTitle>
+      <VCardText class="applications-filter-dialog__body pa-5">
+        <VRow>
+          <VCol v-if="workspace === 'applications'" cols="12" sm="6" md="4"><ErpField v-model="filterDraft.service" kind="select" :items="serviceOptions" :label="$t('educational.service')" :placeholder="$t('educational.service')" clearable /></VCol>
+          <VCol v-if="tab === 'applicants'" cols="12" sm="6" md="4"><ErpField v-model="filterDraft.stage" kind="select" :items="stages.map(item => ({ title: item.name, value: item.key }))" :label="$t('educational.stage')" :placeholder="$t('educational.stage')" clearable /></VCol>
+          <VCol v-if="tab === 'applicants'" cols="12" sm="6" md="4"><ErpField v-model="filterDraft.status" kind="select" :items="[{ title: $t('educational.active'), value: 'active' }, { title: $t('educational.closed'), value: 'closed' }]" :label="$t('educational.status')" :placeholder="$t('educational.status')" clearable /></VCol>
+          <VCol cols="12" sm="6" md="4"><ErpField v-model="filterDraft.employeeId" kind="autocomplete" :items="employees.map(employee => ({ title: employee.name, value: employee.id }))" :label="$t('educational.employee')" :placeholder="$t('educational.employee')" clearable /></VCol>
+          <template v-if="workspace === 'applications'">
+            <VCol cols="12" sm="6" md="4"><ErpField v-model="filterDraft.countryId" kind="select" :items="countries.filter(country => country.is_active).map(country => ({ title: country.name, value: country.id }))" :label="$t('educational.country')" :placeholder="$t('educational.country')" clearable /></VCol>
+            <VCol cols="12" sm="6" md="4"><ErpField v-model="filterDraft.universityId" kind="select" :items="universities.filter(university => university.is_active && (!filterDraft.countryId || university.country_id === filterDraft.countryId)).map(university => ({ title: university.name, value: university.id }))" :label="$t('educational.university')" :placeholder="$t('educational.university')" clearable /></VCol>
+            <VCol cols="12" sm="6" md="4"><ErpField v-model="filterDraft.levelId" kind="select" :items="levels.filter(level => level.is_active).map(level => ({ title: level.name, value: level.id }))" :label="$t('educational.educationLevel')" :placeholder="$t('educational.educationLevel')" clearable /></VCol>
+          </template>
+          <VCol cols="12" sm="6" md="4"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.startDate') }}</label><AppDateTimePicker v-model="filterDraft.dateFrom" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', maxDate: filterDraft.dateTo || undefined, static: false, onOpen: dockFilterCalendar }" /></div></VCol>
+          <VCol cols="12" sm="6" md="4"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.endDate') }}</label><AppDateTimePicker v-model="filterDraft.dateTo" class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', minDate: filterDraft.dateFrom || undefined, static: false, onOpen: dockFilterCalendar }" /></div></VCol>
+        </VRow>
+      </VCardText>
+      <VCardActions class="applications-filter-dialog__actions px-5 py-4">
+        <VBtn class="applications-filter-dialog__reset" variant="flat" @click="clearFilters(); filterDialog = false">{{ $t('common.messages.reset') }}</VBtn>
+        <VBtn class="applications-filter-dialog__apply" color="primary" variant="flat" :loading="loading" :disabled="!!filterDraft.dateFrom && !!filterDraft.dateTo && filterDraft.dateFrom > filterDraft.dateTo" @click="applyFilterDialog">{{ $t('educational.apply') }}</VBtn>
+      </VCardActions>
+    </VCard>
+  </VDialog>
 </template>
 
 <style>
@@ -402,29 +531,54 @@ onBeforeUnmount(() => {
   body.printing-education-reports .education-workspace { display: block !important; overflow: visible !important; }
 }
 
-.report-domain-bar {
-  /* Keep the report domains on the physical right edge while respecting the
-     page's active writing direction and RTL button content. */
-  justify-content: flex-end;
+.education-table-scroll {
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   scrollbar-width: none;
 }
 
-[dir='rtl'] .report-domain-bar { justify-content: flex-start; }
+.education-table-scroll::-webkit-scrollbar { display: none; }
 
-.report-domain-bar::-webkit-scrollbar { display: none; }
-
-.report-domain-toggle {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-inline-size: 100%;
+/* Vuetify places the actual scrolling element one level inside VTable; the
+   skeleton has its own scroll host. Keep both scrollable, but never visible. */
+.education-table-scroll .v-table__wrapper,
+.education-workspace .table-loading-skeleton__scroll {
+  scrollbar-width: none;
 }
 
-.report-domain-toggle .v-btn {
-  flex: 0 1 auto;
-  min-inline-size: max-content;
-  border-radius: 6px !important;
+.education-table-scroll .v-table__wrapper::-webkit-scrollbar,
+.education-workspace .table-loading-skeleton__scroll::-webkit-scrollbar { display: none; }
+
+.report-table { min-inline-size: 70rem; }
+.report-table :is(th, td) { min-inline-size: 9rem; white-space: nowrap; }
+.report-table th:first-child, .report-table td:first-child { min-inline-size: 5rem; }
+
+/* The report filter intentionally reuses the Applications dialog language so
+   users meet the same layout, actions, and visual feedback everywhere. */
+.applications-filter-card { overflow: hidden; }
+.applications-filter-dialog__title,
+.applications-filter-dialog__actions {
+  align-items: center;
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  border-style: solid;
+  border-width: 0;
+  display: flex;
+}
+.applications-filter-dialog__title { border-block-end-width: 1px; }
+.applications-filter-dialog__actions { border-block-start-width: 1px; gap: .5rem; justify-content: flex-end; }
+.applications-filter-dialog__heading { font-size: 1.625rem; font-weight: 700; }
+.applications-filter-dialog__body { background-color: rgb(var(--v-theme-surface)); }
+.applications-filter-dialog__close { border: 1px solid rgba(var(--v-theme-error), .38); border-radius: 50%; block-size: 36px; color: rgb(var(--v-theme-error)); inline-size: 36px; }
+.applications-filter-dialog__close:hover { background-color: rgba(var(--v-theme-error), .18) !important; }
+.applications-filter-dialog__reset { background-color: rgba(var(--v-theme-error), .12) !important; border: 1px solid rgba(var(--v-theme-error), .62) !important; color: rgb(var(--v-theme-error)) !important; }
+.applications-filter-dialog__reset:hover,
+.applications-filter-dialog__reset:focus-visible { background-color: rgb(var(--v-theme-error)) !important; border-color: rgb(var(--v-theme-error)); color: rgb(var(--v-theme-on-error)) !important; }
+.applications-filter-dialog__apply { background-color: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.applications-filter-dialog__apply:hover { filter: brightness(.9); }
+.v-overlay:has(.applications-filter-dialog) .v-overlay__scrim { backdrop-filter: blur(4px); background-color: rgba(var(--v-theme-on-surface), .24); }
+
+@media (max-width: 599px) {
+  .report-table { min-inline-size: 62rem; }
 }
 </style>

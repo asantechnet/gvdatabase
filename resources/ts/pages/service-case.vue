@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -152,49 +153,29 @@ onMounted(load)
 <template>
   <div class="education-workspace erp-workspace">
     <ErpPageHeader :title="pageTitle" section="applications" />
-    <VSkeletonLoader v-if="loading && !line" type="article" />
+    <VCard v-if="loading && !line" class="service-case-card service-case-loading">
+      <VCardText><section class="service-case-hero"><div class="d-flex align-center ga-3"><VSkeletonLoader type="avatar" /><div><VSkeletonLoader type="heading" width="220" /><VSkeletonLoader type="text" width="150" /></div></div><VSkeletonLoader type="chip" /></section><div class="service-case-grid mt-5"><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /><VSkeletonLoader type="article" /></div></VCardText>
+    </VCard>
     <VCard v-else-if="line" class="service-case-card">
-      <VCardTitle class="d-flex flex-wrap align-center ga-2">
-        <VBtn size="small" variant="text" prepend-icon="tabler-arrow-left" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ t('educational.caseUi.caseWorkspaceBack') }}</VBtn>
-        <RouterLink class="case-party-link" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ line.applicant?.name ?? `#${line.applicant_id}` }}</RouterLink>
-        <span class="text-caption text-medium-emphasis">{{ serviceLabel }}</span>
-        <VChip v-if="line.contract_number" size="small" variant="tonal">{{ line.contract_number }}</VChip>
-        <VChip v-if="line.is_extension" size="x-small" variant="tonal" color="info">{{ t('serviceContracts.extension') }}</VChip>
-        <VSpacer />
-        <VChip size="small" :color="line.payment_status === 'paid' ? 'success' : line.payment_status === 'partially_paid' ? 'warning' : 'secondary'">{{ translateBackendValue(line.payment_status) }}</VChip>
-        <VChip size="small" :color="line.current_stage?.is_terminal ? 'secondary' : 'primary'">{{ movingStage }}</VChip>
-      </VCardTitle>
-      <VCardSubtitle v-if="line.applicant && (line.applicant.contact || line.applicant.email)" class="d-flex flex-wrap ga-4">
-        <span v-if="line.applicant.contact">{{ line.applicant.contact }}</span>
-        <span v-if="line.applicant.email">{{ line.applicant.email }}</span>
-      </VCardSubtitle>
       <VCardText>
+        <section class="service-case-hero">
+          <div class="d-flex align-center flex-wrap ga-3"><VAvatar color="primary" variant="tonal" size="60"><VIcon icon="tabler-briefcase" size="30" /></VAvatar><div><VBtn size="small" variant="text" class="pa-0 mb-1" prepend-icon="tabler-arrow-left" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ t('educational.caseUi.caseWorkspaceBack') }}</VBtn><RouterLink class="case-party-link d-block" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ line.applicant?.name ?? `#${line.applicant_id}` }}</RouterLink><div class="d-flex flex-wrap ga-2 mt-1"><VChip size="x-small" variant="tonal">{{ serviceLabel }}</VChip><VChip v-if="line.contract_number" size="x-small" variant="tonal">{{ line.contract_number }}</VChip><VChip v-if="line.is_extension" size="x-small" variant="tonal" color="info">{{ t('serviceContracts.extension') }}</VChip></div></div></div>
+          <div class="d-flex flex-wrap ga-2"><VChip size="small" :color="line.payment_status === 'paid' ? 'success' : line.payment_status === 'partially_paid' ? 'warning' : 'secondary'">{{ translateBackendValue(line.payment_status) }}</VChip><VChip size="small" :color="line.current_stage?.is_terminal ? 'secondary' : 'primary'">{{ movingStage }}</VChip></div>
+        </section>
+        <div class="service-case-grid mt-5">
         <section class="case-section service-case-stage">
           <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ movingStage }}</h3></div></div>
           <VAlert v-if="!canMoveStage" type="info" variant="tonal" density="compact">{{ t('educational.stageMovePermission') }}</VAlert>
           <VAlert v-else-if="caseClosed && !transitions.length" type="warning" variant="tonal" density="compact">{{ t('educational.caseUi.caseClosedFinal', { stage: movingStage }) }}</VAlert>
           <VAlert v-else-if="!transitions.length" type="info" variant="tonal" density="compact">{{ t('educational.caseUi.caseNoNextStage') }}</VAlert>
           <template v-else>
-            <VSelect
-              v-model="selected"
-              :items="transitionItems"
-              :item-title="translateApplicantStage"
-              :item-props="transitionItemProps"
-              item-value="id"
-              :label="t('educational.caseUi.moveStage')"
-              class="mb-4"
-            >
-              <template #subheader="{ props: item }">
-                <VListSubheader>{{ item.title }}</VListSubheader>
-              </template>
-            </VSelect>
-            <VTextarea v-model="note" :label="t('educational.caseUi.stageNote')" class="mb-4" />
-            <VBtn color="primary" :loading="moving" :disabled="!selectedStage" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
+            <ErpField v-model="selected" kind="select" :items="transitions.map(stage => ({ title: translateApplicantStage(stage), value: stage.id }))" :label="t('educational.caseUi.moveStage')" :placeholder="t('educational.caseUi.moveStage')" class="mb-4" />
+            <ErpField v-model="note" kind="textarea" :label="t('educational.caseUi.stageNote')" :placeholder="t('educational.caseUi.stageNote')" rows="3" class="mb-4" />
+            <VBtn color="primary" variant="flat" :loading="moving" :disabled="!selectedStage" @click="move">{{ t('educational.caseUi.recordStage') }}</VBtn>
           </template>
         </section>
 
-        <div class="service-case-grid mt-5">
-          <section class="case-section">
+          <section class="case-section case-section--history">
             <div class="case-section__heading"><h3>{{ t('educational.caseUi.caseHistory') }}</h3></div>
             <VList v-if="history.length" density="compact">
               <VListItem
@@ -207,7 +188,7 @@ onMounted(load)
             <p v-else class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.caseNoHistory') }}</p>
           </section>
 
-          <section class="case-section">
+          <section class="case-section case-section--tasks">
             <div class="case-section__heading"><h3>{{ t('educational.caseUi.tasks') }}</h3></div>
             <VList v-if="tasks.length" density="compact">
               <VListItem v-for="task in tasks" :key="task.id" :title="task.title" :subtitle="taskSubtitle(task)">
@@ -217,7 +198,7 @@ onMounted(load)
             <p v-else class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.caseNoTasks') }}</p>
           </section>
 
-          <section v-if="canViewFinance" class="case-section">
+          <section v-if="canViewFinance" class="case-section case-section--finance">
             <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3></div>
             <VList density="compact">
               <VListItem :title="t('educational.caseUi.serviceBalance', { fee: money(line.payable_total), paid: money(line.amount_paid), remaining: money(line.remaining_total), status: translateBackendValue(line.payment_status) })" />
@@ -262,6 +243,18 @@ onMounted(load)
   overflow: hidden;
 }
 
+.service-case-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid rgba(var(--v-theme-primary), .18);
+  border-radius: .75rem;
+  background: linear-gradient(145deg, rgba(var(--v-theme-primary), .08), rgb(var(--v-theme-surface)) 55%);
+}
+
 .case-party-link {
   color: rgb(var(--v-theme-primary));
   font-weight: 600;
@@ -277,8 +270,12 @@ onMounted(load)
 }
 
 .service-case-stage {
-  max-inline-size: 46rem;
+  background: rgba(var(--v-theme-primary), .045);
 }
+
+.case-section--history { background: rgba(var(--v-theme-info), .045); }
+.case-section--tasks { background: rgba(var(--v-theme-secondary), .045); }
+.case-section--finance { background: rgba(var(--v-theme-success), .045); }
 
 .case-section__heading {
   align-items: flex-start;
@@ -312,7 +309,11 @@ onMounted(load)
 .service-case-grid {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 959px) {
+  .service-case-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 599px) {

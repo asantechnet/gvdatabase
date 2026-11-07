@@ -35,6 +35,7 @@ declare global {
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
   const buildContractPrintHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']
+  const buildOfficialContractPrintData: typeof import('./resources/ts/utils/officialContractPrint')['buildOfficialContractPrintData']
   const buildWhatsappUrl: typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']
   const calendarDate: typeof import('./resources/ts/utils/calendarDate')['calendarDate']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
@@ -154,6 +155,7 @@ declare global {
   const mergeFieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']
   const nextTick: typeof import('vue')['nextTick']
   const notificationText: typeof import('./resources/ts/utils/notificationText')['notificationText']
+  const officialPrintMargins: typeof import('./resources/ts/utils/officialContractPrint')['officialPrintMargins']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
   const onBeforeUnmount: typeof import('vue')['onBeforeUnmount']
@@ -532,6 +534,7 @@ declare module 'vue' {
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
     readonly buildContractPrintHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['buildContractPrintHeader']>
+    readonly buildOfficialContractPrintData: UnwrapRef<typeof import('./resources/ts/utils/officialContractPrint')['buildOfficialContractPrintData']>
     readonly buildWhatsappUrl: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']>
     readonly calendarDate: UnwrapRef<typeof import('./resources/ts/utils/calendarDate')['calendarDate']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
@@ -651,6 +654,7 @@ declare module 'vue' {
     readonly mergeFieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notificationText: UnwrapRef<typeof import('./resources/ts/utils/notificationText')['notificationText']>
+    readonly officialPrintMargins: UnwrapRef<typeof import('./resources/ts/utils/officialContractPrint')['officialPrintMargins']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeUnmount: UnwrapRef<typeof import('vue')['onBeforeUnmount']>

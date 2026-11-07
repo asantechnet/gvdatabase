@@ -5,6 +5,7 @@ import { useToast } from 'vue-toastification'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import CrmApi, { type EntityType, type Channel, type Interaction, type Relationship } from '@/api/crmRelationships'
 import ErpField from '@/components/erp/ErpField.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 
 const props = withDefaults(defineProps<{
@@ -91,6 +92,11 @@ const detailItems = computed(() => {
     { key: 'date', icon: 'tabler-calendar', label: t('common.crmDetails.fields.since'), value: item.date ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(item.date)) : null },
   ].filter(detail => detail.value !== null && detail.value !== undefined && detail.value !== '')
 })
+
+// A subsequent opening can mirror the known number of detail cards exactly.
+// On the first opening, a compact representative grid avoids a large blank
+// placeholder area before the relationship response arrives.
+const skeletonDetailCount = computed(() => detailItems.value.length || 6)
 
 const formatDateTime = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 const pickerDate = (value: string) => value.slice(0, 16).replace('T', ' ')
@@ -244,7 +250,6 @@ const removeInteraction = async (interaction: Interaction) => {
 
   <VDialog
     v-model="open"
-    persistent
     max-width="1180"
     class="relationship-dialog-overlay"
   >
@@ -332,7 +337,7 @@ const removeInteraction = async (interaction: Interaction) => {
           </div>
           <VRow>
             <VCol
-              v-for="index in 9"
+              v-for="index in skeletonDetailCount"
               :key="index"
               cols="12"
               sm="6"
@@ -402,9 +407,9 @@ const removeInteraction = async (interaction: Interaction) => {
                       <div class="text-caption text-medium-emphasis">
                         {{ item.label }}
                       </div>
-                      <div class="text-body-1 font-weight-medium text-break">
-                        {{ item.value }}
-                      </div>
+                      <ContactActionMenu v-if="item.key === 'contact'" kind="phone" :value="String(item.value)" :contactable-type="type" :contactable-id="id" :context="record" />
+                      <ContactActionMenu v-else-if="item.key === 'email'" kind="email" :value="String(item.value)" :contactable-type="type" :contactable-id="id" :context="record" />
+                      <div v-else class="text-body-1 font-weight-medium text-break">{{ item.value }}</div>
                     </div>
                   </VCardText>
                 </VCard>
@@ -771,8 +776,8 @@ const removeInteraction = async (interaction: Interaction) => {
 <style>
 .relationship-dialog-overlay .v-overlay__scrim,
 .relationship-interaction-dialog .v-overlay__scrim {
-  background: rgba(var(--v-theme-on-surface), 0.26) !important;
   backdrop-filter: blur(7px);
+  background: rgba(var(--v-theme-on-surface), 0.26) !important;
   opacity: 1 !important;
 }
 </style>
@@ -781,13 +786,15 @@ const removeInteraction = async (interaction: Interaction) => {
 .relationship-dialog {
   display: flex;
   overflow: hidden;
-  max-block-size: calc(100dvh - 32px);
   flex-direction: column;
+  max-block-size: calc(100dvh - 32px);
 }
+
 .relationship-hero {
   flex: 0 0 auto;
-  background: linear-gradient(135deg, rgba(var(--v-theme-primary), .11), rgb(var(--v-theme-surface)) 62%);
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.11), rgb(var(--v-theme-surface)) 62%);
 }
+
 .relationship-nav {
   position: relative;
   z-index: 2;
@@ -795,67 +802,72 @@ const removeInteraction = async (interaction: Interaction) => {
   background: rgb(var(--v-theme-surface));
 }
 .relationship-tabs { overflow: visible; }
+
 .relationship-content {
   flex: 1 1 auto;
-  overflow-y: auto;
   min-block-size: 0;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
-.relationship-note { white-space: pre-wrap; line-height: 1.65; }
+.relationship-note { line-height: 1.65; white-space: pre-wrap; }
 .details-intro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.detail-tile { background: linear-gradient(145deg, rgba(var(--v-theme-primary), .045), rgb(var(--v-theme-surface))); }
+.detail-tile { background: linear-gradient(145deg, rgba(var(--v-theme-primary), 0.045), rgb(var(--v-theme-surface))); }
 .relationship-skeleton { display: grid; gap: 1rem; }
-.relationship-skeleton__intro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-block-size: 54px; margin-block-end: 20px; padding: 0; }
-.relationship-skeleton__intro-copy { display: grid; gap: .35rem; inline-size: min(100%, 15rem); }
+.relationship-skeleton__intro { display: flex; align-items: center; justify-content: space-between; padding: 0; gap: 1rem; margin-block-end: 20px; min-block-size: 54px; }
+.relationship-skeleton__intro-copy { display: grid; gap: 0; inline-size: min(100%, 15rem); }
 .relationship-skeleton__intro-copy :deep(.v-skeleton-loader:first-child) { inline-size: 11rem; }
 .relationship-skeleton__intro-copy :deep(.v-skeleton-loader:last-child) { inline-size: 15rem; }
 .relationship-skeleton__intro > :deep(.v-skeleton-loader:last-child) { inline-size: 5rem; }
 .relationship-skeleton__tile { min-block-size: 76px; }
-.relationship-skeleton__avatar { flex: 0 0 38px; inline-size: 38px; block-size: 38px; border-radius: 50%; background: rgba(var(--v-theme-primary), .1); }
-.relationship-skeleton__copy { display: grid; min-inline-size: 0; gap: .2rem; padding-block-start: .05rem; }
+.relationship-skeleton__avatar { flex: 0 0 38px; border-radius: 50%; background: rgba(var(--v-theme-primary), 0.1); block-size: 38px; inline-size: 38px; }
+.relationship-skeleton__copy { display: grid; gap: 0.2rem; min-inline-size: 0; padding-block-start: 0.05rem; }
 .relationship-skeleton__label { inline-size: min(100%, 6.5rem); }
 .relationship-skeleton__value { inline-size: min(100%, 11rem); }
-.relationship-dialog__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 50% !important; color: rgb(var(--v-theme-error)) !important; }
-.relationship-dialog__close:hover { background: rgba(var(--v-theme-error), .18) !important; }
-.interaction-card { transition: border-color .18s ease, transform .18s ease; }
-.interaction-card:hover { border-color: rgba(var(--v-theme-primary), .45) !important; transform: translateY(-1px); }
+.relationship-dialog__close { border: 1px solid rgba(var(--v-theme-error), 0.38) !important; border-radius: 50% !important; block-size: 36px; color: rgb(var(--v-theme-error)) !important; inline-size: 36px; }
+.relationship-dialog__close:hover { background: rgba(var(--v-theme-error), 0.18) !important; }
+.interaction-card { transition: border-color 0.18s ease, transform 0.18s ease; }
+.interaction-card:hover { border-color: rgba(var(--v-theme-primary), 0.45) !important; transform: translateY(-1px); }
 .crm-relationship-details__mobile-action { justify-content: flex-start; }
+
 .crm-relationship-details__menu-action {
+  overflow: hidden;
   box-sizing: border-box;
+  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
   max-inline-size: 100%;
   min-block-size: 40px;
   min-inline-size: 0;
-  overflow: hidden;
   padding-inline: 16px !important;
-  color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
-  font-size: .875rem !important;
-  font-weight: 500 !important;
 }
 
 .crm-relationship-details__menu-action :deep(.v-icon) { color: inherit !important; font-size: 20px; }
 .crm-relationship-details__menu-action :deep(.v-list-item-title) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.min-w-0 { min-width: 0; }
+.min-w-0 { min-inline-size: 0; }
 
 .relationship-interaction-card { overflow: hidden; }
+
 .relationship-interaction-card__title,
 .relationship-interaction-card__actions {
   display: flex;
   align-items: center;
-  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
-  border-color: rgba(var(--v-theme-on-surface), 0.035);
-  border-style: solid;
   border-width: 0;
+  border-style: solid;
+  border-color: rgba(var(--v-theme-on-surface), 0.035);
+  background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
 }
 .relationship-interaction-card__title { border-block-end-width: 1px; }
 .relationship-interaction-card__actions { border-block-start-width: 1px; }
 .relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 700; }
-.relationship-interaction-card__close { border: 1px solid rgba(var(--v-theme-error), .34) !important; border-radius: 50% !important; }
+.relationship-interaction-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
 .relationship-interaction-card__fields { display: grid; gap: 12px; }
+
 .relationship-interaction-card__cancel {
   border: 1px solid rgb(var(--v-theme-error)) !important;
-  background: rgba(var(--v-theme-error), .12) !important;
+  background: rgba(var(--v-theme-error), 0.12) !important;
   color: rgb(var(--v-theme-error)) !important;
 }
+
 .relationship-interaction-card__cancel:hover,
 .relationship-interaction-card__cancel:focus-visible,
 .relationship-interaction-card__cancel.v-btn--active,

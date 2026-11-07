@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import OfficeApi, { type Office, type OfficePayload } from '@/api/office'
 import OfficeGeofenceMap from '@/components/setup/OfficeGeofenceMap.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { canAccess } from '@/utils/authorization'
 import { useSettingsValidation } from '@/composables/useSettingsValidation'
 
@@ -22,7 +23,6 @@ const form = reactive({
   latitude: null as number | null, longitude: null as number | null, geofence_radius_meters: 100, geofence_enabled: false,
 })
 const geofenceReady = computed(() => form.latitude !== null && form.longitude !== null)
-const profileComplete = computed(() => Boolean(form.name.trim() && form.code.trim() && form.address.trim()))
 watch(() => ({ ...form }), (values, previous) => {
   for (const field of Object.keys(values) as (keyof typeof form)[]) {
     if (values[field] !== previous[field]) clearErrors(field)
@@ -85,48 +85,21 @@ onMounted(load)
 
 <template>
   <div class="office-settings">
-    <VAlert v-if="!automaticAttendanceEnabled" type="info" variant="tonal" icon="tabler-clock" class="mb-5">
-      {{ $t('common.ui.turnOnAutomaticAttendanceInOperationsToUseTheOfficeGeofenceYouCanStillKeepTheLocationReadyBelow') }}
-    </VAlert>
     <VRow>
-      <VCol cols="12" md="4">
-        <VCard variant="tonal" color="primary" class="office-summary h-100">
-          <VCardText class="pa-6">
-            <VAvatar size="56" color="primary" variant="flat" class="mb-5"><VIcon icon="tabler-building-community" size="30" /></VAvatar>
-            <div class="text-overline">{{ $t('common.ui.singleOfficeWorkspace') }}</div>
-            <h2 class="text-h5 font-weight-bold mb-2">{{ form.name || $t('common.ui.yourOffice') }}</h2>
-            <p class="text-body-2 text-medium-emphasis mb-5">{{ $t('common.ui.thisProfileIsSharedByStaffAssetsAttendanceReportsAndDocuments') }}</p>
-            <VList bg-color="transparent" density="compact" class="pa-0">
-              <VListItem prepend-icon="tabler-id" :title="form.code || $t('common.ui.officeCodePending')" />
-              <VListItem prepend-icon="tabler-map-pin" :title="form.address || $t('common.ui.addressPending')" />
-              <VListItem :prepend-icon="form.geofence_enabled ? 'tabler-shield-check' : 'tabler-shield-off'" :title="form.geofence_enabled ? $t('common.ui.geofenceEnabled') : $t('common.ui.geofenceDisabled')" />
-            </VList>
-          </VCardText>
-        </VCard>
-      </VCol>
-      <VCol cols="12" md="8">
-        <VCard variant="outlined" :loading="loading">
-          <VCardItem :title="$t('common.ui.officeProfile')" :subtitle="$t('common.ui.keepTheCompanySPhysicalLocationAndContactDetailsAccurate')" />
-          <VCardText>
-            <VRow>
-              <VCol cols="12" sm="6"><VTextField v-model="form.name" v-bind="inputProps('name')" :disabled="!canManage" :label="$t('common.fields.name')" required /></VCol>
-              <VCol cols="12" sm="6"><VTextField v-model="form.code" v-bind="inputProps('code')" :disabled="!canManage" :label="$t('pages.settings.directorycrudpage.officeCode')" required /></VCol>
-              <VCol cols="12" sm="6"><VTextField v-model="form.email" v-bind="inputProps('email')" :disabled="!canManage" :label="$t('common.fields.email')" type="email" /></VCol>
-              <VCol cols="12" sm="6"><VTextField v-model="form.phone" v-bind="inputProps('phone')" :disabled="!canManage" :label="$t('common.fields.phone')" /></VCol>
-              <VCol cols="12"><VTextarea v-model="form.address" v-bind="inputProps('address')" :disabled="!canManage" :label="$t('common.fields.address')" rows="2" auto-grow /></VCol>
-              <VCol cols="12" sm="6"><VSelect v-model="form.status" v-bind="inputProps('status')" :disabled="!canManage" :items="[{ title: $t('serviceContracts.active'), value: 'active' }, { title: $t('common.statuses.inactive'), value: 'inactive' }]" :label="$t('common.fields.status')" /></VCol>
-                            <VCol cols="12" class="d-flex align-center"><VChip :color="profileComplete ? 'success' : 'warning'" variant="tonal" prepend-icon="tabler-list-check">{{ profileComplete ? $t('common.ui.profileComplete') : $t('common.ui.completeTheProfile') }}</VChip></VCol>
-            </VRow>
-          </VCardText>
-        </VCard>
-      </VCol>
       <VCol cols="12">
-        <VCard variant="outlined">
+        <VCard variant="outlined" :loading="loading" class="office-geofence-card">
           <VCardItem :title="$t('common.ui.attendanceGeofence')" :subtitle="$t('common.ui.setOneTrustedLocationForLocationAwareClockIns')" />
           <VCardText>
-            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4"><VSwitch v-model="form.geofence_enabled" v-bind="inputProps('geofence_enabled')" :disabled="!canManage || !automaticAttendanceEnabled" color="primary" :label="$t('common.ui.requireStaffToClockInFromThisOffice')" hide-details="auto" /><VBtn variant="tonal" prepend-icon="tabler-current-location" :disabled="!canManage" :loading="locating" @click="locate">{{ $t('common.ui.useMyCurrentLocation') }}</VBtn></div>
+            <section class="office-geofence-controls mb-4">
+              <VSwitch v-model="form.geofence_enabled" v-bind="inputProps('geofence_enabled')" :disabled="!canManage || !automaticAttendanceEnabled" color="primary" :label="$t('common.ui.requireStaffToClockInFromThisOffice')" hide-details="auto" />
+              <VBtn variant="tonal" color="primary" prepend-icon="tabler-current-location" :disabled="!canManage" :loading="locating" @click="locate">{{ $t('common.ui.useMyCurrentLocation') }}</VBtn>
+            </section>
             <OfficeGeofenceMap :readonly="!canManage" v-model:latitude="form.latitude" v-model:longitude="form.longitude" v-model:radius-meters="form.geofence_radius_meters" :current-latitude="location.latitude" :current-longitude="location.longitude" />
-            <VRow class="mt-2"><VCol cols="12" md="4"><VTextField v-model.number="form.latitude" v-bind="inputProps('latitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.latitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.longitude" v-bind="inputProps('longitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.longitude')" /></VCol><VCol cols="12" md="4"><VTextField v-model.number="form.geofence_radius_meters" v-bind="inputProps('geofence_radius_meters')" :disabled="!canManage" type="number" min="10" max="5000" suffix="m" :label="$t('pages.settings.geofence.radiusMeters')" /></VCol></VRow>
+            <VRow class="mt-2">
+              <VCol cols="12" md="4"><ErpField v-model.number="form.latitude" v-bind="inputProps('latitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.latitude')" placeholder="34.5553000" /></VCol>
+              <VCol cols="12" md="4"><ErpField v-model.number="form.longitude" v-bind="inputProps('longitude')" :disabled="!canManage" type="number" step="0.0000001" :label="$t('pages.settings.geofence.longitude')" placeholder="69.2075000" /></VCol>
+              <VCol cols="12" md="4"><ErpField v-model.number="form.geofence_radius_meters" v-bind="inputProps('geofence_radius_meters')" :disabled="!canManage" type="number" min="10" max="5000" suffix="m" :label="$t('pages.settings.geofence.radiusMeters')" placeholder="100" /></VCol>
+            </VRow>
           </VCardText>
         </VCard>
       </VCol>
@@ -134,3 +107,23 @@ onMounted(load)
     <div class="d-flex justify-end mt-5"><VBtn color="primary" prepend-icon="tabler-device-floppy" :disabled="!canManage" :loading="saving" @click="save">{{ $t('common.ui.saveOfficeProfile') }}</VBtn></div>
   </div>
 </template>
+
+<style scoped>
+.office-geofence-card {
+  overflow: hidden;
+}
+
+.office-geofence-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .office-geofence-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>

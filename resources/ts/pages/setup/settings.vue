@@ -16,10 +16,11 @@ import { type ThemeColorField, type ThemeColorPreferences, applyThemePalette, pe
 import ContractDocumentDesignApi, { type ContractDocumentDesign, type ContractDocumentDesignSafeArea } from '@/api/contractDocumentDesigns'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import type { BuiltInService } from '@/api/applicants'
+import ErpField from '@/components/erp/ErpField.vue'
 import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
 import SupportPage from '@/pages/support.vue'
 
-type UploadField = 'website_logo' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'payslip_letterhead'
+type UploadField = 'website_logo' | 'website_dark_logo' | 'favicon' | 'company_signature' | 'contract_letterhead' | 'contract_cover_design' | 'receipt_letterhead' | 'payslip_letterhead'
 type DocumentLetterheadKind = 'receipt' | 'payslip'
 type SettingsPage = 'company' | 'email' | 'operations' | 'appearance' | 'documents' | 'office' | 'support'
 
@@ -44,9 +45,13 @@ const defaultForm = (): SettingForm => ({
   ...themeColorDefaults,
   off_day_allowance_days_per_year: 0,
   missing_attendance_status: 'absent',
-  website_title: 'Educational Agency Portal',
+  website_title: '',
   website_logo: null,
   remove_website_logo: false,
+  website_dark_logo: null,
+  remove_website_dark_logo: false,
+  favicon: null,
+  remove_favicon: false,
   company_signature: null,
   remove_company_signature: false,
   contract_letterhead: null,
@@ -85,8 +90,8 @@ const defaultForm = (): SettingForm => ({
   timezone: 'Asia/Kabul',
   phone: '',
   physical_address: '',
-  short_company_name: 'Educational Agency',
-  original_company_name: 'Educational Agency',
+  short_company_name: '',
+  original_company_name: '',
   business_licence: '',
   office_open_time: '09:00',
   office_close_time: '17:00',
@@ -99,6 +104,8 @@ const persistedForm = ref<SettingForm>(defaultForm())
 const savedSetting = ref<Setting | null>(null)
 const settingId = ref<number | null>(null)
 const logoPreview = ref<string | null>(null)
+const darkLogoPreview = ref<string | null>(null)
+const faviconPreview = ref<string | null>(null)
 const signaturePreview = ref<string | null>(null)
 const letterheadPreview = ref<string | null>(null)
 const coverDesignPreview = ref<string | null>(null)
@@ -168,7 +175,7 @@ const settingsPages = computed(() => [
   { value: 'appearance' as const, icon: 'tabler-palette', title: translate('pages.settings.settings.appearancePage'), description: translate('pages.settings.settings.appearancePageDescription') },
   { value: 'documents' as const, icon: 'tabler-file-description', title: translate('pages.settings.settings.documentsPage'), description: translate('pages.settings.settings.documentsPageDescription') },
   { value: 'support' as const, icon: 'tabler-lifebuoy', title: translate('common.navigation.support'), description: translate('pages.settings.settings.supportPageDescription') },
-  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-building-community', title: translate('common.fields.office'), description: translate('pages.settings.settings.officePageDescription') }] : []),
+  ...(canViewOffices.value ? [{ value: 'office' as const, icon: 'tabler-map-pin', title: translate('pages.settings.settings.attendanceLocationPage'), description: translate('pages.settings.settings.attendanceLocationPageDescription') }] : []),
 ])
 
 const activePage = computed(() => settingsPages.value.find(page => page.value === activeSettingsPage.value)!)
@@ -177,25 +184,19 @@ const showsSettingsActions = computed(() => activeSettingsPage.value !== 'office
 
 const appearanceGroups = computed(() => [
   {
-    title: translate('pages.settings.settings.brandColors'),
-    description: translate('pages.settings.settings.brandColorsHint'),
+    title: translate('pages.settings.settings.lightModeColors'),
     fields: [
-      { label: translate('pages.settings.settings.primaryColor'), field: 'primary_color' as const },
-      { label: translate('pages.settings.settings.secondaryColor'), field: 'secondary_color' as const },
-    ],
-  },
-  {
-    title: translate('pages.settings.settings.lightModeSurfaces'),
-    description: translate('pages.settings.settings.lightModeSurfacesHint'),
-    fields: [
+      { label: translate('pages.settings.settings.lightPrimaryColor'), field: 'primary_color' as const },
+      { label: translate('pages.settings.settings.lightSecondaryColor'), field: 'secondary_color' as const },
       { label: translate('pages.settings.settings.applicationBackground'), field: 'light_background_color' as const },
       { label: translate('pages.settings.settings.cardsAndMenus'), field: 'light_surface_color' as const },
     ],
   },
   {
-    title: translate('pages.settings.settings.darkModeSurfaces'),
-    description: translate('pages.settings.settings.darkModeSurfacesHint'),
+    title: translate('pages.settings.settings.darkModeColors'),
     fields: [
+      { label: translate('pages.settings.settings.darkPrimaryColor'), field: 'dark_primary_color' as const },
+      { label: translate('pages.settings.settings.darkSecondaryColor'), field: 'dark_secondary_color' as const },
       { label: translate('pages.settings.settings.applicationBackground'), field: 'dark_background_color' as const },
       { label: translate('pages.settings.settings.cardsAndMenus'), field: 'dark_surface_color' as const },
     ],
@@ -203,7 +204,7 @@ const appearanceGroups = computed(() => [
 ])
 
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
-  company: ['website_title', 'website_logo', 'remove_website_logo', 'company_signature', 'remove_company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
+  company: ['website_title', 'website_logo', 'remove_website_logo', 'website_dark_logo', 'remove_website_dark_logo', 'favicon', 'remove_favicon', 'company_signature', 'remove_company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
   email: ['email_delivery_enabled', 'company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
   operations: ['off_day_allowance_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled', 'missing_attendance_status'],
   appearance: themeColorFields,
@@ -303,13 +304,15 @@ function applySavedSetting(setting: Setting) {
     ...defaultForm(),
     primary_color: setting.primary_color,
     secondary_color: setting.secondary_color,
+    dark_primary_color: setting.dark_primary_color,
+    dark_secondary_color: setting.dark_secondary_color,
     light_background_color: setting.light_background_color,
     light_surface_color: setting.light_surface_color,
     dark_background_color: setting.dark_background_color,
     dark_surface_color: setting.dark_surface_color,
     off_day_allowance_days_per_year: Number(setting.off_day_allowance_days_per_year ?? 0),
     missing_attendance_status: setting.missing_attendance_status ?? 'absent',
-    website_title: setting.website_title,
+    website_title: setting.website_title || '',
     website_address: setting.website_address || '',
     company_email: setting.company_email || '',
     mail_host: setting.mail_host || '',
@@ -324,8 +327,8 @@ function applySavedSetting(setting: Setting) {
     timezone: setting.timezone || 'UTC',
     phone: setting.phone || '',
     physical_address: setting.physical_address || '',
-    short_company_name: setting.short_company_name || setting.website_title,
-    original_company_name: setting.original_company_name || setting.website_title,
+    short_company_name: setting.short_company_name || setting.website_title || '',
+    original_company_name: setting.original_company_name || setting.website_title || '',
     business_licence: setting.business_licence || '',
     office_open_time: setting.office_open_time || '09:00',
     office_close_time: setting.office_close_time || '17:00',
@@ -351,6 +354,8 @@ function applySavedSetting(setting: Setting) {
   setAutomaticAttendanceEnabled(setting.automatic_attendance_enabled)
   persistedForm.value = { ...savedForm }
   logoPreview.value = setting.website_logo_url || setting.website_logo || null
+  darkLogoPreview.value = setting.website_dark_logo_url || setting.website_dark_logo || null
+  faviconPreview.value = setting.favicon_url || setting.favicon || null
   signaturePreview.value = setting.company_signature_url
   letterheadPreview.value = setting.contract_letterhead_url
   coverDesignPreview.value = setting.contract_cover_design_url
@@ -502,7 +507,11 @@ function handleImageUpload(event: Event, field: UploadField) {
 
   const oldPreview = field === 'website_logo'
     ? logoPreview.value
-    : field === 'company_signature'
+    : field === 'website_dark_logo'
+      ? darkLogoPreview.value
+      : field === 'favicon'
+        ? faviconPreview.value
+        : field === 'company_signature'
       ? signaturePreview.value
       : field === 'contract_letterhead'
         ? letterheadPreview.value
@@ -519,6 +528,10 @@ function handleImageUpload(event: Event, field: UploadField) {
   const preview = previewFile(file)
   if (field === 'website_logo')
     logoPreview.value = preview
+  if (field === 'website_dark_logo')
+    darkLogoPreview.value = preview
+  if (field === 'favicon')
+    faviconPreview.value = preview
   if (field === 'company_signature')
     signaturePreview.value = preview
   if (field === 'contract_letterhead') {
@@ -744,7 +757,7 @@ function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
  * stored file is removed server-side and the setting cleared; the caller is
  * always asked to confirm first.
  */
-function removeUpload(field: 'website_logo' | 'company_signature') {
+function removeUpload(field: 'website_logo' | 'website_dark_logo' | 'favicon' | 'company_signature') {
   if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
     return
   clearSettingErrors(field)
@@ -761,6 +774,14 @@ function removeUpload(field: 'website_logo' | 'company_signature') {
   if (field === 'website_logo') {
     clearPreview(logoPreview)
     form.value.remove_website_logo = true
+  }
+  else if (field === 'website_dark_logo') {
+    clearPreview(darkLogoPreview)
+    form.value.remove_website_dark_logo = true
+  }
+  else if (field === 'favicon') {
+    clearPreview(faviconPreview)
+    form.value.remove_favicon = true
   }
   else {
     clearPreview(signaturePreview)
@@ -850,12 +871,6 @@ function restoreThemeColor(field: ThemeColorField) {
   applyTheme()
 }
 
-function restoreThemeDefaults() {
-  themeColorFields.forEach(field => clearSettingErrors(field))
-  themeColorFields.forEach(field => form.value[field] = themeColorDefaults[field])
-  applyTheme()
-}
-
 function resetSettings(apply: boolean = false, page: SettingsPage | null = null) {
   if (page) pageFields[page].forEach(field => clearSettingErrors(field))
   else clearSettingErrors()
@@ -869,7 +884,7 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
   }
   else if (savedSetting.value && page) {
     const draft = { ...form.value }
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
+    const previews = { logo: logoPreview.value, darkLogo: darkLogoPreview.value, favicon: faviconPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
 
     applySavedSetting(savedSetting.value)
 
@@ -882,6 +897,8 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     })
     if (page !== 'company') {
       logoPreview.value = previews.logo
+      darkLogoPreview.value = previews.darkLogo
+      faviconPreview.value = previews.favicon
       signaturePreview.value = previews.signature
     }
     if (page !== 'documents') {
@@ -894,6 +911,8 @@ function resetSettings(apply: boolean = false, page: SettingsPage | null = null)
     form.value = defaultForm()
     settingId.value = null
     logoPreview.value = null
+    darkLogoPreview.value = null
+    faviconPreview.value = null
     signaturePreview.value = null
     letterheadPreview.value = null
     coverDesignPreview.value = null
@@ -920,7 +939,7 @@ function activePagePayload(): Partial<SettingForm> {
 
       return
     }
-    if (field === 'remove_website_logo' || field === 'remove_company_signature' || field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_payslip_letterhead') {
+    if (field === 'remove_website_logo' || field === 'remove_website_dark_logo' || field === 'remove_favicon' || field === 'remove_company_signature' || field === 'remove_contract_letterhead' || field === 'remove_contract_cover_design' || field === 'remove_receipt_letterhead' || field === 'remove_payslip_letterhead') {
       if (value === true)
         payload[field] = true as never
 
@@ -984,7 +1003,7 @@ async function saveSettings() {
 
     persistThemeColors(Object.fromEntries(colorsToPersist.map(field => [field, response.data[field]])))
 
-    const previews = { logo: logoPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
+    const previews = { logo: logoPreview.value, darkLogo: darkLogoPreview.value, favicon: faviconPreview.value, signature: signaturePreview.value, letterhead: letterheadPreview.value, cover: coverDesignPreview.value, receipt: receiptLetterheadPreview.value }
 
     // The API returns the complete record. Keep drafts from other pages intact.
     const otherPageDraft = { ...form.value }
@@ -999,6 +1018,8 @@ async function saveSettings() {
     })
     if (activeSettingsPage.value !== 'company') {
       logoPreview.value = previews.logo
+      darkLogoPreview.value = previews.darkLogo
+      faviconPreview.value = previews.favicon
       signaturePreview.value = previews.signature
     }
     if (activeSettingsPage.value !== 'documents') {
@@ -1066,6 +1087,7 @@ onBeforeUnmount(revokeObjectUrls)
               nav
               density="comfortable"
               min-width="240"
+              class="settings-navigation"
             >
               <VListItem
                 v-for="page in settingsPages"
@@ -1098,7 +1120,7 @@ onBeforeUnmount(revokeObjectUrls)
         <VList
           nav
           density="comfortable"
-          class="px-3 pb-5"
+          class="settings-navigation px-3 pb-5"
         >
           <VListItem
             v-for="page in settingsPages"
@@ -1138,14 +1160,6 @@ onBeforeUnmount(revokeObjectUrls)
               </div>
             </div>
           </div>
-          <VChip
-            v-if="activeSettingsPage === 'email'"
-            :color="savedSetting?.mail_password_configured ? 'success' : 'secondary'"
-            size="small"
-            variant="tonal"
-          >
-            {{ savedSetting?.mail_password_configured ? $t('pages.settings.settings.smtpPasswordConfigured') : $t('pages.settings.settings.usingDefaultMailConfiguration') }}
-          </VChip>
         </div>
 
         <VCardText class="pa-6 pt-4">
@@ -1155,166 +1169,113 @@ onBeforeUnmount(revokeObjectUrls)
             embedded
           />
           <VRow v-else-if="activeSettingsPage === 'company'">
-            <VCol
-              cols="12"
-              md="4"
-              class="text-center d-flex flex-column align-center justify-center border-md-e"
-            >
-              <VAvatar
-                rounded
-                size="120"
-                class="mb-4 elevation-2 bg-light"
-              >
-                <VImg
-                  :src="logoPreview ?? undefined"
-                  alt="Website logo preview"
-                  cover
-                />
-              </VAvatar>
-              <VBtn
-                :color="uploadError('website_logo') ? 'error' : 'primary'"
-                variant="tonal"
-                density="comfortable"
-                class="position-relative"
-                :disabled="!canEditSettings"
-                :data-settings-field="'website_logo'"
-                :class="{ 'settings-upload-error': !!uploadError('website_logo') }"
-              >
-                <VIcon
-                  icon="tabler-upload"
-                  class="me-2"
-                />{{ $t('pages.settings.settings.uploadNewLogo') }}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  class="file-overlay"
-                  :disabled="!canEditSettings"
-                  @change="handleImageUpload($event, 'website_logo')"
-                  :name="'website_logo'"
-                  :aria-invalid="!!uploadError('website_logo')"
+            <VCol cols="12">
+              <VRow class="company-assets">
+                <VCol
+                  v-for="asset in [
+                    { field: 'website_logo' as const, preview: logoPreview, title: $t('pages.settings.settings.lightLogo'), hint: $t('pages.settings.settings.jpgPNGGIFOrWEBPUpTo2MB'), icon: 'tabler-sun' },
+                    { field: 'website_dark_logo' as const, preview: darkLogoPreview, title: $t('pages.settings.settings.darkLogo'), hint: $t('pages.settings.settings.darkLogoHint'), icon: 'tabler-moon' },
+                    { field: 'favicon' as const, preview: faviconPreview, title: $t('pages.settings.settings.favicon'), hint: $t('pages.settings.settings.faviconHint'), icon: 'tabler-world' },
+                    { field: 'company_signature' as const, preview: signaturePreview, title: $t('pages.settings.settings.authorizedSignature'), hint: $t('pages.settings.settings.shownOnPrintedContracts'), icon: 'tabler-signature' },
+                  ]"
+                  :key="asset.field"
+                  cols="12"
+                  sm="6"
+                  lg="3"
                 >
-              </VBtn>
-                <p v-if="uploadError('website_logo')" role="alert" class="text-error text-caption mt-2">{{ uploadError('website_logo') }}</p>
-              <p class="text-caption text-medium-emphasis mt-2">
-                {{ $t('pages.settings.settings.jpgPNGGIFOrWEBPUpTo2MB')
-                }}
-              </p>
-              <VBtn
-                v-if="savedSetting?.website_logo || form.website_logo"
-                color="error"
-                variant="text"
-                density="comfortable"
-                class="mt-2"
-                :disabled="!canEditSettings"
-                @click="removeUpload('website_logo')"
-              >
-                <VIcon
-                  icon="tabler-trash"
-                  class="me-2"
-                />{{ $t('pages.settings.settings.removeFile') }}
-              </VBtn>
-
-              <VDivider class="my-5 w-100" />
-              <div class="text-subtitle-2 mb-2">
-                {{ $t('pages.settings.settings.authorizedSignature') }}
-              </div>
-              <VImg
-                v-if="signaturePreview"
-                :src="signaturePreview"
-                alt="Company signature preview"
-                width="180"
-                height="80"
-                contain
-                class="asset-preview mb-3"
-              />
-              <VIcon
-                v-else
-                icon="tabler-signature"
-                size="54"
-                class="text-disabled mb-3"
-              />
-              <VBtn
-                :color="uploadError('company_signature') ? 'error' : 'primary'"
-                variant="tonal"
-                density="comfortable"
-                class="position-relative"
-                :disabled="!canEditSettings"
-                :data-settings-field="'company_signature'"
-                :class="{ 'settings-upload-error': !!uploadError('company_signature') }"
-              >
-                <VIcon
-                  icon="tabler-upload"
-                  class="me-2"
-                />{{ $t('pages.settings.settings.uploadSignature') }}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  class="file-overlay"
-                  :disabled="!canEditSettings"
-                  @change="handleImageUpload($event, 'company_signature')"
-                  :name="'company_signature'"
-                  :aria-invalid="!!uploadError('company_signature')"
-                >
-              </VBtn>
-                <p v-if="uploadError('company_signature')" role="alert" class="text-error text-caption mt-2">{{ uploadError('company_signature') }}</p>
-              <p class="text-caption text-medium-emphasis mt-2">
-                {{ $t('pages.settings.settings.shownOnPrintedContracts')
-                }}
-              </p>
-              <VBtn
-                v-if="signaturePreview"
-                color="error"
-                variant="text"
-                density="comfortable"
-                class="mt-2"
-                :disabled="!canEditSettings"
-                @click="removeUpload('company_signature')"
-              >
-                <VIcon
-                  icon="tabler-trash"
-                  class="me-2"
-                />{{ $t('pages.settings.settings.removeFile') }}
-              </VBtn>
+                  <section class="company-asset-card">
+                    <div class="company-asset-preview">
+                      <VImg v-if="asset.preview" :src="asset.preview" :alt="asset.title" contain />
+                      <VIcon v-else :icon="asset.icon" size="38" class="text-disabled" />
+                    </div>
+                    <div class="text-subtitle-2 font-weight-medium mt-3">{{ asset.title }}</div>
+                    <p class="text-caption text-medium-emphasis mt-1 mb-3">{{ asset.hint }}</p>
+                    <div class="d-flex flex-wrap ga-2">
+                      <VBtn
+                        :color="uploadError(asset.field) ? 'error' : 'primary'"
+                        variant="tonal"
+                        size="small"
+                        class="position-relative"
+                        :disabled="!canEditSettings"
+                        :data-settings-field="asset.field"
+                        :class="{ 'settings-upload-error': !!uploadError(asset.field) }"
+                      >
+                        <VIcon icon="tabler-upload" class="me-1" />{{ $t('common.actions.upload') }}
+                        <input
+                          type="file"
+                          :accept="asset.field === 'favicon' ? '.ico,image/jpeg,image/png,image/gif,image/webp' : asset.field === 'company_signature' ? 'image/jpeg,image/png,image/webp' : 'image/jpeg,image/png,image/gif,image/webp'"
+                          class="file-overlay"
+                          :disabled="!canEditSettings"
+                          :name="asset.field"
+                          :aria-invalid="!!uploadError(asset.field)"
+                          @change="handleImageUpload($event, asset.field)"
+                        >
+                      </VBtn>
+                      <VBtn v-if="asset.preview" color="error" variant="text" size="small" :disabled="!canEditSettings" @click="removeUpload(asset.field)">
+                        {{ $t('common.actions.remove') }}
+                      </VBtn>
+                    </div>
+                    <p v-if="uploadError(asset.field)" role="alert" class="text-error text-caption mt-2 mb-0">{{ uploadError(asset.field) }}</p>
+                  </section>
+                </VCol>
+              </VRow>
             </VCol>
 
-            <VCol
-              cols="12"
-              md="8"
-              class="ps-md-6"
-            >
+            <VCol cols="12">
               <VRow>
                 <VCol
                   cols="12"
                   sm="6"
                 >
-                  <VTextField
+                  <ErpField
                     v-model="form.website_title"
                     v-bind="settingInputProps('website_title')"
                     :label="$t('pages.settings.settings.websiteTitle')"
+                    placeholder="e.g. Acme Group"
                   />
                 </VCol>
                 <VCol
                   cols="12"
                   sm="6"
                 >
-                  <VTextField
+                  <ErpField
                     v-model="form.short_company_name"
                     v-bind="settingInputProps('short_company_name')"
                     :label="$t('pages.settings.settings.shortCompanyName')"
-                  />
-                </VCol>
-                <VCol cols="12">
-                  <VTextField
-                    v-model="form.original_company_name"
-                    v-bind="settingInputProps('original_company_name')"
-                    :label="$t('pages.settings.settings.originalCompanyName')"
+                    placeholder="e.g. Acme"
                   />
                 </VCol>
                 <VCol
                   cols="12"
                   sm="6"
                 >
-                  <VTextField
+                  <ErpField
+                    v-model="form.original_company_name"
+                    v-bind="settingInputProps('original_company_name')"
+                    :label="$t('pages.settings.settings.originalCompanyName')"
+                    placeholder="e.g. Acme Group Ltd."
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="6"
+                >
+                  <ErpField
+                    v-model="form.timezone"
+                    kind="select"
+                    v-bind="settingInputProps('timezone')"
+                    :items="timezoneOptions"
+                    :label="$t('pages.settings.settings.companyTimezone')"
+                    placeholder="Asia/Kabul"
+                    autocomplete="off"
+                    clearable
+                  />
+                </VCol>
+                <VCol
+                  cols="12"
+                  sm="6"
+                >
+                  <ErpField
                     v-model="form.website_address"
                     v-bind="settingInputProps('website_address')"
                     :label="$t('pages.settings.settings.websiteAddress')"
@@ -1325,29 +1286,20 @@ onBeforeUnmount(revokeObjectUrls)
                   cols="12"
                   sm="6"
                 >
-                  <VTextField
+                  <ErpField
                     v-model="form.phone"
                     v-bind="settingInputProps('phone')"
                     :label="$t('common.fields.phone')"
-                  />
-                </VCol>
-                <VCol
-                  cols="12"
-                  sm="6"
-                >
-                  <AppSelect
-                    v-model="form.timezone"
-                    v-bind="settingInputProps('timezone')"
-                    :items="timezoneOptions"
-                    :label="$t('pages.settings.settings.companyTimezone')"
-                    autocomplete="off"
+                    placeholder="+93 700 000 000"
                   />
                 </VCol>
                 <VCol cols="12">
-                  <VTextarea
+                  <ErpField
                     v-model="form.physical_address"
+                    kind="textarea"
                     v-bind="settingInputProps('physical_address')"
                     :label="$t('pages.settings.settings.physicalAddress')"
+                    placeholder="Street, city, country"
                     rows="2"
                     auto-grow
                   />
@@ -1357,15 +1309,6 @@ onBeforeUnmount(revokeObjectUrls)
           </VRow>
 
           <VRow v-else-if="activeSettingsPage === 'email'">
-            <VCol cols="12">
-              <VAlert
-                type="info"
-                variant="tonal"
-                icon="tabler-shield-lock"
-              >
-                {{ $t('pages.settings.settings.emailDeliveryHint') }}
-              </VAlert>
-            </VCol>
             <VCol cols="12">
               <VSwitch
                 v-model="form.email_delivery_enabled"
@@ -1383,7 +1326,7 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.company_email"
                 v-bind="settingInputProps('company_email')"
                 :label="$t('pages.settings.settings.fromEmailAddress')"
@@ -1395,23 +1338,18 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.mail_from_name"
                 v-bind="settingInputProps('mail_from_name')"
                 :label="$t('pages.settings.settings.fromName')"
-                :placeholder="form.website_title"
+                :placeholder="form.website_title || 'Acme Group'"
               />
-            </VCol>
-            <VCol cols="12">
-              <div class="text-overline text-medium-emphasis">
-                {{ $t('pages.settings.settings.smtpServer') }}
-              </div>
             </VCol>
             <VCol
               cols="12"
-              sm="8"
+              sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.mail_host"
                 v-bind="settingInputProps('mail_host')"
                 :label="$t('pages.settings.settings.smtpHost')"
@@ -1420,37 +1358,41 @@ onBeforeUnmount(revokeObjectUrls)
             </VCol>
             <VCol
               cols="12"
-              sm="4"
+              sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model.number="form.mail_port"
                 v-bind="settingInputProps('mail_port')"
                 :label="$t('pages.settings.settings.smtpPort')"
                 type="number"
                 min="1"
                 max="65535"
+                placeholder="587"
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.mail_username"
                 v-bind="settingInputProps('mail_username')"
                 :label="$t('pages.settings.settings.smtpUsername')"
                 autocomplete="username"
+                placeholder="user{'@'}example.com"
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <AppSelect
+              <ErpField
                 v-model="form.mail_encryption"
+                kind="select"
                 v-bind="settingInputProps('mail_encryption')"
                 :items="[{ title: $t('pages.settings.settings.tlsRecommended'), value: 'tls' }, { title: 'SSL', value: 'ssl' }]"
                 :label="$t('pages.settings.settings.encryption')"
+                placeholder="TLS"
                 clearable
               />
             </VCol>
@@ -1458,12 +1400,13 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.mail_password"
                 v-bind="settingInputProps('mail_password')"
                 :label="$t('pages.settings.settings.smtpPassword')"
                 type="password"
                 autocomplete="new-password"
+                placeholder="App password"
                 :hint="savedSetting?.mail_password_configured ? $t('pages.settings.settings.smtpPasswordSavedHint') : $t('pages.settings.settings.smtpPasswordGmailHint')"
                 persistent-hint
               /><VCheckbox
@@ -1479,11 +1422,12 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.mail_reply_to"
                 v-bind="settingInputProps('mail_reply_to')"
                 :label="$t('pages.settings.settings.replyToEmail')"
                 type="email"
+                placeholder="support{'@'}example.com"
               />
             </VCol>
             </template>
@@ -1494,7 +1438,7 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model="form.business_licence"
                 v-bind="settingInputProps('business_licence')"
                 :label="$t('pages.settings.settings.businessLicence')"
@@ -1505,27 +1449,28 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model.number="form.off_day_allowance_days_per_year"
                 v-bind="settingInputProps('off_day_allowance_days_per_year')"
                 :label="$t('pages.settings.settings.offDayAllowanceDaysPerYear')"
-                :hint="$t('pages.settings.settings.offDayAllowanceDaysPerYearHint')"
-                persistent-hint
                 type="number"
                 min="0"
                 max="366"
                 step="0.5"
+                placeholder="0"
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <AppSelect
+              <ErpField
                 v-model="form.office_open_time"
+                kind="select"
                 v-bind="settingInputProps('office_open_time')"
                 :items="timeOptions"
                 :label="$t('pages.settings.settings.officeOpens')"
+                placeholder="09:00"
                 clearable
               />
             </VCol>
@@ -1533,11 +1478,13 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <AppSelect
+              <ErpField
                 v-model="form.office_close_time"
+                kind="select"
                 v-bind="settingInputProps('office_close_time')"
                 :items="timeOptions"
                 :label="$t('pages.settings.settings.officeCloses')"
+                placeholder="17:00"
                 clearable
               />
             </VCol>
@@ -1545,32 +1492,23 @@ onBeforeUnmount(revokeObjectUrls)
               cols="12"
               sm="6"
             >
-              <VTextField
+              <ErpField
                 v-model.number="form.default_break_minutes"
                 v-bind="settingInputProps('default_break_minutes')"
                 :label="$t('pages.settings.settings.defaultBreakMinutes')"
                 type="number"
                 min="0"
                 max="720"
-              />
-            </VCol>
-            <VCol cols="12">
-              <VSwitch
-                v-model="form.automatic_attendance_enabled"
-                v-bind="settingInputProps('automatic_attendance_enabled')"
-                color="primary"
-                inset
-                :label="$t('pages.settings.settings.automaticAttendanceEnabled')"
-                :hint="$t('pages.settings.settings.automaticAttendanceEnabledHint')"
-                persistent-hint
+                placeholder="e.g. 60"
               />
             </VCol>
             <VCol
               cols="12"
               sm="6"
             >
-              <VSelect
+              <ErpField
                 v-model="form.missing_attendance_status"
+                kind="select"
                 v-bind="settingInputProps('missing_attendance_status')"
                 :items="[
                   { title: $t('common.attendanceStatuses.present'), value: 'present' },
@@ -1578,79 +1516,42 @@ onBeforeUnmount(revokeObjectUrls)
                   { title: $t('common.attendanceStatuses.offDay'), value: 'off_day' },
                 ]"
                 :label="$t('pages.settings.settings.missingAttendanceStatus')"
-                :hint="$t('pages.settings.settings.missingAttendanceStatusHint')"
-                persistent-hint
+                placeholder="Absent"
               />
             </VCol>
             <VCol cols="12">
-              <VAlert
-                type="warning"
-                variant="tonal"
-                density="compact"
-                icon="tabler-cloud-storm"
-                class="mb-2"
-              >
-                {{ $t('pages.settings.settings.attendanceWeatherWarning') }}
-              </VAlert>
+              <section class="settings-feature-panel">
+                <VSwitch
+                  v-model="form.automatic_attendance_enabled"
+                  v-bind="settingInputProps('automatic_attendance_enabled')"
+                  color="primary"
+                  inset
+                  hide-details
+                  :label="$t('pages.settings.settings.automaticAttendanceEnabled')"
+                />
+                <p class="text-body-2 text-medium-emphasis mt-2 mb-0">
+                  {{ $t('pages.settings.settings.automaticAttendanceEnabledHint') }}
+                </p>
+              </section>
             </VCol>
           </VRow>
 
           <template v-else-if="activeSettingsPage === 'appearance'">
-            <div class="d-flex flex-wrap align-start justify-space-between ga-3 mb-5">
-              <div>
-                <h4 class="text-h6 mb-2 font-weight-medium">
-                  {{ $t('pages.settings.settings.vuexyThemeColors') }}
-                </h4>
-                <p class="text-body-2 text-medium-emphasis mb-0">
-                  {{ $t('pages.settings.settings.themeColorsHint') }}
-                </p>
-              </div>
-              <VBtn
-                variant="tonal"
-                color="secondary"
-                :disabled="!canEditSettings"
-                @click="restoreThemeDefaults"
-              >
-                <VIcon
-                  icon="tabler-restore"
-                  class="me-2"
-                />{{ $t('pages.settings.settings.restoreVuexyDefaults') }}
-              </VBtn>
-            </div>
-
-            <VAlert
-              type="info"
-              variant="tonal"
-              density="compact"
-              class="mb-5"
-            >
-              {{ $t('pages.settings.settings.themeColorsPreviewHint') }}
-            </VAlert>
-
-            <VCard
+            <section
               v-for="group in appearanceGroups"
               :key="group.title"
-              variant="outlined"
-              class="appearance-group mb-5"
+              class="appearance-group mb-6"
             >
-              <VCardItem>
-                <VCardTitle class="text-subtitle-1 font-weight-medium">
-                  {{ group.title }}
-                </VCardTitle>
-                <VCardSubtitle>{{ group.description }}</VCardSubtitle>
-              </VCardItem>
-              <VCardText class="pt-0">
-                <VRow>
-                  <VCol
-                    v-for="item in group.fields"
-                    :key="item.field"
-                    cols="12"
-                    sm="6"
-                    md="4"
-                    class="d-flex flex-column"
-                  >
-                    <div class="d-flex align-center justify-space-between mb-2 ga-2">
-                      <span class="text-subtitle-2">{{ item.label }}</span>
+              <h4 class="text-subtitle-1 font-weight-medium mb-3">{{ group.title }}</h4>
+              <VRow>
+                <VCol
+                  v-for="item in group.fields"
+                  :key="item.field"
+                  cols="12"
+                  sm="6"
+                >
+                  <div class="appearance-color-control">
+                    <div class="d-flex align-center justify-space-between ga-2 mb-2">
                       <VBtn
                         icon="tabler-restore"
                         size="x-small"
@@ -1660,39 +1561,45 @@ onBeforeUnmount(revokeObjectUrls)
                         @click="restoreThemeColor(item.field)"
                       />
                     </div>
-                    <VColorPicker
-                      v-model="form[item.field]"
-                      :data-settings-field="item.field"
-                      :class="{ 'settings-color-error': !!fieldErrors[item.field] }"
-                      :aria-invalid="!!fieldErrors[item.field]"
-                      mode="hex"
-                      hide-inputs
-                      canvas-height="90"
-                      width="100%"
-                      :disabled="!canEditSettings"
-                      @update:model-value="handleColorPickerUpdate(item.field)"
-                    />
-                    <p v-if="fieldErrors[item.field]" role="alert" class="text-error text-caption mt-2">{{ fieldErrors[item.field] }}</p>
-                    <div
-                      class="color-swatch text-caption font-mono mt-2 px-2 py-1 rounded d-flex align-center justify-space-between"
-                      :style="colorPreviewStyle(form[item.field])"
-                    >
-                      <span>{{ form[item.field] }}</span><span>{{ $t('pages.settings.settings.live') }}</span>
+                    <div class="d-flex align-center ga-2">
+                      <VMenu :close-on-content-click="false" location="bottom start">
+                        <template #activator="{ props }">
+                          <button
+                            v-bind="props"
+                            type="button"
+                            class="appearance-color-swatch"
+                            :style="colorPreviewStyle(form[item.field])"
+                            :aria-label="item.label"
+                          />
+                        </template>
+                        <VColorPicker
+                          v-model="form[item.field]"
+                          mode="hex"
+                          hide-inputs
+                          canvas-height="150"
+                          width="260"
+                          :disabled="!canEditSettings"
+                          @update:model-value="handleColorPickerUpdate(item.field)"
+                        />
+                      </VMenu>
+                      <ErpField
+                        v-model="form[item.field]"
+                        v-bind="settingInputProps(item.field)"
+                        :label="item.label"
+                        placeholder="#80027F"
+                        maxlength="7"
+                        hide-details="auto"
+                        :disabled="!canEditSettings"
+                        @update:model-value="handleColorPickerUpdate(item.field)"
+                      />
                     </div>
-                  </VCol>
-                </VRow>
-              </VCardText>
-            </VCard>
+                  </div>
+                </VCol>
+              </VRow>
+            </section>
           </template>
 
           <template v-else>
-            <VAlert
-              type="info"
-              variant="tonal"
-              class="mb-5"
-            >
-              {{ $t('pages.settings.settings.documentArtworkHint') }}
-            </VAlert>
             <VRow>
               <!--
                 Scope selection lives with the artwork it edits: the contract
@@ -1703,11 +1610,13 @@ onBeforeUnmount(revokeObjectUrls)
               <VCol cols="12">
                 <VRow density="compact">
                   <VCol cols="12" md="6">
-                    <VSelect
+                    <ErpField
                       v-model="selectedDesignTypeId"
+                      kind="select"
                       v-bind="designInputProps('contract_type_id')"
                       :items="typeOptions"
                       :label="$t('pages.settings.settings.contractTypeScope')"
+                      placeholder="Select contract type"
                       :disabled="!canEditSettings"
                     />
                   </VCol>
@@ -1716,28 +1625,18 @@ onBeforeUnmount(revokeObjectUrls)
                     cols="12"
                     md="6"
                   >
-                    <VSelect
+                    <ErpField
                       v-model="selectedDesignService"
+                      kind="select"
                       v-bind="designInputProps('service')"
                       :items="serviceOptions"
                       :label="$t('pages.settings.settings.serviceScopeOptional')"
+                      placeholder="All services"
                       clearable
                       :disabled="!canEditSettings"
                     />
                   </VCol>
                 </VRow>
-                <p
-                  v-if="supportsServiceScope"
-                  class="text-caption text-medium-emphasis mt-1"
-                >
-                  {{ $t('pages.settings.settings.serviceScopeHint') }}
-                </p>
-                <p
-                  v-else-if="isDesignScope"
-                  class="text-caption text-medium-emphasis mt-1"
-                >
-                  {{ $t('pages.settings.settings.singleTypeScopeHint') }}
-                </p>
                 <div class="d-flex flex-wrap align-center ga-2 mt-2">
                   <VChip
                     :color="isDesignScope && designDirty ? 'warning' : 'secondary'"
@@ -1770,14 +1669,11 @@ onBeforeUnmount(revokeObjectUrls)
                     {{ $t('pages.settings.settings.resetArtworkScope') }}
                   </VBtn>
                 </div>
-                <p class="text-caption text-medium-emphasis mt-2 mb-0">
-                  {{ $t('pages.settings.settings.artworkEditorScopeHint', { scope: designScopeLabel }) }}
-                </p>
               </VCol>
               <VCol
                 v-for="asset in [
-                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead'), hint: translate('pages.settings.settings.documentImageHint') },
-                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign'), hint: translate('pages.settings.settings.documentImageHint') },
+                  { field: 'contract_letterhead' as const, title: translate('pages.settings.settings.contractLetterhead') },
+                  { field: 'contract_cover_design' as const, title: translate('pages.settings.settings.contractCoverDesign') },
                 ]"
                 :key="asset.field"
                 cols="12"
@@ -1803,7 +1699,7 @@ onBeforeUnmount(revokeObjectUrls)
                       size="44"
                       class="mb-2"
                     />
-                    <span>{{ $t('pages.settings.settings.builtInDesignWillBeUsed') }}</span>
+                    <span class="document-artwork-preview__fallback">{{ $t('pages.settings.settings.builtInDesignWillBeUsed') }}</span>
                   </div>
                 </div>
                 <div class="d-flex flex-wrap ga-2">
@@ -1843,19 +1739,10 @@ onBeforeUnmount(revokeObjectUrls)
                     />{{ $t('common.actions.remove') }}
                   </VBtn>
                 </div>
-                <p class="text-caption text-medium-emphasis mt-2">
-                  {{ $t('pages.settings.settings.assetHint', {
-                    hint:
-                      asset.hint,
-                  }) }}
-                </p>
                 <div
                   v-if="asset.field === 'contract_letterhead'"
                   class="mt-4"
                 >
-                  <p class="text-caption text-medium-emphasis mb-2">
-                    {{ $t('pages.settings.settings.printSafeAreaHint') }}
-                  </p>
                   <div class="letterhead-safe-preview">
                     <VImg
                       v-if="activeLetterheadPreview"
@@ -1909,7 +1796,7 @@ onBeforeUnmount(revokeObjectUrls)
                       cols="6"
                       sm="3"
                     >
-                      <VTextField
+                      <ErpField
                         :model-value="activeSafeArea[size.field]"
                         v-bind="safeInputProps(size.field)"
                         :label="size.label"
@@ -1917,6 +1804,7 @@ onBeforeUnmount(revokeObjectUrls)
                         suffix="%"
                         density="compact"
                         hide-details="auto"
+                        :placeholder="size.field === 'width' || size.field === 'height' ? '0 to 100' : '0'"
                         :disabled="!canEditSettings"
                         @update:model-value="setSafeAreaFromInput(size.field, $event)"
                       />
@@ -1936,9 +1824,6 @@ onBeforeUnmount(revokeObjectUrls)
                 <h4 class="text-subtitle-1 font-weight-medium mb-1">
                   {{ $t('pages.settings.settings.receiptPayslipDocuments') }}
                 </h4>
-                <p class="text-body-2 text-medium-emphasis mb-4">
-                  {{ $t('pages.settings.settings.receiptPayslipDocumentsHint') }}
-                </p>
               </VCol>
               <VCol
                 v-for="doc in ([{ kind: 'receipt' as const }, { kind: 'payslip' as const }])"
@@ -1950,8 +1835,9 @@ onBeforeUnmount(revokeObjectUrls)
                 <div class="text-subtitle-1 font-weight-medium mb-2">
                   {{ doc.kind === 'receipt' ? $t('pages.settings.settings.receiptLetterhead') : $t('pages.settings.settings.payslipLetterhead') }}
                 </div>
-                <VSelect
+                <ErpField
                   :model-value="documentLetterheadSource(doc.kind)"
+                  kind="select"
                   v-bind="settingInputProps(documentLetterheadConfig[doc.kind].source)"
                   :items="[
                     { title: $t('pages.settings.settings.letterheadSourceNone'), value: 'none' },
@@ -1959,6 +1845,7 @@ onBeforeUnmount(revokeObjectUrls)
                     { title: $t('pages.settings.settings.letterheadSourceCustom'), value: 'custom' },
                   ]"
                   :label="$t('pages.settings.settings.letterheadSource')"
+                  placeholder="Select source"
                   density="compact"
                   hide-details="auto"
                   class="mb-3"
@@ -1981,7 +1868,7 @@ onBeforeUnmount(revokeObjectUrls)
                       size="44"
                       class="mb-2"
                     />
-                    <span>{{ $t('pages.settings.settings.builtInDesignWillBeUsed') }}</span>
+                    <span class="document-artwork-preview__fallback">{{ $t('pages.settings.settings.builtInDesignWillBeUsed') }}</span>
                   </div>
                 </div>
                 <div class="d-flex flex-wrap ga-2">
@@ -2022,9 +1909,6 @@ onBeforeUnmount(revokeObjectUrls)
                   </VBtn>
                 </div>
                 <div class="mt-4">
-                  <p class="text-caption text-medium-emphasis mb-2">
-                    {{ $t('pages.settings.settings.printSafeAreaHint') }}
-                  </p>
                   <div class="letterhead-safe-preview">
                     <VImg
                       v-if="documentLetterheadPreview(doc.kind)"
@@ -2078,7 +1962,7 @@ onBeforeUnmount(revokeObjectUrls)
                       cols="6"
                       sm="3"
                     >
-                      <VTextField
+                      <ErpField
                         :model-value="documentSafeArea(doc.kind)[size.field]"
                         v-bind="settingInputProps(documentSafeField(doc.kind, size.field))"
                         :label="size.label"
@@ -2086,6 +1970,7 @@ onBeforeUnmount(revokeObjectUrls)
                         suffix="%"
                         density="compact"
                         hide-details="auto"
+                        :placeholder="size.field === 'width' || size.field === 'height' ? '0 to 100' : '0'"
                         :disabled="!canEditSettings"
                         @update:model-value="setDocumentSafeAreaFromInput(doc.kind, size.field, $event)"
                       />
@@ -2101,7 +1986,7 @@ onBeforeUnmount(revokeObjectUrls)
         <VCardActions v-if="showsSettingsActions" class="pa-5 px-6 justify-end ga-3">
           <VBtn
             color="secondary"
-            variant="tonal"
+            class="settings-reset-button"
             :disabled="isLoading || isSaving || !canEditSettings"
             @click="resetSettings(true, activeSettingsPage)"
           >
@@ -2109,6 +1994,7 @@ onBeforeUnmount(revokeObjectUrls)
           </VBtn>
           <VBtn
             color="primary"
+            class="settings-save-button"
             :loading="isSaving"
             :disabled="isLoading || !canEditSettings"
             @click="saveSettings"
@@ -2145,8 +2031,97 @@ onBeforeUnmount(revokeObjectUrls)
   border-radius: 8px;
 }
 
+.document-artwork-preview__fallback {
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.company-asset-card {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 240px;
+  padding: 1rem;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.company-asset-preview {
+  display: grid;
+  place-items: center;
+  block-size: 104px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.company-asset-preview :deep(.v-img) {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.settings-save-button {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transition: background-color 150ms ease;
+}
+
+.settings-save-button :deep(.v-btn__content) {
+  color: #fff !important;
+}
+
+.settings-save-button:hover:not(.v-btn--disabled),
+.settings-save-button:active:not(.v-btn--disabled) {
+  background-color: color-mix(in srgb, rgb(var(--v-theme-primary)) 84%, #000) !important;
+  color: #fff !important;
+}
+
+.settings-reset-button {
+  background: rgb(var(--v-theme-secondary) / 0.12) !important;
+  border: 1px solid rgb(var(--v-theme-secondary)) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
+  box-shadow: none !important;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.settings-reset-button:hover:not(.v-btn--disabled),
+.settings-reset-button:active:not(.v-btn--disabled) {
+  background: rgb(var(--v-theme-secondary)) !important;
+  border-color: rgb(var(--v-theme-secondary)) !important;
+  color: #fff !important;
+}
+
+.settings-feature-panel {
+  padding: clamp(1rem, 2vw, 1.25rem);
+  border: 1px solid rgb(var(--v-theme-primary) / 0.24);
+  border-radius: 12px;
+  background: rgb(var(--v-theme-primary) / 0.06);
+}
+
 .appearance-group {
-  background: rgba(var(--v-theme-surface), 0.62);
+  padding: clamp(1rem, 2vw, 1.25rem);
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.appearance-color-control {
+  padding: 0.875rem;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.025);
+}
+
+.appearance-color-swatch {
+  flex: 0 0 2.75rem;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 2px solid rgb(var(--v-theme-surface));
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px rgba(var(--v-border-color), var(--v-border-opacity));
+  cursor: pointer;
 }
 
 .document-artwork-editor {
@@ -2154,12 +2129,12 @@ onBeforeUnmount(revokeObjectUrls)
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 12px;
   background: rgba(var(--v-theme-surface), 0.62);
-  padding: clamp(1rem, 2vw, 1.25rem);
+  padding: 1rem;
 }
 
 .letterhead-safe-preview {
   position: relative;
-  width: clamp(180px, 65vw, 260px);
+  width: clamp(145px, 42vw, 200px);
   aspect-ratio: 210 / 297;
   overflow: hidden;
   background: rgba(var(--v-theme-on-surface), 0.05);
@@ -2176,7 +2151,7 @@ onBeforeUnmount(revokeObjectUrls)
 .safe-area-handle--left { left: -7px; }.safe-area-handle--right { right: -7px; }
 
 .document-artwork-preview {
-  width: clamp(180px, 65vw, 260px);
+  width: clamp(145px, 42vw, 200px);
   aspect-ratio: 210 / 297;
   overflow: hidden;
   background: rgba(var(--v-theme-on-surface), 0.03);
@@ -2193,6 +2168,24 @@ onBeforeUnmount(revokeObjectUrls)
 
 .settings-sidebar :deep(.v-list-item) {
   margin-block: 4px;
+}
+
+.settings-navigation :deep(.v-list-item--active) {
+  background-color: rgb(var(--v-theme-primary) / 0.14) !important;
+}
+
+.settings-navigation :deep(.v-list-item--active::before) {
+  opacity: 0 !important;
+}
+
+.settings-navigation :deep(.v-list-item--active .v-list-item-title),
+.settings-navigation :deep(.v-list-item--active .v-icon) {
+  color: #172a2a !important;
+}
+
+:global(.v-theme--dark) .settings-navigation :deep(.v-list-item--active .v-list-item-title),
+:global(.v-theme--dark) .settings-navigation :deep(.v-list-item--active .v-icon) {
+  color: #fff !important;
 }
 
 @media (max-width: 959px) {

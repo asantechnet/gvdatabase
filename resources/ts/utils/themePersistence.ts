@@ -4,8 +4,10 @@ import { semanticThemeColors } from '@/utils/semanticThemeColors'
 // These values deliberately match resources/ts/plugins/vuetify/theme.ts.
 // They are the complete set of company-adjustable Vuexy core tokens.
 export const themeColorDefaults = {
-  primary_color: '#0F766E',
-  secondary_color: '#475569',
+  primary_color: '#80027F',
+  secondary_color: '#F47E26',
+  dark_primary_color: '#D03FCE',
+  dark_secondary_color: '#FF974A',
   light_background_color: '#F5F7F4',
   light_surface_color: '#FFFEFA',
   dark_background_color: '#111313',
@@ -25,6 +27,8 @@ export interface MutableVuetifyTheme {
 const storageKeys: Record<ThemeColorField, string> = {
   primary_color: 'theme-primary-color',
   secondary_color: 'theme-secondary-color',
+  dark_primary_color: 'theme-dark-primary-color',
+  dark_secondary_color: 'theme-dark-secondary-color',
   light_background_color: 'theme-light-background-color',
   light_surface_color: 'theme-light-surface-color',
   dark_background_color: 'theme-dark-background-color',
@@ -80,13 +84,20 @@ export function persistThemeColors(colors: Partial<Record<ThemeColorField, strin
 
 /** Apply a complete or partial palette to one Vuetify light/dark definition. */
 export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColorPreferences) {
-  const editableTokens: Record<'primary_color' | 'secondary_color', string> = {
+  // Start with a complete palette. At boot the API and local storage can both
+  // be empty, but Vuetify still needs every primary/secondary token populated
+  // for tonal buttons, chips, active navigation and hover overlays.
+  const resolvedPalette = { ...themeColorDefaults, ...palette }
+  const editableTokens = theme.dark ? {
+    dark_primary_color: 'primary',
+    dark_secondary_color: 'secondary',
+  } : {
     primary_color: 'primary',
     secondary_color: 'secondary',
   }
 
   Object.entries(editableTokens).forEach(([field, token]) => {
-    const color = palette[field as keyof typeof editableTokens]
+    const color = resolvedPalette[field as keyof typeof editableTokens]
     if (!isThemeColor(color))
       return
     theme.colors[token] = color
@@ -112,8 +123,8 @@ export function applyThemePalette(theme: MutableVuetifyTheme, palette: ThemeColo
   // A light surface with white foreground text (or the inverse in dark mode)
   // makes every inherited Vuetify label unreadable. Ignore stale or invalid
   // mode colors and retain the accessible application defaults instead.
-  const background = resolveModeSurface(palette[backgroundField], themeColorDefaults[backgroundField])
-  const surface = resolveModeSurface(palette[surfaceField], themeColorDefaults[surfaceField])
+  const background = resolveModeSurface(resolvedPalette[backgroundField], themeColorDefaults[backgroundField])
+  const surface = resolveModeSurface(resolvedPalette[surfaceField], themeColorDefaults[surfaceField])
 
   theme.colors.background = background
   theme.colors['on-background'] = contrastingTextColor(background)
