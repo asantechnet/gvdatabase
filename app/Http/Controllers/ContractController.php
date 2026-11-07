@@ -118,8 +118,8 @@ class ContractController extends Controller
         $query->when(! empty($data['date_from']), fn ($q) => $q->whereDate('start_date', '>=', $data['date_from']))
             ->when(! empty($data['date_to']), fn ($q) => $q->whereDate('start_date', '<=', $data['date_to']));
         ContractAccess::scopeVisibleTo($query, $request->user());
-        // The registers send their own `start_date` ascending sort; a bare API
-        // call keeps the long-standing newest-agreements-first order. Only
+        // The registers send their own newest-first `start_date` sort; a bare
+        // API call keeps the long-standing newest-agreements-first order. Only
         // validated column names and directions reach this clause.
         $sortBy = $data['sort_by'] ?? 'created_at';
         $sortDirection = $data['sort_direction'] ?? 'desc';

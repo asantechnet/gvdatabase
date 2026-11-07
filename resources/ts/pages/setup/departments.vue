@@ -18,7 +18,6 @@ const deleteDialogOpen = ref(false)
 const deleting = ref<Department | null>(null)
 const editing = ref<Department | null>(null)
 const managerOptions = ref<DepartmentManagerOption[]>([])
-const managerLoading = ref(false)
 const deleteRefusal = ref<DepartmentDeleteRefusal | null>(null)
 const membersDialogOpen = ref(false)
 const membersTarget = ref<Department | null>(null)
@@ -97,15 +96,11 @@ async function openDialog(department: Department | null = null) {
   clearFieldError('manager_id')
   dialogOpen.value = true
   managerOptions.value = []
-  managerLoading.value = true
   try {
     managerOptions.value = await DepartmentApi.getManagerOptions(department?.id ?? null)
   }
   catch {
     managerOptions.value = []
-  }
-  finally {
-    managerLoading.value = false
   }
 }
 
@@ -199,7 +194,7 @@ onMounted(load)
         <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex justify-end"><VBtn color="primary" prepend-icon="tabler-plus" :disabled="loading" @click="create">{{ $t('common.ui.createDepartment') }}</VBtn></VCol>
       </VRow>
     </VCardText>
-    <ResponsiveDataTable :headers="headers" :items="filteredDepartments" item-value="id" class="departments-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :mobile-fields="['manager_name', 'employees_count', 'is_active']" :skeleton-rows="5" :show-scroll-affordance="false" :loading="loading">
+    <ResponsiveDataTable :headers="headers" :items="filteredDepartments" item-value="id" class="departments-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :mobile-fields="['manager_name', 'employees_count', 'is_active']" :sticky-key-column="false" :sticky-action-column="false" :skeleton-rows="5" :show-scroll-affordance="false" :loading="loading">
       <template #item.manager_name="{ item }">{{ item.manager_name || $t('common.ui.notAssigned') }}</template>
       <template #item.employees_count="{ item }">
         <VBtn
@@ -246,21 +241,21 @@ onMounted(load)
         <VAlert type="info" variant="tonal" class="mb-4">
           {{ $t('common.ui.onlyAHigherRankedEmployeeWithSupervisoryAccessCanManageADepartmentAssignDirectSupervisorsFromStaffDirectoryAfterSaving') }}
         </VAlert>
-        <ErpField v-model="form.name" :label="$t('common.ui.departmentName')" placeholder="e.g. Admissions" class="mb-4" required />
-        <ErpField
-          v-model="form.manager_employee_id"
-          kind="select"
-          :items="managerSelectOptions"
-          :label="$t('common.ui.departmentManager')"
-          placeholder="Select a manager"
-          :loading="managerLoading"
-          :error-messages="managerError"
-          :no-data-text="$t('common.ui.noEligibleDepartmentManagers')"
-          clearable
-          class="mb-3"
-          @update:model-value="clearFieldError('manager_id')"
-        />
-        <ErpField v-model="form.description" kind="textarea" :label="$t('common.ui.descriptionOptional')" placeholder="What does this team own?" rows="3" class="mb-3" />
+        <VRow>
+          <VCol cols="12" sm="6"><ErpField v-model="form.name" :label="$t('common.ui.departmentName')" placeholder="e.g. Admissions" required /></VCol>
+          <VCol cols="12" sm="6"><ErpField
+            v-model="form.manager_employee_id"
+            kind="select"
+            :items="managerSelectOptions"
+            :label="$t('common.ui.departmentManager')"
+            placeholder="Select a manager"
+            :error-messages="managerError"
+            :no-data-text="$t('common.ui.noEligibleDepartmentManagers')"
+            clearable
+            @update:model-value="clearFieldError('manager_id')"
+          /></VCol>
+        </VRow>
+        <ErpField v-model="form.description" kind="textarea" :label="$t('common.ui.descriptionOptional')" placeholder="What does this team own?" rows="2" class="mb-3" />
         <VSwitch v-model="form.is_active" :label="$t('common.ui.activeDepartment')" color="primary" hide-details />
       </VCardText>
       <VCardActions class="department-dialog-actions px-5 py-4"><VBtn class="department-dialog-cancel" variant="flat" color="error" :disabled="loading" @click="dialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VSpacer /><VBtn class="department-dialog-submit" color="primary" variant="flat" :loading="loading" @click="save">{{ $t('common.actions.save') }}</VBtn></VCardActions>
@@ -301,6 +296,7 @@ onMounted(load)
 .department-dialog-heading { font-weight: 700; }
 .department-dialog-close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38); border-radius: 50%; }
 .department-dialog-cancel { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }
+.department-dialog-cancel:hover, .department-dialog-cancel:focus-visible { border-color: rgb(var(--v-theme-error)) !important; background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .department-dialog-submit { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
 .department-delete-dialog { border-radius: 16px !important; text-align: center; }
 .department-delete-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }

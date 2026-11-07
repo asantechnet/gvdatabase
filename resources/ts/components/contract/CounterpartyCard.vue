@@ -163,3 +163,14 @@ const dockCalendar = (_dates: Date[], _value: string, instance: { calendarContai
     </VCardText>
   </VCard>
 </template>
+
+<style scoped>
+.counterparty-card {
+  border-color: rgba(var(--v-theme-primary), .18) !important;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), .055), rgb(var(--v-theme-surface)) 42%) !important;
+  box-shadow: 0 8px 24px rgba(var(--v-theme-on-surface), .04);
+}
+
+.counterparty-card :deep(.v-card-title) { font-weight: 700; }
+.counterparty-card :deep(.v-avatar) { box-shadow: inset 0 0 0 1px rgba(var(--v-theme-primary), .12); }
+</style>

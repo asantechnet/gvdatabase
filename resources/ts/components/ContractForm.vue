@@ -498,19 +498,6 @@ defineExpose({ submit })
     @submit.prevent="submit"
   >
     <VRow class="contract-form-grid">
-      <VCol
-        v-if="extensionMode && parentContract"
-        cols="12"
-      >
-        <VAlert
-          color="info"
-          variant="tonal"
-          density="compact"
-          icon="tabler-file-plus"
-        >
-          {{ tr('extendingNotice', { contract: parentContract.contract || `#${parentContract.id}` }) }}
-        </VAlert>
-      </VCol>
       <VCol cols="12" :md="isOtherAudience ? 6 : undefined">
         <ErpField kind="select"
           v-model="form.template_id"
@@ -676,15 +663,26 @@ defineExpose({ submit })
         <CounterpartyCard
           :details="counterpartyDetails"
           :title-key="isOtherAudience ? 'components.contractCounterpartyCard.applicantCardTitle' : null"
-          editable
-          start-required
-          :start-date="form.start_date"
-          :end-date="form.end_date"
-          :show-end-date-hint="!isEmployeeAudience"
-          @update:start-date="form.start_date = $event ?? ''"
-          @update:end-date="form.end_date = $event ?? ''"
         />
       </VCol>
+
+      <!-- Employment terms own their dates. Keeping them outside the
+           counterparty summary makes them visible and editable even before a
+           staff member is selected. -->
+      <template v-if="isEmployeeAudience">
+        <VCol cols="12" sm="6">
+          <div class="erp-field">
+            <label class="erp-field-label">{{ tr('startDate') }} <span class="erp-field-required">*</span></label>
+            <AppDateTimePicker v-model="form.start_date" class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockCalendar }" :rules="[(value: unknown) => !!value || tr('startDateRequired')]" required />
+          </div>
+        </VCol>
+        <VCol cols="12" sm="6">
+          <div class="erp-field">
+            <label class="erp-field-label">{{ tr('endDate') }}</label>
+            <AppDateTimePicker v-model="form.end_date" clearable class="erp-field-control" :config="{ dateFormat: 'Y-m-d', static: false, minDate: form.start_date || undefined, onOpen: dockCalendar }" />
+          </div>
+        </VCol>
+      </template>
 
       <template v-if="isOtherAudience">
         <VCol cols="12" md="6">

@@ -32,7 +32,7 @@ const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
 const sortByKey = ref<'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'>('start_date')
-const sortDirection = ref<'asc' | 'desc'>('asc')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 const counterparties = ref<string[]>([])
 // Filled from every matching contract right before printing.
 const printedRows = ref<(string | number)[][]>([])
