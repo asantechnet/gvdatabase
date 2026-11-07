@@ -50,7 +50,8 @@ const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
 const sortByKey = ref<'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'>('start_date')
-const sortDirection = ref<'asc' | 'desc'>('asc')
+// Date-based registers lead with the most recently issued agreement.
+const sortDirection = ref<'asc' | 'desc'>('desc')
 // Filled from every matching contract right before printing.
 const reportRows = ref<string[][]>([])
 const counterparties = ref<string[]>([])
@@ -264,7 +265,7 @@ function clearExpiring() {
   reload()
 }
 
-const employeeContractDetailFields = computed(() => [
+const contractDetailFields = computed(() => [
   { key: 'contract_number', label: t('common.messages.contractNumber') },
   { key: 'contract', label: t('common.messages.contract') },
   { key: 'snapshot_data.template_version.name', label: t('agencyStaff.contractVersion') },
@@ -611,7 +612,7 @@ onMounted(async () => {
           <TableEmptyState
             icon="tabler-file-off"
             :min-height="0"
-            :title="isOtherAudience ? $t('pages.contracts.allContracts.allContracts.noOtherContractRecords') : undefined"
+            :title="isOtherAudience ? $t('pages.contracts.allContracts.allContracts.noOtherContractRecords') : $t('pages.contracts.allContracts.allContracts.employeeContracts')"
             :description="isOtherAudience ? $t('pages.contracts.allContracts.allContracts.noOtherContractRecordsDescription') : $t('pages.contracts.allContracts.allContracts.noContracts')"
           />
           <VBtn v-if="isOtherAudience" color="primary" variant="tonal" class="contract-empty-state__action" @click="addNew">
@@ -717,11 +718,12 @@ onMounted(async () => {
       </template>
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1 justify-end">
-          <VBtn v-if="!item.is_cancelled" icon="tabler-printer" variant="text" size="small" :aria-label="$t('pages.contracts.allContracts.allContracts.printContract')" @click="printContract(item)" />
+          <VBtn v-if="!item.is_cancelled && !isEmployeeAudience" icon="tabler-printer" variant="text" size="small" :aria-label="$t('pages.contracts.allContracts.allContracts.printContract')" @click="printContract(item)" />
           <VMenu location="bottom end">
             <template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" class="contract-actions-trigger" :aria-label="$t('common.messages.actions')" /></template>
             <VList density="compact" min-width="220">
-              <FullDetailsButton :item="item" :title="item.contract_number || item.contract" :fields="isEmployeeAudience ? employeeContractDetailFields : []" menu-action />
+              <FullDetailsButton :item="item" :title="item.contract_number || item.contract" :fields="contractDetailFields" menu-action />
+              <VListItem v-if="isEmployeeAudience && !item.is_cancelled" prepend-icon="tabler-printer" :title="$t('pages.contracts.allContracts.allContracts.printContract')" @click="printContract(item)" />
               <VListItem v-if="canExtend(item)" prepend-icon="tabler-file-plus" :title="$t('pages.contracts.allContracts.allContracts.extendContract')" @click="extendContract(item)" />
               <VListItem v-if="item.status === 'draft' && !item.is_cancelled" prepend-icon="tabler-edit" :title="$t('pages.contracts.allContracts.allContracts.editContract')" @click="editContractUI(item)" />
               <VListItem v-if="ability.can('read', 'cancel_contracts') && !item.is_cancelled && ['draft', 'active'].includes(item.status)" prepend-icon="tabler-ban" :title="$t('pages.contracts.allContracts.allContracts.cancelContract')" @click="cancelContract(item)" />
@@ -748,7 +750,7 @@ onMounted(async () => {
   >
     <VCard :class="(isOtherAudience || isEmployeeAudience) && 'other-contract-form-card'">
       <VCardTitle :class="(isOtherAudience || isEmployeeAudience) && 'other-contract-dialog-title px-5 py-5'">
-        <span class="headline">{{ extensionParent ? $t('pages.contracts.allContracts.allContracts.extendContract') : dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
+        <span class="headline">{{ extensionParent ? $t('pages.contracts.allContracts.allContracts.extendContract') : isEmployeeAudience ? $t('pages.contracts.allContracts.allContracts.employeeContracts') : dialogMode === 'add' ? $t('pages.contracts.allContracts.allContracts.addNewContract') : $t('pages.contracts.allContracts.allContracts.editContract') }}</span>
         <template v-if="isOtherAudience || isEmployeeAudience">
           <VSpacer />
           <VBtn icon="tabler-x" variant="tonal" color="error" class="other-contract-dialog-close" :aria-label="$t('common.actions.close')" @click="isDialogVisible = false" />
@@ -855,6 +857,7 @@ onMounted(async () => {
 :global(.other-contract-form-dialog .app-form__actions .v-btn) { min-inline-size: 104px; }
 :global(.other-contract-form-dialog .other-contract-dialog-close:hover) { background-color: rgba(var(--v-theme-error), 0.18) !important; }
 :global(.v-overlay:has(.other-contract-form-dialog) .v-overlay__scrim) { backdrop-filter: blur(4px); background: rgba(var(--v-theme-on-surface), 0.24); opacity: 1 !important; }
+:global(.contract-action-overlay .v-overlay__scrim) { backdrop-filter: blur(5px); background: rgba(var(--v-theme-on-surface), 0.28); opacity: 1 !important; }
 :global(.other-contract-form-dialog .v-card-text) { scrollbar-width: none; }
 :global(.other-contract-form-dialog .v-card-text::-webkit-scrollbar) { display: none; }
 

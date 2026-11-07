@@ -52,7 +52,8 @@ const page = ref(1)
 const perPage = ref(25)
 const total = ref(0)
 const sortByKey = ref<'contract_number' | 'counterparty' | 'start_date' | 'status' | 'created_at'>('start_date')
-const sortDirection = ref<'asc' | 'desc'>('asc')
+// Newest contracts should be the first rows an operator sees.
+const sortDirection = ref<'asc' | 'desc'>('desc')
 // Filled from every matching contract right before printing.
 const reportRows = ref<(string | number | null | undefined)[][]>([])
 // Typing in the search box is a filter change, so it starts from the first page.
@@ -766,7 +767,6 @@ async function save() {
       </template>
       <template #item.actions="{ item }">
         <div class="d-flex align-center ga-1 justify-end">
-          <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" />
           <VBtn v-if="!item.is_cancelled" icon="tabler-printer" size="small" variant="text" @click="printable = item; printing = true"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('serviceContracts.print') }}</VTooltip></VBtn>
           <VBtn v-if="!item.is_cancelled && service === 'academy'" icon="tabler-school" size="small" variant="text" @click="openSlip(item)"><VIcon icon="tabler-school" /><VTooltip activator="parent">{{ t('documents.academySlip.print') }}</VTooltip></VBtn>
           <VMenu v-if="!item.is_cancelled" location="bottom end">
@@ -775,6 +775,7 @@ async function save() {
             </template>
             <VList class="service-contract-actions-menu" density="compact" min-width="220">
               <template v-if="!item.is_cancelled">
+                <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" menu-action />
                 <VListItem v-if="ability.can('read', 'edit_contracts')" prepend-icon="tabler-edit" :title="t('serviceContracts.edit')" @click="edit(item)" />
                 <VListItem v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" prepend-icon="tabler-file-plus" :title="t('serviceContracts.extend')" @click="create(item)" />
                 <VListItem v-if="canMarkPaid(item)" prepend-icon="tabler-checks" :title="t('serviceContracts.markPaid')" :disabled="markingPaid === item.id" @click="markPaid(item)" />
@@ -828,11 +829,11 @@ async function save() {
               <template v-if="service === 'private'">
                 <VRow class="service-contract-field-grid">
                    <VCol v-if="!editing && ability.can('read', 'view_visitors')" cols="12" sm="6" md="6"><ErpField v-model="visitorId" kind="autocomplete" :items="visitors" item-title="name" item-value="id" :label="t('serviceContracts.visitor')" :placeholder="t('serviceContracts.placeholders.visitor')" :disabled="preparing" clearable /></VCol>
-                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
-                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
-                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
-                   <VCol cols="12" sm="6" md="3" class="service-contract-quarter-row"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
-                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.email" :label="t('serviceContracts.email')" :placeholder="t('serviceContracts.placeholders.email')" type="email" maxlength="255" /></VCol>
+                   <VCol cols="12" sm="6" md="6"><ErpField v-model="form.name" :label="t('serviceContracts.applicant')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
+                   <VCol cols="12" sm="6" md="6"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
+                   <VCol cols="12" sm="6" md="6"><ErpField v-model="form.email" :label="t('serviceContracts.email')" :placeholder="t('serviceContracts.placeholders.email')" type="email" maxlength="255" /></VCol>
+                   <VCol cols="12" sm="6" md="6"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
+                   <VCol cols="12" sm="6" md="6"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
                    <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
                    <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
                    <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>

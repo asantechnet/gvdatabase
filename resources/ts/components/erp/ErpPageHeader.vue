@@ -60,13 +60,9 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   dashboard: [],
   tasks: [],
   finance: [],
-  hr: [
-    { name: 'staff-list', label: 'common.navigation.staffList', icon: 'tabler-users', color: 'primary', permission: 'view_employees' },
-    { name: 'setup-departments', label: 'common.navigation.departments', icon: 'tabler-sitemap', color: 'info', permission: 'view_departments' },
-    { name: 'employee-contracts', label: 'common.navigation.employmentContracts', icon: 'tabler-file-text', color: 'tertiary', permission: 'view_contracts' },
-    { name: 'leave-requests', label: 'pages.leaveRequests.title', icon: 'tabler-beach', color: 'warning', permission: 'view_leave_requests' },
-    { name: 'payrolls', label: 'common.navigation.payrolls', icon: 'tabler-wallet', color: 'success', permission: 'view_salaries' },
-  ],
+  // HR workspaces are reached from the application navigation. Unlike the
+  // customer-contract register, they do not need a duplicate in-page strip.
+  hr: [],
 }
 
 const links = computed(() => sections[props.section].filter(link => !link.permission || canAccess(link.permission)))
