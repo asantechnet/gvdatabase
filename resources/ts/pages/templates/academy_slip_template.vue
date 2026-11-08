@@ -137,11 +137,13 @@ defineExpose({ print })
           <section class="academy-block">
             <h4>{{ t('documents.academySlip.enrolment') }}</h4>
             <dl>
+              <div><dt>{{ t('documents.academySlip.studentId') }}</dt><dd>{{ slip.academy.student_id || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.program') }}</dt><dd>{{ slip.academy.program || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.time') }}</dt><dd>{{ slip.academy.time || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.duration') }}</dt><dd>{{ slip.academy.duration || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.class') }}</dt><dd>{{ slip.academy.class || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.teachers') }}</dt><dd>{{ slip.academy.teachers.length ? slip.academy.teachers.join(', ') : '—' }}</dd></div>
+              <div><dt>{{ t('documents.academySlip.term') }}</dt><dd>{{ formatDate(slip.academy.started_on) }} — {{ formatDate(slip.academy.ends_on) }}</dd></div>
             </dl>
           </section>
         </div>

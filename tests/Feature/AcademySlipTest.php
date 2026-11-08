@@ -59,7 +59,7 @@ class AcademySlipTest extends TestCase
         $this->activate(BuiltInService::ACADEMY);
         $program = Program::create(['name' => 'Web Development', 'is_active' => true]);
         $time = TimeSlot::create(['name' => 'Morning', 'is_active' => true]);
-        $duration = Duration::create(['name' => '6 months', 'is_active' => true]);
+        $duration = Duration::create(['name' => '6 months', 'months' => 6, 'is_active' => true]);
         $class = AcademyClass::create(['name' => 'Class A', 'is_active' => true]);
         $teacher = Teacher::create(['name' => 'Jane Doe', 'is_active' => true]);
 
@@ -86,6 +86,9 @@ class AcademySlipTest extends TestCase
             ->assertJsonPath('data.academy.duration', '6 months')
             ->assertJsonPath('data.academy.class', 'Class A')
             ->assertJsonPath('data.academy.teachers', ['Jane Doe'])
+            ->assertJsonPath('data.academy.student_id', 'STU-100')
+            ->assertJsonPath('data.academy.started_on', $contract->start_date->toDateString())
+            ->assertJsonPath('data.academy.ends_on', $contract->end_date->toDateString())
             ->assertJsonPath('data.service.name', 'Academy')
             ->assertJsonPath('data.totals.total_fee', 100)
             ->assertJsonPath('data.totals.paid_amount', 40)

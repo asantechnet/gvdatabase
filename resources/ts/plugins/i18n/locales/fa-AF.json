@@ -170,7 +170,8 @@
       "adding": "در حال افزودن",
       "editing": "در حال ویرایش",
       "viewFullDetails": "مشاهده جزئیات کامل",
-      "editFullDetails": "ویرایش جزئیات کامل"
+      "editFullDetails": "ویرایش جزئیات کامل",
+      "previous": "قبلی"
     },
     "values": {
       "yes": "بله",
@@ -253,7 +254,9 @@
       "applicant": "متقاضی",
       "taxNumber": "شماره مالیاتی",
       "service": "خدمت",
-      "position": "سمت"
+      "position": "سمت",
+      "actions": "عملیات",
+      "details": "جزئیات"
     },
     "statuses": {
       "cancelled": "لغوشده",
@@ -577,7 +580,15 @@
       "announcements": "اعلامیه‌ها",
       "incomeTypes": "انواع درآمد",
       "expenseTypes": "انواع هزینه",
-      "payrolls": "معاش‌ها"
+      "payrolls": "معاش‌ها",
+      "academy": "آکادمی",
+      "academyOverview": "مرور آکادمی",
+      "academyClasses": "صنوف",
+      "academyStudents": "شاگردان",
+      "academyCatalog": "کاتالوگ",
+      "academyAttendance": "حاضری",
+      "academyCertificates": "تصدیق‌نامه‌ها",
+      "academyContracts": "قراردادهای آکادمی"
     },
     "languages": {
       "english": "English",
@@ -4677,7 +4688,11 @@
       "loadFailed": "بارگذاری این برگه آکادمی ممکن نشد.",
       "printFailed": "چاپ این برگه آکادمی ممکن نشد.",
       "artworkFailed": "تصاویر یا قلم‌های برگه بارگذاری نشد. چاپ لغو شد.",
-      "paperTooSmall": "این برگه ثبت‌نام در کاغذ انتخاب‌شده جا نمی‌شود. اندازه بزرگ‌تر کاغذ را انتخاب کنید."
+      "paperTooSmall": "این برگه ثبت‌نام در کاغذ انتخاب‌شده جا نمی‌شود. اندازه بزرگ‌تر کاغذ را انتخاب کنید.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "برگه کمیسیون",
@@ -4813,6 +4828,21 @@
       "note": "این پیش‌پرداخت از معاش آینده بازپس گرفته می‌شود.",
       "employeeCopy": "نسخه کارمند",
       "companyCopy": "نسخه شرکت"
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -6157,5 +6187,171 @@
     "safeWidth": "{field}: مجموع فاصله افقی و عرض نباید بیش از ۱۰۰٪ باشد. فاصله یا عرض را کاهش دهید.",
     "safeHeight": "{field}: مجموع فاصله عمودی و ارتفاع نباید بیش از ۱۰۰٪ باشد. فاصله یا ارتفاع را کاهش دهید.",
     "saveFailed": "تنظیمات ذخیره نشد. فیلدهای مشخص‌شده را اصلاح و دوباره تلاش کنید."
+  },
+  "academy": {
+    "overview": {
+      "title": "مرور آکادمی",
+      "description": "صنوف، شاگردان و وضعیت دوره فعلی.",
+      "loadFailed": "مرور آکادمی بارگذاری نشد.",
+      "todayClasses": "صنوف امروز",
+      "noTodayClasses": "امروز صنفی برگزار نمی‌شود.",
+      "terms": "وضعیت دوره",
+      "termHint": "{count} ثبت‌نام فعال",
+      "kpis": {
+        "activeStudents": "شاگردان فعال",
+        "activeClasses": "صنوف فعال",
+        "seats": "صندلی‌های پرشده",
+        "endingSoon": "نزدیک به پایان",
+        "outstanding": "باقی‌مانده",
+        "completed": "تکمیل‌شده در این ماه"
+      }
+    },
+    "classes": {
+      "title": "صنوف",
+      "description": "صنوف جاری، جدول و ظرفیت.",
+      "createTitle": "ایجاد صنف",
+      "editTitle": "ویرایش صنف",
+      "create": "ایجاد صنف",
+      "saved": "صنف ذخیره شد.",
+      "removed": "صنف حذف شد.",
+      "removeConfirm": "این صنف حذف شود؟ ثبت‌نام‌های موجود حفظ می‌شوند.",
+      "emptyTitle": "هنوز صنفی نیست",
+      "emptyDescription": "اولین صنف را ایجاد کنید.",
+      "loadFailed": "صنوف بارگذاری نشد.",
+      "roster": "فهرست",
+      "rosterTitle": "فهرست صنف",
+      "emptyRoster": "هیچ شاگردی در این صنف نیست."
+    },
+    "students": {
+      "title": "شاگردان",
+      "description": "شاگردان و کورس‌های ثبت‌نام‌شده.",
+      "cardTitle": "کورس‌های شاگرد",
+      "detailTitle": "جزئیات ثبت‌نام",
+      "endingSoon": "نزدیک به پایان",
+      "emptyCourses": "هیچ کورسی ثبت‌نام نشده است.",
+      "emptyTitle": "هنوز شاگردی نیست",
+      "emptyDescription": "قراردادهای آکادمی ثبت‌نام شاگرد را ایجاد می‌کنند.",
+      "loadFailed": "شاگردان بارگذاری نشد.",
+      "saved": "ثبت‌نام به‌روز شد.",
+      "terminalHint": "این ثبت‌نام بسته و فقط‌خواندنی است."
+    },
+    "catalog": {
+      "title": "کاتالوگ",
+      "description": "برنامه‌ها، زمان‌ها، مدت‌ها و استادان.",
+      "add": "افزودن",
+      "programs": "برنامه‌ها",
+      "times": "زمان صنف",
+      "durations": "مدت‌ها",
+      "teachers": "استادان",
+      "saved": "کاتالوگ به‌روز شد.",
+      "removed": "مورد حذف شد.",
+      "removeConfirm": "این مورد کاتالوگ حذف شود؟",
+      "editMonths": "مدت به ماه",
+      "emptyTitle": "کاتالوگ خالی است",
+      "emptyDescription": "برنامه‌ها و مدت‌های آکادمی را اضافه کنید.",
+      "loadFailed": "کاتالوگ بارگذاری نشد."
+    },
+    "attendance": {
+      "title": "حاضری",
+      "description": "حاضری ماهانه شاگردان و استادان، جدا از حاضری منابع بشری.",
+      "studentsTab": "شاگردان",
+      "teachersTab": "استادان",
+      "print": "چاپ برگه",
+      "printSubtitle": "حاضری ماهانه آکادمی",
+      "printFooter": "سند حاضری آکادمی",
+      "saved": "حاضری ذخیره شد.",
+      "empty": "برای این انتخاب حاضری ثبت نشده است.",
+      "emptyCell": "ثبت نشده",
+      "loadFailed": "حاضری آکادمی بارگذاری نشد.",
+      "addTeacherRow": "افزودن ساعت استاد",
+      "status": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "late": "دیر",
+        "excused": "رخصت"
+      }
+    },
+    "certificates": {
+      "title": "تصدیق‌نامه‌ها",
+      "description": "صدور و چاپ تصدیق‌نامه برای ثبت‌نام‌های مکمل.",
+      "issue": "صدور تصدیق‌نامه",
+      "bulkIssue": "صدور گروهی",
+      "preview": "پیش‌نمایش",
+      "print": "چاپ",
+      "issued": "صادرشده",
+      "revoked": "لغوشده",
+      "issuedDone": "تصدیق‌نامه صادر شد.",
+      "revokedDone": "تصدیق‌نامه لغو شد.",
+      "revokedCannotPrint": "تصدیق‌نامه‌های لغوشده قابل چاپ نیستند.",
+      "revoke": "لغو",
+      "revokeReason": "دلیل لغو",
+      "bulkHint": "برای هر ثبت‌نام مکمل یک تصدیق‌نامه ایجاد می‌شود. تصدیق‌نامه‌های موجود نادیده گرفته می‌شوند.",
+      "bulkSaved": "صدور گروهی تکمیل شد.",
+      "completedEnrollment": "ثبت‌نام مکمل",
+      "completedEnrollments": "ثبت‌نام‌های مکمل",
+      "issueHint": "فقط ثبت‌نام‌های مکمل واجد شرایط هستند. تصدیق‌نامه از یک نسخه ثابت استفاده می‌کند.",
+      "editTemplate": "ویرایش قالب",
+      "templateSaved": "قالب ذخیره شد.",
+      "templateTitle": "عنوان تصدیق‌نامه",
+      "templateBody": "متن تصدیق‌نامه",
+      "tokens": "فیلدهای موجود: {tokens}",
+      "signatoryTitle": "عنوان امضاکننده",
+      "search": "جستجوی تصدیق‌نامه",
+      "number": "شماره تصدیق‌نامه",
+      "emptyTitle": "هنوز تصدیق‌نامه‌ای نیست",
+      "emptyDescription": "برای یک ثبت‌نام مکمل تصدیق‌نامه صادر کنید.",
+      "loadFailed": "تصدیق‌نامه‌ها بارگذاری نشد."
+    },
+    "status": {
+      "active": "فعال",
+      "completed": "مکمل",
+      "withdrawn": "انصراف",
+      "cancelled": "لغو"
+    },
+    "fields": {
+      "active": "فعال",
+      "balance": "باقی",
+      "capacity": "ظرفیت",
+      "class": "صنف",
+      "completedOn": "تاریخ تکمیل",
+      "contact": "تماس",
+      "contract": "قرارداد",
+      "date": "تاریخ",
+      "description": "توضیح",
+      "duration": "مدت",
+      "endsAt": "پایان",
+      "endsOn": "تا تاریخ",
+      "fee": "فیس",
+      "hours": "ساعت",
+      "minutes": "دقیقه",
+      "month": "ماه",
+      "months": "ماه",
+      "name": "نام",
+      "note": "یادداشت",
+      "notes": "یادداشت‌ها",
+      "program": "برنامه",
+      "schedule": "برنامه هفتگی",
+      "seats": "جای خالی",
+      "sortOrder": "ترتیب",
+      "startsAt": "شروع",
+      "startsOn": "از تاریخ",
+      "status": "وضعیت",
+      "student": "شاگرد",
+      "teacher": "استاد",
+      "teachers": "استادان",
+      "term": "دوره",
+      "time": "زمان",
+      "total": "مجموع",
+      "weekdays": "روزها"
+    },
+    "navigation": {
+      "overview": "مرور",
+      "classes": "صنوف",
+      "students": "شاگردان",
+      "catalog": "کاتالوگ",
+      "attendance": "حاضری",
+      "certificates": "تصدیق‌نامه‌ها",
+      "contracts": "قراردادهای آکادمی"
+    }
   }
 }

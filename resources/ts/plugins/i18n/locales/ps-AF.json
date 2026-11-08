@@ -568,7 +568,8 @@
       "adding": "په اضافه کېدو دی",
       "editing": "په بدلېدو دی",
       "viewFullDetails": "بشپړ جزئیات وګورئ",
-      "editFullDetails": "بشپړ جزئیات بدل کړئ"
+      "editFullDetails": "بشپړ جزئیات بدل کړئ",
+      "previous": "پخوانی"
     },
     "values": {
       "yes": "هو",
@@ -651,7 +652,9 @@
       "language": "ژبه",
       "taxNumber": "د مالیې شمېره",
       "service": "خدمت",
-      "position": "دنده"
+      "position": "دنده",
+      "actions": "کړنې",
+      "details": "جزئیات"
     },
     "statuses": {
       "cancelled": "لغوه شوی",
@@ -971,7 +974,15 @@
       "announcements": "اعلانیې",
       "incomeTypes": "د عاید ډولونه",
       "expenseTypes": "د لګښت ډولونه",
-      "payrolls": "معاشونه"
+      "payrolls": "معاشونه",
+      "academy": "اکاډمي",
+      "academyOverview": "د اکاډمۍ کتنه",
+      "academyClasses": "ټولګي",
+      "academyStudents": "زده‌کوونکي",
+      "academyCatalog": "کتلاګ",
+      "academyAttendance": "حاضری",
+      "academyCertificates": "سندونه",
+      "academyContracts": "د اکاډمۍ قراردادونه"
     },
     "languages": {
       "english": "English",
@@ -3995,7 +4006,11 @@
       "loadFailed": "د دې اکادمۍ پاڼې بارول ناشوني وو.",
       "printFailed": "د دې اکادمۍ پاڼې چاپ ناشونی و.",
       "artworkFailed": "د پاڼې انځورونه یا فونټونه پورته نه شول. چاپ لغوه شو.",
-      "paperTooSmall": "دا د ثبت‌نام پاڼه په ټاکل شوي کاغذ کې نه ځایېږي. د کاغذ لویه اندازه وټاکئ."
+      "paperTooSmall": "دا د ثبت‌نام پاڼه په ټاکل شوي کاغذ کې نه ځایېږي. د کاغذ لویه اندازه وټاکئ.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "د کمیشن پاڼه",
@@ -4131,6 +4146,21 @@
         "thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist": "دا سند د افغانستان د کار قانون او د وزارت مقرراتو سره سم جوړ شوی دی.",
         "pleaseAllowPopupsInYourBrowserToPrintThePayslip": "د معاش پاڼې چاپ لپاره مهرباني وکړئ په خپل براوزر کې پاپ اپونه اجازه کړئ"
       }
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -5159,5 +5189,171 @@
     "safeWidth": "{field}: افقي واټن او پلنوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا پلنوالی کم کړئ.",
     "safeHeight": "{field}: عمودي واټن او لوړوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا لوړوالی کم کړئ.",
     "saveFailed": "تنظیمات خوندي نه شول. نښه شوې خانې سمې او بیا هڅه وکړئ."
+  },
+  "academy": {
+    "overview": {
+      "title": "د اکاډمۍ کتنه",
+      "description": "ټولګي، زده‌کوونکي او د مودې حالت.",
+      "loadFailed": "د اکاډمۍ کتنه پورته نه شوه.",
+      "todayClasses": "د نن ټولګي",
+      "noTodayClasses": "نن ټولګی نه دی.",
+      "terms": "د مودې حالت",
+      "termHint": "{count} فعال ثبت‌نام",
+      "kpis": {
+        "activeStudents": "فعال زده‌کوونکي",
+        "activeClasses": "فعال ټولګي",
+        "seats": "ډکې شوې څوکۍ",
+        "endingSoon": "ژر پای ته رسېږي",
+        "outstanding": "پاتې",
+        "completed": "دا میاشت بشپړ شوي"
+      }
+    },
+    "classes": {
+      "title": "ټولګي",
+      "description": "روان ټولګي، مهالوېش او ظرفیت.",
+      "createTitle": "ټولګی جوړول",
+      "editTitle": "ټولګی سمول",
+      "create": "ټولګی جوړول",
+      "saved": "ټولګی خوندي شو.",
+      "removed": "ټولګی لرې شو.",
+      "removeConfirm": "دا ټولګی لرې شي؟ شته ثبت‌نامونه ساتل کیږي.",
+      "emptyTitle": "لا ټولګی نشته",
+      "emptyDescription": "لومړی ټولګی جوړ کړئ.",
+      "loadFailed": "ټولګي پورته نه شول.",
+      "roster": "نوملړ",
+      "rosterTitle": "د ټولګي نوملړ",
+      "emptyRoster": "په دې ټولګي کې زده‌کوونکي نشته."
+    },
+    "students": {
+      "title": "زده‌کوونکي",
+      "description": "زده‌کوونکي او د هغوی کورسونه.",
+      "cardTitle": "د زده‌کوونکي کورسونه",
+      "detailTitle": "د ثبت‌نام جزئیات",
+      "endingSoon": "پای ته نږدې",
+      "emptyCourses": "هیڅ کورس ثبت نه دی شوی.",
+      "emptyTitle": "لا زده‌کوونکی نشته",
+      "emptyDescription": "د اکاډمۍ قراردادونه ثبت‌نام جوړوي.",
+      "loadFailed": "زده‌کوونکي پورته نه شول.",
+      "saved": "ثبت‌نام نوی شو.",
+      "terminalHint": "دا ثبت‌نام بند او یوازې لوستل کیږي."
+    },
+    "catalog": {
+      "title": "کټلاګ",
+      "description": "پروګرامونه، وختونه، مودې او استادان.",
+      "add": "زیاتول",
+      "programs": "پروګرامونه",
+      "times": "د ټولګي وختونه",
+      "durations": "مودې",
+      "teachers": "استادان",
+      "saved": "کټلاګ نوی شو.",
+      "removed": "ثبتونه لرې شوه.",
+      "removeConfirm": "دا د کتلاګ ثبتونه لرې شي؟",
+      "editMonths": "میاشتې",
+      "emptyTitle": "کټلاګ خالي دی",
+      "emptyDescription": "د اکاډمۍ پروګرامونه او مودې زیاتې کړئ.",
+      "loadFailed": "کټلاګ پورته نه شو."
+    },
+    "attendance": {
+      "title": "حاضري",
+      "description": "د زده‌کوونکو او استادانو میاشتنی حاضري، له HR جدا.",
+      "studentsTab": "زده‌کوونکي",
+      "teachersTab": "استادان",
+      "print": "پاڼه چاپول",
+      "printSubtitle": "د اکاډمۍ میاشتنی حاضری",
+      "printFooter": "د اکاډمۍ د حاضری سند",
+      "saved": "حاضري خوندي شوه.",
+      "empty": "د دې انتخاب لپاره حاضري نشته.",
+      "emptyCell": "نه ثبت شوی",
+      "loadFailed": "د اکاډمۍ حاضري پورته نه شوه.",
+      "addTeacherRow": "د استاد ساعت زیاتول",
+      "status": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "late": "ناوخته",
+        "excused": "رخصتي"
+      }
+    },
+    "certificates": {
+      "title": "تصدیقنامې",
+      "description": "د بشپړو ثبت‌نامونو لپاره تصدیقنامه صادرول او چاپول.",
+      "issue": "تصدیقنامه صادرول",
+      "bulkIssue": "ډله‌ای صادرول",
+      "preview": "مخکتنه",
+      "print": "چاپ",
+      "issued": "صادرشوې",
+      "revoked": "لغوه شوې",
+      "issuedDone": "سند صادر شو.",
+      "revokedDone": "سند لغو شو.",
+      "revokedCannotPrint": "لغو شوي سندونه چاپ نشي.",
+      "revoke": "لغوه کول",
+      "revokeReason": "د لغوه کولو دلیل",
+      "bulkHint": "د هر بشپړ ثبت‌نام لپاره یو سند جوړیږي. موجود سندونه تېریږي.",
+      "bulkSaved": "ډله‌ییز صادرول بشپړ شول.",
+      "completedEnrollment": "بشپړ ثبت‌نام",
+      "completedEnrollments": "بشپړ ثبت‌نامونه",
+      "issueHint": "یوازې بشپړ ثبت‌نامونه وړ دي. سند ثابته نسخه کاروي.",
+      "editTemplate": "قالب سمول",
+      "templateSaved": "قالب خوندي شو.",
+      "templateTitle": "د سند عنوان",
+      "templateBody": "د سند متن",
+      "tokens": "شته ساحې: {tokens}",
+      "signatoryTitle": "د لاسلیک کوونکي عنوان",
+      "search": "تصدیقنامې لټول",
+      "number": "د تصدیقنامې شمېره",
+      "emptyTitle": "لا تصدیقنامه نشته",
+      "emptyDescription": "د بشپړ ثبت‌نام لپاره سند صادر کړئ.",
+      "loadFailed": "تصدیقنامې پورته نه شوې."
+    },
+    "status": {
+      "active": "فعال",
+      "completed": "بشپړ",
+      "withdrawn": "وتلی",
+      "cancelled": "لغوه"
+    },
+    "fields": {
+      "active": "فعال",
+      "balance": "پاتې",
+      "capacity": "ظرفیت",
+      "class": "ټولګی",
+      "completedOn": "د بشپړېدو نېټه",
+      "contact": "اړیکه",
+      "contract": "قرارداد",
+      "date": "نېټه",
+      "description": "تشریح",
+      "duration": "موده",
+      "endsAt": "پای",
+      "endsOn": "تر نېټې",
+      "fee": "فېس",
+      "hours": "ساعتونه",
+      "minutes": "دقیقې",
+      "month": "میاشت",
+      "months": "میاشتې",
+      "name": "نوم",
+      "note": "یادښت",
+      "notes": "یادښتونه",
+      "program": "پروګرام",
+      "schedule": "مهالوېش",
+      "seats": "څوکۍ",
+      "sortOrder": "ترتیب",
+      "startsAt": "پیل",
+      "startsOn": "له نېټې",
+      "status": "حالت",
+      "student": "زده‌کوونکی",
+      "teacher": "استاد",
+      "teachers": "استادان",
+      "term": "موده",
+      "time": "وخت",
+      "total": "ټول",
+      "weekdays": "ورځې"
+    },
+    "navigation": {
+      "overview": "کتنه",
+      "classes": "ټولګي",
+      "students": "زده‌کوونکي",
+      "catalog": "کټلاګ",
+      "attendance": "حاضري",
+      "certificates": "تصدیقنامې",
+      "contracts": "د اکاډمۍ قراردادونه"
+    }
   }
 }

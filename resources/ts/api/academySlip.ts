@@ -26,11 +26,14 @@ export interface AcademySlipApplicant {
 }
 
 export interface AcademySlipAcademy {
+  student_id: string | null
   program: string | null
   time: string | null
   duration: string | null
   class: string | null
   teachers: string[]
+  started_on: string | null
+  ends_on: string | null
 }
 
 export interface AcademySlipPayload {

@@ -79,7 +79,7 @@ trait CreatesBuiltInContracts
                 'service_fee' => $fee,
                 'program_id' => Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true])->id,
                 'time_id' => TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true])->id,
-                'duration_id' => Duration::firstOrCreate(['name' => '6 months'], ['is_active' => true])->id,
+                'duration_id' => Duration::firstOrCreate(['name' => '6 months'], ['months' => 6, 'is_active' => true])->id,
                 'teacher_ids' => [Teacher::firstOrCreate(['name' => 'Jane Doe'], ['is_active' => true])->id],
                 'class_id' => AcademyClass::firstOrCreate(['name' => 'Class A'], ['is_active' => true])->id,
             ],

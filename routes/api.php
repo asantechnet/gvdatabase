@@ -492,6 +492,14 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('contract-placeholders', [ContractController::class, 'placeholders'])
         ->middleware('permission:view_contract_templates,view_contracts');
 
+    // Academy route tree. Each feature owns a file under routes/academy/.
+    require base_path('routes/academy.php');
+    // CRM relationships are an optional handoff owned by Task-047. The guard
+    // lets this tree load before that file exists.
+    if (is_file(base_path('routes/crm.php'))) {
+        require base_path('routes/crm.php');
+    }
+
     // Contract routes
     Route::post('contracts/preview', [ContractController::class, 'preview'])
         ->middleware('permission:create_contracts,edit_contracts');

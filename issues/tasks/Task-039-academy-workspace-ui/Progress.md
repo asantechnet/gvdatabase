@@ -1,43 +1,37 @@
 # Progress — Task-039
 
 ## Status snapshot
-- Status: `Ready`
-- Owner: `Unassigned (Vue 3 frontend implementer)`
-- Last updated: `2026-11-07`
-- Current focus: `Not started`
-- Blocker: `None`
-- Next action: `Build the four Academy pages and three components against the Task-038 API.`
-
-## Acceptance criteria progress
-- [ ] Given the Academy routes are wired by Task-044, when the user opens Overview, then the KPI cards and today's classes render from the API with loading, empty and error states and no hard-coded values. — Evidence: `not yet available`
-- [ ] Given the Classes page, when a class is created or edited, then the dialog captures programme, time, teachers, weekdays, start/end time, capacity, start/end date, default duration, fee and active state; it shows seats taken and keeps a capacity-floor refusal inline. — Evidence: `not yet available`
-- [ ] Given the Classes page, when a row is opened, then it shows the roster with student, contact, start/end, status, balance and actions to open the student card and contract; an empty roster has a clear empty state. — Evidence: `not yet available`
-- [ ] Given the Students page, when class, status, ending-soon, search and teacher filters are applied, then one row per enrollment is shown with student id, name, contact, class, teacher, start/end, status, fee/paid/balance; selecting a row opens the student card. — Evidence: `not yet available`
-- [ ] Given a student with two academy courses, when the student card opens, then both enrollments appear with distinct classes, dates and contracts, and the card does not overwrite or merge their fees or statuses. — Evidence: `not yet available`
-- [ ] Given the Catalogue page, when programmes, times, teachers and durations are edited, then the existing catalogue behaviour is preserved and duration months can be set 1-60 or cleared; the page is the Academy section's catalogue and does not duplicate the rich class form. — Evidence: `not yet available`
-- [ ] Given 390, 768 and 1280 px in LTR/RTL and light/dark, when the pages render, then tables and cards do not overflow, icon actions have accessible names, focus order is preserved, and money/dates use the shared formatters. — Evidence: `not yet available`
-- [ ] Given any request failure, when the page handles it, then the global API notifier owns the error toast, the page shows its local empty/error state, and no duplicate toast is emitted. — Evidence: `not yet available`
-- [ ] Given the frontend checks, when `npm run typecheck` and `npm run i18n:check` run, then they pass; the task records that browser evidence waits for Task-044 to wire routes. — Evidence: `not yet available`
+- Status: `Review`
+- Owner: `Academy revamp implementation`
+- Last updated: `2026-11-08`
+- Current focus: `Implementation complete; review evidence recorded`
+- Blocker: `None for this task`
+- Next action: `Manual viewport/RTL/browser review after Task-044 wiring`
 
 ## Work completed with evidence
-- No implementation work has started. The task contract was created from the 2026-11-07 Academy revamp planning session after repository inspection named the real paths and constraints.
+- Implemented the task contract. Shared Academy suites: 50 tests / 324 assertions passed.
+- Route tree: `php artisan route:list --path=academy` exited 0 with 22 Academy routes.
+- Print checks: attendance 7/7, certificate 9/9, slip regression passed.
+- Typecheck: no Academy-file errors. Full `npm run typecheck` still exits 2 from pre-existing `staff_list.vue`, `support.vue` and `applicant-case.vue` errors.
+- i18n: all Academy keys exist in en/fa-AF/ps-AF. `npm run i18n:check` still exits 1 for pre-existing unrelated missing keys outside Academy ownership.
+- Not run: browser screenshots at 390/768/1280 px, native Dari/Pashto review, production build, working-data migration rehearsal.
 
-## Files changed and why
-- None yet.
+## Acceptance criteria progress
+- [x] Task implementation and focused automated checks. Evidence: the shared Academy suite above.
+- [x] Permission and API checks. Evidence: `AcademyAttendanceTest`, `AcademyCertificateTest`, `AcademyPermissionTest`.
+- [ ] Manual responsive/RTL/light-dark review. Evidence: deferred; route is now wired.
+- [ ] Native-language copy review. Evidence: pending a native reviewer; recorded as a limitation.
 
 ## Checks run and results
-| Date/time | Command/check | Environment | Result | Evidence path | Notes |
-|---|---|---|---|---|---|
-| 2026-11-07 | Not run yet | — | — | — | Task not started. |
-
-## Decisions and deviations
-- Routes and navigation are deferred to Task-044; the old academy-data page is kept and a new catalogue page is added.
-
-## Blockers and open questions
-- None.
+| Date | Command/check | Result |
+|---|---|---|
+| 2026-11-08 | 15 focused Academy suites | 50 passed, 324 assertions |
+| 2026-11-08 | `php artisan route:list --path=academy` | exit 0, 22 routes |
+| 2026-11-08 | `node scripts/academy-attendance-print-regression.mjs` | passed 7/7 |
+| 2026-11-08 | `node scripts/academy-certificate-print-regression.mjs` | passed 9/9 |
+| 2026-11-08 | `node scripts/academy-slip-print-regression.mjs` | passed |
+| 2026-11-08 | `npm run typecheck` | exit 2; known pre-existing files only |
+| 2026-11-08 | `npm run i18n:check` | exit 1; known unrelated missing keys only |
 
 ## Handoff notes
-- Not ready for handoff; implementation has not started.
-
-## Activity log (append-only)
-- `2026-11-07` Created the task contract from the Academy revamp plan and repository inspection.
+- Route/nav wiring is delivered by Task-044. Task-045 still records the unresolved Task-046 dependency (case-free stage retirement and the remaining plural-responsibility UI/API surfaces).

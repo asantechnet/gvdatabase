@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\AcademyClass;
 use App\Models\University;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
@@ -31,6 +32,11 @@ class StoreServiceContractRequest extends FormRequest
 
     public function authorize(): bool
     {
+        if ($this->has('responsible_employee_ids')
+            && ! $this->user()?->hasPermission('assign_responsible_employees')) {
+            return false;
+        }
+
         return $this->user()?->hasPermission($this->isMethod('post') ? 'create_contracts' : 'edit_contracts') ?? false;
     }
 
@@ -47,6 +53,18 @@ class StoreServiceContractRequest extends FormRequest
                 && $this->filled('university_id') && $this->filled('country_id')
                 && ! University::query()->whereKey($this->input('university_id'))->where('country_id', $this->input('country_id'))->exists()) {
                 $validator->errors()->add('university_id', 'The selected university does not belong to the selected country.');
+            }
+
+            if ($service === BuiltInService::ACADEMY && $this->filled('class_id')) {
+                $class = AcademyClass::query()->find($this->input('class_id'));
+                if ($class) {
+                    foreach (['program_id' => 'programme', 'time_id' => 'time', 'duration_id' => 'duration'] as $field => $label) {
+                        if ($class->{$field} !== null && $this->filled($field)
+                            && (int) $this->input($field) !== (int) $class->{$field}) {
+                            $validator->errors()->add($field, "The selected {$label} does not match the class.");
+                        }
+                    }
+                }
             }
 
             $fields = match ($service) {
@@ -98,6 +116,9 @@ class StoreServiceContractRequest extends FormRequest
                 : ($service === BuiltInService::SCHOLARSHIP || $service === BuiltInService::PRIVATE
                     ? AgencyStaffAssignment::rules('admission')
                     : ['prohibited']),
+            'responsible_employee_ids' => in_array($service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true)
+                ? ['nullable', 'array', 'max:100']
+                : ['prohibited'],
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
@@ -215,6 +236,16 @@ class StoreServiceContractRequest extends FormRequest
             if (isset($rules[$key]) && ! in_array('prohibited', $rules[$key], true)) {
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];
             }
+        }
+        if (in_array($service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true)) {
+            $rules['responsible_employee_ids.*'] = [
+                'integer', 'distinct',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! AgencyStaffAssignment::query('admission')->whereKey($value)->exists()) {
+                        $fail('Choose an active employee with the admission position or role.');
+                    }
+                },
+            ];
         }
         foreach (['applicant_id', 'service', 'service_id', 'service_ids', 'service_lines', 'package_id', 'customer_package_id', 'template_id', 'status', 'content', 'amount_paid', 'payment_status'] as $field) {
             $rules[$field] = ['prohibited'];

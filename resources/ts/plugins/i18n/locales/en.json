@@ -170,7 +170,8 @@
       "adding": "adding",
       "editing": "editing",
       "viewFullDetails": "View full details",
-      "editFullDetails": "Edit full details"
+      "editFullDetails": "Edit full details",
+      "previous": "Previous"
     },
     "values": {
       "yes": "Yes",
@@ -253,7 +254,9 @@
       "applicant": "Applicant",
       "taxNumber": "Tax number",
       "service": "Service",
-      "position": "Position"
+      "position": "Position",
+      "actions": "Actions",
+      "details": "Details"
     },
     "statuses": {
       "cancelled": "Cancelled",
@@ -577,7 +580,15 @@
       "announcements": "Announcements",
       "incomeTypes": "Income Types",
       "expenseTypes": "Expense Types",
-      "payrolls": "Payrolls"
+      "payrolls": "Payrolls",
+      "academy": "Academy",
+      "academyOverview": "Academy overview",
+      "academyClasses": "Classes",
+      "academyStudents": "Students",
+      "academyCatalog": "Catalogue",
+      "academyAttendance": "Attendance",
+      "academyCertificates": "Certificates",
+      "academyContracts": "Academy contracts"
     },
     "languages": {
       "english": "English",
@@ -4704,7 +4715,11 @@
       "loadFailed": "Unable to load this academy slip.",
       "printFailed": "Unable to print this academy slip.",
       "artworkFailed": "Slip artwork or fonts could not load. Printing was cancelled.",
-      "paperTooSmall": "This academy slip does not fit the selected paper. Choose a larger paper size."
+      "paperTooSmall": "This academy slip does not fit the selected paper. Choose a larger paper size.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "Commission Slip",
@@ -4840,6 +4855,21 @@
       "note": "This advance is recovered from future payroll.",
       "employeeCopy": "Employee copy",
       "companyCopy": "Company copy"
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -6190,5 +6220,171 @@
     "safeWidth": "{field}: horizontal offset plus width cannot exceed 100%. Reduce the offset or width.",
     "safeHeight": "{field}: vertical offset plus height cannot exceed 100%. Reduce the offset or height.",
     "saveFailed": "Could not save settings. Correct the highlighted fields and try again."
+  },
+  "academy": {
+    "overview": {
+      "title": "Academy overview",
+      "description": "Classes, students and current term health.",
+      "loadFailed": "Could not load the academy overview.",
+      "todayClasses": "Today’s classes",
+      "noTodayClasses": "No classes meet today.",
+      "terms": "Term status",
+      "termHint": "{count} active enrollments",
+      "kpis": {
+        "activeStudents": "Active students",
+        "activeClasses": "Active classes",
+        "seats": "Seats filled",
+        "endingSoon": "Ending soon",
+        "outstanding": "Outstanding balance",
+        "completed": "Completed this month"
+      }
+    },
+    "classes": {
+      "title": "Classes",
+      "description": "Rolling classes, schedules and capacity.",
+      "createTitle": "Create class",
+      "editTitle": "Edit class",
+      "create": "Create class",
+      "saved": "Class saved.",
+      "removed": "Class removed.",
+      "removeConfirm": "Remove this class? Existing enrollments are preserved.",
+      "emptyTitle": "No classes yet",
+      "emptyDescription": "Create the first class to open enrolment.",
+      "loadFailed": "Could not load classes.",
+      "roster": "Roster",
+      "rosterTitle": "Class roster",
+      "emptyRoster": "No students are enrolled in this class."
+    },
+    "students": {
+      "title": "Students",
+      "description": "Students and their enrolled courses.",
+      "cardTitle": "Student courses",
+      "detailTitle": "Enrollment details",
+      "endingSoon": "Ending soon",
+      "emptyCourses": "No courses enrolled.",
+      "emptyTitle": "No students yet",
+      "emptyDescription": "Academy contracts create student enrollments automatically.",
+      "loadFailed": "Could not load students.",
+      "saved": "Enrollment updated.",
+      "terminalHint": "This enrollment is closed and read-only."
+    },
+    "catalog": {
+      "title": "Catalogue",
+      "description": "Programs, times, durations and teachers used by Academy classes.",
+      "add": "Add",
+      "programs": "Programs",
+      "times": "Class times",
+      "durations": "Durations",
+      "teachers": "Teachers",
+      "saved": "Catalogue updated.",
+      "removed": "Entry removed.",
+      "removeConfirm": "Remove this catalogue entry?",
+      "editMonths": "Duration in months",
+      "emptyTitle": "Catalogue is empty",
+      "emptyDescription": "Add the programmes, times and durations used by the academy.",
+      "loadFailed": "Could not load the catalogue."
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "Monthly student attendance and teacher timesheets, separate from HR attendance.",
+      "studentsTab": "Students",
+      "teachersTab": "Teachers",
+      "print": "Print sheet",
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record",
+      "saved": "Attendance saved.",
+      "empty": "No attendance rows for this selection.",
+      "emptyCell": "Not recorded",
+      "loadFailed": "Could not load Academy attendance.",
+      "addTeacherRow": "Add teacher row",
+      "status": {
+        "present": "Present",
+        "absent": "Absent",
+        "late": "Late",
+        "excused": "Excused"
+      }
+    },
+    "certificates": {
+      "title": "Certificates",
+      "description": "Issue and reprint certificates for completed enrollments.",
+      "issue": "Issue certificate",
+      "bulkIssue": "Bulk issue",
+      "preview": "Certificate preview",
+      "print": "Print certificate",
+      "issued": "Issued",
+      "revoked": "Revoked",
+      "issuedDone": "Certificate issued.",
+      "revokedDone": "Certificate revoked.",
+      "revokedCannotPrint": "Revoked certificates cannot be printed.",
+      "revoke": "Revoke",
+      "revokeReason": "Revocation reason",
+      "bulkHint": "One certificate is created per completed enrollment. Existing certificates are skipped.",
+      "bulkSaved": "Bulk issue complete.",
+      "completedEnrollment": "Completed enrollment",
+      "completedEnrollments": "Completed enrollments",
+      "issueHint": "Only completed enrollments are eligible. The certificate uses an immutable snapshot.",
+      "editTemplate": "Edit template",
+      "templateSaved": "Certificate template saved.",
+      "templateTitle": "Certificate title",
+      "templateBody": "Certificate copy",
+      "tokens": "Available fields: {tokens}",
+      "signatoryTitle": "Signatory title",
+      "search": "Search certificates",
+      "number": "Certificate number",
+      "emptyTitle": "No certificates yet",
+      "emptyDescription": "Issue a certificate for a completed enrollment.",
+      "loadFailed": "Could not load certificates."
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "withdrawn": "Withdrawn",
+      "cancelled": "Cancelled"
+    },
+    "fields": {
+      "active": "Active",
+      "balance": "Balance",
+      "capacity": "Capacity",
+      "class": "Class",
+      "completedOn": "Completed on",
+      "contact": "Contact",
+      "contract": "Contract",
+      "date": "Date",
+      "description": "Description",
+      "duration": "Duration",
+      "endsAt": "Ends at",
+      "endsOn": "Ends on",
+      "fee": "Fee",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "month": "Month",
+      "months": "Months",
+      "name": "Name",
+      "note": "Note",
+      "notes": "Notes",
+      "program": "Programme",
+      "schedule": "Schedule",
+      "seats": "Seats",
+      "sortOrder": "Order",
+      "startsAt": "Starts at",
+      "startsOn": "Starts on",
+      "status": "Status",
+      "student": "Student",
+      "teacher": "Teacher",
+      "teachers": "Teachers",
+      "term": "Term",
+      "time": "Time",
+      "total": "Total",
+      "weekdays": "Weekdays"
+    },
+    "navigation": {
+      "overview": "Overview",
+      "classes": "Classes",
+      "students": "Students",
+      "catalog": "Catalogue",
+      "attendance": "Attendance",
+      "certificates": "Certificates",
+      "contracts": "Academy contracts"
+    }
   }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademyEnrollment;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\Setting;
@@ -33,6 +34,7 @@ class AcademySlipService
 
         $setting = Setting::latest('id')->first();
         $applicant = $contract->applicant;
+        $enrollment = AcademyEnrollment::with(['student', 'academyClass'])->where('contract_id', $contract->id)->orderBy('id')->first();
         $line = $contract->applicantContracts->firstWhere('service', BuiltInService::ACADEMY)
             ?? $contract->applicantContracts->first();
 
@@ -52,7 +54,7 @@ class AcademySlipService
                 'id' => $contract->id,
                 'contract_number' => $contract->contract_number,
             ],
-            'academy' => $this->academyPayload($applicant),
+            'academy' => $this->academyPayload($applicant, $enrollment),
             'service' => $line ? [
                 'id' => $line->id,
                 'name' => BuiltInService::label(BuiltInService::ACADEMY),
@@ -77,16 +79,19 @@ class AcademySlipService
     }
 
     /** @return array<string, mixed> */
-    private function academyPayload(?Applicant $applicant): array
+    private function academyPayload(?Applicant $applicant, ?AcademyEnrollment $enrollment): array
     {
         $detail = $applicant?->academyDetail;
 
         return [
+            'student_id' => $enrollment?->student?->student_number,
             'program' => $detail?->program?->name,
             'time' => $detail?->time?->name,
             'duration' => $detail?->duration?->name,
-            'class' => $detail?->academyClass?->name,
+            'class' => $enrollment?->academyClass?->name ?? $detail?->academyClass?->name,
             'teachers' => $applicant ? $applicant->teachers->pluck('name')->values()->all() : [],
+            'started_on' => $enrollment?->started_on?->format('Y-m-d'),
+            'ends_on' => $enrollment?->ends_on?->format('Y-m-d'),
         ];
     }
 

@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 class PlaceholderResolver
 {
     /**
-     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
+     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, contract_number?: ?string, start_date?: ?string, end_date?: ?string, status?: ?string}  $context
      * @return array{content: string, unresolved: list<string>, missing: list<string>}
      */
     public function resolve(string $content, array $context, ?string $typeSlug = null, bool $preserveMissing = false): array
@@ -155,6 +155,7 @@ class PlaceholderResolver
         $values += [
             'contract.number' => $context['contract_number'] ?? null,
             'contract.start_date' => $context['start_date'] ?? null,
+            'contract.end_date' => $context['end_date'] ?? ($context['built_in_line'] ?? null)?->contract?->end_date?->format('Y-m-d'),
             'contract.status' => $context['status'] ?? null,
         ];
 

@@ -85,7 +85,7 @@ class BuiltInContractGenerationTest extends TestCase
         $skill = Skill::firstOrCreate(['name' => 'Writing'], ['is_active' => true]);
         $program = Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true]);
         $time = TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true]);
-        $duration = Duration::firstOrCreate(['name' => '6 months'], ['is_active' => true]);
+        $duration = Duration::firstOrCreate(['name' => '6 months'], ['months' => 6, 'is_active' => true]);
         $class = AcademyClass::firstOrCreate(['name' => 'Class A'], ['is_active' => true]);
         $teacher = Teacher::firstOrCreate(['name' => 'Jane Doe'], ['is_active' => true]);
         $contractType = ContractType::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
