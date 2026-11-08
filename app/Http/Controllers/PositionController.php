@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\PositionResource;
 use App\Models\Currency;
 use App\Models\Position;
+use App\Services\CurrencyRateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class PositionController extends Controller
 {
+    public function __construct(private CurrencyRateService $rates) {}
+
     public function index(): JsonResponse
     {
         $positions = Position::query()
@@ -30,11 +33,13 @@ class PositionController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255', Rule::unique('positions', 'title')->whereNull('deleted_at')],
             'salary' => 'required|numeric|min:0',
+            'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->where('is_active', true)],
+            'rate' => 'required|numeric|gt:0',
             'status' => 'required|in:active,inactive',
             'description' => 'nullable|string',
         ]);
 
-        $position = Position::create([...$data, ...$this->currencySnapshot()]);
+        $position = Position::create([...$data, ...$this->currencySnapshot($data)]);
 
         return response()->json([
             'success' => true,
@@ -78,13 +83,16 @@ class PositionController extends Controller
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255', Rule::unique('positions', 'title')->whereNull('deleted_at')->ignore($position->id)],
             'salary' => 'sometimes|numeric|min:0',
+            'currency_id' => ['required_with:rate', 'integer', Rule::exists('currencies', 'id')->where('is_active', true)],
+            'rate' => 'required_with:currency_id|numeric|gt:0',
             'status' => 'sometimes|in:active,inactive',
             'description' => 'nullable|string',
         ]);
 
-        // A position's suggested salary is always denominated in the current
-        // company base currency, with its own display snapshot.
-        $position->update([...$data, ...$this->currencySnapshot()]);
+        $snapshot = array_key_exists('currency_id', $data)
+            ? $this->currencySnapshot($data)
+            : [];
+        $position->update([...$data, ...$snapshot]);
 
         return response()->json([
             'success' => true,
@@ -124,19 +132,30 @@ class PositionController extends Controller
         ]);
     }
 
-    private function currencySnapshot(): array
+    /**
+     * Capture the selected currency beside a suggested salary. The rate is
+     * written through the shared service so this selection is immediately
+     * reflected anywhere the Finance currency options are used.
+     */
+    private function currencySnapshot(array $data): array
     {
-        $currency = Currency::query()->where('is_base', true)->first();
+        $currency = Currency::query()->find($data['currency_id']);
         if (! $currency) {
-            throw ValidationException::withMessages(['currency' => ['business.base_currency_required']]);
+            throw ValidationException::withMessages(['currency_id' => ['validation.exists']]);
         }
+
+        $rate = $this->rates->remember($currency->id, $data['rate']);
+        if ($rate === null) {
+            throw ValidationException::withMessages(['rate' => ['api.errors.invalid_currency_rate']]);
+        }
+        $currency->refresh();
 
         return [
             'currency_id' => $currency->id,
             'currency_code' => $currency->code,
             'currency_symbol' => $currency->symbol,
             'currency_decimal_places' => $currency->decimal_places,
-            'rate' => 1,
+            'rate' => $rate,
         ];
     }
 }

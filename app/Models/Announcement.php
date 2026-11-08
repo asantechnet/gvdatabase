@@ -8,11 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * An immutable company-wide announcement composed by an authorized employee.
- *
- * Delivery happens once, at creation, into the notification inbox of the
- * resolved audience. There is intentionally no update or delete: corrections
- * are made by publishing a new announcement.
+ * A company-wide announcement composed by an authorized employee. Delivery
+ * stays synchronized when its sender corrects the announcement or audience.
  */
 class Announcement extends Model
 {

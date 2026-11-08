@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { printDocument } from '@/utils/printDocument'
-import { useBranding } from '@/composables/useBranding'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -26,7 +25,6 @@ const props = defineProps<{
 }>()
 
 const { locale, t } = useI18n()
-const { logoUrl, originalCompanyName } = useBranding()
 
 const formatDuration = (minutes: number | null) => minutes === null
   ? '—'
@@ -194,7 +192,6 @@ const printReport = () => {
     </div>
 
     <div class="print-container">
-      <div class="timesheet-company"><img v-if="logoUrl" :src="logoUrl" :alt="originalCompanyName"><strong>{{ originalCompanyName }}</strong></div>
       <div
         v-for="(page, index) in calendarPages"
         :key="index"
@@ -272,8 +269,6 @@ const printReport = () => {
 </template>
 
 <style scoped>
-.timesheet-company { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block-end: 12px; }
-.timesheet-company img { max-inline-size: 45mm; max-block-size: 16mm; object-fit: contain; }
 /* ==========================================
    CSS Variables & Screen Layout
 ========================================== */

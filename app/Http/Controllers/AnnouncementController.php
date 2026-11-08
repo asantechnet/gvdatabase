@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Announcements are immutable: the API intentionally exposes no update or
- * delete route, for anyone. See asantech-mini-management/ANNOUNCEMENTS_FEATURE_PLAN.md.
+ * Announcements can be corrected or withdrawn by their sender. A holder of
+ * view_all_announcements can manage any announcement.
  */
 class AnnouncementController extends Controller
 {
@@ -73,6 +73,32 @@ class AnnouncementController extends Controller
         return response()->json(['success' => true, 'data' => new AnnouncementResource($announcement->load('sender:id,name'))]);
     }
 
+    public function update(Request $request, Announcement $announcement): JsonResponse
+    {
+        $this->authorizeManage($request, $announcement);
+        $data = $this->validated($request);
+        $this->authorizeAudience($request->user(), $data['audience']);
+
+        $announcement->update([
+            'title' => $data['title'] ?? null,
+            'message' => $data['message'],
+            'labels' => $data['labels'] ?? [],
+            'audience' => $data['audience'],
+        ]);
+        $this->announcements->refresh($announcement->fresh(['sender']), $data['audience']);
+
+        return response()->json(['success' => true, 'data' => new AnnouncementResource($announcement->fresh(['sender']))]);
+    }
+
+    public function destroy(Request $request, Announcement $announcement): JsonResponse
+    {
+        $this->authorizeManage($request, $announcement);
+        $this->announcements->remove($announcement);
+        $announcement->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Recipient preview for the composer: how many active accounts currently
      * match each selected scope, plus the selectable position/role/department
@@ -125,6 +151,15 @@ class AnnouncementController extends Controller
     private function canViewAll(Request $request): bool
     {
         return $request->user()->hasPermission('view_all_announcements');
+    }
+
+    private function authorizeManage(Request $request, Announcement $announcement): void
+    {
+        abort_unless(
+            $announcement->sender_id === $request->user()->id || $this->canViewAll($request),
+            403,
+            'auth.forbidden',
+        );
     }
 
     /** @return array<string, mixed> */

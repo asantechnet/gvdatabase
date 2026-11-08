@@ -10,10 +10,8 @@ use Illuminate\Support\Facades\Schema;
  * model failed with "Unknown column 'announcements.deleted_at'" because the
  * SoftDeletes global scope always filters on deleted_at.
  *
- * Announcements stay immutable through the API (there is no update or delete
- * route), so soft deletion is never triggered intentionally here. The column
- * exists purely to satisfy the trait, exactly like every other Auditable
- * model's table.
+ * Announcement lifecycle actions use this column for soft deletion, exactly
+ * like every other Auditable model's table.
  */
 return new class extends Migration
 {

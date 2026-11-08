@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 defineOptions({ inheritAttrs: false })
 const props = withDefaults(defineProps<{
   label: string
-  kind?: 'text' | 'select' | 'autocomplete' | 'textarea'
+  kind?: 'text' | 'select' | 'autocomplete' | 'textarea' | 'date'
   required?: boolean
   rules?: Array<(value: unknown) => boolean | string>
   /**
@@ -57,7 +57,18 @@ defineExpose({
         aria-hidden="true"
       >*</span>
     </label>
+    <AppDateTimePicker
+      v-if="kind === 'date'"
+      :id="fieldId"
+      ref="inputRef"
+      v-model="model"
+      v-bind="$attrs"
+      :aria-label="label"
+      :aria-required="required || undefined"
+      class="erp-field-control"
+    />
     <component
+      v-else
       :is="input"
       :id="fieldId"
       ref="inputRef"
@@ -72,7 +83,9 @@ defineExpose({
       density="compact"
       hide-details="auto"
       class="erp-field-control"
-    />
+    >
+      <slot />
+    </component>
   </div>
 </template>
 

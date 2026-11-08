@@ -241,7 +241,7 @@ onMounted(load)
         <VAlert type="info" variant="tonal" class="mb-4">
           {{ $t('common.ui.onlyAHigherRankedEmployeeWithSupervisoryAccessCanManageADepartmentAssignDirectSupervisorsFromStaffDirectoryAfterSaving') }}
         </VAlert>
-        <VRow>
+        <VRow class="department-form-fields">
           <VCol cols="12" sm="6"><ErpField v-model="form.name" :label="$t('common.ui.departmentName')" placeholder="e.g. Admissions" required /></VCol>
           <VCol cols="12" sm="6"><ErpField
             v-model="form.manager_employee_id"
@@ -294,6 +294,7 @@ onMounted(load)
 .department-dialog-title { border-block-end: 1px solid rgba(var(--v-theme-on-surface), .06); }
 .department-dialog-actions { border-block-start: 1px solid rgba(var(--v-theme-on-surface), .06); }
 .department-dialog-heading { font-weight: 700; }
+.department-form-fields { row-gap: 10px; margin-block-end: 10px; }
 .department-dialog-close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38); border-radius: 50%; }
 .department-dialog-cancel { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }
 .department-dialog-cancel:hover, .department-dialog-cancel:focus-visible { border-color: rgb(var(--v-theme-error)) !important; background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }

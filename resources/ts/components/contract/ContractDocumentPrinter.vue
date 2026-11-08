@@ -51,13 +51,38 @@ const printableCompany = computed<OfficialCompanyDetails>(() => ({ ...company.va
 const margins = computed(() => officialPrintMargins(printableCompany.value, useLetterhead.value))
 
 const pageStyle = computed(() => {
+  if (useLetterhead.value)
+    return 'size: A4; margin: 0;'
+
   const { top, right, bottom, left } = margins.value
 
   return `size: A4; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;`
 })
 
+const printOptions = computed(() => [
+  {
+    key: 'cover' as const,
+    label: t('pages.contracts.shared.officialPrint.includeCoverPage'),
+    checked: includeCover.value,
+    disabled: false,
+  },
+  {
+    key: 'letterhead' as const,
+    label: t('pages.contracts.shared.officialPrint.useCustomLetterhead'),
+    checked: includeCustomLetterhead.value,
+    disabled: !letterheadArtworkAvailable.value,
+  },
+].sort((left, right) => Number(right.checked) - Number(left.checked)))
+
+const updatePrintOption = (key: 'cover' | 'letterhead', checked: boolean) => {
+  if (key === 'cover')
+    includeCover.value = checked
+  else
+    includeCustomLetterhead.value = checked
+}
+
 const resetPrintOptions = () => {
-  includeCover.value = true
+  includeCover.value = false
   includeCustomLetterhead.value = letterheadArtworkAvailable.value && Boolean(company.value.letterheadUrl)
 }
 
@@ -158,6 +183,14 @@ const executePrint = async () => {
             {{ $t('contractPrintDialog.subtitle') }}
           </p>
         </div>
+        <VBtn
+          icon="tabler-x"
+          variant="tonal"
+          color="error"
+          class="contract-print-dialog__close"
+          :aria-label="$t('common.actions.close')"
+          @click="emit('update:modelValue', false)"
+        />
       </div>
       <VCardText>
         <div class="contract-print-dialog__document mb-5">
@@ -185,26 +218,23 @@ const executePrint = async () => {
         </h3>
         <div class="contract-print-dialog__options d-flex flex-column gap-1">
           <VCheckbox
-            v-model="includeCover"
-            :label="$t('pages.contracts.shared.officialPrint.includeCoverPage')"
+            v-for="option in printOptions"
+            :key="option.key"
+            :model-value="option.checked"
+            :label="option.label"
+            :disabled="option.disabled"
             density="compact"
             hide-details
-          />
-          <VCheckbox
-            v-model="includeCustomLetterhead"
-            :label="$t('pages.contracts.shared.officialPrint.useCustomLetterhead')"
-            :disabled="!letterheadArtworkAvailable"
-            density="compact"
-            hide-details
+            @update:model-value="updatePrintOption(option.key, Boolean($event))"
           />
         </div>
       </VCardText>
-      <VCardActions class="contract-print-dialog__actions px-6 py-4 gap-3">
+      <VCardActions class="contract-print-dialog__actions px-6 py-3 gap-3">
         <VBtn
           class="contract-print-dialog__action contract-print-dialog__cancel"
           variant="flat"
           color="secondary"
-          size="large"
+          size="default"
           @click="emit('update:modelValue', false)"
         >
           {{ $t('common.actions.cancel') }}
@@ -213,7 +243,7 @@ const executePrint = async () => {
           class="contract-print-dialog__action contract-print-dialog__print"
           color="primary"
           variant="flat"
-          size="large"
+          size="default"
           prepend-icon="tabler-printer"
           @click="executePrint"
         >
@@ -238,13 +268,15 @@ const executePrint = async () => {
 
 <style scoped>
 .contract-print-dialog { border-block-start: 3px solid rgb(var(--v-theme-primary)); }
-.contract-print-dialog__hero { display: flex; align-items: center; gap: 16px; padding: 24px; background: linear-gradient(120deg, rgb(var(--v-theme-primary) / .1), rgb(var(--v-theme-primary) / .02)); }
+.contract-print-dialog__hero { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .035); background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important; }
 .contract-print-dialog__seal { flex-shrink: 0; color: rgb(var(--v-theme-primary)); background: rgb(var(--v-theme-surface)); border: 1px solid rgb(var(--v-theme-primary) / .18); box-shadow: 0 4px 16px rgb(var(--v-theme-primary) / .1); }
-.contract-print-dialog__document { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid rgb(var(--v-theme-on-surface) / .1); border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .02); }
+.contract-print-dialog__document { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgba(var(--v-theme-primary), .26); border-radius: 10px; background-color: rgba(var(--v-theme-primary), .13) !important; }
 .contract-print-dialog__identity { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; overflow-wrap: anywhere; }
 .contract-print-dialog__options :deep(.v-label) { opacity: .85; font-size: .875rem; white-space: normal; }
-.contract-print-dialog__actions { justify-content: space-between; border-block-start: 1px solid rgb(var(--v-theme-on-surface) / .08); background: rgb(var(--v-theme-primary) / .025); }
-.contract-print-dialog__action { min-height: 44px; font-size: .875rem; font-weight: 600; letter-spacing: 0; }
+.contract-print-dialog__actions { justify-content: space-between; border-block-start: 1px solid rgba(var(--v-theme-on-surface), .035); background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important; }
+.contract-print-dialog__close { flex: 0 0 auto; border: 1px solid rgba(var(--v-theme-error), .38); border-radius: 50%; block-size: 36px; color: rgb(var(--v-theme-error)); inline-size: 36px; }
+.contract-print-dialog__close:hover { background-color: rgba(var(--v-theme-error), .18) !important; }
+.contract-print-dialog__action { min-height: 38px; font-size: .8125rem; font-weight: 600; letter-spacing: 0; }
 .contract-print-dialog__cancel { border: 1px solid rgb(var(--v-theme-secondary)); background-color: rgb(var(--v-theme-secondary) / .12) !important; color: rgb(var(--v-theme-secondary)) !important; transition: background-color 160ms ease, color 160ms ease; }
 .contract-print-dialog__cancel:hover { background-color: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
 .contract-print-dialog__print { padding-inline: 22px; box-shadow: 0 4px 14px rgb(var(--v-theme-primary) / .22); }

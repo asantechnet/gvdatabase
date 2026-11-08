@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { animations, handleEnd, performTransfer } from '@formkit/drag-and-drop'
+import { animations, performSort, performTransfer } from '@formkit/drag-and-drop'
 import { dragAndDrop } from '@formkit/drag-and-drop/vue'
-import { VForm } from 'vuetify/components/VForm'
 import KanbanCard from './KanbanCard.vue'
-import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId, KanbanState } from '@/types/legacyKanban'
+import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId, KanbanTaskMove } from '@/types/legacyKanban'
 import { canAccess } from '@/utils/authorization'
 
 const props = defineProps<{
@@ -17,7 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'addNewItem', value: AddNewKanbanItem): void
   (e: 'editItem', value: EditKanbanItem | undefined): void
-  (e: 'updateItemsState', value: KanbanState): void
+  (e: 'updateItemsState', value: KanbanTaskMove): void
   (e: 'deleteItem', value: EditKanbanItem): void
   (e: 'commentsClick', value: EditKanbanItem): void
   (e: 'attachmentsClick', value: EditKanbanItem): void
@@ -26,21 +25,14 @@ const emit = defineEmits<{
 const refKanbanBoard = ref<HTMLElement>()
 const localIds = ref<KanbanId[]>(props.kanbanIds)
 
-const isAddNewFormVisible = ref(false)
-const refForm = ref<VForm>()
-const newTaskTitle = ref<string>('')
-
 const addNewItem = () => {
-  refForm.value?.validate().then(valid => {
-    if (valid.valid) {
-      emit('addNewItem', { itemTitle: newTaskTitle.value, boardName: props.boardName, boardId: props.boardId })
-      isAddNewFormVisible.value = false
-      newTaskTitle.value = ''
-    }
-  })
+  emit('addNewItem', { itemTitle: '', boardName: props.boardName, boardId: props.boardId })
 }
 
 if (canAccess('move_assigned_tasks')) {
+  const persistMove = (state: { draggedNode: { data: { value: KanbanId } }; targetIndex: number }) => {
+    emit('updateItemsState', { taskId: state.draggedNode.data.value, boardId: props.boardId, order: localIds.value.length - 1 - state.targetIndex })
+  }
   dragAndDrop({
     parent: refKanbanBoard,
     values: localIds,
@@ -49,11 +41,11 @@ if (canAccess('move_assigned_tasks')) {
     plugins: [animations()],
     performTransfer: (state, data) => {
       performTransfer(state, data)
-      emit('updateItemsState', { boardId: props.boardId, ids: localIds.value })
+      persistMove(state)
     },
-    handleEnd: data => {
-      handleEnd(data)
-      emit('updateItemsState', { boardId: props.boardId, ids: localIds.value })
+    performSort: (state, data) => {
+      performSort(state, data)
+      persistMove(state)
     },
   })
 }
@@ -74,17 +66,6 @@ const deleteItem = (item: EditKanbanItem) => {
   emit('deleteItem', item)
 }
 
-const hideAddNewForm = () => {
-  isAddNewFormVisible.value = false
-  refForm.value?.reset()
-}
-
-onClickOutside(refForm, hideAddNewForm)
-
-const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
-  if (event.key === 'Enter' && !event.shiftKey)
-    addNewItem()
-}
 </script>
 
 <template>
@@ -108,7 +89,7 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
                 variant="tonal"
                 color="primary"
                 :aria-label="$t('common.ui.addNewTask')"
-                @click="isAddNewFormVisible = !isAddNewFormVisible"
+                @click="addNewItem"
               >
                 <VIcon
                   icon="tabler-plus"
@@ -121,42 +102,6 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
         </div>
       </div>
     </div>
-
-    <VForm
-      v-if="isAddNewFormVisible"
-      ref="refForm"
-      class="app-form kanban-add-new-form mb-4"
-      validate-on="submit"
-      @submit.prevent="addNewItem"
-    >
-      <div class="mb-3">
-        <VTextarea
-          v-model="newTaskTitle"
-          :rules="[requiredValidator]"
-          :placeholder="$t('pages.tasks.kanbanitems.kanbanitems.addContent')"
-          autofocus
-          rows="2"
-          @keydown.enter="handleEnterKeydown"
-          @keydown.esc="hideAddNewForm"
-        />
-      </div>
-      <div class="d-flex gap-3 flex-wrap">
-        <VBtn
-          size="small"
-          type="submit"
-        >
-          {{ $t('common.actions.add') }}
-        </VBtn>
-        <VBtn
-          size="small"
-          variant="tonal"
-          color="secondary"
-          @click="hideAddNewForm"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-      </div>
-    </VForm>
 
     <div
       v-if="localIds"

@@ -119,7 +119,6 @@ const usesOtherContractUi = computed(() => isOtherAudience.value || isEmployeeAu
 const countries = ref<MasterDataRecord[]>([])
 const languages = ref<MasterDataRecord[]>([])
 const positions = ref<Position[]>([])
-const loadingEntities = ref(true)
 
 // The extension prefill comes from the parent agreement; an edit still starts
 // from the record itself.
@@ -352,46 +351,41 @@ onMounted(async () => {
   // fetching the applicant page here only produced a spurious pagination
   // validation error (the API caps `per_page` at 100).
   const loadsApplicants = props.audience !== 'employees'
-  try {
-    const [applicantResult, employeeResult, countryResult, languageResult, positionResult, authResult] = await Promise.allSettled([
+  const [applicantResult, employeeResult, countryResult, languageResult, positionResult, authResult] = await Promise.allSettled([
       loadsApplicants ? ApplicantApi.list({ per_page: 100 }) : Promise.resolve(null),
       EmployeeApi.getOptions(),
       MasterDataApi.list('countries'),
       MasterDataApi.list('languages'),
       PositionApi.getAll(),
       AuthApi.me(),
-    ])
+  ])
 
-    if (applicantResult.status === 'fulfilled' && applicantResult.value)
-      applicants.value = applicantResult.value.data
-    if (employeeResult.status === 'fulfilled')
-      employees.value = employeeResult.value
-    if (countryResult.status === 'fulfilled')
-      countries.value = countryResult.value.filter(country => country.is_active)
-    if (languageResult.status === 'fulfilled')
-      languages.value = languageResult.value.filter(language => language.is_active)
-    if (positionResult.status === 'fulfilled')
-      positions.value = positionResult.value.data?.data ?? positionResult.value.data ?? []
-    if (authResult.status === 'fulfilled')
-      userData.value = authResult.value.data.data
+  if (applicantResult.status === 'fulfilled' && applicantResult.value)
+    applicants.value = applicantResult.value.data
+  if (employeeResult.status === 'fulfilled')
+    employees.value = employeeResult.value
+  if (countryResult.status === 'fulfilled')
+    countries.value = countryResult.value.filter(country => country.is_active)
+  if (languageResult.status === 'fulfilled')
+    languages.value = languageResult.value.filter(language => language.is_active)
+  if (positionResult.status === 'fulfilled')
+    positions.value = positionResult.value.data?.data ?? positionResult.value.data ?? []
+  if (authResult.status === 'fulfilled')
+    userData.value = authResult.value.data.data
 
-    // A visa-case dialog passes its applicant explicitly; make sure that
-    // record is selectable even when it falls outside the first page.
-    if (props.applicantId && !applicants.value.some(item => item.id === props.applicantId)) {
-      try {
-        const single = await ApplicantApi.get(props.applicantId)
-        if (single)
-          applicants.value = [single, ...applicants.value]
-      }
-      catch {
-        // The locked select still shows the id; creation stays possible.
-      }
+  // A visa-case dialog passes its applicant explicitly; make sure that
+  // record is selectable even when it falls outside the first page.
+  if (props.applicantId && !applicants.value.some(item => item.id === props.applicantId)) {
+    try {
+      const single = await ApplicantApi.get(props.applicantId)
+      if (single)
+        applicants.value = [single, ...applicants.value]
     }
-    applySignatoryDefault(currentEmployeeName.value)
+    catch {
+      // The locked select still shows the id; creation stays possible.
+    }
   }
-  finally {
-    loadingEntities.value = false
-  }
+  applySignatoryDefault(currentEmployeeName.value)
 })
 
 watch(() => props.templates, () => {
@@ -498,7 +492,20 @@ defineExpose({ submit })
     @submit.prevent="submit"
   >
     <VRow class="contract-form-grid">
-      <VCol cols="12" :md="isOtherAudience ? 6 : undefined">
+      <VCol v-if="extensionMode && isEmploymentTemplate && selectedTemplate" cols="12">
+        <section class="employment-agreement-context" aria-label="Employment agreement">
+          <div class="employment-agreement-context__icon"><VIcon icon="tabler-file-certificate" size="22" /></div>
+          <div class="employment-agreement-context__content">
+            <span class="employment-agreement-context__eyebrow">{{ tr('template') }}</span>
+            <strong>{{ selectedTemplate.name }}</strong>
+            <span v-if="templatePositionTitle" class="employment-agreement-context__meta"><VIcon icon="tabler-briefcase" size="15" />{{ templatePositionTitle }}</span>
+          </div>
+          <VChip v-if="selectedTemplateVersion" size="small" color="primary" variant="tonal">
+            {{ selectedTemplateVersion.name }}
+          </VChip>
+        </section>
+      </VCol>
+      <VCol v-else cols="12" :md="isOtherAudience ? 6 : undefined">
         <ErpField kind="select"
           v-model="form.template_id"
           :items="visibleTemplates"
@@ -600,7 +607,6 @@ defineExpose({ submit })
           :label="tr('employee')"
           :placeholder="tr('selectEmployee')"
           prepend-inner-icon="tabler-user"
-          :loading="loadingEntities"
           :rules="[v => !!v || tr('employeeRequired')]"
           :no-data-text="tr('noEmployees')"
           required
@@ -619,7 +625,6 @@ defineExpose({ submit })
           :label="tr('applicant')"
           :placeholder="tr('selectApplicant')"
           prepend-inner-icon="tabler-users"
-          :loading="loadingEntities"
           :no-data-text="tr('noApplicants')"
           :clearable="context === 'other' && !isApplicantLocked"
           :disabled="isApplicantLocked"
@@ -724,9 +729,8 @@ defineExpose({ submit })
           :disabled="!isSuperAdmin"
         />
       </VCol>
-      <VCol v-if="previewLoading || previewHtml || previewError" cols="12">
-        <VProgressLinear v-if="previewLoading" indeterminate />
-        <VAlert v-else-if="previewError" type="warning" variant="tonal">{{ tr('previewFailed') }}</VAlert>
+      <VCol v-if="previewHtml || previewError" cols="12">
+        <VAlert v-if="previewError" type="warning" variant="tonal">{{ tr('previewFailed') }}</VAlert>
         <div v-else class="contract-form-preview" v-html="previewHtml" />
       </VCol>
     </VRow>
@@ -762,6 +766,34 @@ defineExpose({ submit })
 .contract-form-grid > :deep(.v-col) {
   padding: 3px !important;
 }
+
+.employment-agreement-context {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-block-size: 4.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.09), rgba(var(--v-theme-surface), 0.96) 62%);
+}
+
+.employment-agreement-context__icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-primary), 0.14);
+  color: rgb(var(--v-theme-primary));
+  place-items: center;
+}
+
+.employment-agreement-context__content { display: grid; min-width: 0; gap: 0.1rem; }
+.employment-agreement-context__content strong { overflow: hidden; font-size: .95rem; text-overflow: ellipsis; white-space: nowrap; }
+.employment-agreement-context__eyebrow { color: rgba(var(--v-theme-on-surface), .62); font-size: .72rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+.employment-agreement-context__meta { display: inline-flex; align-items: center; gap: .3rem; color: rgba(var(--v-theme-on-surface), .65); font-size: .78rem; }
+.employment-agreement-context > .v-chip { margin-inline-start: auto; }
 
 .contract-form-preview {
   max-block-size: 360px;

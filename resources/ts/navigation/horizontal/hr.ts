@@ -1,12 +1,12 @@
 export default [
   {
     title: 'common.navigation.hr',
-    icon: { icon: 'tabler-users-group' },
+    icon: { icon: 'tabler-building-community' },
     to: 'hr',
     children: [
       {
         title: 'common.navigation.staffList',
-        icon: { icon: 'tabler-users' },
+        icon: { icon: 'tabler-users-group' },
         to: 'staff-list',
         action: 'read',
         subject: 'view_employees',
@@ -20,14 +20,14 @@ export default [
       },
       {
         title: 'common.navigation.employmentContracts',
-        icon: { icon: 'tabler-file-text' },
+        icon: { icon: 'tabler-file-certificate' },
         to: 'employee-contracts',
         action: 'read',
         subject: 'view_employment_contracts',
       },
       {
         title: 'common.navigation.timesheet',
-        icon: { icon: 'tabler-clock' },
+        icon: { icon: 'tabler-calendar-clock' },
         to: 'timesheet',
         action: 'read',
         subject: 'view_attendance',
@@ -48,7 +48,7 @@ export default [
       },
       {
         title: 'common.navigation.payrolls',
-        icon: { icon: 'tabler-wallet' },
+        icon: { icon: 'tabler-cash-register' },
         to: 'payrolls',
         action: 'read',
         subject: 'view_salaries',
@@ -62,7 +62,7 @@ export default [
       },
       {
         title: 'common.navigation.employeePerformanceReport',
-        icon: { icon: 'tabler-chart-bar' },
+        icon: { icon: 'tabler-chart-line' },
         to: 'employee-performance-report',
         action: 'read',
         subject: 'view_employees',

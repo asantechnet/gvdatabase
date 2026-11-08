@@ -432,6 +432,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::prefix('attendances')->group(function () {
         Route::get('/', [AttendanceController::class, 'index'])->middleware('permission:view_attendance');
         Route::post('/', [AttendanceController::class, 'store'])->middleware('permission:record_attendance');
+        Route::put('/{attendance}', [AttendanceController::class, 'update'])->middleware('permission:record_attendance');
         Route::post('/{attendance}/checkout-correction', [AttendanceController::class, 'correctCheckout'])->middleware(['permission:record_attendance', 'throttle:10,1']);
         Route::get('/unmarked-staff', [AttendanceController::class, 'unmarkedStaff'])->middleware('permission:view_unmarked_attendance_staff');
         Route::get('/{attendance}/daily-report', [AttendanceController::class, 'dailyReport'])->middleware('permission:view_attendance');
@@ -589,11 +590,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middlewareFor('index', 'permission:view_visitors,view_applicants,view_employees')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_visitors,edit_applicants,edit_employees');
 
-    // Announcements are immutable: no update/destroy routes exist by design.
     Route::get('announcements', [AnnouncementController::class, 'index'])->middleware('permission:send_announcements');
     Route::post('announcements', [AnnouncementController::class, 'store'])->middleware('permission:send_announcements');
     Route::get('announcements/audience-options', [AnnouncementController::class, 'audienceOptions'])->middleware('permission:send_announcements');
     Route::get('announcements/{announcement}', [AnnouncementController::class, 'show'])->middleware('permission:send_announcements');
+    Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->middleware('permission:send_announcements');
+    Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->middleware('permission:send_announcements');
 
     // File management routes
     Route::prefix('files')->group(function () {

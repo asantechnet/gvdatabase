@@ -6,8 +6,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Resolves the letterhead artwork used by the printable documents that are not
- * contracts: receipts and payslips.
+ * Resolves the firm's shared document letterhead.
  *
  * Keeping the resolution here means the settings API (preview) and every print
  * read path agree on which image is shown and where the auto-filled text is
@@ -19,7 +18,7 @@ class DocumentLetterheads
     public const CUSTOM = 'custom';
     public const NONE = 'none';
 
-    /** letterhead sources offered for receipts and payslips. */
+    /** Legacy source values remain readable for existing rows only. */
     public const SOURCES = [self::NONE, self::CONTRACT, self::CUSTOM];
 
     /** @var array<string, array{0: float, 1: float, 2: float, 3: float}> */
@@ -33,25 +32,23 @@ class DocumentLetterheads
      */
     public static function resolve(?Setting $setting, string $type): array
     {
-        $defaults = self::SAFE_DEFAULTS[$type] ?? self::SAFE_DEFAULTS['receipt'];
-        $source = self::normalizeSource($setting?->{"{$type}_letterhead_source"});
-        $raw = $setting?->{"{$type}_letterhead"};
-
-        $path = match ($source) {
-            self::CONTRACT => $setting?->contract_letterhead,
-            self::CUSTOM => $raw,
-            default => null,
-        };
+        // Receipts and payslips intentionally use the one company document
+        // letterhead. Dedicated uploads are legacy data and no longer drive a
+        // document, preventing branding drift across printable records.
+        $defaults = [8.5, 15.0, 83.0, 70.0];
+        $source = self::CONTRACT;
+        $raw = $setting?->contract_letterhead;
+        $path = $raw;
 
         return [
             'source' => $source,
             'url' => $path ? Storage::disk('public')->url($path) : null,
             'raw' => $raw,
             'safe' => [
-                'x' => (float) ($setting?->{"{$type}_letterhead_safe_x"} ?? $defaults[0]),
-                'y' => (float) ($setting?->{"{$type}_letterhead_safe_y"} ?? $defaults[1]),
-                'width' => (float) ($setting?->{"{$type}_letterhead_safe_width"} ?? $defaults[2]),
-                'height' => (float) ($setting?->{"{$type}_letterhead_safe_height"} ?? $defaults[3]),
+                'x' => (float) ($setting?->contract_letterhead_safe_x ?? $defaults[0]),
+                'y' => (float) ($setting?->contract_letterhead_safe_y ?? $defaults[1]),
+                'width' => (float) ($setting?->contract_letterhead_safe_width ?? $defaults[2]),
+                'height' => (float) ($setting?->contract_letterhead_safe_height ?? $defaults[3]),
             ],
         ];
     }

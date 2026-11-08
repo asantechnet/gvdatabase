@@ -5,13 +5,15 @@ import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { useI18n } from 'vue-i18n'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 const { t } = useI18n()
 const emit = defineEmits<{ (event: 'update:modelValue', value: boolean): void }>()
 const dialog = computed({ get: () => props.modelValue, set: value => emit('update:modelValue', value) })
 const ruleSet = ref<BonusRuleSet | null>(null)
-const form = ref<BonusRules | null>(null)
+const defaultRules = (): BonusRules => ({ minimum_completed_tasks: 1, amount_per_completed_task: 0, minimum_cases_won: 1, amount_per_case_won: 0, task_quality_weighting_enabled: false, maximum_monthly_bonus: 0, excluded_employee_ids: [], excluded_office_ids: [] })
+const form = ref<BonusRules>(defaultRules())
 const employees = ref<Employee[]>([])
 const offices = ref<Office[]>([])
 const isLoading = ref(false)
@@ -23,6 +25,7 @@ watch(() => props.modelValue, async open => {
     return
   isLoading.value = true
   errors.value = {}
+  form.value = defaultRules()
   try {
     const [rules, employeeResponse, officeRows] = await Promise.all([AutomationApi.getBonusRules(), EmployeeApi.getAll(), OfficeApi.getAll()])
 
@@ -65,30 +68,26 @@ const save = async () => {
     v-model="dialog"
     max-width="720"
     persistent
+    class="bonus-rules-overlay"
   >
-    <VCard>
-      <VCardTitle class="pa-5 d-flex justify-space-between align-center">
+    <VCard class="bonus-rules-dialog">
+      <VCardTitle class="bonus-rules-dialog__header px-5 py-4 d-flex justify-space-between align-center">
         <div>
           <div class="text-h5 font-weight-bold">
             {{ $t('components.bonusRules.title') }}
-          </div><div class="text-caption text-medium-emphasis">
+          </div><div v-if="false" class="text-caption text-medium-emphasis">
             {{ $t('components.bonusRules.version', { version: ruleSet?.version ?? '—' }) }}
           </div>
         </div>
         <VBtn
           icon="tabler-x"
-          variant="text"
+          variant="tonal"
+          color="error"
           :disabled="isSaving"
           @click="dialog = false"
         />
       </VCardTitle>
-      <VDivider />
-      <VCardText class="pa-5">
-        <VProgressLinear
-          v-if="isLoading"
-          indeterminate
-          class="mb-4"
-        />
+      <VCardText class="bonus-rules-dialog__body pa-5">
         <VAlert
           v-if="errors.form"
           type="error"
@@ -97,46 +96,31 @@ const save = async () => {
         >
           {{ errors.form }}
         </VAlert>
-        <VForm
-          v-if="form"
-          @submit.prevent="save"
-        >
-          <VAlert
-            type="info"
-            variant="tonal"
-            class="mb-5"
-            icon="tabler-sparkles"
-          >
-            {{ $t('components.bonusRules.explanation') }}
-          </VAlert>
-          <VRow>
+        <VForm @submit.prevent="save">
+          <VRow class="bonus-rules-fields">
             <VCol
               cols="12"
-              sm="6"
+              md="4"
             >
-              <VTextField
+              <ErpField
                 v-model.number="form.minimum_completed_tasks"
                 type="number"
                 min="1"
                 :label="$t('components.bonusRules.minimumTasks')"
-                :hint="$t('components.bonusRules.minimumTasksHint')"
-                persistent-hint
                 :error-messages="errors.minimum_completed_tasks"
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <VTextField
+            <VCol cols="12" md="4">
+              <ErpField
                 v-model.number="form.minimum_cases_won"
                 type="number"
                 min="1"
                 :label="$t('components.bonusRules.minimumCases')"
-                :hint="$t('components.bonusRules.minimumCasesHint')"
-                persistent-hint
                 :error-messages="errors.minimum_cases_won"
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <VTextField
+            <VCol cols="12" md="4">
+              <ErpField
                 v-model.number="form.amount_per_case_won"
                 type="number"
                 min="0"
@@ -153,9 +137,9 @@ const save = async () => {
             </VCol>
             <VCol
               cols="12"
-              sm="6"
+              md="6"
             >
-              <VTextField
+              <ErpField
                 v-model.number="form.amount_per_completed_task"
                 type="number"
                 min="0"
@@ -163,8 +147,8 @@ const save = async () => {
                 :error-messages="errors.amount_per_completed_task"
               />
             </VCol>
-            <VCol cols="12">
-              <VTextField
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model.number="form.maximum_monthly_bonus"
                 type="number"
                 min="0"
@@ -180,11 +164,12 @@ const save = async () => {
               </p>
             </VCol>
             <VCol cols="12">
-              <VSelect
+              <ErpField
                 v-model="form.excluded_employee_ids"
                 :items="employees"
                 item-title="name"
                 item-value="id"
+                kind="select"
                 multiple
                 chips
                 closable-chips
@@ -192,11 +177,12 @@ const save = async () => {
               />
             </VCol>
             <VCol cols="12">
-              <VSelect
+              <ErpField
                 v-model="form.excluded_office_ids"
                 :items="offices"
                 item-title="name"
                 item-value="id"
+                kind="select"
                 multiple
                 chips
                 closable-chips
@@ -206,18 +192,18 @@ const save = async () => {
           </VRow>
         </VForm>
       </VCardText>
-      <VDivider />
-      <VCardActions class="pa-4 justify-end">
+      <VCardActions class="bonus-rules-dialog__footer px-5 py-4 justify-end">
         <VBtn
-          variant="outlined"
+          variant="flat"
+          color="secondary"
+          class="bonus-rules-dialog__cancel"
           :disabled="isSaving"
           @click="dialog = false"
         >
           {{ $t('common.actions.cancel') }}
         </VBtn><VBtn
           color="primary"
-          :loading="isSaving"
-          :disabled="!form"
+          class="bonus-rules-dialog__save"
           @click="save"
         >
           {{ $t('components.bonusRules.save') }}
@@ -226,3 +212,16 @@ const save = async () => {
     </VCard>
   </VDialog>
 </template>
+
+<style scoped>
+.bonus-rules-dialog { overflow: hidden; }
+.bonus-rules-dialog__header, .bonus-rules-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.bonus-rules-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+.bonus-rules-dialog__footer { border-block-start: 1px solid rgba(var(--v-border-color), .5); }
+.bonus-rules-dialog__body { background: rgb(var(--v-theme-surface)); }
+.bonus-rules-fields { row-gap: 10px; }
+.bonus-rules-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.bonus-rules-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.bonus-rules-dialog__save { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+:global(.bonus-rules-overlay .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+</style>
