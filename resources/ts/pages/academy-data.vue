@@ -5,6 +5,10 @@ import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import { useAuditTrail } from '@/composables/useAuditTrail'
+import { auditCellClass, auditCellTitle, auditTrailRowClass } from '@/utils/auditTrail'
+import AuditTrailButton from '@/components/audit/AuditTrailButton.vue'
+import AuditTrailLegend from '@/components/audit/AuditTrailLegend.vue'
 
 /**
  * Academy data extracted from Options → Contracts → Educational data.
@@ -37,6 +41,16 @@ const labels = computed<Record<AcademyCatalog, string>>(() => ({
 
 const isTeacherCatalog = computed(() => catalog.value === 'teachers')
 const detailFor = (row: MasterDataRecord) => row.contact || row.email || row.description || '—'
+
+const auditResourceByCatalog: Record<AcademyCatalog, string> = {
+  times: 'times',
+  durations: 'durations',
+  teachers: 'teachers',
+  classes: 'academy_classes',
+}
+const auditResource = computed(() => auditResourceByCatalog[catalog.value])
+const { trailFor, legendVisible } = useAuditTrail(() => rows.value, { resource: auditResource })
+const trailForRow = (row: MasterDataRecord) => trailFor(row.id)
 
 async function load() {
   loading.value = true
@@ -100,6 +114,7 @@ onMounted(load)
           <VTab v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</VTab>
         </VTabs>
         <VProgressLinear v-if="loading" indeterminate class="my-4" />
+        <AuditTrailLegend v-if="legendVisible" class="mb-2" />
         <div class="education-table-scroll">
           <VTable density="compact" class="education-table">
             <thead>
@@ -112,16 +127,17 @@ onMounted(load)
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in rows" :key="row.id">
-                <td>{{ row.sort_order ?? 0 }}</td>
-                <td>{{ row.name }}</td>
-                <td>{{ detailFor(row) }}</td>
-                <td>
+              <tr v-for="row in rows" :key="row.id" :class="auditTrailRowClass(trailForRow(row))">
+                <td :class="auditCellClass(trailForRow(row), 'sort_order')" :title="auditCellTitle(trailForRow(row), 'sort_order')">{{ row.sort_order ?? 0 }}</td>
+                <td :class="auditCellClass(trailForRow(row), 'name')" :title="auditCellTitle(trailForRow(row), 'name')">{{ row.name }}</td>
+                <td :class="auditCellClass(trailForRow(row), 'description')" :title="auditCellTitle(trailForRow(row), 'description')">{{ detailFor(row) }}</td>
+                <td :class="auditCellClass(trailForRow(row), 'is_active')" :title="auditCellTitle(trailForRow(row), 'is_active')">
                   <VChip :color="row.is_active ? 'success' : 'secondary'" size="small">
                     {{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}
                   </VChip>
                 </td>
                 <td class="text-no-wrap">
+                  <AuditTrailButton v-if="trailForRow(row)" :trail="trailForRow(row)!" :subject="row.name" />
                   <VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" />
                   <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" />
                 </td>

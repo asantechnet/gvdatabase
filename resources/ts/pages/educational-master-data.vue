@@ -4,6 +4,10 @@ import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import { useAuditTrail } from '@/composables/useAuditTrail'
+import { auditCellClass, auditCellTitle, auditTrailRowClass } from '@/utils/auditTrail'
+import AuditTrailButton from '@/components/audit/AuditTrailButton.vue'
+import AuditTrailLegend from '@/components/audit/AuditTrailLegend.vue'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -28,6 +32,26 @@ const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests',
 // Countries and universities are the two catalogues a visa case contacts
 // directly, so they carry the optional phone, email and portal address.
 const hasContact = computed(() => ['countries', 'universities'].includes(catalog.value))
+
+// The raw catalogue table cannot infer its resource key from a response tag.
+const auditResourceByCatalog: Record<Catalog, string | null> = {
+  'countries': 'countries',
+  'education-levels': 'education_levels',
+  'languages': 'languages',
+  'universities': 'universities',
+  'semesters': 'semesters',
+  'subjects': 'subjects',
+  'tests': 'tests',
+  'skills': 'skills',
+  'programs': 'programs',
+  'scholarships': 'educational_scholarships',
+  'provinces': null,
+  'english-levels': null,
+  'acquisition-routes': null,
+}
+const auditResource = computed(() => auditResourceByCatalog[catalog.value])
+const { trailFor, legendVisible } = useAuditTrail(() => rows.value, { resource: auditResource })
+const trailForRow = (row: CatalogRow) => trailFor(row.id)
 
 async function load() {
   loading.value = true
@@ -83,9 +107,10 @@ onMounted(load)
       <VCardText>
         <VTabs v-model="catalog" show-arrows><VTab v-for="(label,key) in labels" :key="key" :value="key">{{ label }}</VTab></VTabs>
         <VProgressLinear v-if="loading" indeterminate class="my-4" />
+        <AuditTrailLegend v-if="legendVisible" class="mb-2" />
         <div class="education-table-scroll"><VTable density="compact" class="education-table">
           <thead><tr><th>{{ $t('common.fields.name') }}</th><th v-if="hasCode">{{ $t('common.fields.code') }}</th><th>{{ $t('educational.masterData.details') }}</th><th>{{ $t('common.fields.status') }}</th><th /></tr></thead>
-          <tbody><tr v-for="row in rows" :key="row.id"><td>{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td>{{ row.phone || row.email || row.city || row.portal_url || row.contact || row.description || '—' }}</td><td><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
+          <tbody><tr v-for="row in rows" :key="row.id" :class="auditTrailRowClass(trailForRow(row))"><td :class="auditCellClass(trailForRow(row), 'name')" :title="auditCellTitle(trailForRow(row), 'name')">{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td>{{ row.phone || row.email || row.city || row.portal_url || row.contact || row.description || '—' }}</td><td :class="auditCellClass(trailForRow(row), 'is_active')" :title="auditCellTitle(trailForRow(row), 'is_active')"><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><AuditTrailButton v-if="trailForRow(row)" :trail="trailForRow(row)!" :subject="row.name" /><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
         </VTable></div>
       </VCardText>
     </VCard>

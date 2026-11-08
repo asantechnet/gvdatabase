@@ -19,6 +19,7 @@ class Setting extends Model
         'mail_password' => 'encrypted',
         'automatic_attendance_enabled' => 'boolean',
         'missing_attendance_status' => 'string',
+        'audit_coloring_enabled' => 'boolean',
         'email_delivery_enabled' => 'boolean',
         'receipt_letterhead_safe_x' => 'float',
         'receipt_letterhead_safe_y' => 'float',
@@ -87,5 +88,6 @@ class Setting extends Model
         'default_break_minutes',
         'automatic_attendance_enabled',
         'missing_attendance_status',
+        'audit_coloring_enabled',
     ];
 }

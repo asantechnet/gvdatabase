@@ -1911,6 +1911,8 @@
         "defaultBreakMinutes": "Default Break Minutes",
         "automaticAttendanceEnabled": "Enable automatic attendance",
         "automaticAttendanceEnabledHint": "Enable Start my day / End my day and automatic marking of missing past workdays. Geofencing verifies location at check-in. Existing workdays can still be ended when this is off.",
+        "auditColoringEnabled": "Show audit colours in registers",
+        "auditColoringEnabledHint": "Adds a Created / Changed / Deleted rail, changed-cell highlights and an audit-history action to register tables. It requires permission to view audits. Turning it off hides the colours only; audit history is never deleted.",
         "layoutColors": "Layout Colors",
         "companyPage": "Company",
         "operationsPage": "Operations",

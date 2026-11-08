@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const AUDIT_RESOURCE_KEY: typeof import('./resources/ts/utils/auditResources')['AUDIT_RESOURCE_KEY']
   const COOKIE_MAX_AGE_1_YEAR: typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']
   const DEFAULT_DOCUMENT_PRIMARY: typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_PRIMARY']
   const DEFAULT_DOCUMENT_SECONDARY: typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_SECONDARY']
@@ -32,7 +33,19 @@ declare global {
   const applyThemePalette: typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']
   const applyUiScale: typeof import('./resources/ts/utils/uiScale')['applyUiScale']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
+  const auditCellClass: typeof import('./resources/ts/utils/auditTrail')['auditCellClass']
+  const auditCellTitle: typeof import('./resources/ts/utils/auditTrail')['auditCellTitle']
+  const auditChangeSummary: typeof import('./resources/ts/utils/auditTrail')['auditChangeSummary']
+  const auditChangeText: typeof import('./resources/ts/utils/auditTrail')['auditChangeText']
+  const auditEventKey: typeof import('./resources/ts/utils/auditTrail')['auditEventKey']
   const auditLogIdFromNotification: typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']
+  const auditResourceByListUrl: typeof import('./resources/ts/utils/auditResources')['auditResourceByListUrl']
+  const auditResourceForUrl: typeof import('./resources/ts/utils/auditResources')['auditResourceForUrl']
+  const auditResourceOfRow: typeof import('./resources/ts/utils/auditResources')['auditResourceOfRow']
+  const auditTrailColor: typeof import('./resources/ts/utils/auditTrail')['auditTrailColor']
+  const auditTrailRowClass: typeof import('./resources/ts/utils/auditTrail')['auditTrailRowClass']
+  const auditTrailState: typeof import('./resources/ts/utils/auditTrail')['auditTrailState']
+  const auditValueText: typeof import('./resources/ts/utils/auditTrail')['auditValueText']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./resources/ts/@core/utils/formatters')['avatarText']
   const betweenValidator: typeof import('./resources/ts/@core/utils/validators')['betweenValidator']
@@ -49,6 +62,7 @@ declare global {
   const canMoveTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']
   const canPrintContractHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
+  const changedFieldForColumn: typeof import('./resources/ts/utils/auditTrail')['changedFieldForColumn']
   const changedIncomeFields: typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']
   const clearAuthTokens: typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']
   const clearFieldError: typeof import('./resources/ts/utils/formErrors')['clearFieldError']
@@ -256,6 +270,7 @@ declare global {
   const submitServicePayments: typeof import('./resources/ts/utils/incomePaymentBalance')['submitServicePayments']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
+  const tagAuditResourceRows: typeof import('./resources/ts/utils/auditResources')['tagAuditResourceRows']
   const templateRef: typeof import('@vueuse/core')['templateRef']
   const themeColorDefaults: typeof import('./resources/ts/utils/themePersistence')['themeColorDefaults']
   const themeColorFields: typeof import('./resources/ts/utils/themePersistence')['themeColorFields']
@@ -312,6 +327,7 @@ declare global {
   const useAsyncState: typeof import('@vueuse/core')['useAsyncState']
   const useAttrs: typeof import('vue')['useAttrs']
   const useAuditHeartbeat: typeof import('./resources/ts/composables/useAuditHeartbeat')['useAuditHeartbeat']
+  const useAuditTrail: typeof import('./resources/ts/composables/useAuditTrail')['useAuditTrail']
   const useAutomaticAttendance: typeof import('./resources/ts/composables/useAutomaticAttendance')['useAutomaticAttendance']
   const useAverage: typeof import('@vueuse/math')['useAverage']
   const useBase64: typeof import('@vueuse/core')['useBase64']
@@ -520,6 +536,7 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly AUDIT_RESOURCE_KEY: UnwrapRef<typeof import('./resources/ts/utils/auditResources')['AUDIT_RESOURCE_KEY']>
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
     readonly DEFAULT_DOCUMENT_PRIMARY: UnwrapRef<typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_PRIMARY']>
     readonly DEFAULT_DOCUMENT_SECONDARY: UnwrapRef<typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_SECONDARY']>
@@ -546,7 +563,19 @@ declare module 'vue' {
     readonly applyThemePalette: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['applyThemePalette']>
     readonly applyUiScale: UnwrapRef<typeof import('./resources/ts/utils/uiScale')['applyUiScale']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
+    readonly auditCellClass: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditCellClass']>
+    readonly auditCellTitle: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditCellTitle']>
+    readonly auditChangeSummary: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditChangeSummary']>
+    readonly auditChangeText: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditChangeText']>
+    readonly auditEventKey: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditEventKey']>
     readonly auditLogIdFromNotification: UnwrapRef<typeof import('./resources/ts/utils/auditNotification')['auditLogIdFromNotification']>
+    readonly auditResourceByListUrl: UnwrapRef<typeof import('./resources/ts/utils/auditResources')['auditResourceByListUrl']>
+    readonly auditResourceForUrl: UnwrapRef<typeof import('./resources/ts/utils/auditResources')['auditResourceForUrl']>
+    readonly auditResourceOfRow: UnwrapRef<typeof import('./resources/ts/utils/auditResources')['auditResourceOfRow']>
+    readonly auditTrailColor: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditTrailColor']>
+    readonly auditTrailRowClass: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditTrailRowClass']>
+    readonly auditTrailState: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditTrailState']>
+    readonly auditValueText: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['auditValueText']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['betweenValidator']>
@@ -563,6 +592,7 @@ declare module 'vue' {
     readonly canMoveTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']>
     readonly canPrintContractHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
+    readonly changedFieldForColumn: UnwrapRef<typeof import('./resources/ts/utils/auditTrail')['changedFieldForColumn']>
     readonly changedIncomeFields: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
     readonly clearFieldError: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFieldError']>
@@ -770,6 +800,7 @@ declare module 'vue' {
     readonly submitServicePayments: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['submitServicePayments']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
+    readonly tagAuditResourceRows: UnwrapRef<typeof import('./resources/ts/utils/auditResources')['tagAuditResourceRows']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
     readonly themeColorDefaults: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeColorDefaults']>
     readonly themeColorFields: UnwrapRef<typeof import('./resources/ts/utils/themePersistence')['themeColorFields']>
@@ -826,6 +857,7 @@ declare module 'vue' {
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useAuditHeartbeat: UnwrapRef<typeof import('./resources/ts/composables/useAuditHeartbeat')['useAuditHeartbeat']>
+    readonly useAuditTrail: UnwrapRef<typeof import('./resources/ts/composables/useAuditTrail')['useAuditTrail']>
     readonly useAutomaticAttendance: UnwrapRef<typeof import('./resources/ts/composables/useAutomaticAttendance')['useAutomaticAttendance']>
     readonly useAverage: UnwrapRef<typeof import('@vueuse/math')['useAverage']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>

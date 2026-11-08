@@ -82,6 +82,7 @@ export interface Setting {
   default_break_minutes: number
   automatic_attendance_enabled: boolean
   missing_attendance_status: MissingAttendanceStatus
+  audit_coloring_enabled: boolean
   created_at?: string
   updated_at?: string
 }
@@ -93,6 +94,7 @@ export interface PublicCompanyBranding {
   website_title: string | null
   short_company_name: string | null
   original_company_name: string | null
+  audit_coloring_enabled?: boolean
   primary_color?: string | null
   secondary_color?: string | null
   dark_primary_color?: string | null
@@ -166,6 +168,7 @@ export interface SettingForm {
   default_break_minutes: number
   automatic_attendance_enabled: boolean
   missing_attendance_status: MissingAttendanceStatus
+  audit_coloring_enabled: boolean
 }
 
 export interface ApiResponse<T> {

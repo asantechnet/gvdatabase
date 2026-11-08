@@ -60,6 +60,9 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
   const path = normalizedPath(url)
 
   const special: Record<string, string[]> = {
+    // Record-level audit state for register rows. Quiet, bounded and gated by
+    // the same read grant as the Audits page.
+    'GET /audit-logs/row-trails': ['view_audit_logs'],
     // Printable receipt payload for a single income record.
     'GET /incomes/:id/receipt': ['view_incomes'],
     'GET /incomes/applicants': ['view_incomes'],
