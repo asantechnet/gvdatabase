@@ -10,6 +10,7 @@ use App\Models\CommissionAccrual;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Employee;
+use App\Support\BuiltInService;
 use Illuminate\Support\Carbon;
 
 /**
@@ -90,8 +91,13 @@ class CommissionService
      */
     public function voidForApplicant(Applicant $applicant): void
     {
+        // Retired test-offer/academy accruals are historical money. A case
+        // stage change must never void them merely because CASE_FREE now owns
+        // no workflow.
         $this->accrualsFor($applicant)
             ->whereNull('commission_settlement_id')
+            ->whereHas('applicantContract', fn ($query) => $query
+                ->whereIn('service', BuiltInService::CASE_BEARING))
             ->update(['status' => 'void']);
     }
 
@@ -166,6 +172,18 @@ class CommissionService
             }
 
             $lineService = $line->service ?: $contract->service;
+
+            // A case-free service never earns new commission. Preserve any
+            // accrual it already has instead of letting voidStale retire it.
+            if (BuiltInService::isCaseFree($lineService)) {
+                $eligibleIds = [...$eligibleIds, ...CommissionAccrual::query()
+                    ->where('applicant_contract_id', $line->id)
+                    ->where('entry_type', 'earned')
+                    ->whereNull('commission_settlement_id')
+                    ->pluck('id')->all()];
+
+                continue;
+            }
 
             foreach ($employeeIds as $employeeId) {
                 $employee = Employee::with('serviceCommissions')->find($employeeId);

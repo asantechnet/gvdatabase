@@ -57,8 +57,9 @@ class ApplicantSeeder extends Seeder
             'name' => 'Ahmad Wali', 'email' => 'ahmad.wali@example.test', 'contact' => '+93 700 200 001',
             'father_name' => 'Rahim Wali', 'father_phone' => '+93 700 200 002',
             'service' => BuiltInService::SCHOLARSHIP, 'responsible_employee_id' => $counselor,
-            'admission_employee_id' => $admission, 'current_stage_id' => $stage('university_selection'),
+            'current_stage_id' => $stage('university_selection'),
         ]);
+        $scholarship->responsibleEmployees()->sync(array_filter([$admission]));
         $scholarship->scholarshipDetail()->updateOrCreate([], [
             'country_id' => $countries['CA'] ?? null,
             'university_id' => $universities['University of Toronto'] ?? null,
@@ -76,8 +77,9 @@ class ApplicantSeeder extends Seeder
             'name' => 'Nadia Habibi', 'email' => 'nadia.habibi@example.test', 'contact' => '+93 700 200 003',
             'father_name' => 'Karim Habibi', 'father_phone' => '+93 700 200 004',
             'service' => BuiltInService::PRIVATE, 'responsible_employee_id' => $counselor,
-            'admission_employee_id' => $admission, 'current_stage_id' => $stage('university_selection'),
+            'current_stage_id' => $stage('university_selection'),
         ]);
+        $private->responsibleEmployees()->sync(array_filter([$admission]));
         $private->privateDetail()->updateOrCreate([], [
             'country_id' => $countries['DE'] ?? null,
             'university_id' => $universities['Technical University of Munich'] ?? null,
@@ -92,7 +94,7 @@ class ApplicantSeeder extends Seeder
             'name' => 'Yusuf Rahmani', 'email' => 'yusuf.rahmani@example.test', 'contact' => '+93 700 200 005',
             'father_name' => 'Saleh Rahmani', 'father_phone' => '+93 700 200 006',
             'service' => BuiltInService::TEST_OFFER, 'responsible_employee_id' => $counselor,
-            'admission_employee_id' => $admission, 'current_stage_id' => $stage('consultation'),
+            'current_stage_id' => null,
         ]);
         $testOffer->testDetail()->updateOrCreate([], [
             'test_id' => $tests['IELTS Academic'] ?? null, 'passport_id' => 'P-YR-1003',
@@ -106,7 +108,7 @@ class ApplicantSeeder extends Seeder
             'name' => 'Sara Ahmadi', 'email' => 'sara.ahmadi@example.test', 'contact' => '+93 700 200 007',
             'father_name' => 'Jamal Ahmadi', 'father_phone' => '+93 700 200 008',
             'service' => BuiltInService::ACADEMY, 'responsible_employee_id' => $counselor,
-            'admission_employee_id' => $admission, 'current_stage_id' => $stage('consultation'),
+            'current_stage_id' => null,
         ]);
         $academy->academyDetail()->updateOrCreate([], [
             'program_id' => $programs['English Language'] ?? null,

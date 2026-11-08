@@ -186,13 +186,13 @@ class NotificationDemoSeeder extends Seeder
             'contact' => '+93 700 000 125',
             'address' => 'Kabul, Afghanistan',
             'responsible_employee_id' => $employee->id,
-            'admission_employee_id' => $employee->id,
             'current_stage_id' => ApplicantStage::query()->where('key', 'consultation')->value('id'),
             'status' => 'active',
             'notes' => 'Demo case created by NotificationDemoSeeder for real-time notification testing.',
         ]);
         $applicant->deleted_at = null;
         $this->saveIfDirty($applicant);
+        $applicant->responsibleEmployees()->sync([$employee->id]);
 
         $detail = $applicant->scholarshipDetail()->withTrashed()->firstOrCreate([]);
         if ($detail->trashed()) {

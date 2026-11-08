@@ -6,7 +6,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import ApplicantApi, { type Applicant, type BuiltInService } from '@/api/applicants'
-import EmployeeApi, { type Employee } from '@/api/employee'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
@@ -23,7 +22,6 @@ const toast = useToast()
 // or applications page) auto-opens that applicant's phone menu.
 const deepLinkContactId = computed(() => (route.query.contact ? String(route.query.contact) : ''))
 const applicants = ref<Applicant[]>([])
-const admissionEmployees = ref<Employee[]>([])
 const loading = ref(true)
 const filterMenu = ref(false)
 const page = ref(1)
@@ -35,7 +33,7 @@ const search = ref('')
 const service = ref<BuiltInService | ''>('')
 const dialog = ref(false)
 const editing = ref<Applicant | null>(null)
-const form = ref({ name: '', contact: '', email: '', address: '', tax_number: '', father_name: '', father_phone: '', admission_employee_id: null as number | null })
+const form = ref({ name: '', contact: '', email: '', address: '', tax_number: '', father_name: '', father_phone: '' })
 const canEdit = computed(() => canAccess('edit_applicants'))
 const canDelete = computed(() => canAccess('delete_applicants'))
 const serviceOptions = computed(() => [
@@ -86,7 +84,7 @@ function updateOptions(options: { page: number; itemsPerPage: number }) {
 }
 function openEdit(row: Applicant) {
   editing.value = row
-  form.value = { name: row.name, contact: row.contact ?? '', email: row.email ?? '', address: row.address ?? '', tax_number: row.tax_number ?? '', father_name: row.father_name ?? '', father_phone: row.father_phone ?? '', admission_employee_id: row.admission_employee_id ?? null }
+  form.value = { name: row.name, contact: row.contact ?? '', email: row.email ?? '', address: row.address ?? '', tax_number: row.tax_number ?? '', father_name: row.father_name ?? '', father_phone: row.father_phone ?? '' }
   dialog.value = true
 }
 async function save() {
@@ -102,10 +100,7 @@ async function remove(row: Applicant) {
   if (!await confirmActionWarning({ key: `delete-customer-${row.id}`, title: t('educational.caseUi.deleteApplicantTitle'), message: t('educational.caseUi.deleteApplicantConfirm', { name: row.name }), confirmText: t('common.actions.delete'), cancelText: t('common.actions.cancel'), icon: 'tabler-trash', tone: 'error' })) return
   try { await ApplicantApi.delete(row.id); await load() } catch { toast.error(t('common.messages.failedToDelete')) }
 }
-onMounted(async () => {
-  await Promise.all([EmployeeApi.getAssignmentOptions('admission').then(rows => admissionEmployees.value = rows)])
-  await load()
-})
+onMounted(load)
 </script>
 
 <template>
@@ -143,7 +138,6 @@ onMounted(async () => {
           <VCol cols="12" md="6"><ErpField v-model="form.father_name" :label="$t('serviceContracts.fatherName')" :placeholder="$t('serviceContracts.fatherName')" /></VCol>
           <VCol cols="12" md="6"><ErpField v-model="form.father_phone" :label="$t('serviceContracts.fatherPhone')" :placeholder="$t('serviceContracts.fatherPhone')" /></VCol>
           <VCol cols="12" md="6"><ErpField v-model="form.tax_number" :label="$t('common.fields.taxNumber')" :placeholder="$t('common.fields.taxNumber')" /></VCol>
-          <VCol cols="12" md="6"><ErpField kind="select" v-model="form.admission_employee_id" :items="admissionEmployees.map(row => ({ title: row.name, value: row.id }))" :label="$t('agencyStaff.admission')" :placeholder="$t('agencyStaff.admission')" clearable /></VCol>
           <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="form.address" :label="$t('common.fields.address')" :placeholder="$t('common.fields.address')" /></VCol>
         </VRow>
       </VCardText>

@@ -43,7 +43,15 @@ class ContractResource extends JsonResource
             'template_id' => $this->template_id,
             'contract_template_version_id' => $this->contract_template_version_id,
             'contract_country_id' => $this->contract_country_id,
+            'contract_country' => $this->whenLoaded('contractCountry', fn () => $this->contractCountry ? ['id' => $this->contractCountry->id, 'name' => $this->contractCountry->name] : null),
             'contract_language_id' => $this->contract_language_id,
+            'contract_language' => $this->whenLoaded('contractLanguage', fn () => $this->contractLanguage ? ['id' => $this->contractLanguage->id, 'name' => $this->contractLanguage->name] : null),
+            'responsible_employee_ids' => $this->whenLoaded('applicant', fn () => $this->applicant?->relationLoaded('responsibleEmployees')
+                ? $this->applicant->responsibleEmployees->pluck('id')->all()
+                : []),
+            'responsible_employees' => $this->whenLoaded('applicant', fn () => $this->applicant?->relationLoaded('responsibleEmployees')
+                ? $this->applicant->responsibleEmployees->map(fn ($employee) => $employee->only(['id', 'name']))->values()
+                : []),
             'employee_id' => $this->employee_id,
             'sold_by_employee_id' => $this->sold_by_employee_id,
             'applicant_id' => $this->applicant_id,

@@ -70,6 +70,15 @@ class ApplicantController extends Controller
     public function pipeline(Request $request)
     {
         $service = $this->requestedService($request) ?? BuiltInService::SCHOLARSHIP;
+        if (! BuiltInService::isCaseBearing($service)) {
+            return response()->json(['success' => true, 'data' => [
+                'service' => $service,
+                'stages' => [],
+                'cards' => [],
+                'totals' => ['active' => 0, 'closed' => 0, 'all' => 0],
+                'counts' => ['unit' => 'service_case', 'cards' => 0, 'columns' => 0],
+            ]]);
+        }
         $stages = $this->stagesForContext($request->integer('country_id') ?: null, $request->integer('university_id') ?: null, $service);
         $stageIds = $stages->pluck('id')->all();
 
@@ -274,13 +283,14 @@ class ApplicantController extends Controller
     {
         $this->assertCaseManageAccess($request, $applicant);
         $previousEmployeeId = $applicant->responsible_employee_id;
-        $previousAdmissionEmployeeId = $applicant->admission_employee_id;
+        $previousResponsible = $applicant->responsibleEmployees()->pluck('employees.id')->sort()->values()->all();
         $applicant = $this->save($request, $applicant, true);
         if ($previousEmployeeId !== $applicant->responsible_employee_id) {
             $notifications->applicantAssigned($applicant, $request->user()?->id);
         }
-        if ($previousAdmissionEmployeeId !== $applicant->admission_employee_id) {
-            $notifications->admissionAssigned($applicant);
+        $currentResponsible = $applicant->responsibleEmployees()->pluck('employees.id')->sort()->values()->all();
+        if ($previousResponsible !== $currentResponsible) {
+            $notifications->responsibilityAssigned($applicant);
         }
 
         return response()->json(['success' => true, 'data' => $applicant]);
@@ -314,6 +324,8 @@ class ApplicantController extends Controller
     public function changeStage(Request $request, Applicant $applicant, EducationalWorkflowNotificationService $notifications)
     {
         $this->assertCaseManageAccess($request, $applicant);
+
+        abort_if(BuiltInService::isCaseFree($applicant->service), 422, 'business.applicant_stage_service_not_supported');
 
         // A case with contracted service lines is moved through those lines;
         // `applicants.current_stage_id` is only their mirror. Refusing here
@@ -365,7 +377,12 @@ class ApplicantController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
             'tax_number' => ['nullable', 'string', 'max:255'],
-            'admission_employee_id' => AgencyStaffAssignment::rules('admission'),
+            'admission_employee_id' => ['prohibited'],
+            // Responsibility is plural and belongs only to case-bearing
+            // services. An applicant intake record with no contract may still
+            // carry it; test-offer/academy applications may not.
+            'responsible_employee_ids' => ['sometimes', 'nullable', 'array', 'max:100'],
+            'responsible_employee_ids.*' => ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')],
             'responsible_employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'university_id' => ['nullable', 'integer', 'exists:universities,id'],
@@ -417,9 +434,15 @@ class ApplicantController extends Controller
                 $universityCountry = University::query()->whereKey($effectiveUniversity)->value('country_id');
                 abort_unless($universityCountry && (int) $universityCountry === (int) $effectiveCountry, 422, 'business.university_country_mismatch');
             }
-            if (array_key_exists('admission_employee_id', $data)
-                && (int) $data['admission_employee_id'] !== (int) $applicant->admission_employee_id
-                && ! $request->user()->hasPermission('assign_admission_employee')) {
+            $caseBearing = BuiltInService::isCaseBearing($service);
+            if (array_key_exists('responsible_employee_ids', $data)
+                && ! $caseBearing) {
+                throw ValidationException::withMessages([
+                    'responsible_employee_ids' => ['business.case_free_service_has_no_responsibility'],
+                ]);
+            }
+            if (array_key_exists('responsible_employee_ids', $data)
+                && ! $request->user()->hasPermission('assign_responsible_employees')) {
                 abort(403, 'auth.forbidden');
             }
             if (! $request->user()->hasPermission('assign_applicant_employee')) {
@@ -440,24 +463,21 @@ class ApplicantController extends Controller
                     $data['responsible_employee_id'] = $ownEmployeeId;
                 }
             }
-            // Academy enrolments carry no associated employee name: the class and
-            // teachers on the enrolment are the academy's own records. Any
-            // assignment sent (including the automatic self-assignment above) is
-            // cleared so an academy application never shows a staff member.
-            if ($service === BuiltInService::ACADEMY) {
-                $data['admission_employee_id'] = null;
-                $data['responsible_employee_id'] = null;
-            }
-            // A new case starts at its service's `new` stage, and a case that
-            // switches service is re-seated there too: the old service's stage
-            // key is not a valid position on the new service's workflow.
+            // A case-bearing service starts at its `new` stage; a case-free
+            // service has no workflow at all. Switching service re-seats a
+            // case-bearing record and clears the mirror for a case-free one.
             $serviceChanged = $updating && array_key_exists('service', $data) && $data['service'] !== $applicant->service;
-            if (! $updating || $serviceChanged) {
+            if (! $caseBearing) {
+                $data['current_stage_id'] = null;
+            } elseif (! $updating || $serviceChanged) {
                 $stage = $this->stagesForContext($effectiveCountry, $effectiveUniversity, $service)->firstWhere('key', 'new')
                     ?? ApplicantStage::query()->where('key', 'new')->where('service', $service)->firstOrFail();
                 $data['current_stage_id'] = $stage->id;
             }
             $applicant->fill($data)->save();
+            if (array_key_exists('responsible_employee_ids', $data)) {
+                $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
+            }
             $details = app(ApplicantServiceDetails::class);
             if (! $updating) {
                 $details->sync($applicant, $data);
@@ -469,7 +489,7 @@ class ApplicantController extends Controller
             ]) !== []) {
                 $details->sync($applicant, $data);
             }
-            if (! $updating) {
+            if (! $updating && $applicant->current_stage_id) {
                 ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $applicant->current_stage_id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => 'Case created']);
             }
 
@@ -490,6 +510,12 @@ class ApplicantController extends Controller
             $applicant->setRelation('services', $applicant->applicantContracts->map(fn ($line) => $this->presentService($line)));
         }
         $applicant->setRelation('details', $applicant->getRelationValue($applicant->detailRelationName()));
+        // Responsibility is plural. The controller serializes the model
+        // directly, so these derived fields must be explicit here as well as
+        // in ApplicantResource.
+        $applicant->setAttribute('responsible_employee_ids', $applicant->responsibleEmployees->pluck('id')->all());
+        $applicant->setAttribute('responsible_employees', $applicant->responsibleEmployees
+            ->map(fn (Employee $employee) => $employee->only(['id', 'name']))->values()->all());
         $applicant->setAttribute('portal_access_status', $applicant->user?->acc_status);
         $applicant->unsetRelation('user');
         foreach (['favoriteSubjects' => 'favorite_subject_ids', 'skills' => 'skill_ids', 'teachers' => 'teacher_ids'] as $relation => $key) {
@@ -540,7 +566,7 @@ class ApplicantController extends Controller
     private function relations(): array
     {
         return [
-            'responsibleEmployee', 'admissionEmployee', 'currentStage', 'user:id,acc_status',
+            'responsibleEmployee', 'responsibleEmployees', 'admissionEmployee', 'currentStage', 'user:id,acc_status',
             // The per-service half of the record and its multi-valued fields.
             // All four detail relations are loaded; the resource picks the one
             // matching the applicant's service.
@@ -711,6 +737,9 @@ class ApplicantController extends Controller
      */
     private function stagesForContext(?int $countryId, ?int $universityId, ?string $service = null)
     {
+        if (BuiltInService::isCaseFree($service)) {
+            return ApplicantStage::query()->whereRaw('1 = 0')->get();
+        }
         if (! $countryId && $universityId) {
             $countryId = University::query()->whereKey($universityId)->value('country_id');
         }

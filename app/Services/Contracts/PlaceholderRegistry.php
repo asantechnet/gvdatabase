@@ -85,7 +85,8 @@ class PlaceholderRegistry
                     ['key' => 'applicant.subjects', 'label' => 'Requested Subjects'],
                     ['key' => 'applicant.skills', 'label' => 'Skills'],
                     ['key' => 'applicant.teachers', 'label' => 'Teachers'],
-                    ['key' => 'applicant.admission_employee', 'label' => 'Admission Employee'],
+                    ['key' => 'applicant.responsible_employees', 'label' => 'Responsible Employees'],
+                    ['key' => 'applicant.admission_employee', 'label' => 'Responsible Employee (legacy)'],
                 ],
             ],
             [

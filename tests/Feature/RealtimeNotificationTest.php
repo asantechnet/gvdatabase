@@ -166,21 +166,23 @@ class RealtimeNotificationTest extends TestCase
         $this->assertSame(0, $actor->notifications()->count());
     }
 
-    public function test_contract_generation_notifies_the_admission_employee(): void
+    public function test_contract_generation_notifies_every_responsible_employee(): void
     {
         $this->actingAsRole('super_admin');
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $responsible = Employee::factory()->create(['status' => 'active']);
-        $admission = Employee::factory()->create([
+        $first = Employee::factory()->create([
+            'status' => 'active',
+            'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+        ]);
+        $second = Employee::factory()->create([
             'status' => 'active',
             'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
         ]);
 
-        // Admission assignment is a scholarship/private field; academy
-        // contracts intentionally prohibit it.
         $created = $this->createBuiltInContract('scholarship', [
             'responsible_employee_id' => $responsible->id,
-            'admission_employee_id' => $admission->id,
+            'responsible_employee_ids' => [$first->id, $second->id],
             'currency_id' => $currency->id,
         ]);
 
@@ -189,23 +191,28 @@ class RealtimeNotificationTest extends TestCase
             ->firstOrFail();
         $recipients = $notification->recipients()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
 
-        $this->assertSame([(int) $admission->user_id], $recipients);
-        $this->assertTrue(User::query()->findOrFail($admission->user_id)->unread_notifications);
+        $this->assertEqualsCanonicalizing([(int) $first->user_id, (int) $second->user_id], $recipients);
+        $this->assertTrue(User::query()->findOrFail($first->user_id)->unread_notifications);
+        $this->assertTrue(User::query()->findOrFail($second->user_id)->unread_notifications);
     }
 
-    public function test_admission_reassignment_notifies_the_new_employee_even_when_they_are_the_actor(): void
+    public function test_responsibility_reassignment_notifies_every_new_employee_even_when_they_are_the_actor(): void
     {
         $manager = $this->actingAsRole('manager');
-        $admission = Employee::factory()->create([
+        $first = Employee::factory()->create([
             'user_id' => $manager->id,
             'status' => 'active',
             'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
         ]);
-        $applicant = Applicant::factory()->create(['admission_employee_id' => null]);
+        $second = Employee::factory()->create([
+            'status' => 'active',
+            'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+        ]);
+        $applicant = Applicant::factory()->create(['responsible_employee_id' => $manager->employee?->id]);
 
-        $this->putJson("/api/applicants/{$applicant->id}", ['admission_employee_id' => $admission->id])->assertOk();
+        $this->putJson("/api/applicants/{$applicant->id}", ['responsible_employee_ids' => [$first->id, $second->id]])->assertOk();
 
-        $notification = Notification::query()->where('notification_key', 'like', "applicant.admission.assigned.{$applicant->id}.{$admission->id}.%")
+        $notification = Notification::query()->where('notification_key', 'like', "applicant.responsibility.assigned.{$applicant->id}.{$first->id}.%")
             ->sole();
         $this->assertSame([$manager->id], $notification->recipients()->pluck('users.id')->all());
     }

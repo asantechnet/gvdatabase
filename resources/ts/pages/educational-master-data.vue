@@ -3,7 +3,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
+import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
+import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import { canAccess } from '@/utils/authorization'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -28,6 +31,7 @@ const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests',
 // Countries and universities are the two catalogues a visa case contacts
 // directly, so they carry the optional phone, email and portal address.
 const hasContact = computed(() => ['countries', 'universities'].includes(catalog.value))
+const canEditCatalog = computed(() => canAccess(catalog.value === 'countries' ? 'edit_country' : 'edit_university'))
 
 async function load() {
   loading.value = true
@@ -85,7 +89,7 @@ onMounted(load)
         <VProgressLinear v-if="loading" indeterminate class="my-4" />
         <div class="education-table-scroll"><VTable density="compact" class="education-table">
           <thead><tr><th>{{ $t('common.fields.name') }}</th><th v-if="hasCode">{{ $t('common.fields.code') }}</th><th>{{ $t('educational.masterData.details') }}</th><th>{{ $t('common.fields.status') }}</th><th /></tr></thead>
-          <tbody><tr v-for="row in rows" :key="row.id"><td>{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td>{{ row.phone || row.email || row.city || row.portal_url || row.contact || row.description || '—' }}</td><td><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
+          <tbody><tr v-for="row in rows" :key="row.id"><td>{{ row.name }}</td><td v-if="hasCode">{{ row.code }}</td><td><div class="d-flex align-center flex-wrap ga-1"><span>{{ row.phone || row.email || row.city || row.portal_url || row.contact || row.description || '—' }}</span><template v-if="['countries', 'universities'].includes(catalog)"><ContactActionMenu v-if="row.phone" kind="phone" :value="row.phone" :contactable-type="canEditCatalog ? (catalog === 'countries' ? 'country' : 'university') : undefined" :contactable-id="row.id" /><ContactActionMenu v-if="row.email" kind="email" :value="row.email" :contactable-type="canEditCatalog ? (catalog === 'countries' ? 'country' : 'university') : undefined" :contactable-id="row.id" /></template></div></td><td><VChip :color="row.is_active ? 'success':'secondary'" size="small">{{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}</VChip></td><td class="text-no-wrap"><CrmRelationshipDetails v-if="['countries', 'universities'].includes(catalog)" :type="catalog === 'countries' ? 'country' : 'university'" :id="row.id" :title="row.name" :readonly="!canEditCatalog" /><VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" /><VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" /></td></tr></tbody>
         </VTable></div>
       </VCardText>
     </VCard>

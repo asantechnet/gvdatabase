@@ -44,6 +44,7 @@ class ContractGenerationService
         abort_unless(BuiltInService::isValid($service), 404);
         abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
+        $this->authorizeResponsibleAssignment($request, $data);
 
         return DB::transaction(function () use ($service, $request, $data): Contract {
             $primary = null;
@@ -59,7 +60,7 @@ class ContractGenerationService
                 // submitted identity and programme fields update that record
                 // before the new service line is created.
                 if ($service === BuiltInService::ACADEMY) {
-                    $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']));
+                    $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
                     $this->details->sync($applicant, [...$data, 'service' => $service]);
                     $applicant->refresh();
                 }
@@ -108,7 +109,9 @@ class ContractGenerationService
                 'counterparty' => $applicant->name, 'counterparty_email' => $applicant->email,
                 'counterparty_contact' => $applicant->contact, 'counterparty_address' => $applicant->address,
             ]);
-            $newStage = $this->newStage($service, $countryId, $applicant->detail()?->university_id);
+            $newStage = BuiltInService::isCaseBearing($service)
+                ? $this->newStage($service, $countryId, $applicant->detail()?->university_id)
+                : null;
             $lineFees = Arr::only($data, ['application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']);
             // A private application fee is a range; the legacy single column
             // keeps the range maximum so older readers see a price.
@@ -117,13 +120,16 @@ class ContractGenerationService
             }
             $line = $contract->applicantContracts()->create([
                 'service' => $service, 'applicant_id' => $applicant->id,
-                'current_stage_id' => $newStage->id,
+                'current_stage_id' => $newStage?->id,
                 'fee' => $data['fee'], 'discount' => $data['discount'],
                 'currency_id' => $data['currency_id'], 'currency_rate' => $rate,
                 'sold_by_employee_id' => $contract->sold_by_employee_id,
                 ...$lineFees,
                 'notes' => $data['notes'] ?? null,
             ]);
+            if (array_key_exists('responsible_employee_ids', $data)) {
+                $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
+            }
             // An academy fee paid at signing is a real receipt, not a stored
             // informational amount: the line's paid state follows the income.
             if ($service === BuiltInService::ACADEMY && (float) ($data['paid_fee'] ?? 0) > 0) {
@@ -169,12 +175,15 @@ class ContractGenerationService
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],
             ]);
-            // Each service line starts its own workflow at the service's `new` stage.
-            ApplicantStageHistory::create([
-                'applicant_id' => $applicant->id, 'applicant_contract_id' => $line->id,
-                'new_stage_id' => $newStage->id, 'changed_by' => $request->user()->id,
-                'changed_at' => now(), 'note' => 'Contract created',
-            ]);
+            // Case-bearing lines start their own workflow; a test-offer or
+            // academy agreement is a direct service, not a case.
+            if ($newStage) {
+                ApplicantStageHistory::create([
+                    'applicant_id' => $applicant->id, 'applicant_contract_id' => $line->id,
+                    'new_stage_id' => $newStage->id, 'changed_by' => $request->user()->id,
+                    'changed_at' => now(), 'note' => 'Contract created',
+                ]);
+            }
             $this->tasks->ensureForApplicantContract($line, $request->user());
             // The form pre-generated these credentials and showed them to the
             // operator, so the account is created with exactly that pair.
@@ -189,7 +198,7 @@ class ContractGenerationService
             }
             $this->notifications->contractGenerated($contract, $request->user()->id);
 
-            return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
+            return $contract->load(['template.contractType', 'contractType', 'applicant.responsibleEmployees:id,name', 'applicantContracts.currency']);
         });
     }
 
@@ -233,6 +242,7 @@ class ContractGenerationService
         abort_unless(BuiltInService::isValid($service), 404);
         abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
+        $this->authorizeResponsibleAssignment($request, $data);
 
         return DB::transaction(function () use ($service, $id, $request, $data): Contract {
             $contract = Contract::query()->lockForUpdate()->findOrFail($id);
@@ -245,10 +255,10 @@ class ContractGenerationService
 
             $applicant = Applicant::query()->lockForUpdate()->findOrFail($contract->applicant_id);
             $this->authorizeApplicantAssignment($request, $data, $applicant);
-            if (array_key_exists('admission_employee_id', $data) && ! $request->user()->hasPermission('assign_admission_employee')) {
-                abort(403, 'auth.forbidden');
+            $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
+            if (array_key_exists('responsible_employee_ids', $data)) {
+                $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
             }
-            $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']));
             $this->details->sync($applicant, [...$data, 'service' => $service]);
             $applicant->refresh();
 
@@ -275,15 +285,12 @@ class ContractGenerationService
                 'counterparty_address' => $applicant->address,
             ]);
 
-            return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
+            return $contract->load(['template.contractType', 'contractType', 'applicant.responsibleEmployees:id,name', 'applicantContracts.currency']);
         });
     }
 
     private function createApplicant(string $service, StoreServiceContractRequest $request, array $data): Applicant
     {
-        if (array_key_exists('admission_employee_id', $data) && ! $request->user()->hasPermission('assign_admission_employee')) {
-            abort(403, 'auth.forbidden');
-        }
         if (! $request->user()->hasPermission('assign_applicant_employee')) {
             $ownEmployee = Employee::query()->active()->where('user_id', $request->user()->id)->value('id');
             abort_unless($ownEmployee, 422, 'business.employee_profile_missing');
@@ -291,16 +298,32 @@ class ContractGenerationService
             abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), (int) $selected), 403, 'auth.forbidden');
             $data['responsible_employee_id'] = $selected;
         }
-        $stage = $this->newStage($service, $data['country_id'] ?? null, null);
+        $stage = BuiltInService::isCaseBearing($service)
+            ? $this->newStage($service, $data['country_id'] ?? null, null)
+            : null;
         $applicant = Applicant::create([
-            ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'admission_employee_id', 'responsible_employee_id', 'notes']),
-            'service' => $service, 'current_stage_id' => $stage->id, 'status' => 'active',
+            ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']),
+            'service' => $service, 'current_stage_id' => $stage?->id, 'status' => 'active',
         ]);
+        if (array_key_exists('responsible_employee_ids', $data)) {
+            $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
+        }
         $this->details->sync($applicant, [...$data, 'service' => $service]);
         $applicant->{$applicant->detailRelationName()}()->firstOrCreate([]);
-        ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $stage->id, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Contract created']);
+        if ($stage) {
+            ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $stage->id, 'changed_by' => $request->user()->id, 'changed_at' => now(), 'note' => 'Contract created']);
+        }
 
         return $applicant->fresh();
+    }
+
+    /** Only a holder of the plural assignment grant may submit the list. */
+    private function authorizeResponsibleAssignment(StoreServiceContractRequest $request, array $data): void
+    {
+        if (array_key_exists('responsible_employee_ids', $data)
+            && ! $request->user()->hasPermission('assign_responsible_employees')) {
+            abort(403, 'auth.forbidden');
+        }
     }
 
     /** @param array<string, mixed> $data */

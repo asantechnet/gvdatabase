@@ -37,15 +37,15 @@ class EducationalWorkflowNotificationService
     }
 
     /**
-     * A contract was generated automatically from a service assignment.
-     * The admission employee assigned to the applicant receives exactly one
-     * contract notification. Assignment notifications intentionally include
-     * the actor when they assigned the contract to themselves.
+     * A contract was generated automatically from a service assignment. Every
+     * responsible employee receives exactly one contract notification.
+     * Assignment notifications intentionally include the actor when they
+     * assigned the contract to themselves.
      */
     public function contractGenerated(Contract $contract, ?int $actorId = null): void
     {
-        $contract->loadMissing(['applicant.admissionEmployee', 'parentContract']);
-        $recipientIds = collect([$contract->applicant?->admissionEmployee?->user_id])->filter()->unique();
+        $contract->loadMissing(['applicant.responsibleEmployees', 'parentContract']);
+        $recipientIds = $contract->applicant?->responsibleEmployees->pluck('user_id')->filter()->unique() ?? collect();
 
         $serviceName = BuiltInService::label($contract->service);
         $isExtension = $contract->contract_role === Contract::ROLE_EXTENSION;
@@ -70,30 +70,32 @@ class EducationalWorkflowNotificationService
         );
     }
 
-    /** Notify the newly assigned admission employee after a case edit. */
-    public function admissionAssigned(Applicant $applicant): void
+    /** Notify every responsible employee after a case responsibility edit. */
+    public function responsibilityAssigned(Applicant $applicant): void
     {
-        $applicant->loadMissing('admissionEmployee');
-        $employee = $applicant->admissionEmployee;
-        if (! $employee?->user_id) {
-            return;
-        }
-
+        $applicant->loadMissing('responsibleEmployees');
         $assignmentStamp = $applicant->updated_at?->format('YmdHisv') ?? now()->format('YmdHisv');
-        $this->notifyOnce(
-            "applicant.admission.assigned.{$applicant->id}.{$employee->id}.{$assignmentStamp}",
-            'task',
-            'Admission case assigned',
-            "Applicant case #{$applicant->id} was assigned to you for admission.",
-            [
-                'translation_key' => 'applicant.admissionAssigned',
-                'applicant_id' => $applicant->id,
-                'applicant' => $this->applicantLabel($applicant),
-                'admission_employee_id' => $employee->id,
-            ],
-            "/applicants/{$applicant->id}",
-            collect([$employee->user_id]),
-        );
+
+        foreach ($applicant->responsibleEmployees as $employee) {
+            if (! $employee->user_id) {
+                continue;
+            }
+
+            $this->notifyOnce(
+                "applicant.responsibility.assigned.{$applicant->id}.{$employee->id}.{$assignmentStamp}",
+                'task',
+                'Applicant responsibility assigned',
+                "Applicant case #{$applicant->id} was assigned to you.",
+                [
+                    'translation_key' => 'applicant.admissionAssigned',
+                    'applicant_id' => $applicant->id,
+                    'applicant' => $this->applicantLabel($applicant),
+                    'responsible_employee_id' => $employee->id,
+                ],
+                "/applicants/{$applicant->id}",
+                collect([$employee->user_id]),
+            );
+        }
     }
 
     public function applicantAssigned(Applicant $applicant, ?int $actorId = null): void

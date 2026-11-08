@@ -66,6 +66,46 @@ export interface ServiceCase {
   tasks: ServiceCaseTask[]
   incomes: ServiceCaseIncome[]
   contract_number?: string | null
+  contract?: {
+    id: number
+    contract_number: string
+    service: BuiltInService
+    type?: string | null
+    contract?: string | null
+    status: string
+    display_status?: string | null
+    contract_role?: string | null
+    parent_contract_id?: number | null
+    parent_contract_number?: string | null
+    start_date?: string | null
+    end_date?: string | null
+    days_remaining?: number | null
+    expiry_state?: string | null
+    company_signatory_name?: string | null
+    counterparty?: string | null
+    counterparty_company?: string | null
+    counterparty_email?: string | null
+    counterparty_contact?: string | null
+    counterparty_address?: string | null
+    contract_country_id?: number | null
+    contract_country?: { id: number; name: string } | null
+    contract_language_id?: number | null
+    contract_language?: { id: number; name: string } | null
+    contract_template?: { id: number; name: string } | null
+    contract_template_version?: { id: number; name?: string | null; version_number?: number | string | null } | null
+    is_cancelled?: boolean
+    cancelled_at?: string | null
+    payment?: {
+      applicable: boolean
+      status: string | null
+      outstanding: number | string | null
+      currency: { code?: string | null; symbol?: string | null } | null
+      lines: number
+    } | null
+    created_at?: string | null
+    updated_at?: string | null
+    content?: string | null
+  } | null
   status?: string | null
   contract_role?: string | null
   parent_contract_number?: string | null

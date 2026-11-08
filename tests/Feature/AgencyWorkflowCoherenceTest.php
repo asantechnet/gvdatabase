@@ -72,19 +72,22 @@ class AgencyWorkflowCoherenceTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.consultant_employee_id', $self->id);
     }
 
-    public function test_admission_assignment_is_optional_and_independent_of_case_ownership(): void
+    public function test_responsible_assignment_is_plural_and_the_legacy_admission_field_is_prohibited(): void
     {
-        $admission = $this->employee('admission');
+        $first = $this->employee('admission');
+        $second = $this->employee('admission');
         $owner = $this->employee('counselor');
         $data = ['name' => 'Applicant', 'father_name' => 'Father', 'father_phone' => '+93700000001', 'responsible_employee_id' => $owner->id];
-        $id = $this->postJson('/api/applicants', [...$data, 'admission_employee_id' => $admission->id])
-            ->assertCreated()->assertJsonPath('data.admission_employee.name', $admission->name)
+        $id = $this->postJson('/api/applicants', [...$data, 'responsible_employee_ids' => [$first->id, $second->id]])
+            ->assertCreated()->assertJsonCount(2, 'data.responsible_employee_ids')
             ->assertJsonPath('data.responsible_employee_id', $owner->id)->json('data.id');
-        $this->putJson("/api/applicants/{$id}", ['admission_employee_id' => null])->assertOk()
-            ->assertJsonPath('data.admission_employee_id', null);
-        $this->postJson('/api/applicants', [...$data, 'admission_employee_id' => $owner->id])
+        $this->assertDatabaseHas('applicant_responsible_employees', ['applicant_id' => $id, 'employee_id' => $first->id]);
+        $this->assertDatabaseHas('applicant_responsible_employees', ['applicant_id' => $id, 'employee_id' => $second->id]);
+        $this->putJson("/api/applicants/{$id}", ['responsible_employee_ids' => []])->assertOk()
+            ->assertJsonCount(0, 'data.responsible_employee_ids');
+        $this->assertDatabaseMissing('applicant_responsible_employees', ['applicant_id' => $id]);
+        $this->postJson('/api/applicants', [...$data, 'admission_employee_id' => $first->id])
             ->assertUnprocessable()->assertJsonValidationErrors('admission_employee_id');
-        $this->postJson('/api/applicants', $data)->assertCreated()->assertJsonPath('data.admission_employee_id', null);
     }
 
     public function test_crm_staff_can_load_specialist_options_without_hr_directory_access(): void

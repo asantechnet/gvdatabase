@@ -93,11 +93,13 @@ class StoreServiceContractRequest extends FormRequest
             'address' => [$identity, 'string', 'max:1000'],
             'tax_number' => [$identity, 'string', 'max:255'],
             'responsible_employee_id' => [$identity, 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('status', 'active')],
-            'admission_employee_id' => $extending && $service !== BuiltInService::ACADEMY
-                ? ['prohibited']
-                : ($service === BuiltInService::SCHOLARSHIP || $service === BuiltInService::PRIVATE
-                    ? AgencyStaffAssignment::rules('admission')
-                    : ['prohibited']),
+            // The singular admission field is retired. Responsibility is a
+            // plural assignment accepted only on case-bearing services.
+            'admission_employee_id' => ['prohibited'],
+            'responsible_employee_ids' => in_array($service, BuiltInService::CASE_BEARING, true)
+                ? ['nullable', 'array', 'max:100']
+                : ['prohibited'],
+            'responsible_employee_ids.*' => ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')],
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
@@ -211,6 +213,9 @@ class StoreServiceContractRequest extends FormRequest
             };
         }
 
+        if (in_array($service, BuiltInService::CASE_BEARING, true)) {
+            $rules['responsible_employee_ids.*'] = ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')];
+        }
         foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'teachers'] as $key => $table) {
             if (isset($rules[$key]) && ! in_array('prohibited', $rules[$key], true)) {
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];

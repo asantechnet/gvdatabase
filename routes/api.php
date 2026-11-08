@@ -370,6 +370,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->whereIn('type', ['visitor', 'applicant']);
     Route::put('crm/interactions/{interaction}', [CrmInteractionController::class, 'update']);
     Route::delete('crm/interactions/{interaction}', [CrmInteractionController::class, 'destroy']);
+    // Global/case relationship surface for countries and universities, plus
+    // the case-scoped relationship aggregate. Visitor/applicant CRM routes
+    // above remain unchanged.
+    require __DIR__.'/crm.php';
 
     // Tag routes
     Route::apiResource('tags', TagController::class)
