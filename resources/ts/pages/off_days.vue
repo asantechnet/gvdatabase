@@ -9,6 +9,10 @@ import { apiErrorMessage } from '@/utils/apiErrors'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -23,7 +27,11 @@ const perPage = ref(25)
 const total = ref(0)
 // Filled from every matching row right before printing.
 const reportRows = ref<string[][]>([])
-const loading = ref(false)
+const loading = ref(true)
+const search = ref('')
+const filterMenuOpen = ref(false)
+const draftYear = ref(year.value)
+const draftStatus = ref<OffDayStatus | null>(null)
 const saving = ref(false)
 const dialog = ref(false)
 const deleteDialog = ref(false)
@@ -42,6 +50,15 @@ const statusOptions = computed(() => [
 ])
 
 const statusColor = (status: OffDayStatus) => ({ pending: 'warning', approved: 'success', rejected: 'error' }[status])
+const visibleRows = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  if (!query)
+    return rows.value
+
+  return rows.value.filter(row => [row.start_date, row.end_date, row.reason, row.status, row.approvedBy?.name]
+    .filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query)))
+})
+const hasActiveFilters = computed(() => Boolean(statusFilter.value || year.value !== new Date().getFullYear()))
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
@@ -166,6 +183,24 @@ function updateTableOptions(options: { page: number; itemsPerPage: number }) {
   load()
 }
 
+async function applyFilters() {
+  year.value = draftYear.value
+  statusFilter.value = draftStatus.value
+  page.value = 1
+  filterMenuOpen.value = false
+  await load()
+}
+
+async function resetFilters() {
+  draftYear.value = new Date().getFullYear()
+  draftStatus.value = null
+  year.value = draftYear.value
+  statusFilter.value = null
+  page.value = 1
+  filterMenuOpen.value = false
+  await load()
+}
+
 // Print is global: the report is filled from every matching row first.
 async function printReport() {
   try {
@@ -183,54 +218,24 @@ async function printReport() {
   }
 }
 
-watch([year, statusFilter], () => {
-  page.value = 1
-  load()
-})
 onMounted(load)
 </script>
 
 <template>
-  <div>
-    <DataTablePageKpis
-      :items="rows"
-      :title="t('pages.offDays.companyTitle')"
-      :description="t('pages.offDays.subtitle')"
-      icon="tabler-calendar-off"
-    />
+  <div class="off-days-page">
+    <ErpPageHeader :title="t('pages.offDays.companyTitle')" section="hr" />
 
-    <VCard>
-      <VCardTitle class="d-flex flex-wrap align-center ga-3">
-        <VIcon icon="tabler-calendar-off" />
-        {{ t('pages.offDays.companyTitle') }}
-        <VSpacer />
-        <DataTableFilterMenu
-          :active="Boolean(statusFilter || year !== new Date().getFullYear())"
-          @reset="statusFilter = null; year = new Date().getFullYear()"
-        >
-          <VSelect
-            v-model="statusFilter"
-            :items="statusOptions"
-            :label="t('common.fields.status')"
-            density="compact"
-            hide-details
-          />
-          <VTextField
-            v-model.number="year"
-            type="number"
-            min="2000"
-            max="3000"
-            density="compact"
-            hide-details
-          />
+    <VCard class="off-days-screen">
+      <VCardText class="off-days-toolbar">
+        <VRow align="center">
+          <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="t('pages.offDays.search')" /></VCol>
+          <VCol cols="12" md="6" lg="7" class="d-flex align-center justify-md-end ga-2 flex-wrap">
+        <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" @reset="resetFilters">
+          <ErpField v-model="draftStatus" kind="select" :items="statusOptions" :label="t('common.fields.status')" clearable />
+          <ErpField v-model.number="draftYear" type="number" :label="t('pages.offDays.year')" min="2000" max="3000" />
+          <template #actions><VBtn variant="tonal" color="primary" @click="resetFilters">{{ t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="applyFilters">{{ t('educational.apply') }}</VBtn></template>
         </DataTableFilterMenu>
-        <VBtn
-          prepend-icon="tabler-printer"
-          variant="tonal"
-          @click="printReport"
-        >
-          {{ t('common.actions.print') }}
-        </VBtn>
+        <VBtn icon="tabler-printer" variant="tonal" :aria-label="t('common.actions.print')" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
         <VBtn
           v-if="canManage"
           color="primary"
@@ -238,26 +243,24 @@ onMounted(load)
           @click="openCreate"
         >
           {{ t('pages.offDays.add') }}
-        </VBtn>
-      </VCardTitle>
-
-      <VCardText>
-        <VAlert
-          type="info"
-          variant="tonal"
-          density="comfortable"
-          class="mb-4"
-        >
-          {{ t('pages.offDays.affectsNote') }}
-        </VAlert>
-
+        </VBtn></VCol>
+        </VRow>
+      </VCardText>
         <ResponsiveDataTableServer
-          :items="rows"
+          :items="visibleRows"
           :items-length="total"
           :page="page"
           :items-per-page="perPage"
           :items-per-page-options="[10, 25, 50, 100]"
           :loading="loading"
+          :skeleton-rows="6"
+          mobile-cards
+          mobile-expand-all
+          mobile-title-key="start_date"
+          mobile-action-key="actions"
+          :mobile-fields="['end_date', 'days', 'status']"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
           @update:options="updateTableOptions"
           :headers="[
             { title: t('pages.offDays.startDate'), key: 'start_date' },
@@ -347,8 +350,8 @@ onMounted(load)
               </VBtn>
             </div>
           </template>
+          <template #no-data><TableEmptyState icon="tabler-calendar-off" :title="t('pages.offDays.noRecordsTitle')" :description="t('pages.offDays.noRecords')" /></template>
         </ResponsiveDataTableServer>
-      </VCardText>
     </VCard>
 
     <PrintableListReport
@@ -358,12 +361,13 @@ onMounted(load)
       :rows="reportRows"
     />
 
-    <VDialog
-      v-model="dialog"
-      max-width="640"
-    >
-      <VCard :title="selected ? t('pages.offDays.edit') : t('pages.offDays.add')">
-        <VCardText>
+    <VDialog v-model="dialog" :persistent="saving" max-width="640" content-class="off-day-form-dialog">
+      <VCard class="off-day-form-dialog__card">
+        <VCardTitle class="off-day-form-dialog__header d-flex align-center justify-space-between px-5 py-4">
+          <span>{{ selected ? t('pages.offDays.edit') : t('pages.offDays.add') }}</span>
+          <VBtn icon="tabler-x" variant="tonal" color="error" size="small" :disabled="saving" @click="dialog = false" />
+        </VCardTitle>
+        <VCardText class="pa-5">
           <VAlert
             v-if="error"
             type="error"
@@ -388,9 +392,10 @@ onMounted(load)
               />
             </VCol>
             <VCol cols="12">
-              <VTextarea
+              <ErpField
                 v-model="form.reason"
                 :label="t('pages.offDays.reason')"
+                kind="textarea"
                 rows="3"
                 maxlength="1000"
                 counter
@@ -408,16 +413,15 @@ onMounted(load)
             {{ t('pages.offDays.subtitle') }}
           </VAlert>
         </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn
-            variant="text"
+        <VCardActions class="off-day-form-dialog__footer px-5 py-4">
+          <VBtn class="off-day-form-dialog__cancel"
             @click="dialog = false"
           >
             {{ t('common.actions.cancel') }}
           </VBtn>
           <VBtn
             color="primary"
+            variant="flat"
             :disabled="saving"
             @click="save"
           >
@@ -452,3 +456,20 @@ onMounted(load)
     </VDialog>
   </div>
 </template>
+
+<style scoped>
+.off-days-page { max-inline-size: 100%; }
+.off-days-screen { overflow: hidden; border-radius: .85rem !important; box-shadow: 0 3px 14px rgba(var(--v-theme-on-surface), .035) !important; }
+.off-days-toolbar { padding: 1.25rem 1.5rem !important; }
+.off-days-screen :deep(.v-data-table__thead > tr > th) { background: rgba(var(--v-theme-on-surface), .045) !important; }
+.off-days-screen :deep(.v-data-table__tbody > tr:hover > td) { background: rgba(var(--v-theme-on-surface), .035) !important; }
+.off-day-form-dialog__card { overflow: hidden; }
+.off-day-form-dialog__header,
+.off-day-form-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.off-day-form-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+.off-day-form-dialog__footer { display: flex; justify-content: flex-start; gap: .75rem; border-block-start: 1px solid rgba(var(--v-border-color), .5); }
+.off-day-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.off-day-form-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.v-overlay:has(.off-day-form-dialog) .v-overlay__scrim) { background: rgba(20, 25, 35, .32) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
+@media (max-width: 959px) { .off-days-toolbar { padding-inline: 1rem !important; } .off-days-screen :deep(.v-data-table__tbody > tr:hover > td) { background: transparent !important; } }
+</style>

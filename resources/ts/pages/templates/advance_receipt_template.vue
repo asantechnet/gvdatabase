@@ -76,7 +76,7 @@ const print = async () => {
     return
   await printDocument({
     bodyClass: 'printing-advance-receipt',
-    pageStyle: 'size: A5; margin: 4mm;',
+    pageStyle: 'size: A4 portrait; margin: 10mm;',
     element: rootRef.value,
   })
 }
@@ -219,7 +219,7 @@ defineExpose({ print })
 
   display: flex;
   flex-direction: column;
-  gap: 3mm;
+  gap: 5mm;
   width: 100%;
   color: var(--advance-ink);
   font-size: 8pt;
@@ -231,8 +231,8 @@ defineExpose({ print })
   flex-direction: column;
   gap: 2.5mm;
   box-sizing: border-box;
-  min-block-size: 97mm;
-  padding: 4.5mm;
+  min-block-size: 125mm;
+  padding: 6mm;
   border: 1px solid var(--advance-line);
   border-radius: 1.5mm;
   background: #fff;

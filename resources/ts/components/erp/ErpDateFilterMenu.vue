@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ErpField from "@/components/erp/ErpField.vue";
 
 const props = defineProps<{ from?: string; to?: string; disabled?: boolean }>();
 const emit = defineEmits<{
@@ -59,34 +60,34 @@ function apply(clear = false) {
     <VCard class="date-filter-menu">
       <VCardText>
         <form class="date-filter-form" @submit.prevent="apply()">
-          <AppDateTimePicker
+          <ErpField
             v-model="from"
+            kind="date"
             :label="t('erp.fromDate')"
             placeholder="YYYY-MM-DD"
             persistent-placeholder
-            density="compact"
             :config="{
               dateFormat: 'Y-m-d',
               maxDate: to || undefined,
               closeOnSelect: false,
+              static: false,
             }"
-            hide-details="auto"
           />
-          <AppDateTimePicker
+          <ErpField
             v-model="to"
+            kind="date"
             :label="t('erp.toDate')"
             placeholder="YYYY-MM-DD"
             persistent-placeholder
-            density="compact"
             :config="{
               dateFormat: 'Y-m-d',
               minDate: from || undefined,
               closeOnSelect: false,
+              static: false,
             }"
-            hide-details="auto"
             :error-messages="invalid ? t('erp.invalidRange') : []"
           />
-          <div class="d-flex gap-2">
+          <div class="date-filter-form__actions">
             <VBtn type="submit" :disabled="invalid" color="primary">{{
               t("educational.apply")
             }}</VBtn>
@@ -110,6 +111,12 @@ function apply(clear = false) {
 .date-filter-form {
   display: grid;
   gap: 16px;
+}
+.date-filter-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .date-filter-trigger {
   color: rgb(var(--v-theme-on-primary)) !important;

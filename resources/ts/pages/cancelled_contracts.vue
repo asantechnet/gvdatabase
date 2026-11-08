@@ -277,10 +277,25 @@ export default {
         </VChip>
       </template>
       <template #item.actions="{ item }">
-        <FullDetailsButton
-          :item="item"
-          :title="item.contract_number || item.contract"
-        />
+        <VMenu location="bottom end">
+          <template #activator="{ props }">
+            <VBtn
+              v-bind="props"
+              icon="tabler-dots-vertical"
+              variant="tonal"
+              size="small"
+              class="cancelled-contract-actions-trigger"
+              :aria-label="$t('common.messages.actions')"
+            />
+          </template>
+          <VList density="compact" min-width="220">
+            <FullDetailsButton
+              :item="item"
+              :title="item.contract_number || item.contract"
+              menu-action
+            />
+          </VList>
+        </VMenu>
       </template>
     </ResponsiveDataTableServer>
   </VCard>
@@ -303,6 +318,17 @@ export default {
 .cancelled-contract-print-button:focus-visible {
   background-color: rgba(var(--v-theme-primary), 0.18) !important;
   color: rgb(var(--v-theme-primary)) !important;
+}
+
+.cancelled-contract-actions-trigger {
+  border-radius: 999px !important;
+  background-color: rgba(var(--v-theme-on-surface), .04) !important;
+  color: rgba(var(--v-theme-on-surface), .72) !important;
+}
+
+.cancelled-contract-actions-trigger:hover,
+.cancelled-contract-actions-trigger:focus-visible {
+  background-color: rgba(var(--v-theme-on-surface), .08) !important;
 }
 
 .cancelled-contract-table :deep(.v-table__wrapper > table) {

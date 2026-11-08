@@ -6,8 +6,10 @@ import LeaveRequestApi, { type LeaveRequest, type LeaveRequestStatus } from '@/a
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 
 const toast = useToast()
 const { t: $t } = useI18n()
@@ -15,7 +17,11 @@ const year = ref(new Date().getFullYear())
 const rows = ref<LeaveRequest[]>([])
 const selected = ref<number[]>([])
 const statusFilter = ref<LeaveRequestStatus | null>(null)
-const loading = ref(false)
+const loading = ref(true)
+const search = ref('')
+const filterMenuOpen = ref(false)
+const draftYear = ref(year.value)
+const draftStatus = ref<LeaveRequestStatus | null>(null)
 const overrideDialog = ref(false)
 const approvalNote = ref('')
 const allowance = ref(0)
@@ -41,6 +47,9 @@ const detailFields = computed(() => [
   { key: 'reason', label: $t('common.fields.reason') },
   { key: 'approvedBy.name', label: $t('common.ui.approvedBy') },
   { key: 'approval_note', label: $t('common.leaveApproval.justification') },
+  { key: 'allowance', label: $t('pages.leaveRequests.allowance') },
+  { key: 'used', label: $t('pages.leaveRequests.paidDaysGranted') },
+  { key: 'remaining', label: $t('pages.leaveRequests.daysRemaining') },
 ])
 
 const statusOptions = computed(() => [
@@ -77,6 +86,22 @@ const allowanceRisks = computed(() => {
 })
 
 const selectionExceedsAllowance = computed(() => allowanceRisks.value.length > 0)
+const visibleRows = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+  if (!query)
+    return rows.value
+
+  return rows.value.filter(row => [row.employee?.name, row.employee?.position, row.date, row.reason, treatmentLabel(row)]
+    .filter(Boolean)
+    .some(value => String(value).toLocaleLowerCase().includes(query)))
+})
+const hasActiveFilters = computed(() => Boolean(statusFilter.value || year.value !== new Date().getFullYear()))
+const detailItem = (row: LeaveRequest) => {
+  const employeeAllowance = Number(allowances.value[row.employee_id] ?? allowance.value)
+  const used = Number(usage.value[row.employee_id] ?? 0)
+
+  return { ...row, allowance: employeeAllowance, used, remaining: Math.max(0, employeeAllowance - used) }
+}
 
 async function load() {
   loading.value = true
@@ -105,6 +130,24 @@ function updateTableOptions(options: { page: number; itemsPerPage: number }) {
   page.value = options.page
   perPage.value = options.itemsPerPage
   load()
+}
+
+async function applyFilters() {
+  year.value = draftYear.value
+  statusFilter.value = draftStatus.value
+  page.value = 1
+  filterMenuOpen.value = false
+  await load()
+}
+
+async function resetFilters() {
+  draftYear.value = new Date().getFullYear()
+  draftStatus.value = null
+  year.value = draftYear.value
+  statusFilter.value = null
+  page.value = 1
+  filterMenuOpen.value = false
+  await load()
 }
 
 async function grantSelected(forceOffDay = false) {
@@ -150,10 +193,6 @@ async function printReport() {
   }
   catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
 }
-watch([year, statusFilter], () => {
-  page.value = 1
-  load()
-})
 watch(rows, currentRows => {
   const pendingIds = new Set(currentRows.filter(isSelectable).map(row => row.id))
 
@@ -163,40 +202,20 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="leave-requests-page pa-4">
-    <DataTablePageKpis
-      :items="rows"
-      :title="$t('pages.leaveRequests.title')"
-      :description="$t('pages.leaveRequests.description')"
-      icon="tabler-beach"
-      :show-scroll-hint="false"
-    />
+  <div class="leave-requests-page">
+    <ErpPageHeader :title="$t('pages.leaveRequests.title')" section="hr" />
     <VCard class="leave-requests-screen">
-      <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
-        <VIcon icon="tabler-beach" />{{ $t('pages.leaveRequests.title') }}<VSpacer /><DataTableFilterMenu
-          :active="Boolean(statusFilter || year !== new Date().getFullYear())"
-          @reset="statusFilter = null; year = new Date().getFullYear()"
-        >
-          <VSelect
-            v-model="statusFilter"
-            :items="statusOptions"
-            :label="$t('common.fields.status')"
-            clearable
-            density="compact"
-            hide-details
-          /><VTextField
-            v-model.number="year"
-            type="number"
-            density="compact"
-            hide-details
-          />
-        </DataTableFilterMenu><VBtn
-          prepend-icon="tabler-printer"
-          variant="tonal"
-          @click="printReport"
-        >
-          {{ $t('common.actions.print') }}
-        </VBtn><VBtn
+      <VCardText class="leave-requests-toolbar">
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="$t('pages.leaveRequests.searchRequests')" /></VCol>
+          <VCol cols="12" md="6" lg="7" class="d-flex align-center justify-md-end ga-2 flex-wrap">
+            <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" @reset="resetFilters">
+              <ErpField v-model="draftStatus" kind="select" :items="statusOptions" :label="$t('common.fields.status')" clearable />
+              <ErpField v-model.number="draftYear" type="number" :label="$t('pages.leaveRequests.calendarYear', { year: '' })" min="2000" max="3000" />
+              <template #actions><VBtn variant="tonal" color="primary" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="applyFilters">{{ $t('educational.apply') }}</VBtn></template>
+            </DataTableFilterMenu>
+            <VBtn icon="tabler-printer" variant="tonal" :aria-label="$t('common.actions.print')" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
+            <VBtn
           v-if="selectionExceedsAllowance"
           color="warning"
           variant="flat"
@@ -213,26 +232,28 @@ onMounted(load)
           @click="grantSelected"
         >
           {{ $t('pages.leaveRequests.grantSelected', { count: selected.length }) }}
-        </VBtn>
-      </VCardTitle>
-      <TableLoadingSkeleton v-if="loading" :columns="7" :label="$t('common.messages.loading')" />
-      <TableEmptyState
-        v-else-if="!rows.length"
-        icon="tabler-beach"
-        :description="$t('pages.leaveRequests.noRequests')"
-      />
+        </VBtn></VCol>
+        </VRow>
+      </VCardText>
       <ResponsiveDataTableServer
-        v-else
         v-model="selected"
         show-select
         item-value="id"
         :item-selectable="isSelectable"
-        :items="rows"
+        :items="visibleRows"
         :items-length="total"
         :page="page"
         :items-per-page="perPage"
         :items-per-page-options="[10, 25, 50, 100]"
         :loading="loading"
+        :skeleton-rows="6"
+        mobile-cards
+        mobile-expand-all
+        mobile-title-key="employee.name"
+        mobile-action-key="actions"
+        :mobile-fields="['date', 'duration_days', 'treatment']"
+        :sticky-key-column="false"
+        :sticky-action-column="false"
         @update:options="updateTableOptions"
         :headers="[
           { title: $t('common.fields.employee'), key: 'employee.name' },
@@ -263,10 +284,14 @@ onMounted(load)
         </template>
         <template #item.actions="{ item }">
           <FullDetailsButton
-            :item="item"
+            :item="detailItem(item)"
             :title="item.employee?.name"
             :fields="detailFields"
+            mobile-action
           />
+        </template>
+        <template #no-data>
+          <TableEmptyState icon="tabler-beach" :title="$t('pages.leaveRequests.noRequestsTitle')" :description="$t('pages.leaveRequests.noRequests')" />
         </template>
       </ResponsiveDataTableServer>
     </VCard>
@@ -276,12 +301,13 @@ onMounted(load)
       :columns="[$t('common.fields.employee'), $t('common.messages.position'), $t('common.fields.date'), $t('pages.leaveRequests.duration'), $t('common.fields.reason'), $t('pages.leaveRequests.treatment')]"
       :rows="reportRows"
     />
-    <VDialog
-      v-model="overrideDialog"
-      max-width="620"
-    >
-      <VCard :title="$t('common.leaveApproval.exceptionTitle')">
-        <VCardText>
+    <VDialog v-model="overrideDialog" :persistent="loading" max-width="620" content-class="leave-approval-dialog">
+      <VCard class="leave-approval-dialog__card">
+        <VCardTitle class="leave-approval-dialog__header d-flex align-center justify-space-between px-5 py-4">
+          <span>{{ $t('common.leaveApproval.exceptionTitle') }}</span>
+          <VBtn icon="tabler-x" variant="tonal" color="error" size="small" :disabled="loading" @click="overrideDialog = false" />
+        </VCardTitle>
+        <VCardText class="pa-5">
           <VAlert
             color="warning"
             variant="tonal"
@@ -314,20 +340,21 @@ onMounted(load)
                 </VChip>
               </VCardText>
             </VCard>
-          </div><VTextarea
+          </div><ErpField
             v-model="approvalNote"
             :label="$t('common.leaveApproval.justification')"
+            kind="textarea"
             rows="4"
             autofocus
           />
-        </VCardText><VCardActions>
-          <VSpacer /><VBtn
-            variant="text"
+        </VCardText><VCardActions class="leave-approval-dialog__footer px-5 py-4">
+          <VBtn class="leave-approval-dialog__cancel"
             @click="overrideDialog = false"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn><VBtn
-            color="warning"
+            color="primary"
+            variant="flat"
             :loading="loading"
             :disabled="!approvalNote.trim()"
             @click="grantSelected(true)"
@@ -339,3 +366,20 @@ onMounted(load)
     </VDialog>
   </div>
 </template>
+
+<style scoped>
+.leave-requests-page { max-inline-size: 100%; }
+.leave-requests-screen { overflow: hidden; border-radius: .85rem !important; box-shadow: 0 3px 14px rgba(var(--v-theme-on-surface), .035) !important; }
+.leave-requests-toolbar { padding: 1.25rem 1.5rem !important; }
+.leave-requests-screen :deep(.v-data-table__thead > tr > th) { background: rgba(var(--v-theme-on-surface), .045) !important; }
+.leave-requests-screen :deep(.v-data-table__tbody > tr:hover > td) { background: rgba(var(--v-theme-on-surface), .035) !important; }
+.leave-approval-dialog__card { overflow: hidden; }
+.leave-approval-dialog__header,
+.leave-approval-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.leave-approval-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+.leave-approval-dialog__footer { display: flex; justify-content: flex-start; gap: .75rem; border-block-start: 1px solid rgba(var(--v-border-color), .5); }
+.leave-approval-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.leave-approval-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.v-overlay:has(.leave-approval-dialog) .v-overlay__scrim) { background: rgba(20, 25, 35, .32) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
+@media (max-width: 959px) { .leave-requests-toolbar { padding-inline: 1rem !important; } .leave-requests-screen :deep(.v-data-table__tbody > tr:hover > td) { background: transparent !important; } }
+</style>

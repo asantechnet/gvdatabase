@@ -1,6 +1,6 @@
 import type { Contract } from '@/api/contracts'
 import { legacyContentToHtml } from '@/utils/contractPlaceholders'
-import { formatLocalizedDate, translate, translateBackendValue } from '@/utils/localization'
+import { formatLocalizedDate, formatLocalizedNumber, translate } from '@/utils/localization'
 
 export interface OfficialCompanyDetails {
   brandName: string
@@ -27,6 +27,7 @@ export interface OfficialContractPrintData {
   content: string
   direction: 'ltr' | 'rtl'
   metadata: OfficialPrintField[]
+  detailsTitle: string | null
   applicantFields: OfficialPrintField[]
   applicantSignatureLabel: string
 }
@@ -65,6 +66,16 @@ const field = (labelKey: string, ...values: unknown[]): OfficialPrintField[] => 
   return normalized ? [{ label: translate(`pages.contracts.shared.officialPrint.${labelKey}`), value: normalized }] : []
 }
 
+const labelledField = (label: string, ...values: unknown[]): OfficialPrintField[] => {
+  const normalized = value(...values)
+
+  return normalized ? [{ label, value: normalized }] : []
+}
+
+/** The old {{employee.identity}} placeholder is now represented by the compact official grid. */
+const withoutGeneratedEmploymentIdentity = (html: string): string => html
+  .replace(/<section[^>]*class=(['"])[^'"]*employment-identity[^'"]*\1[^>]*>[\s\S]*?<\/section>/gi, '')
+
 /**
  * Build only the fields relevant to the issued applicant service. Newer
  * contracts contain the human-readable `print_details` snapshot; older
@@ -79,6 +90,7 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
   const details = record(frozen.details)
   const liveDetails = record(applicant.details)
   const service = value(contract.service, entity.service, applicant.service)
+  const typeSlug = value(contract.type_slug, contract.contract_template?.type_slug, contract.type)?.toLowerCase()
 
   const title = value(contract.contract, contract.contract_template?.name)
     ?? translate('pages.contracts.allContracts.allContracts.untitledContract')
@@ -87,16 +99,44 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
   const isRtlLanguage = /^(?:ar|fa|ps|ur)(?:[-_]|$)/i.test(languageCode ?? activeLocale)
   const applicantName = value(frozen.name, frozenApplicant.name, applicant.name, contract.counterparty)
 
-  const serviceLabel = service
-    ? translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`)
-    : contract.type
-
   const metadata = [
     ...field('referenceNumber', contract.contract_number),
     ...field('issueDate', contract.start_date ? formatLocalizedDate(contract.start_date) : null),
-    ...field('service', serviceLabel),
-    ...field('status', contract.status ? translateBackendValue(contract.status) : null),
   ]
+
+  if (typeSlug === 'employment') {
+    const employeeSnapshot = record(entity.employee)
+    const employee = record(contract.employee)
+    const employeeValue = (key: string) => value(employeeSnapshot[key], named(employee[key]), employee[key])
+    const emergencyContact = [employeeValue('emergency_contact_name'), employeeValue('emergency_contact_phone')].filter(Boolean).join(' · ')
+    const salary = employeeValue('salary')
+
+    const formattedSalary = salary !== null && Number.isFinite(Number(salary))
+      ? formatLocalizedNumber(Number(salary), 'decimal')
+      : salary
+
+    return {
+      title,
+      content: withoutGeneratedEmploymentIdentity(legacyContentToHtml(contract.content || contract.contract_template?.content || '') || ''),
+      direction: isRtlLanguage ? 'rtl' : 'ltr',
+      metadata,
+      detailsTitle: translate('pages.contracts.shared.header.employeeDetails'),
+      applicantFields: [
+        ...labelledField(translate('pages.contracts.shared.header.employeeName'), employeeValue('name'), contract.counterparty),
+        ...field('fatherName', employeeValue('father_name')),
+        ...labelledField(translate('common.messages.governmentIDNumber'), employeeValue('national_id'), employeeValue('id_number')),
+        ...labelledField(translate('pages.contracts.shared.header.position'), employeeValue('position'), contract.counterparty_company),
+        ...labelledField(translate('pages.contracts.shared.header.education'), employeeValue('education')),
+        ...field('phone', employeeValue('phone'), employeeValue('contact'), contract.counterparty_contact),
+        ...field('email', employeeValue('email'), contract.counterparty_email),
+        ...labelledField(translate('pages.contracts.shared.header.emergencyContact'), emergencyContact),
+        ...labelledField(translate('pages.contracts.shared.header.contractDate'), employeeValue('start_date'), contract.start_date ? formatLocalizedDate(contract.start_date) : null),
+        ...labelledField(translate('pages.contracts.shared.header.contractDuration'), employeeValue('contract_duration')),
+        ...labelledField(translate('pages.contracts.shared.header.salary'), formattedSalary),
+      ],
+      applicantSignatureLabel: translate('pages.contracts.shared.officialPrint.counterpartySignature'),
+    }
+  }
 
   // Other agreements are intentionally free-form. They have no applicant
   // section and must never be populated with company/counterparty fields.
@@ -106,6 +146,7 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
       content: legacyContentToHtml(contract.content || contract.contract_template?.content || '') || '',
       direction: isRtlLanguage ? 'rtl' : 'ltr',
       metadata,
+      detailsTitle: null,
       applicantFields: [],
       applicantSignatureLabel: translate('pages.contracts.shared.officialPrint.counterpartySignature'),
     }
@@ -133,7 +174,6 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
   if (service === 'private') {
     applicantFields = [
       ...common,
-      ...field('passportId', detailsValue('passport_id')),
       ...field('destinationCountry', detailsValue('country')),
       ...field('university', detailsValue('university')),
       ...field('educationLevel', detailsValue('education_level')),
@@ -144,7 +184,6 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
   else if (service === 'scholarship') {
     applicantFields = [
       ...common,
-      ...field('passportId', detailsValue('passport_id')),
       ...field('destinationCountry', detailsValue('country')),
       ...field('educationLevel', detailsValue('education_level')),
       ...field('semester', detailsValue('semester')),
@@ -176,6 +215,7 @@ export const buildOfficialContractPrintData = (contract: Contract, activeLocale:
     content: legacyContentToHtml(contract.content || contract.contract_template?.content || '') || '',
     direction: isRtlLanguage ? 'rtl' : 'ltr',
     metadata,
+    detailsTitle: translate('pages.contracts.shared.officialPrint.applicantDetails'),
     applicantFields,
     applicantSignatureLabel: translate('pages.contracts.shared.officialPrint.applicantSignature'),
   }
@@ -193,7 +233,7 @@ const clamp = (number: number, minimum: number, maximum: number) => Math.min(Mat
 /** Convert a configured letterhead safe zone into physical A4 print margins. */
 export const officialPrintMargins = (company: OfficialCompanyDetails, withLetterhead: boolean): OfficialPrintMargins => {
   if (!withLetterhead)
-    return { top: 36, right: 18, bottom: 28, left: 18 }
+    return { top: 8, right: 18, bottom: 4, left: 18 }
 
   const x = clamp(Number(company.letterheadSafeX ?? 8.5), 0, 95)
   const y = clamp(Number(company.letterheadSafeY ?? 15), 0, 95)

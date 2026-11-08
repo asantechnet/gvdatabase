@@ -15,6 +15,8 @@ const CommentApi = {
   },
   update: (taskId: string, commentId: string, content: string) =>
     api.put<{ data: Comment }>(`/tasks/${taskId}/comments/${commentId}`, { content }),
+  delete: (taskId: string, commentId: string) =>
+    api.delete(`/tasks/${taskId}/comments/${commentId}`),
 }
 
 export default CommentApi

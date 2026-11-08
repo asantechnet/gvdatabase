@@ -51,6 +51,50 @@ class AnnouncementService
         return $recipientIds->count();
     }
 
+    /** Keep the delivered notification aligned when its announcement changes. */
+    public function refresh(Announcement $announcement, array $audience): int
+    {
+        $notification = Notification::query()
+            ->where('notification_key', "announcement.{$announcement->id}")
+            ->first();
+
+        if (! $notification) {
+            return $this->announce($announcement, $audience);
+        }
+
+        $notification->update([
+            'title' => $announcement->title,
+            'message' => $announcement->message,
+            'data' => [
+                'announcement_id' => $announcement->id,
+                'announcement_sender' => $announcement->sender?->name,
+                'announcement_labels' => $announcement->labels ?? [],
+                'announcement_title' => $announcement->title,
+            ],
+        ]);
+
+        $recipientIds = $this->recipientIdsFor($audience);
+        $existingIds = $notification->recipients()->pluck('users.id');
+        $removedIds = $existingIds->diff($recipientIds);
+        if ($removedIds->isNotEmpty()) {
+            $notification->recipients()->detach($removedIds);
+        }
+
+        // Only newly eligible users receive an unread delivery. Existing users
+        // retain their read state while seeing the amended notification text.
+        $notification->deliverTo($recipientIds->diff($existingIds));
+
+        return $recipientIds->count();
+    }
+
+    /** Remove the shared inbox entry when its source announcement is deleted. */
+    public function remove(Announcement $announcement): void
+    {
+        Notification::query()
+            ->where('notification_key', "announcement.{$announcement->id}")
+            ->each(fn (Notification $notification) => $notification->delete());
+    }
+
     /**
      * Resolution happens at send time: an announcement is delivered to the
      * people matching the audience then, not to whoever matches later.

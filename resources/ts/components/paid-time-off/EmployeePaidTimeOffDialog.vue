@@ -165,7 +165,8 @@ watch(year, () => {
 <template>
   <VDialog v-model="visible" max-width="960" scrollable class="paid-time-off-overlay">
     <VCard class="paid-time-off-dialog">
-      <VCardTitle class="pto-header pa-5 pa-sm-6">
+      <div class="pto-header">
+        <VCardTitle class="pa-5 pa-sm-6">
         <div class="d-flex align-center ga-4">
           <VAvatar color="primary" variant="tonal" rounded="lg" size="48">
             <VIcon icon="tabler-beach" size="26" />
@@ -176,8 +177,10 @@ watch(year, () => {
           </div>
           <VSpacer />
           <ErpField v-model.number="year" type="number" :label="translate('pages.leaveRequests.calendarYear', { year })" :placeholder="String(year)" min="2000" max="3000" class="pto-year" />
+          <VBtn icon="tabler-x" variant="text" size="small" class="pto-close" :aria-label="translate('common.actions.close')" @click="visible = false" />
         </div>
-      </VCardTitle>
+        </VCardTitle>
+      </div>
 
       <VCardText class="pa-4 pa-sm-6">
         <section class="mb-6">
@@ -236,7 +239,9 @@ watch(year, () => {
           </VSheet>
         </section>
       </VCardText>
-      <VCardActions class="pto-footer pa-4 pa-sm-5"><VSpacer /><VBtn variant="tonal" color="secondary" @click="visible = false">{{ translate('common.actions.close') }}</VBtn></VCardActions>
+      <div class="pto-footer">
+        <VCardActions class="pa-4 pa-sm-5"><VSpacer /><VBtn variant="tonal" color="secondary" @click="visible = false">{{ translate('common.actions.close') }}</VBtn></VCardActions>
+      </div>
     </VCard>
   </VDialog>
 </template>
@@ -245,10 +250,11 @@ watch(year, () => {
 .paid-time-off-dialog { overflow: hidden; }
 :global(.paid-time-off-overlay .v-overlay__scrim),
 :global(.v-overlay:has(.paid-time-off-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), 0.26) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
-.pto-header { background: linear-gradient(135deg, rgb(var(--v-theme-primary) / .08), rgb(var(--v-theme-surface)) 58%); }
+.pto-header { background-color: rgb(var(--v-theme-primary) / .08) !important; background-image: linear-gradient(135deg, rgb(var(--v-theme-primary) / .13), rgb(var(--v-theme-surface)) 68%) !important; border-block-end: thin solid rgb(var(--v-theme-primary) / .16); }
 .pto-year { max-inline-size: 156px; }
+.pto-close { color: rgb(var(--v-theme-primary)); }
 .pto-stat { display: flex; align-items: center; gap: 10px; min-block-size: 74px; background: rgb(var(--v-theme-surface)); }
 .pto-request { background: rgb(var(--v-theme-primary), 0.025); }
-.pto-footer { background: rgb(var(--v-theme-primary) / 0.04); border-block-start: thin solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.pto-footer { background-color: rgb(var(--v-theme-primary) / .08) !important; border-block-start: thin solid rgb(var(--v-theme-primary) / .16); }
 @media (max-width: 599px) { .pto-header { align-items: flex-start; } .pto-year { max-inline-size: 132px; } }
 </style>

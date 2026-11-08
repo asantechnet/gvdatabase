@@ -404,7 +404,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       && String(sourceBoard?.id ?? '') === String(destinationBoard?.id ?? '')
 
     if (!canAccess('move_assigned_tasks') && !personalMove)
-      return
+      return false
     try {
       isLoading.value = true
       error.value = null
@@ -419,10 +419,12 @@ export const useTaskStore = defineStore('taskManager', () => {
           task.order = position.order
         }
       })
+      return true
     }
     catch (err) {
       error.value = 'Failed to move task'
       console.error('Failed to move task:', err)
+      return false
     }
     finally {
       isLoading.value = false
@@ -562,6 +564,16 @@ export const useTaskStore = defineStore('taskManager', () => {
     Object.assign(comment, response.data.data)
   }
 
+  const deleteComment = async (taskId: string, commentId: string) => {
+    const task = tasks.value.find(candidate => candidate.id === taskId)
+    const comment = task?.comments.find(candidate => candidate.id === commentId)
+    if (!task || !comment)
+      return
+
+    await CommentApi.delete(taskId, commentId)
+    task.comments = task.comments.filter(candidate => candidate.id !== commentId)
+  }
+
   const setView = (view: 'kanban' | 'calendar' | 'gantt' | 'todos' | 'settings') => {
     activeView.value = view
   }
@@ -598,6 +610,7 @@ export const useTaskStore = defineStore('taskManager', () => {
     deleteSubTask,
     addComment,
     updateComment,
+    deleteComment,
     setView,
     selectTask,
   }

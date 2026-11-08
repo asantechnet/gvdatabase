@@ -70,6 +70,12 @@ const primaryCellWidth = (index: number) => `${62 + (index % 3) * 12}%`
 .table-loading-skeleton {
   inline-size: 100%;
   pointer-events: none;
+  min-block-size: 22rem;
+  overflow: hidden;
+  /* A framed empty panel resembles a no-data state before the request ends. */
+  border: 0;
+  border-radius: .7rem;
+  background: transparent;
 }
 
 .table-loading-skeleton__scroll {
@@ -101,7 +107,7 @@ const primaryCellWidth = (index: number) => `${62 + (index % 3) * 12}%`
 }
 
 .table-loading-skeleton__placeholder {
-  background: rgb(var(--v-theme-on-surface) / 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.12);
   border-radius: 0.375rem;
   display: block;
   overflow: hidden;
@@ -110,7 +116,7 @@ const primaryCellWidth = (index: number) => `${62 + (index % 3) * 12}%`
 
 .table-loading-skeleton__placeholder::after {
   animation: table-loading-skeleton-wave 1.5s ease-in-out infinite;
-  background: linear-gradient(90deg, transparent, rgb(var(--v-theme-on-surface) / 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--v-theme-on-surface), 0.24), transparent);
   content: '';
   inset: 0;
   position: absolute;

@@ -17,11 +17,25 @@ const newComment = ref('')
 const editingCommentId = ref<string | null>(null)
 const editingContent = ref('')
 const userData = useCookie<{ id?: string | number } | null>('userData')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
 
 const canManageComment = (comment: { senderId: string }) => canAccess('edit_all_comments')
   || (canAccess('edit_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
+
+const canDeleteComment = (comment: { senderId: string }) => canAccess('delete_all_comments')
+  || (canAccess('delete_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
+
+const commentTime = (comment: { createdAt?: string | null; timestamp?: string }) => {
+  if (!comment.createdAt)
+    return comment.timestamp ?? ''
+
+  const date = new Date(comment.createdAt)
+  if (Number.isNaN(date.getTime()))
+    return comment.timestamp ?? ''
+
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
 
 const startEditing = (comment: { id: string; content: string; canEdit: boolean }) => {
   if (!comment.canEdit)
@@ -40,6 +54,12 @@ const saveComment = async () => {
     return
   await store.updateComment(store.selectedTaskId, editingCommentId.value, editingContent.value.trim())
   cancelEditing()
+}
+
+const deleteComment = async (commentId: string) => {
+  if (!store.selectedTaskId)
+    return
+  await store.deleteComment(store.selectedTaskId, commentId)
 }
 
 const handleClose = () => {
@@ -69,19 +89,17 @@ watch(() => store.selectedTask?.comments, () => {
 </script>
 
 <template>
-  <VNavigationDrawer
-    v-model="props.isOpen"
-    location="end"
-    temporary
-    :width="400"
-    class="task-comments-drawer"
+  <VDialog
+    :model-value="props.isOpen"
+    scrim
+    content-class="task-comments-overlay"
     @update:model-value="handleClose"
   >
     <VCard
       elevation="0"
-      class="h-100 d-flex flex-column"
+      class="task-comments-drawer d-flex flex-column"
     >
-      <VCardItem class="border-b">
+      <VCardItem class="task-comments-drawer__header border-b">
         <template #title>
           <div class="d-flex align-center">
             <VIcon
@@ -94,7 +112,8 @@ watch(() => store.selectedTask?.comments, () => {
         <template #append>
           <VBtn
             icon="tabler-x"
-            variant="text"
+            variant="tonal"
+            color="error"
             size="small"
             @click="handleClose"
           />
@@ -143,7 +162,7 @@ watch(() => store.selectedTask?.comments, () => {
               <div class="flex-grow-1">
                 <div class="d-flex justify-space-between align-center mb-1">
                   <span class="font-weight-medium">{{ comment.senderName }}</span>
-                  <span class="text-caption text-disabled">{{ comment.timestamp }}</span>
+                  <span class="text-caption text-disabled">{{ commentTime(comment) }}</span>
                 </div>
                 <template v-if="editingCommentId === comment.id">
                   <VTextarea
@@ -175,24 +194,25 @@ watch(() => store.selectedTask?.comments, () => {
                   <p class="mb-0">
                     {{ comment.content }}
                   </p>
-                  <VTooltip
-                    v-if="canManageComment(comment)"
-                    :text="comment.editWindowExpired && !comment.canEdit ? t('common.messages.editWindowExpired') : t('components.taskManager.comments.editComment')"
-                  >
-                    <template #activator="{ props: tooltipProps }">
-                      <IconBtn
-                        v-bind="tooltipProps"
-                        size="small"
-                        :disabled="!comment.canEdit"
-                        @click="startEditing(comment)"
-                      >
-                        <VIcon
-                          icon="tabler-pencil"
-                          size="16"
-                        />
-                      </IconBtn>
-                    </template>
-                  </VTooltip>
+                  <div class="d-flex align-center ga-1">
+                    <VTooltip
+                      v-if="canManageComment(comment)"
+                      :text="comment.editWindowExpired && !comment.canEdit ? t('common.messages.editWindowExpired') : t('components.taskManager.comments.editComment')"
+                    >
+                      <template #activator="{ props: tooltipProps }">
+                        <IconBtn v-bind="tooltipProps" size="small" :disabled="!comment.canEdit" @click="startEditing(comment)">
+                          <VIcon icon="tabler-pencil" size="16" />
+                        </IconBtn>
+                      </template>
+                    </VTooltip>
+                    <VTooltip v-if="canDeleteComment(comment)" :text="$t('common.actions.delete')">
+                      <template #activator="{ props: tooltipProps }">
+                        <IconBtn v-bind="tooltipProps" size="small" color="error" @click="deleteComment(comment.id)">
+                          <VIcon icon="tabler-trash" size="16" />
+                        </IconBtn>
+                      </template>
+                    </VTooltip>
+                  </div>
                 </div>
               </div>
             </div>
@@ -202,7 +222,7 @@ watch(() => store.selectedTask?.comments, () => {
 
       <VCardActions
         v-if="canAccess('create_comments_on_assigned_tasks')"
-        class="border-t pa-4"
+        class="task-comments-drawer__footer border-t pa-4"
       >
         <VTextarea
           v-model="newComment"
@@ -210,6 +230,7 @@ watch(() => store.selectedTask?.comments, () => {
           rows="2"
           auto-grow
           hide-details
+          persistent-placeholder
           class="mr-2"
           @keyup.enter.exact.prevent="handleSendComment"
         />
@@ -221,19 +242,44 @@ watch(() => store.selectedTask?.comments, () => {
         />
       </VCardActions>
     </VCard>
-  </VNavigationDrawer>
+  </VDialog>
 </template>
 
 <style scoped>
-.task-comments-drawer {
-  z-index: 1001;
+:global(.v-overlay:has(.task-comments-overlay)) { z-index: 3000 !important; }
+:global(.v-overlay:has(.task-comments-drawer) .v-overlay__scrim),
+:global(.v-overlay:has(.task-comments-overlay) .v-overlay__scrim) {
+  background: rgba(var(--v-theme-on-surface), .3) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
 }
+
+:global(.task-comments-overlay) {
+  position: fixed !important;
+  inset: .75rem .75rem .75rem auto !important;
+  display: flex;
+  inline-size: min(calc(100vw - 1.5rem), 32rem) !important;
+  block-size: calc(100dvh - 1.5rem) !important;
+  max-inline-size: none !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+:global(.task-comments-drawer) {
+  z-index: 3001 !important;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: 12px;
+}
+
+.task-comments-drawer__header,
+.task-comments-drawer__footer { background: rgba(var(--v-theme-on-surface), .025); }
 
 .comment {
   word-break: break-word;
 }
 
 .comments-scroll-container {
-  max-height: calc(100vh - 180px);
+  min-block-size: 0;
 }
 </style>

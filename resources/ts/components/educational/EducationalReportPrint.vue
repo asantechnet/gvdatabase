@@ -19,7 +19,7 @@ defineProps<{
   facts?: Array<{ label: string, value: string }>
   period?: string
   generatedAt?: string
-  totalLabel?: string
+  total?: number
   direction?: 'ltr' | 'rtl'
 }>()
 
@@ -103,9 +103,17 @@ const { logoUrl, originalCompanyName } = useBranding()
       </tbody>
     </table>
 
+    <table class="education-print-report__summary" aria-label="Report total">
+      <tbody>
+        <tr>
+          <th>{{ t('educational.reportColumns.total') }}</th>
+          <td>{{ total ?? rows.length }}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <footer class="education-print-report__footer">
       <span>{{ originalCompanyName }}</span>
-      <span v-if="totalLabel">{{ totalLabel }}</span>
       <span v-if="generatedAt">{{ t('common.crmUi.printGenerated', { date: generatedAt }) }}</span>
     </footer>
   </section>
@@ -275,6 +283,40 @@ const { logoUrl, originalCompanyName } = useBranding()
   body.printing-education-reports .education-print-report__empty {
     padding: 16px;
     color: #6d7185;
+    text-align: center;
+  }
+
+  body.printing-isolated-document .education-print-report__summary,
+  body.printing-education-reports .education-print-report__summary {
+    width: auto;
+    min-width: 42mm;
+    margin-block-start: 12px;
+    margin-inline-start: auto;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(var(--v-theme-primary), .12);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  body.printing-isolated-document .education-print-report__summary th,
+  body.printing-isolated-document .education-print-report__summary td,
+  body.printing-education-reports .education-print-report__summary th,
+  body.printing-education-reports .education-print-report__summary td {
+    border: 1px solid rgba(var(--v-theme-primary), .34);
+    color: inherit;
+    font-weight: 800;
+    padding: 7px 10px;
+  }
+
+  body.printing-isolated-document .education-print-report__summary th,
+  body.printing-education-reports .education-print-report__summary th {
+    background: rgba(var(--v-theme-primary), .12);
+    text-align: start;
+  }
+
+  body.printing-isolated-document .education-print-report__summary td,
+  body.printing-education-reports .education-print-report__summary td {
+    min-width: 14mm;
     text-align: center;
   }
 

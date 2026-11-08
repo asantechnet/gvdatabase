@@ -1607,7 +1607,7 @@ onBeforeUnmount(revokeObjectUrls)
                 decides which row the cards below read and write. This is the
                 only artwork editor on the page; the file selects are below.
               -->
-              <VCol cols="12">
+              <VCol v-if="false" cols="12">
                 <VRow density="compact">
                   <VCol cols="12" md="6">
                     <ErpField
@@ -1819,13 +1819,14 @@ onBeforeUnmount(revokeObjectUrls)
                 contract cards above: pick the source, upload/preview artwork,
                 and drag the safe-zone where auto-filled text may land.
               -->
-              <VCol cols="12">
+              <VCol v-if="false" cols="12">
                 <VDivider class="my-3" />
                 <h4 class="text-subtitle-1 font-weight-medium mb-1">
                   {{ $t('pages.settings.settings.receiptPayslipDocuments') }}
                 </h4>
               </VCol>
               <VCol
+                v-if="false"
                 v-for="doc in ([{ kind: 'receipt' as const }, { kind: 'payslip' as const }])"
                 :key="doc.kind"
                 cols="12"

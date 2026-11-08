@@ -1,7 +1,7 @@
 export default [
   {
     title: 'common.navigation.tasks',
-    icon: { icon: 'tabler-checklist' },
+    icon: { icon: 'tabler-list-check' },
     to: 'tasks',
     anyPermissions: [
       'view_all_boards',

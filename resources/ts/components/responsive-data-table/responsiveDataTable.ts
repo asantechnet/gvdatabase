@@ -703,7 +703,10 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
           (props.stickyLastColumn || stickyActions.value) && 'responsive-data-table--sticky-last',
           attrs.class,
         ],
-        mobileBreakpoint: props.mobileBreakpoint,
+        // Card conversion is handled above. Keep Vuetify's own mobile mode
+        // disabled so it does not inject its redundant "Sort by" control
+        // beneath a responsive card table.
+        mobileBreakpoint: 0,
       }, tableSlots)
 
       const actionState = actionSheetState.value

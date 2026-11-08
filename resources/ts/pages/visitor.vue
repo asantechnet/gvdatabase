@@ -1087,7 +1087,7 @@ onMounted(async () => {
       </VCardText>
       <VCardActions class="visitor-dialog-actions px-5 py-4">
         <VSpacer />
-        <VBtn class="visitor-dialog-cancel" variant="flat" color="error" :disabled="isSaving" @click="reviewDialog = false">
+        <VBtn class="visitor-dialog-cancel visitor-review-dialog__cancel" variant="flat" color="secondary" :disabled="isSaving" @click="reviewDialog = false">
           {{ $t('common.actions.cancel') }}
         </VBtn>
         <VBtn class="visitor-dialog-submit" color="primary" variant="flat" :loading="isSaving" @click="saveConsultantReview">
@@ -1505,6 +1505,22 @@ onMounted(async () => {
   border-color: rgb(var(--v-theme-error));
   background-color: rgb(var(--v-theme-error)) !important;
   color: rgb(var(--v-theme-on-error)) !important;
+}
+
+/* A review is a neutral workflow decision, so its dismiss action uses the
+   secondary treatment rather than the destructive-form cancel treatment. */
+.visitor-form-dialog button.visitor-review-dialog__cancel.v-btn {
+  border-color: rgba(var(--v-theme-secondary), .62) !important;
+  background-color: rgba(var(--v-theme-secondary), .12) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
+}
+.visitor-form-dialog button.visitor-review-dialog__cancel.v-btn:hover,
+.visitor-form-dialog button.visitor-review-dialog__cancel.v-btn:focus-visible,
+.visitor-form-dialog button.visitor-review-dialog__cancel.v-btn.v-btn--active,
+.visitor-form-dialog button.visitor-review-dialog__cancel.v-btn:active {
+  border-color: rgb(var(--v-theme-secondary)) !important;
+  background-color: rgb(var(--v-theme-secondary)) !important;
+  color: rgb(var(--v-theme-on-secondary)) !important;
 }
 
 .visitor-form-dialog .visitor-dialog-submit {

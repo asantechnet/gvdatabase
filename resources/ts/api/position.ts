@@ -18,6 +18,8 @@ export interface PositionPayload {
   title: string
   description?: string | null
   salary: number
+  currency_id: number | null
+  rate: number | null
   status: 'active' | 'inactive'
 }
 

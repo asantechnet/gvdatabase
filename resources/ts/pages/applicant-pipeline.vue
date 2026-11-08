@@ -307,7 +307,7 @@ onMounted(async () => {
         </div>
       </template>
     </VCardItem>
-    <VCardText>
+    <VCardText class="pipeline-board-content">
       <VAlert v-if="!canMove" type="info" variant="tonal" density="compact" class="mb-4">{{ $t('educational.stageMovePermission') }}</VAlert>
       <ApplicantPipelineSkeleton v-if="loading" />
       <TableEmptyState v-else-if="!stages.length || !hasCards" icon="tabler-clipboard-list" :title="$t('pages.contracts.visitor.visitor.noApplicants')" :description="$t('educational.noApplicants')" />
@@ -318,7 +318,7 @@ onMounted(async () => {
             <template #append><VChip size="small" :color="stage.is_terminal ? 'secondary' : 'primary'">{{ stage.count }}</VChip></template>
           </VCardItem>
           <VCardText class="d-flex flex-column gap-3 pa-3" style="min-block-size: 150px;">
-            <VCard v-for="card in (cards[stage.key] || [])" :key="card.id" variant="tonal" class="pipeline-case-card" :draggable="canMove && movingId !== card.id" @dragstart="onDragStart(card)" @dragend="onDragEnd">
+            <VCard v-for="card in (cards[stage.key] || [])" :key="card.id" variant="flat" class="pipeline-case-card" :draggable="canMove && movingId !== card.id" @dragstart="onDragStart(card)" @dragend="onDragEnd">
               <VCardText class="py-2">
                 <div class="font-weight-medium">{{ card.name || $t('educational.applicantNumber', { id: card.applicant_id }) }}</div>
                 <div class="text-caption text-medium-emphasis">#{{ card.applicant_id }} · {{ translateBackendValue(card.status) }}<span v-if="card.contract_number"> · {{ card.contract_number }}</span></div>
@@ -356,6 +356,12 @@ onMounted(async () => {
   display: none;
 }
 
+.pipeline-board-content {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
 .pipeline-column {
   background: rgb(var(--v-theme-surface));
   border-color: rgb(var(--v-border-color) / 0.45) !important;
@@ -364,12 +370,13 @@ onMounted(async () => {
 }
 
 .pipeline-case-card {
-  /* A gentle lifted white surface in light mode; the dark-theme rule below
-     mirrors it with a slightly deeper surface rather than a bright tint. */
-  background: rgb(var(--v-theme-surface)) !important;
-  border: 1px solid rgb(var(--v-border-color) / 0.28);
+  /* Cards need a distinct paper surface against a stage column in every
+     theme; tonal VCards otherwise inherit the column's dark grey. */
+  background: #fff !important;
+  border: 1px solid #e3e6ed;
   border-radius: 7px;
   box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 0.025);
+  color: #252a3d;
 }
 
 :global(.v-theme--dark .pipeline-case-card) {
@@ -379,6 +386,27 @@ onMounted(async () => {
 
 .pipeline-case-card :deep(.v-card-text) {
   padding: 0.875rem !important;
+  background: #fff !important;
+  color: #252a3d;
+}
+
+.pipeline-case-card :deep(.text-medium-emphasis) {
+  color: #667085 !important;
+}
+
+:global(.v-theme--dark) .pipeline-case-card {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgb(var(--v-border-color) / .38);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+:global(.v-theme--dark) .pipeline-case-card :deep(.v-card-text) {
+  background: rgb(var(--v-theme-surface)) !important;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+:global(.v-theme--dark) .pipeline-case-card :deep(.text-medium-emphasis) {
+  color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity)) !important;
 }
 
 .pipeline-case-card :deep(.v-card-text > div + div) {

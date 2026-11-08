@@ -1,11 +1,11 @@
 export default [
   {
     title: 'common.navigation.options',
-    icon: { icon: 'tabler-layout-grid-add' },
+    icon: { icon: 'tabler-apps' },
     children: [
       {
         title: 'common.navigation.contract',
-        icon: { icon: 'tabler-file-text' },
+        icon: { icon: 'tabler-file-certificate' },
         children: [
           {
             title: 'common.navigation.contractDocuments',
@@ -38,10 +38,10 @@ export default [
 
       {
         title: 'common.navigation.finance',
-        icon: { icon: 'tabler-coins' },
+        icon: { icon: 'tabler-cash' },
         children: [
-          { title: 'common.navigation.incomeTypes', icon: { icon: 'tabler-list' }, to: 'options-income-types', action: 'read', subject: 'view_settings' },
-          { title: 'common.navigation.expenseTypes', icon: { icon: 'tabler-list' }, to: 'options-expense-types', action: 'read', subject: 'view_settings' },
+          { title: 'common.navigation.incomeTypes', icon: { icon: 'tabler-list-details' }, to: 'options-income-types', action: 'read', subject: 'view_settings' },
+          { title: 'common.navigation.expenseTypes', icon: { icon: 'tabler-list-details' }, to: 'options-expense-types', action: 'read', subject: 'view_settings' },
           {
             title: 'common.navigation.currencies',
             icon: { icon: 'tabler-currency-dollar' },

@@ -5,8 +5,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
 /**
- * Global announcements: immutable messages composed by authorized employees
- * and delivered into the notification inbox of the selected audience. The
+ * Global announcements composed by authorized employees and delivered into
+ * the notification inbox of the selected audience. The
  * educational system additionally supports an applicants audience for the
  * applicant portal. See asantech-mini-management/ANNOUNCEMENTS_FEATURE_PLAN.md
  * for the shared design.

@@ -752,7 +752,7 @@ const removeInteraction = async (interaction: Interaction) => {
         <VSpacer />
         <VBtn
           variant="flat"
-          color="error"
+          color="secondary"
           class="relationship-interaction-card__cancel"
           :disabled="saving"
           @click="interactionDialog = false"
@@ -863,15 +863,15 @@ const removeInteraction = async (interaction: Interaction) => {
 .relationship-interaction-card__fields { display: grid; gap: 12px; }
 
 .relationship-interaction-card__cancel {
-  border: 1px solid rgb(var(--v-theme-error)) !important;
-  background: rgba(var(--v-theme-error), 0.12) !important;
-  color: rgb(var(--v-theme-error)) !important;
+  border: 1px solid rgba(var(--v-theme-secondary), .62) !important;
+  background: rgba(var(--v-theme-secondary), .12) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
 }
 
 .relationship-interaction-card__cancel:hover,
 .relationship-interaction-card__cancel:focus-visible,
 .relationship-interaction-card__cancel.v-btn--active,
-.relationship-interaction-card__cancel:active { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.relationship-interaction-card__cancel:active { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
 .relationship-interaction-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 @media (max-height: 650px) {

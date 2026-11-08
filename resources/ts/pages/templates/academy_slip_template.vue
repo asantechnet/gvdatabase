@@ -33,7 +33,6 @@ const brandStyle = computed(() => documentBrandStyle(
   props.slip.company.primary_color,
   props.slip.company.secondary_color,
 ))
-
 const formatMoney = (value: number | null | undefined, currency: ReceiptMoney | null) => {
   const decimals = currency?.decimalPlaces ?? 2
   const amount = Number(value ?? 0)
@@ -92,16 +91,13 @@ defineExpose({ print })
         :style="contentStyle"
       >
         <header class="academy-head">
-          <img
-            v-if="slip.company.logo_url"
-            class="academy-head__logo"
-            :src="slip.company.logo_url"
-            alt=""
-          >
-          <div class="academy-head__identity">
-            <div class="academy-head__name">
-              {{ slip.company.name || t('documents.academySlip.fallbackCompany') }}
-            </div>
+          <div class="academy-head__brand">
+            <img
+              v-if="slip.company.logo_url"
+              class="academy-head__logo"
+              :src="slip.company.logo_url"
+              alt=""
+            >
             <div class="academy-head__meta">
               <span v-if="slip.company.address">{{ slip.company.address }}</span>
               <span v-if="slip.company.phone">{{ slip.company.phone }}</span>
@@ -162,10 +158,6 @@ defineExpose({ print })
                 <th>{{ t('documents.academySlip.balance') }}</th>
                 <td>{{ formatMoney(slip.totals.balance, slip.totals.currency) }}</td>
               </tr>
-              <tr v-if="slip.service">
-                <th>{{ t('documents.academySlip.paymentStatus') }}</th>
-                <td>{{ t(`finance.paymentStatus.${slip.service.payment_status}`) }}</td>
-              </tr>
             </tbody>
           </table>
         </section>
@@ -182,7 +174,7 @@ defineExpose({ print })
             >
             <div class="academy-foot__line" />
             <div class="academy-foot__name">
-              {{ slip.signature.name || slip.company.name || '' }}
+              {{ slip.signature.name || '' }}
             </div>
           </div>
         </footer>
@@ -193,6 +185,8 @@ defineExpose({ print })
 
 <style scoped>
 .academy-sheet {
+  --academy-primary: var(--doc-primary);
+  --academy-secondary: var(--doc-secondary);
   display: flex;
   flex-direction: column;
   gap: 6mm;
@@ -218,7 +212,7 @@ defineExpose({ print })
   flex-direction: column;
   gap: 3mm;
   height: 100%;
-  padding: 8mm;
+  padding: 24px;
 }
 
 .academy-card__content > * { flex-shrink: 0; }
@@ -229,39 +223,33 @@ defineExpose({ print })
   justify-content: space-between;
   gap: 6mm;
   padding-block-end: 2.5mm;
-  border-block-end: 2px solid var(--doc-primary);
+  border-block-end: 2px solid var(--academy-primary);
 }
 
 .academy-head__logo {
-  width: 14mm;
-  height: 14mm;
+  width: 18mm;
+  height: 18mm;
   object-fit: contain;
-  flex-shrink: 0;
 }
 
-.academy-head__identity {
-  flex: 1;
-  min-inline-size: 0;
-}
-
-.academy-head__name {
-  font-size: 13pt;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--doc-primary);
+.academy-head__brand {
+  display: grid;
+  justify-items: start;
+  gap: .35mm;
+  min-inline-size: 26mm;
 }
 
 .academy-head__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1mm 4mm;
-  margin-block-start: 1mm;
-  color: #52616b;
+  display: grid;
+  gap: .4mm;
+  color: #374151;
   font-size: 7.5pt;
 }
 
 .academy-head__title {
-  text-align: end;
+  display: grid;
+  justify-items: start;
+  text-align: start;
   min-inline-size: 0;
   max-inline-size: 42%;
   flex-shrink: 0;
@@ -270,12 +258,12 @@ defineExpose({ print })
 .academy-head__eyebrow {
   font-size: 12pt;
   font-weight: 800;
-  color: var(--doc-primary);
+  color: var(--academy-primary);
   text-transform: uppercase;
 }
 
 .academy-head__sub {
-  color: #52616b;
+  color: #374151;
   font-size: 7.5pt;
 }
 
@@ -286,12 +274,12 @@ defineExpose({ print })
 
 .academy-head__refs div {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 2mm;
 }
 
 .academy-head__refs span {
-  color: #52616b;
+  color: #374151;
 }
 
 .academy-grid {
@@ -305,7 +293,7 @@ defineExpose({ print })
   margin: 0 0 1.5mm;
   padding-block-end: 1mm;
   border-block-end: 1px solid var(--doc-primary-tint);
-  color: var(--doc-primary);
+  color: var(--academy-primary);
   font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
@@ -324,7 +312,7 @@ defineExpose({ print })
 }
 
 .academy-block dt {
-  color: #52616b;
+  color: #374151;
   font-size: 8pt;
 }
 
@@ -349,7 +337,7 @@ defineExpose({ print })
 }
 
 .academy-lines th {
-  color: #52616b;
+  color: #374151;
   font-weight: 600;
   width: 60%;
 }
@@ -364,7 +352,7 @@ defineExpose({ print })
 .academy-lines__total td {
   border-block-start: 1.5px solid var(--doc-secondary);
   background: var(--doc-primary-soft);
-  color: var(--doc-primary);
+  color: var(--academy-primary);
   font-weight: 700;
 }
 
@@ -388,18 +376,18 @@ defineExpose({ print })
 }
 
 .academy-foot__line {
-  border-block-start: 1px solid #9ca3af;
+  border-block-start: 1px solid #374151;
   margin-block-start: 1mm;
 }
 
 .academy-foot__name {
-  color: #52616b;
+  color: #374151;
   font-size: 8pt;
   margin-block-start: 0.5mm;
 }
 
 .academy-foot__note {
-  color: #52616b;
+  color: #374151;
   font-size: 7.5pt;
   max-inline-size: 45%;
 }
@@ -414,7 +402,7 @@ defineExpose({ print })
 
 .academy-sheet--two-up .academy-card__content {
   gap: 2mm;
-  padding: 5mm;
+  padding: 24px;
 }
 
 .academy-sheet--two-up-compact .academy-card__content {

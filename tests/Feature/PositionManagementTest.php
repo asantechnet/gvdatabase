@@ -13,10 +13,13 @@ class PositionManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Currency $currency;
+
     protected function setUp(): void
     {
         parent::setUp();
         Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $this->currency = Currency::factory()->create(['is_base' => false, 'rate' => 70]);
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
     }
 
@@ -26,15 +29,20 @@ class PositionManagementTest extends TestCase
             'title' => 'Support Specialist',
             'description' => 'Helps applicants resolve technical issues.',
             'salary' => 42000,
+            'currency_id' => $this->currency->id,
+            'rate' => 71.25,
             'status' => 'active',
         ])->assertCreated()
             ->assertJsonPath('data.title', 'Support Specialist')
             ->assertJsonPath('data.employee_count', 0)
             ->assertJsonPath('data.user_count', 0)
+            ->assertJsonPath('data.currency.code', $this->currency->code)
+            ->assertJsonPath('data.currency.rate', 71.25)
             ->assertJsonMissingPath('data.permissions')
             ->assertJsonMissingPath('data.is_sys_user');
 
         $position = Position::findOrFail($created->json('data.id'));
+        $this->assertSame(71.25, $this->currency->fresh()->rate);
 
         $this->putJson("/api/positions/{$position->id}", [
             'title' => 'Applicant Support Specialist',

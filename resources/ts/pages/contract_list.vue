@@ -178,7 +178,9 @@ async function loadCounterparties() {
 const headers = computed(() => {
   const rows: Array<{ title: string; key: string; sortable: boolean }> = [
     { title: t('common.messages.contractNumber'), key: 'contract_number', sortable: true },
-    { title: t('common.messages.contract'), key: 'contract', sortable: true },
+    ...(isEmployeeAudience.value
+      ? [{ title: t('common.fields.position'), key: 'position', sortable: false }]
+      : [{ title: t('common.messages.contract'), key: 'contract', sortable: true }]),
   ]
 
   if (!isEmployeeAudience.value)
@@ -192,7 +194,7 @@ const headers = computed(() => {
     { title: t('serviceContracts.endDate'), key: 'end_date', sortable: true },
   )
 
-  if (canViewFinancials.value)
+  if (canViewFinancials.value && !isEmployeeAudience.value)
     rows.push({ title: t('pages.contracts.allContracts.allContracts.paymentStatus'), key: 'payment', sortable: false })
 
   rows.push(
@@ -205,12 +207,14 @@ const headers = computed(() => {
 
 const contractReportRow = (contract: Contract): string[] => [
   contract.contract_number ?? '—',
-  contract.contract || contract.contract_template?.name || '—',
+  isEmployeeAudience.value
+    ? String(contract.employee?.position ?? '—')
+    : contract.contract || contract.contract_template?.name || '—',
   ...(isEmployeeAudience.value ? [] : [contract.snapshot_data?.template_version?.name || '—']),
   ...(isOtherAudience.value ? [] : [contract.counterparty || '—']),
   contract.start_date ?? '—',
   contract.end_date ?? '—',
-  ...(canViewFinancials.value ? [paymentLabel(contract)] : []),
+  ...(canViewFinancials.value && !isEmployeeAudience.value ? [paymentLabel(contract)] : []),
   contract.display_status ?? contract.status,
 ]
 
@@ -269,6 +273,13 @@ const contractDetailFields = computed(() => [
   { key: 'contract_number', label: t('common.messages.contractNumber') },
   { key: 'contract', label: t('common.messages.contract') },
   { key: 'snapshot_data.template_version.name', label: t('agencyStaff.contractVersion') },
+  ...(canViewFinancials.value
+    ? [
+        { key: 'payment.status', label: t('pages.contracts.allContracts.allContracts.paymentStatus') },
+        { key: 'payment.outstanding', label: t('pages.contracts.allContracts.allContracts.outstandingAmount') },
+        { key: 'payment.currency.code', label: t('serviceContracts.currency') },
+      ]
+    : []),
   { key: 'type', label: t('educational.contractType') },
   { key: 'status', label: t('common.fields.status') },
   { key: 'start_date', label: t('serviceContracts.startDate') },
@@ -644,6 +655,9 @@ onMounted(async () => {
         >
           {{ $t('common.statuses.cancelled') }}
         </VChip>
+      </template>
+      <template #item.position="{ item }">
+        {{ item.employee?.position || '—' }}
       </template>
       <template
         v-if="!isOtherAudience"

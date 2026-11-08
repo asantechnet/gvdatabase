@@ -41,6 +41,8 @@ const request = async <T>(operation: () => Promise<any>): Promise<T> => {
 export const getAnnouncements = (): Promise<Announcement[]> => request(() => api.get('/announcements'))
 export const getAnnouncement = (id: number): Promise<Announcement> => request(() => api.get(`/announcements/${id}`))
 export const createAnnouncement = (data: AnnouncementCreateData): Promise<Announcement> => request(() => api.post('/announcements', data))
+export const updateAnnouncement = (id: number, data: AnnouncementCreateData): Promise<Announcement> => request(() => api.put(`/announcements/${id}`, data))
+export const deleteAnnouncement = (id: number): Promise<void> => request(() => api.delete(`/announcements/${id}`))
 export const getAnnouncementAudienceOptions = (): Promise<AnnouncementAudienceOptions> => request(() => api.get('/announcements/audience-options'))
 
-export default { getAnnouncements, getAnnouncement, createAnnouncement, getAnnouncementAudienceOptions }
+export default { getAnnouncements, getAnnouncement, createAnnouncement, updateAnnouncement, deleteAnnouncement, getAnnouncementAudienceOptions }
