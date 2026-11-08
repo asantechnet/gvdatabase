@@ -28,3 +28,4 @@ export interface KanbanData { boards: KanbanBoard[]; items: KanbanItem[] }
 export interface AddNewKanbanItem { itemTitle: string; boardName: string; boardId: KanbanId }
 export interface EditKanbanItem { item: KanbanItem; boardId: KanbanId; boardName: string }
 export interface KanbanState { boardId: KanbanId; ids: KanbanId[] }
+export interface KanbanTaskMove { taskId: KanbanId; boardId: KanbanId; order: number }

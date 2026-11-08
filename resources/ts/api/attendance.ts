@@ -61,6 +61,13 @@ export interface CreateAttendanceData {
   break_minutes?: number | null
 }
 
+export interface UpdateAttendanceData {
+  status: 'present' | 'absent'
+  check_in_time?: string | null
+  check_out_time?: string | null
+  break_minutes?: number | null
+}
+
 const AttendanceApi = {
   async getAll(params?: AttendanceParams): Promise<Attendance[]> {
     const response = await api.get<{ data: Attendance[] }>('/attendances', { params })
@@ -89,6 +96,11 @@ const AttendanceApi = {
   },
   async create(data: CreateAttendanceData): Promise<Attendance> {
     const response = await api.post<{ data: Attendance }>('/attendances', data)
+
+    return response.data.data
+  },
+  async update(id: number, data: UpdateAttendanceData): Promise<Attendance> {
+    const response = await api.put<{ data: Attendance }>(`/attendances/${id}`, data)
 
     return response.data.data
   },

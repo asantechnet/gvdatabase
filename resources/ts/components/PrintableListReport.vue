@@ -11,6 +11,9 @@ defineProps<{
   subtitle?: string
   columns: string[]
   rows: Array<Array<string | number | null | undefined>>
+  summaryLabel?: string
+  summaryValue?: string | number
+  total?: number
 }>()
 
 const generatedAt = ref('')
@@ -65,6 +68,15 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
       </tbody>
     </table>
 
+    <table class="list-print-report__summary" aria-label="Report total">
+      <tbody>
+        <tr>
+          <th>{{ summaryLabel ?? t('educational.reportColumns.total') }}</th>
+          <td>{{ summaryValue ?? total ?? rows.length }}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <footer>{{ originalCompanyName }} · {{ t('common.crmUi.printGenerated', { date: generatedAt }) }} · {{ rows.length }}</footer>
   </section>
 </template>
@@ -93,6 +105,11 @@ onBeforeUnmount(() => document.removeEventListener('app:before-print', setGenera
   body.printing-isolated-document .list-print-report th { color: rgb(var(--v-theme-primary)); font-size: 10px; font-weight: 700; text-align: start; }
   body.printing-isolated-document .list-print-report th, body.printing-isolated-document .list-print-report td { border-bottom: 1px solid #d9d9d9; padding: 9px 7px; vertical-align: top; }
   body.printing-isolated-document .list-print-report td.empty { color: #999; text-align: center; }
+  body.printing-isolated-document .list-print-report__summary { width: auto; min-width: 38mm; margin-block-start: 12px; margin-inline-start: auto; border-collapse: separate; border-spacing: 0; background: rgba(var(--v-theme-primary), .12); color: rgb(var(--v-theme-primary)); }
+  body.printing-isolated-document .list-print-report__summary th,
+  body.printing-isolated-document .list-print-report__summary td { border: 1px solid rgba(var(--v-theme-primary), .34); color: inherit; font-weight: 800; padding: 7px 10px; }
+  body.printing-isolated-document .list-print-report__summary th { background: rgba(var(--v-theme-primary), .12); text-align: start; }
+  body.printing-isolated-document .list-print-report__summary td { min-width: 13mm; text-align: center; }
   body.printing-isolated-document .list-print-report footer { color: #666; font-size: 10px; margin-top: 22px; text-align: end; }
 }
 </style>

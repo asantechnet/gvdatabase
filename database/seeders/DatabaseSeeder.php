@@ -61,6 +61,7 @@ class DatabaseSeeder extends Seeder
             // Operational and dependent sample records.
             AssetSeeder::class,
             AttendanceSeeder::class,
+            LeaveRequestSeeder::class,
             SalarySeeder::class,
             WorthyEmployeeSeeder::class,
             VisitorSeeder::class,

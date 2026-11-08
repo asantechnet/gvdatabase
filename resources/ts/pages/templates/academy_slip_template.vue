@@ -28,15 +28,6 @@ const { t, locale } = useI18n()
 const direction = computed(() => (locale.value === 'en' ? 'ltr' : 'rtl'))
 const copies = computed(() => academySlipCopies(props.copies))
 
-const letterhead = computed(() => props.slip.letterhead)
-const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
-const safeStyle = computed(() => ({
-  insetInlineStart: `${letterhead.value?.safe?.x ?? 0}%`,
-  insetBlockStart: `${letterhead.value?.safe?.y ?? 0}%`,
-  width: `${letterhead.value?.safe?.width ?? 100}%`,
-  height: `${letterhead.value?.safe?.height ?? 100}%`,
-}))
-
 const formatMoney = (value: number | null | undefined, currency: ReceiptMoney | null) => {
   const decimals = currency?.decimalPlaces ?? 2
   const amount = Number(value ?? 0)
@@ -57,14 +48,12 @@ const isTwoUp = computed(() => twoUp.value !== null)
 const twoUpContentScale = computed(() => (paperSizeCss.value === 'A5 2x' ? 0.7 : 1))
 
 const contentStyle = computed(() => {
-  const style: Record<string, string> = hasLetterhead.value ? { ...safeStyle.value } : {}
+  const style: Record<string, string> = {}
   const scale = twoUpContentScale.value
 
   if (scale !== 1) {
-    if (hasLetterhead.value) {
-      style.width = `${parseFloat(style.width || '100') / scale}%`
-      style.height = `${parseFloat(style.height || '100') / scale}%`
-    }
+    style.width = `${100 / scale}%`
+    style.height = `${100 / scale}%`
     style.transform = `scale(${scale})`
     style.transformOrigin = direction.value === 'rtl' ? 'top right' : 'top left'
   }
@@ -94,33 +83,21 @@ defineExpose({ print })
       :key="copy"
       class="academy-card"
     >
-      <img
-        v-if="hasLetterhead"
-        class="academy-card__art"
-        :src="letterhead.url ?? undefined"
-        alt=""
-      >
       <div
         class="academy-card__content"
-        :class="{ 'academy-card__content--safe': hasLetterhead }"
         :style="contentStyle"
       >
         <header class="academy-head">
-          <img
-            v-if="slip.company.logo_url"
-            class="academy-head__logo"
-            :src="slip.company.logo_url"
-            alt=""
-          >
-          <div class="academy-head__identity">
-            <div class="academy-head__name">
-              {{ slip.company.name || t('documents.academySlip.fallbackCompany') }}
-            </div>
+          <div class="academy-head__brand">
+            <img
+              v-if="slip.company.logo_url"
+              class="academy-head__logo"
+              :src="slip.company.logo_url"
+              alt=""
+            >
             <div class="academy-head__meta">
               <span v-if="slip.company.address">{{ slip.company.address }}</span>
               <span v-if="slip.company.phone">{{ slip.company.phone }}</span>
-              <span v-if="slip.company.email">{{ slip.company.email }}</span>
-              <span v-if="slip.company.licence">{{ slip.company.licence }}</span>
             </div>
           </div>
           <div class="academy-head__title">
@@ -176,10 +153,6 @@ defineExpose({ print })
                 <th>{{ t('documents.academySlip.balance') }}</th>
                 <td>{{ formatMoney(slip.totals.balance, slip.totals.currency) }}</td>
               </tr>
-              <tr v-if="slip.service">
-                <th>{{ t('documents.academySlip.paymentStatus') }}</th>
-                <td>{{ t(`finance.paymentStatus.${slip.service.payment_status}`) }}</td>
-              </tr>
             </tbody>
           </table>
         </section>
@@ -196,7 +169,7 @@ defineExpose({ print })
             >
             <div class="academy-foot__line" />
             <div class="academy-foot__name">
-              {{ slip.signature.name || slip.company.name || '' }}
+              {{ slip.signature.name || '' }}
             </div>
           </div>
         </footer>
@@ -207,6 +180,8 @@ defineExpose({ print })
 
 <style scoped>
 .academy-sheet {
+  --academy-primary: rgb(var(--v-theme-primary));
+  --academy-secondary: rgb(var(--v-theme-secondary));
   display: flex;
   flex-direction: column;
   gap: 6mm;
@@ -227,29 +202,15 @@ defineExpose({ print })
   overflow-wrap: anywhere;
 }
 
-.academy-card__art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .academy-card__content {
   display: flex;
   flex-direction: column;
   gap: 3mm;
   height: 100%;
-  padding: 8mm;
+  padding: 24px;
 }
 
 .academy-card__content > * { flex-shrink: 0; }
-
-.academy-card__content--safe {
-  position: absolute;
-  padding: 3mm;
-  overflow: hidden;
-}
 
 .academy-head {
   display: flex;
@@ -257,39 +218,33 @@ defineExpose({ print })
   justify-content: space-between;
   gap: 6mm;
   padding-block-end: 2.5mm;
-  border-block-end: 2px solid #0f766e;
+  border-block-end: 2px solid var(--academy-primary);
 }
 
 .academy-head__logo {
-  width: 14mm;
-  height: 14mm;
+  width: 18mm;
+  height: 18mm;
   object-fit: contain;
-  flex-shrink: 0;
 }
 
-.academy-head__identity {
-  flex: 1;
-  min-inline-size: 0;
-}
-
-.academy-head__name {
-  font-size: 13pt;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #0f766e;
+.academy-head__brand {
+  display: grid;
+  justify-items: start;
+  gap: .35mm;
+  min-inline-size: 26mm;
 }
 
 .academy-head__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1mm 4mm;
-  margin-block-start: 1mm;
-  color: #52616b;
+  display: grid;
+  gap: .4mm;
+  color: #374151;
   font-size: 7.5pt;
 }
 
 .academy-head__title {
-  text-align: end;
+  display: grid;
+  justify-items: start;
+  text-align: start;
   min-inline-size: 0;
   max-inline-size: 42%;
   flex-shrink: 0;
@@ -298,12 +253,12 @@ defineExpose({ print })
 .academy-head__eyebrow {
   font-size: 12pt;
   font-weight: 800;
-  color: #0f766e;
+  color: var(--academy-primary);
   text-transform: uppercase;
 }
 
 .academy-head__sub {
-  color: #52616b;
+  color: #374151;
   font-size: 7.5pt;
 }
 
@@ -314,12 +269,12 @@ defineExpose({ print })
 
 .academy-head__refs div {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 2mm;
 }
 
 .academy-head__refs span {
-  color: #52616b;
+  color: #374151;
 }
 
 .academy-grid {
@@ -333,7 +288,7 @@ defineExpose({ print })
   margin: 0 0 1.5mm;
   padding-block-end: 1mm;
   border-block-end: 1px solid #e2e8f0;
-  color: #0f766e;
+  color: var(--academy-secondary);
   font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
@@ -352,7 +307,7 @@ defineExpose({ print })
 }
 
 .academy-block dt {
-  color: #52616b;
+  color: #374151;
   font-size: 8pt;
 }
 
@@ -377,7 +332,7 @@ defineExpose({ print })
 }
 
 .academy-lines th {
-  color: #52616b;
+  color: #374151;
   font-weight: 600;
   width: 60%;
 }
@@ -390,8 +345,8 @@ defineExpose({ print })
 
 .academy-lines__total th,
 .academy-lines__total td {
-  background: #f0fdfa;
-  color: #0f766e;
+  background: rgba(var(--v-theme-primary), .12);
+  color: var(--academy-primary);
   font-weight: 700;
 }
 
@@ -415,18 +370,18 @@ defineExpose({ print })
 }
 
 .academy-foot__line {
-  border-block-start: 1px solid #9ca3af;
+  border-block-start: 1px solid #374151;
   margin-block-start: 1mm;
 }
 
 .academy-foot__name {
-  color: #52616b;
+  color: #374151;
   font-size: 8pt;
   margin-block-start: 0.5mm;
 }
 
 .academy-foot__note {
-  color: #52616b;
+  color: #374151;
   font-size: 7.5pt;
   max-inline-size: 45%;
 }
@@ -441,10 +396,10 @@ defineExpose({ print })
 
 .academy-sheet--two-up .academy-card__content {
   gap: 2mm;
-  padding: 5mm;
+  padding: 24px;
 }
 
-.academy-sheet--two-up-compact .academy-card__content:not(.academy-card__content--safe) {
+.academy-sheet--two-up-compact .academy-card__content {
   width: 142.857%;
   height: 142.857%;
 }

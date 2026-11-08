@@ -2,7 +2,6 @@
 import { formatActiveMoney, translate } from '@/utils/localization'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
-import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type EmployeeParams, type UpdateEmployeeData } from '@/api/employee'
 import StaffSupervisorDisclosureDialog from '@/components/StaffSupervisorDisclosureDialog.vue'
@@ -72,7 +71,6 @@ const perPage = ref(25);
 const total = ref(0);
 // Filled from every matching staff row right before printing.
 const reportRows = ref<string[][]>([]);
-const router = useRouter();
 const toast = useToast();
 const isAddStaffDialogVisible = ref(false);
 const isEditStaffDialogVisible = ref(false);
@@ -236,13 +234,6 @@ const staffDetailFields = computed(() => [
   { key: 'guarantor_address', label: translate('common.messages.guarantorAddress') },
   { key: 'status', label: translate('common.fields.status') },
 ])
-
-const printEmployeeContract = (staff: Staff) => {
-  router.push({
-    name: "employee-contracts",
-    query: { employeeId: staff.id, print: "1" },
-  });
-};
 
 const formErrors = ref({
   department_ids: '',
@@ -1310,9 +1301,6 @@ onMounted(async () => {
 
           <template #item.actions="{ item }">
             <div class="d-flex align-center ga-1 justify-end">
-              <VBtn icon="tabler-file-description" variant="text" size="small" color="primary" :aria-label="$t('common.ui.printEmploymentContract')" @click="printEmployeeContract(item)">
-                <VTooltip activator="parent" location="top">{{ $t('common.ui.printEmploymentContract') }}</VTooltip>
-              </VBtn>
               <VMenu location="bottom end">
                 <template #activator="{ props: menuProps }">
                   <VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" class="staff-actions-trigger" :aria-label="$t('common.messages.actions')" />
@@ -1331,7 +1319,7 @@ onMounted(async () => {
           </template>
           <template #no-data>
             <div class="staff-empty-state">
-              <TableEmptyState icon="tabler-user-off" :title="$t('common.navigation.staffList')" :description="$t('educational.noStaff')" :min-height="0" />
+              <TableEmptyState icon="tabler-user-off" :title="$t('common.navigation.staffList')" :description="$t('pages.settings.staffList.staffList.noStaffYet')" :min-height="0" />
               <VBtn color="primary" variant="tonal" class="staff-empty-state__action" @click="openAddStaffDialog"><VIcon icon="tabler-plus" class="me-1" />{{ $t('pages.settings.staffList.staffList.addStaff') }}</VBtn>
             </div>
           </template>
@@ -2601,7 +2589,7 @@ onMounted(async () => {
 <style lang="scss">
 .staff-responsive-table tbody td { padding-block: .875rem; }
 .staff-empty-state { display: grid; justify-items: center; padding-block: 1.25rem 2rem; }
-.staff-empty-state__action { margin-block-start: -.25rem; }
+.staff-empty-state__action { margin-block-start: -.5rem; }
 .staff-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
 
 .staff-form-dialog .staff-form-card { overflow: hidden; }

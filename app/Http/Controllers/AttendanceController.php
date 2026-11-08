@@ -205,6 +205,41 @@ class AttendanceController extends Controller
         return new AttendanceResource($attendance);
     }
 
+    /** Correct a manually maintained attendance record without changing its employee or date. */
+    public function update(Request $request, Attendance $attendance, AttendanceCalculationService $calculator, CompanyProfile $company): AttendanceResource
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['present', 'absent'])],
+            'check_in_time' => ['nullable', 'date_format:H:i'],
+            'check_out_time' => ['nullable', 'date_format:H:i'],
+            'break_minutes' => ['nullable', 'integer', 'min:0', 'max:720'],
+        ]);
+
+        abort_if($attendance->off_day_id || $attendance->leave_request_id, 422, 'business.attendance_cannot_edit_protected_record');
+        $timezone = $company->timezone();
+        $checkedInAt = $validated['status'] === 'present' && ! empty($validated['check_in_time'])
+            ? Carbon::parse($attendance->date->format('Y-m-d').' '.$validated['check_in_time'], $timezone)->utc() : null;
+        $checkedOutAt = $validated['status'] === 'present' && ! empty($validated['check_out_time'])
+            ? Carbon::parse($attendance->date->format('Y-m-d').' '.$validated['check_out_time'], $timezone)->utc() : null;
+        if ($checkedInAt && $checkedOutAt && $checkedOutAt->lt($checkedInAt)) {
+            $checkedOutAt->addDay();
+        }
+
+        $attendance->fill([
+            'status' => $validated['status'],
+            'source' => 'manual',
+            'check_in_time' => $validated['status'] === 'present' ? ($validated['check_in_time'] ?? null) : null,
+            'check_out_time' => $validated['status'] === 'present' ? ($validated['check_out_time'] ?? null) : null,
+            'checked_in_at' => $checkedInAt,
+            'checked_out_at' => $checkedOutAt,
+            'break_minutes' => $validated['status'] === 'present' ? ($validated['break_minutes'] ?? null) : 0,
+        ])->save();
+        $calculator->calculate($attendance, true);
+        $attendance->load(['staff.position', 'office']);
+
+        return new AttendanceResource($attendance);
+    }
+
     /**
      * Fetch staff who have NOT been marked for a specific start date.
      */

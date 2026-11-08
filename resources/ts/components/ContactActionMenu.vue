@@ -328,7 +328,7 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
       </VCardText>
       <VCardActions class="contact-log-card__actions px-5 py-4">
         <VSpacer />
-        <VBtn variant="flat" color="error" class="contact-log-card__cancel" :disabled="saving"
+        <VBtn variant="flat" color="secondary" class="contact-log-card__cancel" :disabled="saving"
           @click="dialog = false"
         >
           {{ $t('common.actions.cancel') }}
@@ -398,14 +398,14 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
 .contact-log-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
 .contact-log-card__fields { display: grid; gap: 12px; }
 .contact-log-card__cancel {
-  border: 1px solid rgb(var(--v-theme-error)) !important;
-  background: rgba(var(--v-theme-error), 0.12) !important;
-  color: rgb(var(--v-theme-error)) !important;
+  border: 1px solid rgba(var(--v-theme-secondary), .62) !important;
+  background: rgba(var(--v-theme-secondary), .12) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
 }
 .contact-log-card__cancel:hover,
 .contact-log-card__cancel:focus-visible,
 .contact-log-card__cancel.v-btn--active,
-.contact-log-card__cancel:active { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.contact-log-card__cancel:active { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
 .contact-log-card__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 .contact-action-menu__value {

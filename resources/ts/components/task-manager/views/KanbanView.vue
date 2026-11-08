@@ -2,33 +2,50 @@
 import type Viewer from 'viewerjs'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'vue-toastification'
 import 'viewerjs/dist/viewer.css'
 import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
-import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
 import TaskApi from '@/api/task'
+import TaskAssigneeApi, { type TaskAssigneeOption } from '@/api/taskAssignee'
+import KanbanTaskEditForm from '@/components/forms/KanbanTaskEditForm.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
 import type { Task, TaskAttachment } from '@/api/kanban'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { canAccess } from '@/utils/authorization'
 
-interface AddNewKanbanItem { boardId: string | number; itemTitle: string }
+interface AddNewKanbanItem { boardId: string | number; boardName: string; itemTitle: string }
 interface EditKanbanItem { item: { id: string | number } }
-interface KanbanState { boardId: string | number; ids: Array<string | number> }
+interface KanbanTaskMove { taskId: string | number; boardId: string | number; order: number }
 
 const store = useTaskStore()
 const { t: translate } = useI18n()
-const isDetailDrawerOpen = ref(false)
+const toast = useToast()
 const isCommentsDrawerOpen = ref(false)
 const isLoading = ref(true)
-const editorItemId = ref<string | null>(null)
+const isCreateDialogOpen = ref(false)
+const creatingBoard = ref<{ id: string | number; title: string } | null>(null)
+const createEmployees = ref<TaskAssigneeOption[]>([])
+const isLoadingCreateEmployees = ref(false)
+const isCreating = ref(false)
+const today = new Date().toISOString().slice(0, 10)
+const createTaskDraft = ref<Record<string, any>>({})
 const isAttachmentsDialogOpen = ref(false)
 const attachmentTask = ref<Task | null>(null)
 const attachmentImageContainer = ref<HTMLElement>()
 const imagePreviewUrls = ref<Record<string, string>>({})
+const previewAttachment = ref<TaskAttachment | null>(null)
+const previewUrl = ref('')
+const isAttachmentPreviewOpen = ref(false)
 let imageViewer: Viewer | null = null
 let moveWarningOpen = false
 let moveBatchTimer: number | undefined
-const pendingMoveStates = new Map<string, KanbanState>()
+const pendingMoves = new Map<string, KanbanTaskMove>()
+const canAssignMembers = () => canAccess('assign_task_members')
+const canManageTags = () => canAccess('manage_task_tags')
+const canManageDependencies = () => canAccess('manage_task_dependencies')
+const taskOptions = computed(() => store.tasks.map(task => ({ title: task.title, value: task.id })))
 
 // Load data when component mounts
 onMounted(async () => {
@@ -49,7 +66,7 @@ const vuexyKanbanData = computed(() => {
       title: col.title,
       itemsIds: store.tasks
         .filter(t => t.boardId === col.id)
-        .sort((a, b) => a.order - b.order)
+        .sort((a, b) => b.order - a.order)
         .map(t => t.id),
     })),
     items: store.tasks.map(task => ({
@@ -80,10 +97,10 @@ const commitPendingCardMove = async () => {
   if (moveWarningOpen)
     return
 
-  const states = [...pendingMoveStates.values()]
+  const moves = [...pendingMoves.values()]
 
-  pendingMoveStates.clear()
-  if (!states.length)
+  pendingMoves.clear()
+  if (!moves.length)
     return
 
   moveWarningOpen = true
@@ -106,21 +123,26 @@ const commitPendingCardMove = async () => {
 
     // Cross-column drops report both affected columns. Persist the collected
     // states sequentially so requests cannot overtake one another.
-    for (const state of states) {
-      for (const [index, itemId] of state.ids.entries())
-        await store.moveTaskBoard(String(itemId), String(state.boardId), index)
+    for (const move of moves) {
+      if (!await store.moveTaskBoard(String(move.taskId), String(move.boardId), move.order)) {
+        await store.fetchBoardData()
+        toast.error(translate('components.taskManager.kanbanview.taskMoveFailed'))
+
+        return
+      }
     }
+    toast.success(translate('components.taskManager.kanbanview.taskMoved'))
   }
   finally {
     moveWarningOpen = false
-    if (pendingMoveStates.size)
+    if (pendingMoves.size)
       await store.fetchBoardData()
-    pendingMoveStates.clear()
+    pendingMoves.clear()
   }
 }
 
-const handleUpdateItemsState = (payload: KanbanState) => {
-  pendingMoveStates.set(String(payload.boardId), payload)
+const handleUpdateItemsState = (payload: KanbanTaskMove) => {
+  pendingMoves.set(String(payload.taskId), payload)
   if (moveBatchTimer !== undefined)
     window.clearTimeout(moveBatchTimer)
   moveBatchTimer = window.setTimeout(() => {
@@ -129,30 +151,36 @@ const handleUpdateItemsState = (payload: KanbanState) => {
   }, 80)
 }
 
-const handleAddNewItem = async (payload: AddNewKanbanItem) => {
-  const task = await store.addTask({
-    title: payload.itemTitle,
-    boardId: String(payload.boardId),
-    description: '',
-    priority: 'medium',
-    start_date: new Date().toISOString().substring(0, 10),
-    due_date: new Date().toISOString().substring(0, 10),
-  })
-
-  if (task) {
-    store.selectTask(task.id)
-
-    // Wait until the new card has been rendered before asking the Kanban
-    // component to open its own editor drawer for it.
-    await nextTick()
-    editorItemId.value = task.id
+const openCreateTaskDialog = async (payload: AddNewKanbanItem) => {
+  creatingBoard.value = { id: payload.boardId, title: payload.boardName }
+  createTaskDraft.value = { title: '', description: '', priority: 'medium', startDate: today, dueDate: today, labels: [], members: [], dependencies: [] }
+  isCreateDialogOpen.value = true
+  if (canManageTags())
+    await store.fetchTags()
+  if (canAssignMembers() && !createEmployees.value.length) {
+    isLoadingCreateEmployees.value = true
+    try { createEmployees.value = await TaskAssigneeApi.getAll() }
+    finally { isLoadingCreateEmployees.value = false }
   }
 }
 
-// Opens the original Task Detail Drawer when clicking card
-const handleEditItem = (payload: EditKanbanItem) => {
-  store.selectTask(String(payload.item.id))
-  isDetailDrawerOpen.value = true
+const createTask = async (draft: Record<string, any>) => {
+  if (!creatingBoard.value)
+    return
+  isCreating.value = true
+  const tags = draft.labels.map((label: string) => Number(store.tags.find(tag => tag.name === label)?.id)).filter(Boolean)
+  const assignees = draft.members.map((member: TaskAssigneeOption) => Number(member.id)).filter(Boolean)
+  const task = await store.addTask({ boardId: String(creatingBoard.value.id), title: draft.title, description: draft.description, priority: draft.priority, start_date: draft.startDate, due_date: draft.dueDate, ...(canManageTags() ? { tags } : {}), ...(canAssignMembers() ? { assignees } : {}) })
+  isCreating.value = false
+  if (!task) {
+    toast.error(translate('components.taskManager.kanbanview.taskCreateFailed'))
+
+    return
+  }
+  if (canManageDependencies() && draft.dependencies.length)
+    await store.updateTask(task.id, { dependencies: draft.dependencies })
+  isCreateDialogOpen.value = false
+  toast.success(translate('components.taskManager.kanbanview.taskCreated'))
 }
 
 // Opens the Task Comments Drawer when clicking comment icon
@@ -179,6 +207,17 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
   link.download = attachment.name
   link.click()
   URL.revokeObjectURL(url)
+}
+
+const previewAttachmentFile = async (attachment: TaskAttachment) => {
+  if (!attachmentTask.value)
+    return
+  if (previewUrl.value)
+    URL.revokeObjectURL(previewUrl.value)
+  const response = await TaskApi.downloadAttachment(attachmentTask.value.id, attachment.id)
+  previewAttachment.value = attachment
+  previewUrl.value = URL.createObjectURL(response.data)
+  isAttachmentPreviewOpen.value = true
 }
 
 const clearImagePreviews = () => {
@@ -210,6 +249,10 @@ watch(isAttachmentsDialogOpen, async isOpen => {
   imageViewer?.destroy()
   imageViewer = null
   clearImagePreviews()
+  if (!isOpen && previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = ''
+  }
   if (!isOpen)
     return
   await loadImagePreviews()
@@ -235,6 +278,8 @@ onBeforeUnmount(() => {
     window.clearTimeout(moveBatchTimer)
   imageViewer?.destroy()
   clearImagePreviews()
+  if (previewUrl.value)
+    URL.revokeObjectURL(previewUrl.value)
 })
 
 const handleDeleteItem = (payload: EditKanbanItem) => {
@@ -264,19 +309,20 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
           </VCardItem>
 
           <VCardText class="kanban-scroll-area bg-background">
-            <VProgressLinear
-              v-if="isLoading"
-              indeterminate
-              color="primary"
-              class="position-absolute"
-              style="z-index: 1;"
-            />
-
+            <div v-if="isLoading" class="kanban-skeleton" aria-busy="true">
+              <VCard v-for="column in 3" :key="column" class="kanban-skeleton__column pa-4" variant="outlined">
+                <V-SkeletonLoader type="heading" class="mb-5" />
+                <V-SkeletonLoader v-for="card in 4" :key="card" type="card" class="mb-4" />
+              </VCard>
+            </div>
+            <div v-else-if="!store.columns.length || !store.tasks.length" class="kanban-empty-state">
+              <TableEmptyState icon="tabler-layout-kanban" :title="$t('common.messages.noRecordsFound')" :description="$t('components.taskManager.kanbanview.emptyDescription')" :min-height="360" />
+              <VBtn v-if="store.columns.length && canAccess('create_tasks')" prepend-icon="tabler-plus" @click="openCreateTaskDialog({ boardId: store.columns[0].id, boardName: store.columns[0].title, itemTitle: '' })">{{ $t('common.messages.createTask') }}</VBtn>
+            </div>
             <KanbanBoard
+              v-else
               :kanban-data="vuexyKanbanData"
-              :open-item-id="editorItemId"
-              @add-new-item="handleAddNewItem"
-              @edit-item="handleEditItem"
+              @add-new-item="openCreateTaskDialog"
               @delete-item="handleDeleteItem"
               @update-items-state="handleUpdateItemsState"
               @comments-click="handleCommentsClick"
@@ -287,18 +333,15 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
       </VCol>
     </VRow>
 
-    <!-- Original Task Detail Editor Drawer -->
-    <TaskDetailDrawer v-model:is-open="isDetailDrawerOpen" />
-
-    <!-- Dedicated Task Comments Sliding Drawer -->
     <TaskCommentsDrawer v-model:is-open="isCommentsDrawerOpen" />
 
     <VDialog
       v-model="isAttachmentsDialogOpen"
       max-width="760"
+      content-class="kanban-attachments-dialog"
     >
-      <VCard>
-        <VCardItem class="border-b">
+      <VCard class="kanban-attachments-dialog__card">
+        <VCardItem class="kanban-attachments-dialog__header border-b">
           <template #title>
             <span class="text-h6">{{ $t('components.taskManager.kanbanview.attachments') }}</span>
           </template>
@@ -308,7 +351,8 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
           <template #append>
             <VBtn
               icon="tabler-x"
-              variant="text"
+              variant="tonal"
+              color="error"
               :aria-label="$t('common.actions.close')"
               :title="$t('common.actions.close')"
               @click="isAttachmentsDialogOpen = false"
@@ -357,6 +401,13 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
                 </div>
               </div>
               <VBtn
+                icon="tabler-eye"
+                variant="text"
+                :aria-label="$t('common.actions.viewFullDetails')"
+                :title="$t('common.actions.viewFullDetails')"
+                @click="previewAttachmentFile(attachment)"
+              />
+              <VBtn
                 icon="tabler-download"
                 variant="text"
                 :aria-label="$t('components.taskManager.kanbanview.downloadAttachment')"
@@ -375,6 +426,26 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
         </VCardText>
       </VCard>
     </VDialog>
+
+    <VDialog v-model="isAttachmentPreviewOpen" max-width="900" content-class="kanban-attachment-preview-dialog" @update:model-value="open => { if (!open) previewAttachment = null }">
+      <VCard class="kanban-attachment-preview-dialog__card">
+        <VCardTitle class="kanban-attachment-preview-dialog__header px-5 py-4"><span class="text-truncate">{{ previewAttachment?.name }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" :aria-label="$t('common.actions.close')" @click="isAttachmentPreviewOpen = false" /></VCardTitle>
+        <VCardText class="kanban-attachment-preview-dialog__body pa-4"><VImg v-if="previewAttachment && isImage(previewAttachment)" :src="previewUrl" :alt="previewAttachment.name" contain /><iframe v-else :src="previewUrl" :title="previewAttachment?.name" /></VCardText>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="isCreateDialogOpen" max-width="900" scrollable content-class="kanban-task-form-dialog">
+      <VCard class="kanban-task-form-dialog__card">
+        <VCardItem class="kanban-task-form-dialog__header px-5 py-4">
+          <template #prepend><VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-plus" /></VAvatar></template>
+          <VCardTitle>{{ $t('common.messages.createTask') }}</VCardTitle>
+          <VCardSubtitle>{{ creatingBoard?.title }}</VCardSubtitle>
+          <template #append><VBtn icon="tabler-x" variant="tonal" color="error" size="small" class="kanban-task-form-dialog__close" :aria-label="$t('common.actions.close')" :disabled="isCreating" @click="isCreateDialogOpen = false" /></template>
+        </VCardItem>
+        <VCardText class="kanban-task-form-dialog__body pa-5 pa-sm-6"><KanbanTaskEditForm form-id="create-kanban-task-form" :item="createTaskDraft" :employees="createEmployees" :tags="store.tags" :task-options="taskOptions" :loading-employees="isLoadingCreateEmployees" :can-edit="true" :can-assign="canAssignMembers()" :can-manage-tags="canManageTags()" :can-manage-dependencies="canManageDependencies()" @submit="createTask" /></VCardText>
+        <VCardActions class="kanban-task-form-dialog__footer px-5 py-4"><VSpacer /><VBtn variant="tonal" color="secondary" :disabled="isCreating" @click="isCreateDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn form="create-kanban-task-form" type="submit" color="primary" variant="flat" class="kanban-task-form-dialog__primary-action" prepend-icon="tabler-check" :loading="isCreating">{{ $t('common.messages.createTask') }}</VBtn></VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -382,10 +453,17 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
 .kanban-scroll-area {
   background: rgb(var(--v-theme-background));
   min-height: 65vh;
-  overflow-x: auto;
+  overflow: auto hidden;
   position: relative;
   padding: 1.5rem;
 }
+
+.kanban-scroll-area::-webkit-scrollbar,
+.kanban-skeleton::-webkit-scrollbar { display: none; }
+
+.kanban-skeleton { display: flex; gap: 1.5rem; min-inline-size: min-content; overflow-x: auto; scrollbar-width: none; }
+.kanban-skeleton__column { flex: 0 0 16.875rem; inline-size: 16.875rem; background: rgb(var(--v-theme-surface)); }
+.kanban-empty-state { display: grid; justify-items: center; min-block-size: 420px; }
 
 .attachment-gallery {
   display: grid;
@@ -404,7 +482,19 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
   object-fit: cover;
 }
 
+:global(.v-overlay:has(.kanban-attachments-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .24); backdrop-filter: blur(5px); opacity: 1 !important; }
+:global(.kanban-attachments-dialog__card) { overflow: hidden; }
+.kanban-attachments-dialog__header { background: rgba(var(--v-theme-on-surface), .025); }
+
 :global(.viewer-container) {
   z-index: 3000 !important;
 }
+
+:global(.v-overlay:has(.kanban-attachment-preview-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .28); backdrop-filter: blur(5px); opacity: 1 !important; }
+:global(.kanban-attachment-preview-dialog__card) { overflow: hidden; }
+.kanban-attachment-preview-dialog__header { display: flex; align-items: center; background: rgba(var(--v-theme-on-surface), .025); }
+.kanban-attachment-preview-dialog__body { display: grid; min-block-size: min(60vh, 36rem); place-items: center; background: rgba(var(--v-theme-on-surface), .025); }
+.kanban-attachment-preview-dialog__body :deep(.v-img), .kanban-attachment-preview-dialog__body iframe { inline-size: 100%; block-size: min(60vh, 36rem); border: 0; }
+.kanban-task-form-dialog__primary-action { background-color: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.kanban-task-form-dialog__primary-action :deep(.v-icon) { color: rgb(var(--v-theme-on-primary)) !important; }
 </style>

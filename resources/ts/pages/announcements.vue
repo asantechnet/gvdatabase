@@ -6,11 +6,15 @@ import {
   type AnnouncementScope,
   type AnnouncementScopeType,
   createAnnouncement,
+  deleteAnnouncement,
   getAnnouncementAudienceOptions,
   getAnnouncements,
+  updateAnnouncement,
 } from '@/api/announcements'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -18,29 +22,23 @@ const { t } = useI18n()
 const announcements = ref<Announcement[]>([])
 const loading = ref(true)
 const sending = ref(false)
+const deleting = ref(false)
 const showComposer = ref(false)
-
-const canViewAll = computed(() => canAccess('view_all_announcements'))
-const authorFilter = ref<'mine' | 'everyone'>('mine')
+const editingAnnouncement = ref<Announcement | null>(null)
+const deletingAnnouncement = ref<Announcement | null>(null)
+const deleteDialogOpen = ref(false)
+const search = ref('')
 
 const audienceOptions = ref<AnnouncementAudienceOptions | null>(null)
 const audienceLoading = ref(false)
 
-const form = ref<{ title: string; message: string; labelsText: string; scopes: Array<{ type: AnnouncementScopeType; id?: number }> }>({
+const form = ref<{ title: string; message: string; scopes: Array<{ type: AnnouncementScopeType; id?: number }> }>({
   title: '',
   message: '',
-  labelsText: '',
   scopes: [],
 })
 
 const formError = ref('')
-
-const labels = computed(() => form.value.labelsText
-  .split(',')
-  .map(label => label.trim())
-  .filter(label => label !== '')
-  .filter((label, index, all) => all.indexOf(label) === index)
-  .slice(0, 20))
 
 // The VSelect is bound to this single scalar ref, never to form.scopes.
 // Binding the select directly to the array made Vuetify replace the whole
@@ -63,6 +61,7 @@ const scopeTypeOptions = computed(() => ([
 const scopeItems = computed(() => scopeTypeOptions.value.filter(option =>
   !option.disabled && !form.value.scopes.some(scope => scope.type === option.value),
 ))
+const scopeTypeLabel = (type: AnnouncementScopeType) => scopeTypeOptions.value.find(option => option.value === type)?.title ?? type
 
 /** The selectable targets for a targeted scope type. */
 const targetOptionsFor = (type: AnnouncementScopeType) => {
@@ -92,7 +91,7 @@ const removeScope = (index: number) => {
   form.value.scopes.splice(index, 1)
 }
 
-const targetLabel = (scope: AnnouncementScope): string => {
+const targetLabel = (scope: AnnouncementScope, unresolvedLabel = t('pages.announcements.composer.chooseTargetLabel')): string => {
   if (scope.type === 'all_employees')
     return t('pages.announcements.composer.scopeAllEmployees')
   if (scope.type === 'applicants')
@@ -107,9 +106,7 @@ const targetLabel = (scope: AnnouncementScope): string => {
   const match = list?.find(item => item.id === scope.id)
 
   if (!match) {
-    // A stored announcement always carries an id, so fall back to the raw
-    // value rather than showing the composer's "pick one" placeholder.
-    return scope.id ? `#${scope.id}` : t('pages.announcements.composer.chooseTargetLabel')
+    return unresolvedLabel
   }
 
   return scope.type === 'position' ? (match as { title: string }).title : (match as { name: string }).name
@@ -131,10 +128,32 @@ const selectedScopeTargets = computed(() => form.value.scopes.map((scope, index)
 })))
 
 const audienceDescription = (announcement: Announcement): string => announcement.audience
-  .map(scope => targetLabel(scope))
+  .map(scope => targetLabel(scope, scopeTypeLabel(scope.type)))
   .join(' · ')
 
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+
+const headers = computed(() => [
+  { title: t('common.fields.title'), key: 'title', minWidth: '180px' },
+  { title: t('common.fields.description'), key: 'message', minWidth: '280px' },
+  { title: t('pages.announcements.composer.audienceLabel'), key: 'audience', minWidth: '180px' },
+  { title: t('common.messages.recordedBy'), key: 'sender', minWidth: '140px' },
+  { title: t('common.fields.date'), key: 'created_at', minWidth: '160px' },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
+])
+
+const filteredAnnouncements = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query)
+    return announcements.value
+
+  return announcements.value.filter(announcement => [
+    announcement.title,
+    announcement.message,
+    announcement.sender?.name,
+    audienceDescription(announcement),
+  ].filter(Boolean).join(' ').toLowerCase().includes(query))
+})
 
 const loadAnnouncements = async () => {
   loading.value = true
@@ -160,16 +179,23 @@ const loadAudienceOptions = async () => {
   }
 }
 
-const toggleComposer = async () => {
-  showComposer.value = !showComposer.value
-  if (showComposer.value && !audienceOptions.value)
+const openComposer = async (announcement: Announcement | null = null) => {
+  editingAnnouncement.value = announcement
+  form.value = announcement
+    ? { title: announcement.title ?? '', message: announcement.message, scopes: announcement.audience.map(scope => ({ ...scope })) }
+    : { title: '', message: '', scopes: [] }
+  formError.value = ''
+  selectedScopeType.value = null
+  showComposer.value = true
+  if (!audienceOptions.value)
     await loadAudienceOptions()
 }
 
 const resetForm = () => {
-  form.value = { title: '', message: '', labelsText: '', scopes: [] }
+  form.value = { title: '', message: '', scopes: [] }
   formError.value = ''
   selectedScopeType.value = null
+  editingAnnouncement.value = null
 }
 
 const validate = (): string | null => {
@@ -201,17 +227,22 @@ const send = async () => {
   sending.value = true
   formError.value = ''
   try {
-    await createAnnouncement({
+    const payload = {
       title: form.value.title.trim() || null,
       message: form.value.message.trim(),
-      labels: labels.value,
       audience,
-    })
+    }
+    const saved = editingAnnouncement.value
+      ? await updateAnnouncement(editingAnnouncement.value.id, payload)
+      : await createAnnouncement(payload)
 
+    const index = announcements.value.findIndex(announcement => announcement.id === saved.id)
+    if (index === -1)
+      announcements.value.unshift(saved)
+    else announcements.value[index] = saved
     toast.success(t('pages.announcements.sentToast'))
     resetForm()
     showComposer.value = false
-    await loadAnnouncements()
   }
   catch (error: any) {
     formError.value = apiErrorMessage(error, translate('common.messages.unableToSaveChanges'))
@@ -221,53 +252,52 @@ const send = async () => {
   }
 }
 
-onMounted(loadAnnouncements)
+const askDelete = (announcement: Announcement) => {
+  deletingAnnouncement.value = announcement
+  deleteDialogOpen.value = true
+}
+
+const confirmDelete = async () => {
+  if (!deletingAnnouncement.value || deleting.value)
+    return
+
+  deleting.value = true
+  try {
+    await deleteAnnouncement(deletingAnnouncement.value.id)
+    announcements.value = announcements.value.filter(announcement => announcement.id !== deletingAnnouncement.value?.id)
+    deleteDialogOpen.value = false
+    toast.success(t('common.messages.notificationDeleted'))
+  }
+  catch (error: any) {
+    toast.error(apiErrorMessage(error, t('common.messages.failedToDelete')))
+  }
+  finally {
+    deleting.value = false
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadAnnouncements(), loadAudienceOptions()])
+})
 </script>
 
 <template>
-  <div class="announcements-page">
-    <VCard
-      class="mb-6"
-      :loading="loading"
-    >
-      <VCardItem>
-        <VCardTitle>{{ $t('pages.announcements.title') }}</VCardTitle>
-        <VCardSubtitle>{{ $t('pages.announcements.subtitle') }}</VCardSubtitle>
-        <template #append>
-          <VBtn
-            color="primary"
-            prepend-icon="tabler-speakerphone"
-            @click="toggleComposer"
-          >
-            {{ $t('pages.announcements.compose') }}
-          </VBtn>
-        </template>
-      </VCardItem>
-    </VCard>
+  <div class="erp-workspace announcements-page">
+    <ErpPageHeader :title="$t('pages.announcements.title')" section="hr" />
 
     <VDialog
       v-model="showComposer"
       max-width="900"
       scrollable
+      :persistent="sending"
+      content-class="announcement-composer-dialog"
     >
-      <VCard
-        class="composer-card"
-        :loading="audienceLoading"
-      >
-      <VCardItem>
-        <VCardTitle>{{ $t('pages.announcements.composer.title') }}</VCardTitle>
-        <VCardSubtitle>{{ $t('pages.announcements.composer.subtitle') }}</VCardSubtitle>
-      </VCardItem>
-      <VCardText>
-        <VAlert
-          type="info"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-        >
-          {{ $t('pages.announcements.composer.immutableNotice') }}
-        </VAlert>
-
+      <VCard class="composer-card">
+      <VCardTitle class="announcement-composer-dialog__header d-flex align-center justify-space-between px-5 py-4">
+        <span>{{ editingAnnouncement ? $t('common.actions.edit') : $t('pages.announcements.composer.title') }}</span>
+        <VBtn class="announcement-composer-dialog__close" icon="tabler-x" variant="flat" size="small" :aria-label="$t('common.actions.close')" :disabled="sending" @click="resetForm(); showComposer = false" />
+      </VCardTitle>
+      <VCardText class="pa-5">
         <VForm
           class="app-form"
           @submit.prevent="send"
@@ -282,7 +312,7 @@ onMounted(loadAnnouncements)
           </VAlert>
           <VRow>
             <VCol cols="12" md="6">
-              <VTextField
+              <ErpField
                 v-model="form.title"
                 :label="$t('pages.announcements.composer.titleLabel')"
                 :placeholder="$t('pages.announcements.composer.titlePlaceholder')"
@@ -290,84 +320,19 @@ onMounted(loadAnnouncements)
               />
             </VCol>
             <VCol cols="12" md="6">
-              <VTextField
-                v-model="form.labelsText"
-                :label="$t('pages.announcements.composer.labelsLabel')"
-                :placeholder="$t('pages.announcements.composer.labelsPlaceholder')"
-                :hint="$t('pages.announcements.composer.labelsHint')"
-                persistent-hint
-              />
-              <div
-                v-if="labels.length"
-                class="d-flex flex-wrap ga-2 mt-2"
-              >
-                <VChip
-                  v-for="label in labels"
-                  :key="label"
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                >
-                  {{ label }}
-                </VChip>
+              <ErpField v-model="selectedScopeType" kind="select" :items="scopeItems" item-title="title" item-value="value" :label="$t('pages.announcements.composer.audienceLabel')" :placeholder="$t('pages.announcements.composer.addAudienceLabel')" :loading="audienceLoading" @update:model-value="addScope" />
+            </VCol>
+            <VCol v-for="target in selectedScopeTargets" :key="target.scope.type" cols="12" md="6">
+              <div class="announcement-scope-field">
+                <ErpField v-if="target.needsTarget" v-model="target.scope.id" kind="select" :items="targetOptionsFor(target.scope.type)" item-title="title" item-value="value" :label="scopeTypeLabel(target.scope.type)" :placeholder="$t('pages.announcements.composer.chooseTargetLabel')" :error="target.incomplete" />
+                <ErpField v-else :model-value="target.label" :label="scopeTypeLabel(target.scope.type)" disabled />
+                <VBtn class="announcement-scope-field__remove" icon="tabler-x" variant="text" size="x-small" :aria-label="$t('common.actions.remove')" @click="removeScope(target.index)" />
               </div>
             </VCol>
             <VCol cols="12">
-              <VLabel class="mb-1">
-                {{ $t('pages.announcements.composer.audienceLabel') }}
-              </VLabel>
-              <VSelect
-                v-model="selectedScopeType"
-                :items="scopeItems"
-                item-title="title"
-                item-value="value"
-                :label="$t('pages.announcements.composer.addAudienceLabel')"
-                :hint="$t('pages.announcements.composer.audienceHint')"
-                density="compact"
-                persistent-hint
-                class="announcement-scope-select"
-                @update:model-value="addScope"
-              />
-
-              <div
-                v-if="selectedScopeTargets.length"
-                class="d-flex flex-column ga-3 mt-3"
-              >
-                <div
-                  v-for="target in selectedScopeTargets"
-                  :key="target.scope.type"
-                  class="announcement-scope-row"
-                >
-                  <VChip
-                    closable
-                    :color="target.incomplete ? 'warning' : 'primary'"
-                    variant="tonal"
-                    @click:close="removeScope(target.index)"
-                  >
-                    {{ target.label }}
-                    <span
-                      v-if="target.count !== undefined"
-                      class="ms-1 opacity-70"
-                    >({{ target.count }})</span>
-                  </VChip>
-
-                  <VSelect
-                    v-if="target.needsTarget"
-                    v-model="target.scope.id"
-                    :items="targetOptionsFor(target.scope.type)"
-                    item-title="title"
-                    item-value="value"
-                    :label="$t('pages.announcements.composer.chooseTargetLabel')"
-                    density="compact"
-                    hide-details
-                    class="announcement-scope-select"
-                  />
-                </div>
-              </div>
-            </VCol>
-            <VCol cols="12">
-              <VTextarea
+              <ErpField
                 v-model="form.message"
+                kind="textarea"
                 :label="$t('pages.announcements.composer.messageLabel')"
                 :placeholder="$t('pages.announcements.composer.messagePlaceholder')"
                 rows="4"
@@ -378,190 +343,64 @@ onMounted(loadAnnouncements)
           </VRow>
         </VForm>
       </VCardText>
-      <VCardActions class="px-6 pb-5">
-        <VSpacer />
-        <VBtn
-          variant="tonal"
-          color="secondary"
-          @click="resetForm(); showComposer = false"
-        >
-          {{ $t('common.actions.cancel') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          prepend-icon="tabler-send"
-          :loading="sending"
-          @click="send"
-        >
-          {{ $t('pages.announcements.composer.send') }}
-        </VBtn>
+      <VCardActions class="announcement-composer-dialog__footer px-5 py-4">
+        <VBtn class="announcement-composer-dialog__cancel" :disabled="sending" @click="resetForm(); showComposer = false">{{ $t('common.actions.cancel') }}</VBtn>
+        <VBtn class="announcement-composer-dialog__send" :loading="sending" @click="send"><VIcon icon="tabler-send" class="me-1" />{{ $t('pages.announcements.composer.send') }}</VBtn>
       </VCardActions>
       </VCard>
     </VDialog>
 
-    <VCard>
-      <VCardItem class="announcement-list-header">
-        <VCardTitle>{{ canViewAll && authorFilter === 'everyone' ? $t('pages.announcements.list.everyones') : $t('pages.announcements.list.mine') }}</VCardTitle>
-        <template #append>
-          <VBtnToggle
-            v-if="canViewAll"
-            v-model="authorFilter"
-            mandatory
-            density="compact"
-            color="primary"
-            class="announcement-filter"
-          >
-            <VBtn value="mine">
-              {{ $t('pages.announcements.filters.mine') }}
-            </VBtn>
-            <VBtn value="everyone">
-              {{ $t('pages.announcements.filters.everyone') }}
-            </VBtn>
-          </VBtnToggle>
-        </template>
-      </VCardItem>
-      <VDivider />
-      <VList
-        :lines="false"
-        class="announcement-list"
-      >
-        <template
-          v-for="(announcement, index) in announcements"
-          :key="announcement.id"
-        >
-          <VDivider v-if="index > 0" />
-          <VListItem class="announcement-row">
-            <template #prepend>
-              <VAvatar
-                color="primary"
-                variant="tonal"
-              >
-                <VIcon icon="tabler-speakerphone" />
-              </VAvatar>
-            </template>
-            <VListItemTitle class="announcement-title">
-              {{ announcement.title || $t('pages.announcements.list.untitled') }}
-            </VListItemTitle>
-            <VListItemSubtitle class="announcement-body">
-              <span class="announcement-message">{{ announcement.message }}</span>
-            </VListItemSubtitle>
-            <div class="announcement-meta">
-              <VChip
-                size="x-small"
-                variant="outlined"
-                prepend-icon="tabler-user"
-              >
-                {{ announcement.sender?.name || '—' }}
-              </VChip>
-              <VChip
-                size="x-small"
-                variant="outlined"
-                prepend-icon="tabler-target"
-              >
-                {{ audienceDescription(announcement) }}
-              </VChip>
-              <VChip
-                v-for="label in announcement.labels"
-                :key="label"
-                size="x-small"
-                color="primary"
-                variant="tonal"
-              >
-                {{ label }}
-              </VChip>
-              <span class="text-caption text-disabled">{{ formatDate(announcement.created_at) }}</span>
-            </div>
-          </VListItem>
-        </template>
-        <VListItem
-          v-if="!loading && !announcements.length"
-          :title="$t('pages.announcements.list.empty')"
-          :subtitle="$t('pages.announcements.list.emptyHint')"
-          class="announcement-row"
-        />
-      </VList>
+    <VCard class="announcements-table-card">
+      <VCardText>
+        <VRow align="center" class="table-toolbar">
+          <VCol cols="12" md="7" lg="6"><ErpSearchField v-model="search" :placeholder="$t('common.actions.search')" /></VCol>
+          <VCol cols="12" md="5" lg="6" class="announcements-toolbar-actions"><VBtn color="primary" @click="openComposer()"><VIcon icon="tabler-speakerphone" class="me-1" />{{ $t('pages.announcements.compose') }}</VBtn></VCol>
+        </VRow>
+      </VCardText>
+      <ResponsiveDataTable :headers="headers" :items="filteredAnnouncements" :loading="loading" :skeleton-rows="5" :sticky-key-column="false" :sticky-action-column="false" item-value="id" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="title" mobile-action-key="actions" :mobile-fields="['message', 'audience', 'sender', 'created_at']" class="announcements-responsive-table">
+        <template #item.title="{ item }"><div class="announcement-table-title">{{ item.title || $t('pages.announcements.list.untitled') }}</div></template>
+        <template #item.message="{ item }"><div class="announcement-table-message">{{ item.message }}</div></template>
+        <template #item.audience="{ item }"><VChip size="small" color="primary" variant="tonal" prepend-icon="tabler-target">{{ audienceDescription(item) }}</VChip></template>
+        <template #item.sender="{ item }"><VChip size="small" variant="tonal" color="secondary" prepend-icon="tabler-user">{{ item.sender?.name || '—' }}</VChip></template>
+        <template #item.created_at="{ item }"><span class="text-no-wrap text-medium-emphasis">{{ formatDate(item.created_at) }}</span></template>
+        <template #item.actions="{ item }"><div class="d-flex justify-end"><VMenu location="bottom end"><template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" :aria-label="$t('common.messages.actions')" /></template><VList density="compact" min-width="190"><VListItem prepend-icon="tabler-pencil" :title="$t('common.actions.edit')" @click="openComposer(item)" /><VDivider class="my-1" /><VListItem prepend-icon="tabler-trash" class="announcement-actions-menu__delete" :title="$t('common.actions.delete')" @click="askDelete(item)" /></VList></VMenu></div></template>
+        <template #no-data><TableEmptyState icon="tabler-speakerphone" :title="$t('pages.announcements.compose')" :description="$t('pages.announcements.list.emptyActionDescription')" :min-height="0" /></template>
+      </ResponsiveDataTable>
     </VCard>
+
+    <VDialog v-model="deleteDialogOpen" :persistent="deleting" max-width="460" content-class="announcement-delete-dialog"><VCard class="announcement-delete-dialog__card"><VCardText class="announcement-delete-dialog__content"><div class="announcement-delete-dialog__icon"><VIcon icon="tabler-trash" size="30" /></div><h2>{{ $t('common.messages.confirmDelete') }}</h2><p>{{ deletingAnnouncement?.title || $t('pages.announcements.list.untitled') }}</p><p class="text-caption text-medium-emphasis">{{ $t('common.confirmations.thisActionCannotBeUndone') }}</p></VCardText><VCardActions class="announcement-delete-dialog__actions px-5 pb-5"><VBtn class="announcement-composer-dialog__cancel" :disabled="deleting" @click="deleteDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn class="announcement-delete-dialog__delete" :loading="deleting" @click="confirmDelete">{{ $t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
+
   </div>
 </template>
 
 <style scoped>
-
-
-.composer-card {
-  border: 1px solid rgb(var(--v-theme-primary) / 25%);
-}
-
-/* The audience picker keeps a readable measure instead of stretching the
-   select across the full column on wide screens. */
-.announcement-scope-select {
-  max-inline-size: 20rem;
-}
-
-/* One chip plus its target picker per row; wraps on narrow viewports. */
-.announcement-scope-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.announcement-list-header {
-  gap: 1rem;
-}
-
-/* Vuetify's .v-btn sets `flex: 1 0 auto`, which stretches every option to the
-   width of the widest label. Because "Mine" is much shorter than "Everyone",
-   that inflated "Mine" into a mostly-empty button while "Everyone" stayed
-   cramped. Opting out of the grow lets each option size to its own text, and
-   a fixed inline padding keeps that padding identical on both. */
-.announcement-filter :deep(.v-btn) {
-  flex: 0 0 auto;
-  min-inline-size: max-content;
-  padding-inline: 1rem;
-  white-space: nowrap;
-}
-
-/* Vuetify's default list-item padding is tight for rows that carry a title,
-   a wrapping body and a chip row. Restore breathing room and separate
-   consecutive announcements with dividers. */
-.announcement-row {
-  padding-block: 0.875rem;
-}
-
-.announcement-list {
-  padding-block: 0;
-}
-
-.announcement-title {
-  font-weight: 700;
-  line-height: 1.4;
-  white-space: normal;
-}
-
-/* Long announcement bodies must wrap instead of being clipped by the
-   single-line truncation VListItemSubtitle applies by default. */
-.announcement-body,
-.announcement-message {
-  display: block;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.announcement-body {
-  margin-block-start: 0.25rem;
-  opacity: 1;
-}
-
-.announcement-message {
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  line-height: 1.5;
-}
-
-.announcement-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-block-start: 0.625rem;
-}
+.composer-card { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; max-block-size: min(90dvh, 820px); overflow: hidden; border: 1px solid rgb(var(--v-theme-primary) / 25%); }
+.announcement-composer-dialog__header, .announcement-composer-dialog__footer { z-index: 1; display: flex; align-items: center; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.announcement-composer-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); font-weight: 700; }
+.announcement-composer-dialog__footer { border-block-start: 1px solid rgba(var(--v-border-color), .5); justify-content: flex-end; gap: .75rem; }
+.announcement-composer-dialog__close { background: rgba(var(--v-theme-error), .13) !important; color: rgb(var(--v-theme-error)) !important; }
+.announcement-composer-dialog__close:hover:not(:disabled) { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.announcement-composer-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.announcement-composer-dialog__cancel:hover:not(:disabled) { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.announcement-composer-dialog__send { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+.announcement-scope-field { position: relative; }
+.announcement-scope-field__remove { position: absolute; z-index: 1; inset-block-start: 32px; inset-inline-end: 1.85rem; min-inline-size: 1.35rem !important; inline-size: 1.35rem; min-block-size: 1.35rem !important; block-size: 1.35rem; background: transparent !important; color: rgb(var(--v-theme-error)); }
+.announcement-scope-field__remove:hover { background: transparent !important; color: rgb(var(--v-theme-error)); opacity: .72; }
+.announcement-actions-menu__delete { color: rgb(var(--v-theme-error)); }
+.announcement-delete-dialog__card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, .18) !important; text-align: center; }
+.announcement-delete-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem; }
+.announcement-delete-dialog__content h2 { margin: 0; font-size: 1.2rem; font-weight: 700; }
+.announcement-delete-dialog__content p { margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
+.announcement-delete-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; place-items: center; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); }
+.announcement-delete-dialog__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.announcement-delete-dialog__actions .v-btn { min-block-size: 2.85rem; }
+.announcement-delete-dialog__delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.announcements-toolbar-actions { display: flex; justify-content: flex-end; }
+:deep(.announcements-responsive-table .v-data-table__thead > tr > th) { background: rgba(var(--v-theme-primary), .1) !important; color: rgb(var(--v-theme-on-surface)); font-weight: 700; }
+.announcement-table-title { min-inline-size: 10rem; font-weight: 700; white-space: normal; }
+.announcement-table-message { max-inline-size: 38rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.55; overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 599px) { .announcement-composer-dialog__header, .announcement-composer-dialog__footer { padding-inline: 1rem !important; } .announcements-toolbar-actions { justify-content: stretch; } .announcements-toolbar-actions .v-btn { inline-size: 100%; } }
+</style>
+<style>
+body:has(.announcement-composer-dialog) .v-overlay__scrim, body:has(.announcement-delete-dialog) .v-overlay__scrim { background: rgba(20, 25, 35, .32) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
 </style>

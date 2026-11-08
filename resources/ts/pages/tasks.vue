@@ -7,7 +7,6 @@ import TaskAppShell from '@/components/task-manager/TaskAppShell.vue'
   <div class="tasks-page">
     <ErpPageHeader
       :title="$t('tasksPage.title')"
-      :description="$t('tasksPage.description')"
       section="tasks"
     />
     <TaskAppShell />
@@ -16,15 +15,18 @@ import TaskAppShell from '@/components/task-manager/TaskAppShell.vue'
 
 <style scoped>
 .tasks-page :deep(.kanban-scroll-area) {
-  overflow-x: auto;
+  overflow: auto hidden;
   overscroll-behavior-inline: contain;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
 }
+.tasks-page :deep(.kanban-scroll-area::-webkit-scrollbar),
+.tasks-page :deep(.kanban-main-wrapper::-webkit-scrollbar) { display: none; }
 
 .tasks-page :deep(.kanban-main-wrapper) {
   min-inline-size: 0;
   padding-block-end: 0.5rem;
-  scrollbar-width: thin;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 
 @media (max-width: 959px) {

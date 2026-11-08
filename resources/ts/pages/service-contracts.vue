@@ -23,6 +23,7 @@ import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 import { useCookie } from '@core/composable/useCookie'
 
 const route = useRoute()
@@ -109,6 +110,7 @@ const slipContractId = ref<number | null>(null)
 const cancelTarget = ref<Contract | null>(null)
 const cancelOpen = ref(false)
 const cancelling = ref(false)
+const privateFormSnapshot = ref('')
 let generation = 0
 let formGeneration = 0
 // Test-offer terms vary by the applicant's test; every other service version is
@@ -136,6 +138,42 @@ const versionItems = computed(() => {
   return items
 })
 const selectedVersion = computed(() => compatibleVersions.value.find(version => version.id === selectedVersionId.value) ?? null)
+const privateFormFingerprint = () => JSON.stringify({
+  form: form.value,
+  visitorId: visitorId.value,
+  charges: charges.value,
+  applicationFeeFrom: applicationFeeFrom.value,
+  applicationFeeTo: applicationFeeTo.value,
+  discount: discount.value,
+  currencyId: currencyId.value,
+  rate: rate.value,
+  languageId: languageId.value,
+  selectedVersionId: selectedVersionId.value,
+})
+const hasPrivateFormChanges = () => service.value === 'private'
+  && !!privateFormSnapshot.value
+  && privateFormSnapshot.value !== privateFormFingerprint()
+async function requestFormClose() {
+  if (saving.value)
+    return
+
+  if (hasPrivateFormChanges()) {
+    const discard = await confirmActionWarning({
+      key: 'discard-private-contract-changes',
+      title: t('common.actionWarnings.discardTitle'),
+      message: t('common.actionWarnings.discardMessage'),
+      confirmText: t('common.actionWarnings.discardConfirm'),
+      cancelText: t('common.actionWarnings.keepEditing'),
+      icon: 'tabler-file-x',
+      tone: 'warning',
+    })
+    if (!discard)
+      return
+  }
+
+  privateFormSnapshot.value = ''
+  open.value = false
+}
 const wizardStepCount = computed(() => service.value === 'test_offer' ? 2 : 3)
 const wizardSteps = computed(() => {
   const titles: Record<BuiltInService, string[]> = {
@@ -436,6 +474,7 @@ const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
 
 async function create(extension: Contract | null = null, editedContract: Contract | null = null) {
   const current = ++formGeneration
+  privateFormSnapshot.value = ''
   parent.value = extension
   editing.value = editedContract
   wizardStep.value = 1
@@ -501,7 +540,12 @@ async function create(extension: Contract | null = null, editedContract: Contrac
     }
   }
   catch (cause) { if (current === formGeneration) error.value = apiErrorMessage(cause) }
-  finally { if (current === formGeneration) preparing.value = false }
+  finally {
+    if (current === formGeneration) {
+      privateFormSnapshot.value = service.value === 'private' ? privateFormFingerprint() : ''
+      preparing.value = false
+    }
+  }
 }
 
 async function edit(contract: Contract) {
@@ -679,6 +723,7 @@ async function save() {
       // it was, so the filter plus the current page decide in both cases.
       page.value = editing.value ? page.value : 1
       await load()
+      privateFormSnapshot.value = ''
       open.value = false
       // The password cannot be read back once the account exists, so the
       // generated pair stays on screen until the operator dismisses it.
@@ -797,12 +842,12 @@ async function save() {
       </template>
       </ResponsiveDataTableServer>
     </VCard>
-    <VDialog v-model="open" :persistent="saving" scrollable scroll-strategy="block" max-width="980" content-class="service-contract-form-dialog">
+    <VDialog :model-value="open" :persistent="saving" scrollable scroll-strategy="block" max-width="980" content-class="service-contract-form-dialog" @update:model-value="value => value ? open = true : requestFormClose()">
       <VCard class="service-contract-form-card">
         <VCardTitle class="service-contract-dialog-title px-5 py-5">
           <span class="text-h5 service-contract-dialog-heading service-contract-dialog-heading--primary">{{ t(labelKey) }}</span>
           <VSpacer />
-          <VBtn icon="tabler-x" variant="tonal" color="error" class="service-contract-dialog-close" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="open = false" />
+          <VBtn icon="tabler-x" variant="tonal" color="error" class="service-contract-dialog-close" :disabled="saving" :aria-label="t('serviceContracts.close')" @click="requestFormClose" />
         </VCardTitle>
         <div v-if="wizardStepCount > 1" class="service-contract-wizard-progress" :class="{ 'service-contract-wizard-progress--two-steps': wizardStepCount === 2 }" role="list" :aria-label="t('serviceContracts.wizard.progress')">
           <button
@@ -834,9 +879,9 @@ async function save() {
                    <VCol cols="12" sm="6" md="6"><ErpField v-model="form.email" :label="t('serviceContracts.email')" :placeholder="t('serviceContracts.placeholders.email')" type="email" maxlength="255" /></VCol>
                    <VCol cols="12" sm="6" md="6"><ErpField v-model="form.father_name" :label="t('serviceContracts.fatherName')" :placeholder="t('serviceContracts.placeholders.fatherName')" maxlength="255" /></VCol>
                    <VCol cols="12" sm="6" md="6"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
-                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
-                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                   <VCol cols="12" sm="6" md="4" class="service-contract-third-row"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                   <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
+                   <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
+                   <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
                 </VRow>
               </template>
               <VRow v-if="service !== 'academy' && service !== 'private'" class="service-contract-field-grid">
@@ -948,7 +993,7 @@ async function save() {
                 variant="flat"
                 class="service-contract-dialog-cancel"
                 :disabled="saving"
-                @click="open = false"
+                @click="requestFormClose"
               >{{ t('erp.cancel') }}</VBtn>
               <VBtn
                 v-else

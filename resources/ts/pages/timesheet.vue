@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
 import { useToast } from 'vue-toastification'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
 import TimesheetTemplate from './templates/timesheet_template.vue'
 import { printDocument } from '@/utils/printDocument'
 import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
@@ -14,7 +13,11 @@ import { calendarDate } from '@/utils/calendarDate'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ResponsiveDataTable from '@/components/responsive-data-table/ResponsiveDataTable.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpDateRange from '@/components/erp/ErpDateRange.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 
 // Operational Date Range States (For Filter & Printing)
 const startDate = ref<string>(new Date().toISOString().substring(0, 10))
@@ -30,26 +33,80 @@ const getCurrentDate = () => {
 const logDate = ref<string>(getCurrentDate())
 const isFriday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() === 5
 
+// Retained while the retired, non-rendered legacy panel remains in the SFC.
+// Attendance entry is performed exclusively through the bulk dialog.
 const selectedStaffId = ref<number | null>(null)
-const checkInTime = ref<string>('')
-const checkOutTime = ref<string>('')
-const breakMinutes = ref<number>(0)
+const checkInTime = ref('')
+const checkOutTime = ref('')
+const breakMinutes = ref(0)
+const logAttendance = (_status: 'present' | 'absent') => {}
+
+type AttendanceDraftStatus = 'present' | 'absent' | 'unmarked'
+interface AttendanceDraft {
+  staff: UnmarkedStaff
+  status: AttendanceDraftStatus
+  checkInTime: string
+  checkOutTime: string
+  breakMinutes: number
+}
+
 const employeeFilter = ref<number | null>(null)
 const officeFilter = ref<number | null>(null)
 const statusFilter = ref<Attendance['status'] | 'incomplete' | null>(null)
+const search = ref('')
+const filterMenuOpen = ref(false)
 const employees = ref<Employee[]>([])
 const offices = ref<Office[]>([])
 const attendanceRecords = ref<Attendance[]>([])
 const unmarkedStaff = ref<UnmarkedStaff[]>([])
-const loading = ref<boolean>(false)
+// Start in a loading state so the table never flashes an empty state before
+// its first request begins.
+const loading = ref<boolean>(true)
+const hasLoadedAttendanceRecords = ref(false)
+const rosterLoading = ref<boolean>(false)
 const error = ref<string | null>(null)
 const toast = useToast()
-const staffName = (id: number | null) => employees.value.find(employee => employee.id === id)?.name ?? `#${id ?? ''}`
+const employeeFor = (id: number) => employees.value.find(employee => employee.id === id)
 const reportDialogOpen = ref(false)
 const reportLoading = ref(false)
 const selectedReport = ref<DailyReport | null>(null)
 const reportError = ref<string | null>(null)
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+
+const timesheetLoadingHeaders = computed(() => [
+  { title: t('common.fields.employee'), key: 'employee' },
+  { title: t('common.fields.office'), key: 'office' },
+  { title: t('common.fields.status'), key: 'status' },
+  { title: t('common.messages.inTime'), key: 'check_in' },
+  { title: t('common.messages.outTime'), key: 'check_out' },
+  { title: t('pages.attendance.timesheet.timesheet.worked'), key: 'worked' },
+  { title: t('pages.attendance.timesheet.timesheet.overtime'), key: 'overtime' },
+  { title: t('pages.attendance.timesheet.timesheet.action'), key: 'actions', sortable: false, align: 'end' as const },
+])
+
+const attendanceRosterLoadingHeaders = computed(() => [
+  { title: t('common.fields.employee'), key: 'employee' },
+  { title: t('common.fields.status'), key: 'status' },
+  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
+])
+
+const attendanceDialogOpen = ref(false)
+const savingAttendance = ref(false)
+const attendanceDrafts = ref<AttendanceDraft[]>([])
+const attendanceStaffSearch = ref('')
+const officeOpenTime = ref('')
+const officeCloseTime = ref('')
+const officeBreakMinutes = ref(0)
+const deletingRecord = ref<Attendance | null>(null)
+const deleteDialogOpen = ref(false)
+const deleting = ref(false)
+const editingRecord = ref<Attendance | null>(null)
+const editDialogOpen = ref(false)
+const savingEdit = ref(false)
+const editStatus = ref<'present' | 'absent'>('present')
+const editCheckInTime = ref('')
+const editCheckOutTime = ref('')
+const editBreakMinutes = ref(0)
 
 const correctionTarget = ref<Attendance | null>(null)
 const correctionOpen = ref(false)
@@ -98,13 +155,46 @@ const fetchAttendanceRecords = async () => {
   }
   finally {
     loading.value = false
+    hasLoadedAttendanceRecords.value = true
+  }
+}
+
+const openEditAttendance = (record: Attendance) => {
+  editingRecord.value = record
+  editStatus.value = record.status === 'absent' ? 'absent' : 'present'
+  editCheckInTime.value = record.check_in_time ?? ''
+  editCheckOutTime.value = record.check_out_time ?? ''
+  editBreakMinutes.value = record.break_minutes ?? 0
+  editDialogOpen.value = true
+}
+
+const saveAttendanceEdit = async () => {
+  if (!editingRecord.value || savingEdit.value)
+    return
+
+  savingEdit.value = true
+  try {
+    await AttendanceApi.update(editingRecord.value.id, {
+      status: editStatus.value,
+      check_in_time: editStatus.value === 'present' ? editCheckInTime.value || null : null,
+      check_out_time: editStatus.value === 'present' ? editCheckOutTime.value || null : null,
+      break_minutes: editStatus.value === 'present' ? editBreakMinutes.value : 0,
+    })
+    editDialogOpen.value = false
+    await fetchAttendanceRecords()
+  }
+  catch (err) {
+    toast.error(apiErrorMessage(err, translate('pages.attendance.timesheet.timesheet.failedToLogAttendance')))
+  }
+  finally {
+    savingEdit.value = false
   }
 }
 
 // Fetch unmarked staff for the selected LOG date
 const fetchUnmarkedStaff = async () => {
   try {
-    loading.value = true
+    rosterLoading.value = true
 
     const response = await AttendanceApi.getUnmarkedStaff(logDate.value)
 
@@ -119,67 +209,85 @@ const fetchUnmarkedStaff = async () => {
     console.error(err)
   }
   finally {
-    loading.value = false
+    rosterLoading.value = false
   }
 }
 
-// Log attendance for an employee on the dedicated logDate
-const logAttendance = async (status: 'present' | 'absent') => {
-  if (!selectedStaffId.value)
-    return
-  if (isFriday(logDate.value)) {
-    error.value = 'Friday is the Afghanistan weekend. Attendance cannot be recorded.'
-
-    return
-  }
-
-  try {
-    loading.value = true
-    await AttendanceApi.create({
-      staff_id: selectedStaffId.value,
-      date: logDate.value,
-      status,
-      check_in_time: status === 'present' ? checkInTime.value || null : null,
-      check_out_time: status === 'present' ? checkOutTime.value || null : null,
-      break_minutes: status === 'present' ? breakMinutes.value : null,
-    })
-
-    toast.success(`${staffName(selectedStaffId.value)} · ${logDate.value} · ${status === 'present' ? translate('common.statuses.present') : translate('pages.attendance.timesheet.timesheet.absent')}`)
-
-    // Refresh data after logging
-    await fetchAttendanceRecords()
-    await fetchUnmarkedStaff()
-    selectedStaffId.value = null
-
-    const setting = (await SettingApi.getCompanyProfile()).data
-
-    checkInTime.value = setting?.office_open_time || ''
-    checkOutTime.value = setting?.office_close_time || ''
-    breakMinutes.value = setting?.default_break_minutes || 0
-  }
-  catch (err) {
-    const message = apiErrorMessage(err, translate('pages.attendance.timesheet.timesheet.failedToLogAttendance'))
-
-    error.value = message
-    toast.error(`${staffName(selectedStaffId.value)} · ${logDate.value} · ${message}`)
-    console.error(err)
-  }
-  finally {
-    loading.value = false
-  }
+const makeAttendanceDrafts = () => {
+  attendanceDrafts.value = unmarkedStaff.value.map(staff => ({
+    staff,
+    status: 'present',
+    checkInTime: officeOpenTime.value,
+    checkOutTime: officeCloseTime.value,
+    breakMinutes: officeBreakMinutes.value,
+  }))
 }
 
-// Delete an attendance record
-const deleteRecord = async (id: number) => {
+const openAttendanceDialog = async () => {
+  error.value = null
+  attendanceStaffSearch.value = ''
+  await fetchUnmarkedStaff()
+  makeAttendanceDrafts()
+  attendanceDialogOpen.value = true
+}
+
+const attendanceFieldsDisabled = (draft: AttendanceDraft) => draft.status !== 'present'
+
+const saveAllAttendance = async () => {
+  const draftsToSave = attendanceDrafts.value.filter(draft => draft.status !== 'unmarked')
+  if (!draftsToSave.length || savingAttendance.value || isFriday(logDate.value))
+    return
+
+  savingAttendance.value = true
+  error.value = null
+  const results = await Promise.allSettled(draftsToSave.map(draft => AttendanceApi.create({
+    staff_id: draft.staff.id,
+    date: logDate.value,
+    status: draft.status as 'present' | 'absent',
+    check_in_time: draft.status === 'present' ? draft.checkInTime || null : null,
+    check_out_time: draft.status === 'present' ? draft.checkOutTime || null : null,
+    break_minutes: draft.status === 'present' ? draft.breakMinutes : null,
+  })))
+  const failed = results.filter(result => result.status === 'rejected')
+
+  if (failed.length) {
+    const reason = apiErrorMessage((failed[0] as PromiseRejectedResult).reason, translate('pages.attendance.timesheet.timesheet.failedToLogAttendance'))
+    error.value = reason
+    toast.error(reason)
+  }
+
+  const saved = results.length - failed.length
+  if (saved)
+    toast.success(t('pages.attendance.timesheet.timesheet.attendanceSaved', { count: saved }))
+
+  await Promise.all([fetchAttendanceRecords(), fetchUnmarkedStaff()])
+  makeAttendanceDrafts()
+  if (!failed.length)
+    attendanceDialogOpen.value = false
+  savingAttendance.value = false
+}
+
+// Delete confirmation keeps a destructive action separate from the row icon.
+const requestDelete = (record: Attendance) => {
+  deletingRecord.value = record
+  deleteDialogOpen.value = true
+}
+
+const deleteRecord = async () => {
+  if (!deletingRecord.value || deleting.value)
+    return
+
   try {
-    loading.value = true
-    await AttendanceApi.delete(id)
+    deleting.value = true
+    await AttendanceApi.delete(deletingRecord.value.id)
 
     toast.success(translate('common.actions.delete'))
 
     // Refresh data after deletion
     await fetchAttendanceRecords()
     await fetchUnmarkedStaff()
+    deleteDialogOpen.value = false
+    deletingRecord.value = null
   }
   catch (err) {
     const message = apiErrorMessage(err, translate('pages.attendance.timesheet.timesheet.failedToDeleteAttendanceRecord'))
@@ -189,7 +297,7 @@ const deleteRecord = async (id: number) => {
     console.error(err)
   }
   finally {
-    loading.value = false
+    deleting.value = false
   }
 }
 
@@ -235,10 +343,25 @@ const timeOptions = Array.from({ length: 96 }, (_, index) => {
 })
 
 const displayedRecords = computed(() => {
+  const query = search.value.trim().toLocaleLowerCase()
+
   return attendanceRecords.value
     .filter(record => record.date >= startDate.value && record.date <= endDate.value)
+    .filter(record => !query || [record.name, record.role, record.office, record.status, record.date]
+      .filter(Boolean)
+      .some(value => String(value).toLocaleLowerCase().includes(query)))
     .sort((a, b) => b.date.localeCompare(a.date) || b.timestamp.localeCompare(a.timestamp))
 })
+
+const visibleAttendanceDrafts = computed(() => {
+  const query = attendanceStaffSearch.value.trim().toLocaleLowerCase()
+
+  return attendanceDrafts.value.filter(draft => !query || [draft.staff.name, draft.staff.position]
+    .filter(Boolean)
+    .some(value => String(value).toLocaleLowerCase().includes(query)))
+})
+
+const hasActiveFilters = computed(() => Boolean(employeeFilter.value || officeFilter.value || statusFilter.value || startDate.value !== endDate.value))
 
 const stats = computed(() => {
   const present = displayedRecords.value.filter(r => r.status === 'present').length
@@ -293,6 +416,25 @@ const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['c
 
 const timeHint = (state: Attendance['check_in_state'] | Attendance['check_out_state']) => state ? timeHints[state] : 'Office hours are not configured'
 
+const applyFilters = async () => {
+  if (startDate.value > endDate.value)
+    return
+
+  filterMenuOpen.value = false
+  await fetchAttendanceRecords()
+}
+
+const resetFilters = async () => {
+  const today = logDate.value
+  startDate.value = today
+  endDate.value = today
+  employeeFilter.value = null
+  officeFilter.value = null
+  statusFilter.value = null
+  filterMenuOpen.value = false
+  await fetchAttendanceRecords()
+}
+
 // Lifecycle hooks
 onMounted(async () => {
   const [employeeResponse, officeResponse, settingResponse] = await Promise.all([EmployeeApi.getAll(), OfficeApi.getAll(), SettingApi.getCompanyProfile()])
@@ -303,25 +445,15 @@ onMounted(async () => {
   startDate.value = today
   endDate.value = today
   logDate.value = today
-  checkInTime.value = settingResponse.data?.office_open_time || ''
-  checkOutTime.value = settingResponse.data?.office_close_time || ''
-  breakMinutes.value = settingResponse.data?.default_break_minutes || 0
+  officeOpenTime.value = settingResponse.data?.office_open_time || ''
+  officeCloseTime.value = settingResponse.data?.office_close_time || ''
+  officeBreakMinutes.value = settingResponse.data?.default_break_minutes || 0
   await Promise.all([fetchAttendanceRecords(), fetchUnmarkedStaff()])
-})
-
-// Watch range changes for attendance fetching
-watch([startDate, endDate, employeeFilter, officeFilter, statusFilter], async () => {
-  await fetchAttendanceRecords()
-})
-
-// Watch target logging date changes to get relevant unmarked staff
-watch(logDate, async () => {
-  await fetchUnmarkedStaff()
 })
 </script>
 
 <template>
-  <div class="attendance-container pa-4 pa-sm-6">
+  <div class="erp-workspace attendance-container">
     <!-- PRINT ENGINE COMPONENT (Visible ONLY during print output) -->
     <div
       class="timesheet-print-host"
@@ -338,8 +470,49 @@ watch(logDate, async () => {
 
     <!-- MAIN INTERACTIVE UI (Hidden during print output) -->
     <div class="timesheet-screen">
+      <ErpPageHeader :title="$t('common.navigation.timesheet')" section="hr" />
+
+      <VCard class="timesheet-table-shell">
+        <VCardText class="timesheet-table-toolbar">
+          <VRow align="center" class="table-toolbar">
+            <VCol cols="12" md="6" lg="5">
+              <ErpSearchField
+                v-model="search"
+                :placeholder="$t('common.actions.search')"
+                @keyup.enter="applyFilters"
+              />
+            </VCol>
+            <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
+              <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" :show-reset="false">
+                <ErpDateRange v-model:from="startDate" v-model:to="endDate" :show-apply="false" />
+                <ErpField v-model="employeeFilter" kind="select" :items="employees" item-title="name" item-value="id" :label="$t('common.fields.employee')" clearable />
+                <ErpField v-model="officeFilter" kind="select" :items="offices" item-title="name" item-value="id" :label="$t('common.fields.office')" clearable />
+                <ErpField
+                  v-model="statusFilter"
+                  kind="select"
+                  :items="[{ title: translate('common.statuses.present'), value: 'present' }, { title: translate('pages.attendance.timesheet.timesheet.absent'), value: 'absent' }, { title: translate('common.attendanceStatuses.offDay'), value: 'off_day' }, { title: translate('pages.attendance.timesheet.timesheet.incomplete'), value: 'incomplete' }]"
+                  :label="$t('common.messages.filterByStatus')"
+                  clearable
+                />
+                <template #actions>
+                  <VBtn variant="tonal" color="primary" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn>
+                  <VBtn color="primary" variant="flat" data-filter-apply @click="applyFilters">{{ $t('educational.apply') }}</VBtn>
+                </template>
+              </DataTableFilterMenu>
+              <VBtn icon="tabler-printer" variant="tonal" class="flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTimesheet">
+                <VIcon icon="tabler-printer" />
+                <VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip>
+              </VBtn>
+              <VBtn color="primary" class="flex-shrink-0" :disabled="loading" @click="openAttendanceDialog">
+                <VIcon icon="tabler-user-check" class="me-1" />
+                {{ $t('pages.attendance.timesheet.steps.logAttendance') }}
+              </VBtn>
+            </VCol>
+          </VRow>
+        </VCardText>
+
       <!-- TOP ROW: Range Metric Indicators -->
-      <VRow class="timesheet-kpi-strip mb-6">
+      <VRow v-if="false" class="timesheet-kpi-strip mb-6">
         <VCol
           cols="auto"
         >
@@ -451,6 +624,7 @@ watch(logDate, async () => {
       <VRow>
         <!-- LEFT COLUMN: Control Panels -->
         <VCol
+          v-if="false"
           cols="12"
           lg="4"
         >
@@ -696,35 +870,27 @@ watch(logDate, async () => {
         <!-- RIGHT COLUMN: Screen Output View List -->
         <VCol
           cols="12"
-          lg="8"
+          lg="12"
         >
-          <VCard
-            class="pa-5 pa-sm-6"
-            elevation="3"
-          >
-            <!-- Heading Descriptor Info -->
-            <div class="mb-5 border-bottom pb-4">
-              <h3 class="text-h4 font-weight-bold mb-1">
-                {{ $t('pages.attendance.timesheet.timesheet.attendanceRollLedger') }}
-              </h3>
-              <p class="text-body-2 text-medium-emphasis mb-0">
-                {{ $t('pages.attendance.timesheet.filteredRange', { start: formatLocalizedDate(`${startDate}T00:00:00`), end: formatLocalizedDate(`${endDate}T00:00:00`) }) }}
-              </p>
-            </div>
-
+          <div class="timesheet-ledger">
             <!-- Live Attendance Log Grid List -->
             <div class="attendance-table-wrapper">
-              <TableLoadingSkeleton v-if="loading" :columns="8" :label="$t('common.messages.loading')" />
-              <TableEmptyState
-                v-else-if="displayedRecords.length === 0"
-                icon="tabler-notebook-off"
-                :title="$t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange')"
-                :description="$t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints')"
+              <ResponsiveDataTable
+                v-if="loading || !hasLoadedAttendanceRecords"
+                :headers="timesheetLoadingHeaders"
+                :items="[]"
+                :loading="true"
+                :skeleton-rows="6"
+                :sticky-key-column="false"
+                :sticky-action-column="false"
+                mobile-cards
+                mobile-title-key="employee"
+                :mobile-fields="['office', 'status']"
+                class="timesheet-loading-table"
               />
-
               <table
                 v-else
-                class="custom-attendance-table w-100"
+                class="custom-attendance-table timesheet-desktop-table w-100"
               >
                 <thead>
                   <tr>
@@ -755,6 +921,15 @@ watch(logDate, async () => {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr v-if="displayedRecords.length === 0">
+                    <td colspan="8" class="pa-0">
+                      <TableEmptyState
+                        icon="tabler-notebook-off"
+                        :title="$t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange')"
+                        :description="$t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints')"
+                      />
+                    </td>
+                  </tr>
                   <tr
                     v-for="record in displayedRecords"
                     :key="`${record.id}-${record.date}`"
@@ -884,6 +1059,7 @@ watch(logDate, async () => {
 
                     <!-- Row Contextual Eraser -->
                     <td class="py-3 px-4 text-right">
+                      <div class="attendance-row-actions">
                       <VBtn
                         v-if="record.daily_report_exists"
                         icon="tabler-file-text"
@@ -901,6 +1077,18 @@ watch(logDate, async () => {
                         </VTooltip>
                       </VBtn>
                       <VBtn
+                        v-if="!record.is_off_day && !record.leave_request_id && canAccess('record_attendance')"
+                        icon="tabler-edit"
+                        variant="text"
+                        color="primary"
+                        size="small"
+                        density="comfortable"
+                        :aria-label="$t('pages.attendance.timesheet.timesheet.editAttendance')"
+                        @click="openEditAttendance(record)"
+                      >
+                        <VIcon icon="tabler-edit" /><VTooltip activator="parent" location="top">{{ $t('pages.attendance.timesheet.timesheet.editAttendance') }}</VTooltip>
+                      </VBtn>
+                      <VBtn
                         v-if="record.status === 'present' && !record.checked_out_at && !record.check_out_time && (record.checked_in_at || record.check_in_time) && canAccess('record_attendance')"
                         icon="tabler-clock-edit"
                         variant="text"
@@ -916,7 +1104,8 @@ watch(logDate, async () => {
                         size="small"
                         density="comfortable"
                         :loading="loading"
-                        @click="deleteRecord(record.id)"
+                        :aria-label="$t('pages.attendance.timesheet.timesheet.removeRecord')"
+                        @click="requestDelete(record)"
                       >
                         <VIcon icon="tabler-trash" /><VTooltip
                           activator="parent"
@@ -925,15 +1114,169 @@ watch(logDate, async () => {
                           {{ $t('pages.attendance.timesheet.timesheet.removeRecord') }}
                         </VTooltip>
                       </VBtn>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
               </table>
+              <div v-if="!loading && hasLoadedAttendanceRecords" class="timesheet-mobile-cards">
+                <TableEmptyState
+                  v-if="displayedRecords.length === 0"
+                  icon="tabler-notebook-off"
+                  :title="$t('pages.attendance.timesheet.timesheet.noRecordsFoundInsideRange')"
+                  :description="$t('pages.attendance.timesheet.timesheet.adjustYourRangeLimitsOrSelectTeamMembersToBuildDataPoints')"
+                />
+                <article v-for="record in displayedRecords" :key="`mobile-${record.id}-${record.date}`" class="timesheet-mobile-card">
+                  <div class="timesheet-mobile-card__header">
+                    <div>
+                      <strong>{{ record.name }}</strong>
+                      <span>{{ record.role || record.office || '—' }}</span>
+                    </div>
+                    <VChip :color="record.status === 'present' ? 'success' : record.status === 'absent' ? 'error' : 'secondary'" variant="tonal" size="small">
+                      {{ record.is_off_day ? $t('pages.attendance.timesheet.timesheet.offDay') : translateBackendValue(record.status) }}
+                    </VChip>
+                  </div>
+                  <div class="timesheet-mobile-card__fields">
+                    <div><span>{{ $t('common.messages.inTime') }}</span><strong>{{ formatTime(record.checked_in_at, record.check_in_time, record.timezone) || '—' }}</strong></div>
+                    <div><span>{{ $t('common.messages.outTime') }}</span><strong>{{ formatTime(record.checked_out_at, record.check_out_time, record.timezone) || '—' }}</strong></div>
+                    <div><span>{{ $t('pages.attendance.timesheet.timesheet.worked') }}</span><strong>{{ record.missing_punch_state !== 'none' ? $t('pages.attendance.timesheet.timesheet.incomplete') : formatDuration(record.net_worked_minutes) }}</strong></div>
+                    <div><span>{{ $t('pages.attendance.timesheet.timesheet.overtime') }}</span><strong class="text-success">{{ formatDuration(record.overtime_minutes) }}</strong></div>
+                  </div>
+                  <div class="timesheet-mobile-card__actions">
+                    <VBtn v-if="record.daily_report_exists" icon="tabler-file-text" variant="text" color="primary" size="small" @click="viewDailyReport(record)" />
+                    <VBtn v-if="!record.is_off_day && !record.leave_request_id && canAccess('record_attendance')" icon="tabler-edit" variant="text" color="primary" size="small" @click="openEditAttendance(record)" />
+                    <VBtn v-if="record.status === 'present' && !record.checked_out_at && !record.check_out_time && (record.checked_in_at || record.check_in_time) && canAccess('record_attendance')" icon="tabler-clock-edit" variant="text" color="warning" size="small" @click="openCorrection(record)" />
+                    <VBtn icon="tabler-trash" variant="text" color="error" size="small" :aria-label="$t('pages.attendance.timesheet.timesheet.removeRecord')" @click="requestDelete(record)" />
+                  </div>
+                </article>
+              </div>
             </div>
-          </VCard>
+          </div>
         </VCol>
       </VRow>
+      </VCard>
     </div>
+
+    <VDialog v-model="attendanceDialogOpen" :persistent="savingAttendance" max-width="960" scrollable content-class="attendance-log-dialog">
+      <VCard class="attendance-log-dialog__card">
+        <VCardTitle class="attendance-log-dialog__header px-5 py-4">
+          <div>
+            <div class="attendance-log-dialog__eyebrow">{{ $t('pages.attendance.timesheet.steps.logAttendance') }}</div>
+            <div class="attendance-log-dialog__title">{{ $t('pages.attendance.timesheet.unmarkedFor', { date: logDate }) }}</div>
+          </div>
+          <VSpacer />
+          <VBtn icon="tabler-x" variant="tonal" color="error" :aria-label="$t('common.actions.close')" :disabled="savingAttendance" @click="attendanceDialogOpen = false" />
+        </VCardTitle>
+
+        <VCardText class="attendance-log-dialog__body pa-5">
+          <VAlert v-if="isFriday(logDate)" type="info" variant="tonal" class="mb-4">
+            {{ $t('common.ui.fridayIsTheAfghanistanWeekendAttendanceIsNotRequiredOrRecordedToday') }}
+          </VAlert>
+          <VAlert v-else-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
+          <ErpSearchField
+            v-if="attendanceDrafts.length"
+            v-model="attendanceStaffSearch"
+            class="mb-4"
+            :placeholder="$t('pages.attendance.timesheet.timesheet.searchStaff')"
+          />
+          <ResponsiveDataTable
+            v-if="rosterLoading"
+            :headers="attendanceRosterLoadingHeaders"
+            :items="[]"
+            :loading="true"
+            :skeleton-rows="4"
+            :sticky-key-column="false"
+            :sticky-action-column="false"
+            mobile-cards
+            mobile-title-key="employee"
+            :mobile-fields="['status']"
+          />
+          <section v-else-if="!attendanceDrafts.length" class="attendance-complete-state">
+            <div class="attendance-complete-state__icon"><VIcon icon="tabler-circle-check" size="30" /></div>
+            <h3>{{ $t('pages.attendance.timesheet.timesheet.attendanceCompleteTitle') }}</h3>
+            <p>{{ $t('pages.attendance.timesheet.timesheet.attendanceComplete') }}</p>
+          </section>
+          <TableEmptyState
+            v-else-if="!visibleAttendanceDrafts.length"
+            icon="tabler-users-group"
+            :title="$t('common.messages.noMatchingRecords')"
+            :description="$t('pages.attendance.timesheet.timesheet.noStaffMatchDescription')"
+          />
+          <div v-else class="attendance-draft-list">
+            <article v-for="draft in visibleAttendanceDrafts" :key="draft.staff.id" class="attendance-draft">
+              <div class="attendance-draft__top">
+                <div class="attendance-draft__identity">
+                  <VAvatar color="primary" variant="tonal" size="44" :image="employeeFor(draft.staff.id)?.avatar || undefined">
+                    <span v-if="!employeeFor(draft.staff.id)?.avatar">{{ draft.staff.name.charAt(0) }}</span>
+                  </VAvatar>
+                  <div>
+                    <strong>{{ draft.staff.name }}</strong>
+                    <span>{{ draft.staff.position }}</span>
+                  </div>
+                </div>
+                <div class="attendance-status-picker" role="radiogroup" :aria-label="$t('common.fields.status')">
+                  <VBtn :class="['attendance-status-picker__button', 'attendance-status-picker__button--present', { 'is-selected': draft.status === 'present' }]" :aria-pressed="draft.status === 'present'" size="small" variant="text" @click="draft.status = 'present'">{{ $t('common.statuses.present') }}</VBtn>
+                  <VBtn :class="['attendance-status-picker__button', 'attendance-status-picker__button--absent', { 'is-selected': draft.status === 'absent' }]" :aria-pressed="draft.status === 'absent'" size="small" variant="text" @click="draft.status = 'absent'">{{ $t('pages.attendance.timesheet.timesheet.absent') }}</VBtn>
+                  <VBtn :class="['attendance-status-picker__button', 'attendance-status-picker__button--unmarked', { 'is-selected': draft.status === 'unmarked' }]" :aria-pressed="draft.status === 'unmarked'" size="small" variant="text" @click="draft.status = 'unmarked'">{{ $t('pages.attendance.timesheet.timesheet.unmarked') }}</VBtn>
+                </div>
+              </div>
+              <VRow class="mt-1">
+                <VCol cols="12" sm="4"><ErpField v-model="draft.checkInTime" kind="select" :items="timeOptions" :label="$t('common.messages.inTime')" :disabled="attendanceFieldsDisabled(draft)" clearable /></VCol>
+                <VCol cols="12" sm="4"><ErpField v-model="draft.checkOutTime" kind="select" :items="timeOptions" :label="$t('common.messages.outTime')" :disabled="attendanceFieldsDisabled(draft)" clearable /></VCol>
+                <VCol cols="12" sm="4"><ErpField v-model.number="draft.breakMinutes" :label="$t('pages.attendance.timesheet.timesheet.breakMinutes')" type="number" min="0" max="720" :disabled="attendanceFieldsDisabled(draft)" /></VCol>
+              </VRow>
+            </article>
+          </div>
+        </VCardText>
+
+        <VCardActions class="attendance-log-dialog__footer px-5 py-4">
+          <VBtn class="attendance-log-dialog__cancel" :disabled="savingAttendance" @click="attendanceDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn class="attendance-log-dialog__save" color="primary" variant="flat" :loading="savingAttendance" :disabled="isFriday(logDate) || !attendanceDrafts.some(draft => draft.status !== 'unmarked')" @click="saveAllAttendance">
+            <VIcon icon="tabler-checks" class="me-1" />{{ $t('pages.attendance.timesheet.timesheet.saveAllAttendance') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="editDialogOpen" :persistent="savingEdit" max-width="620" content-class="attendance-edit-dialog">
+      <VCard class="attendance-edit-dialog__card">
+        <VCardTitle class="attendance-edit-dialog__header d-flex align-center justify-space-between px-5 py-4">
+          <span>{{ $t('pages.attendance.timesheet.timesheet.editAttendance') }}</span>
+          <VBtn class="attendance-edit-dialog__close" icon="tabler-x" variant="tonal" size="small" :disabled="savingEdit" @click="editDialogOpen = false" />
+        </VCardTitle>
+        <VCardText class="pt-5">
+          <p class="text-body-2 text-medium-emphasis mb-5">{{ editingRecord?.name }} · {{ editingRecord?.date }}</p>
+          <div class="attendance-status-picker justify-start mb-5" role="radiogroup" :aria-label="$t('common.fields.status')">
+            <VBtn :class="['attendance-status-picker__button', 'attendance-status-picker__button--present', { 'is-selected': editStatus === 'present' }]" size="small" variant="text" @click="editStatus = 'present'">{{ $t('common.statuses.present') }}</VBtn>
+            <VBtn :class="['attendance-status-picker__button', 'attendance-status-picker__button--absent', { 'is-selected': editStatus === 'absent' }]" size="small" variant="text" @click="editStatus = 'absent'">{{ $t('pages.attendance.timesheet.timesheet.absent') }}</VBtn>
+          </div>
+          <VRow>
+            <VCol cols="12" sm="4"><ErpField v-model="editCheckInTime" kind="select" :items="timeOptions" :label="$t('common.messages.inTime')" :disabled="editStatus !== 'present'" clearable /></VCol>
+            <VCol cols="12" sm="4"><ErpField v-model="editCheckOutTime" kind="select" :items="timeOptions" :label="$t('common.messages.outTime')" :disabled="editStatus !== 'present'" clearable /></VCol>
+            <VCol cols="12" sm="4"><ErpField v-model.number="editBreakMinutes" :label="$t('pages.attendance.timesheet.timesheet.breakMinutes')" type="number" min="0" max="720" :disabled="editStatus !== 'present'" /></VCol>
+          </VRow>
+        </VCardText>
+        <VCardActions class="attendance-edit-dialog__actions px-5 py-4">
+          <VBtn class="attendance-log-dialog__cancel" :disabled="savingEdit" @click="editDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn color="primary" variant="flat" :loading="savingEdit" @click="saveAttendanceEdit">{{ $t('common.actions.save') }}</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <VDialog v-model="deleteDialogOpen" :persistent="deleting" max-width="460">
+      <VCard class="timesheet-action-dialog">
+        <VCardText class="timesheet-action-dialog__content">
+          <div class="timesheet-action-dialog__icon"><VIcon icon="tabler-trash" size="30" /></div>
+          <h2 class="timesheet-action-dialog__title">{{ $t('common.messages.confirmDelete') }}</h2>
+          <p class="timesheet-action-dialog__description">{{ $t('pages.attendance.timesheet.timesheet.deleteAttendanceRecord', { name: deletingRecord?.name }) }}</p>
+          <p class="timesheet-action-dialog__hint">{{ $t('common.confirmations.thisActionCannotBeUndone') }}</p>
+        </VCardText>
+        <VCardActions class="timesheet-action-dialog__actions">
+          <VBtn class="timesheet-action-dialog__cancel" :disabled="deleting" @click="deleteDialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn class="timesheet-action-dialog__delete" :loading="deleting" @click="deleteRecord">{{ $t('common.actions.delete') }}</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <VDialog v-model="correctionOpen" :persistent="correcting" max-width="560">
       <VCard>
@@ -1038,6 +1381,226 @@ watch(logDate, async () => {
 </template>
 
 <style scoped>
+
+.attendance-container { max-inline-size: 100%; }
+
+.timesheet-table-shell {
+  overflow: hidden;
+  border-radius: .85rem !important;
+  box-shadow: 0 3px 14px rgba(var(--v-theme-on-surface), .035) !important;
+}
+
+.timesheet-table-toolbar {
+  padding: 1.25rem 1.5rem !important;
+}
+
+.table-toolbar-actions {
+  min-inline-size: 0;
+}
+
+.attendance-log-dialog__card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-block-size: min(90dvh, 920px);
+  overflow: hidden;
+}
+
+.attendance-log-dialog__header,
+.attendance-log-dialog__footer {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%);
+}
+
+.attendance-log-dialog__header {
+  position: sticky;
+  inset-block-start: 0;
+  border-block-end: 1px solid rgba(var(--v-border-color), .5);
+}
+
+.attendance-log-dialog__footer {
+  position: sticky;
+  inset-block-end: 0;
+  border-block-start: 1px solid rgba(var(--v-border-color), .5);
+  justify-content: flex-start;
+  gap: .75rem;
+}
+
+.attendance-log-dialog__cancel,
+.attendance-log-dialog__save {
+  min-block-size: 2.75rem;
+  flex: 0 0 auto;
+  inline-size: auto;
+  font-weight: 700;
+}
+
+.attendance-log-dialog__cancel {
+  border: 1px solid rgba(var(--v-theme-secondary), .5) !important;
+  background: rgba(var(--v-theme-secondary), .13) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
+}
+
+.attendance-log-dialog__cancel:hover:not(:disabled) {
+  background: rgb(var(--v-theme-secondary)) !important;
+  color: rgb(var(--v-theme-on-secondary)) !important;
+}
+
+.attendance-log-dialog__eyebrow {
+  color: rgb(var(--v-theme-primary));
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.attendance-log-dialog__title {
+  margin-block-start: .15rem;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+
+.attendance-log-dialog__body {
+  min-block-size: 0;
+  background: rgba(var(--v-theme-on-surface), .018);
+  overflow-y: auto;
+}
+
+.attendance-draft-list {
+  display: grid;
+  gap: 1.725rem;
+}
+
+.attendance-draft {
+  padding: 1rem;
+  border: 1px solid rgba(var(--v-border-color), .48);
+  border-radius: .85rem;
+  background: rgb(var(--v-theme-surface));
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.attendance-draft:focus-within {
+  border-color: rgba(var(--v-theme-primary), .65);
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), .1);
+}
+
+.attendance-draft__top,
+.attendance-draft__identity,
+.attendance-status-picker {
+  display: flex;
+  align-items: center;
+}
+
+.attendance-draft__top {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.attendance-draft__identity {
+  min-inline-size: 0;
+  gap: .75rem;
+}
+
+.attendance-draft__identity > div {
+  display: grid;
+  min-inline-size: 0;
+  gap: .1rem;
+}
+
+.attendance-draft__identity strong {
+  overflow: hidden;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: .94rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-draft__identity span {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: .78rem;
+}
+
+.attendance-status-picker {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .4rem;
+}
+
+.attendance-status-picker__button {
+  border: 1px solid rgba(var(--v-border-color), .54) !important;
+  background: transparent !important;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.attendance-status-picker__button--present.is-selected {
+  background: rgba(var(--v-theme-success), .1) !important;
+  color: rgb(var(--v-theme-success)) !important;
+}
+
+.attendance-status-picker__button--absent.is-selected {
+  background: rgba(var(--v-theme-error), .1) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.attendance-status-picker__button--unmarked.is-selected {
+  background: rgba(var(--v-theme-secondary), .1) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
+}
+
+.attendance-status-picker__button.is-selected {
+  border-color: currentColor !important;
+  box-shadow: none !important;
+}
+
+.attendance-edit-dialog__card { overflow: hidden; }
+.attendance-edit-dialog__header,
+.attendance-edit-dialog__actions {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%);
+}
+.attendance-edit-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+.attendance-edit-dialog__actions { display: flex; justify-content: flex-start; gap: .75rem; border-block-start: 1px solid rgba(var(--v-border-color), .5); }
+.attendance-edit-dialog__actions :deep(.v-btn) { min-block-size: 2.75rem; }
+.attendance-edit-dialog__close { background: rgba(var(--v-theme-error), .13) !important; color: rgb(var(--v-theme-error)) !important; }
+
+.attendance-complete-state { display: grid; justify-items: center; max-inline-size: 34rem; margin: 1.25rem auto; padding: 3.5rem 1.5rem; text-align: center; }
+.attendance-complete-state__icon { display: grid; inline-size: 4rem; block-size: 4rem; margin-block-end: 1rem; border-radius: 50%; background: rgba(var(--v-theme-success), .13); color: rgb(var(--v-theme-success)); place-items: center; }
+.attendance-complete-state h3 { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: 1.1rem; }
+.attendance-complete-state p { margin: .55rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.6; }
+
+.attendance-row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: .15rem; white-space: nowrap; }
+
+.timesheet-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, .18) !important; text-align: center; }
+.timesheet-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
+.timesheet-action-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); place-items: center; }
+.timesheet-action-dialog__title { margin: 0; font-size: 1.2rem; font-weight: 700; line-height: 1.45; }
+.timesheet-action-dialog__description { max-inline-size: 24rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.65; }
+.timesheet-action-dialog__hint { margin: .45rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .8rem; }
+.timesheet-action-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }
+.timesheet-action-dialog__cancel, .timesheet-action-dialog__delete { min-block-size: 2.85rem; border-radius: 10px !important; font-weight: 700; }
+.timesheet-action-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.timesheet-action-dialog__delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+
+:global(.v-overlay:has(.attendance-log-dialog) .v-overlay__scrim),
+:global(.v-overlay:has(.attendance-edit-dialog) .v-overlay__scrim),
+:global(.v-overlay:has(.timesheet-action-dialog) .v-overlay__scrim) {
+  background: rgba(20, 25, 35, .32) !important;
+  backdrop-filter: blur(6px);
+  opacity: 1 !important;
+}
+
+@media (max-width: 700px) {
+  .attendance-log-dialog__card { max-block-size: calc(100dvh - 1rem); }
+  .attendance-log-dialog__header, .attendance-log-dialog__footer { padding-inline: 1rem !important; }
+  .attendance-draft { padding: .85rem; }
+  .attendance-draft-list { gap: 1.475rem; }
+  .attendance-draft__top { align-items: flex-start; flex-direction: column; }
+  .attendance-status-picker { justify-content: flex-start; }
+  .timesheet-table-toolbar { padding-inline: 1rem !important; }
+  .timesheet-action-dialog__content, .timesheet-action-dialog__actions { padding-inline: 1.25rem !important; }
+}
 
 
 /* Accent Card Aesthetics */
@@ -1163,6 +1726,8 @@ watch(logDate, async () => {
   display: none;
 }
 
+.timesheet-mobile-cards { display: none; }
+
 .custom-attendance-table {
   border-collapse: separate;
   border-spacing: 0;
@@ -1189,13 +1754,30 @@ watch(logDate, async () => {
 
 .custom-attendance-table th:last-child,
 .custom-attendance-table td:last-child {
-  min-inline-size: 9rem;
+  min-inline-size: 4.75rem;
+  inline-size: 4.75rem;
+}
+
+.custom-attendance-table th:nth-child(4),
+.custom-attendance-table td:nth-child(4),
+.custom-attendance-table th:nth-child(5),
+.custom-attendance-table td:nth-child(5) {
+  min-inline-size: 7.5rem;
+  inline-size: 7.5rem;
+}
+
+.custom-attendance-table th:nth-child(6),
+.custom-attendance-table td:nth-child(6),
+.custom-attendance-table th:nth-child(7),
+.custom-attendance-table td:nth-child(7) {
+  min-inline-size: 7rem;
+  inline-size: 7rem;
 }
 
 .incomplete-session { background: rgba(var(--v-theme-warning), 0.1); }
 
 .table-row-hover:hover {
-  background-color: rgba(var(--v-theme-primary), 0.03);
+  background-color: rgba(var(--v-theme-on-surface), .035);
 }
 
 .border-dashed {
@@ -1208,6 +1790,26 @@ watch(logDate, async () => {
 
 .transition-all {
   transition: all 0.2s ease;
+}
+
+@media (max-width: 959px) {
+  .table-row-hover:hover { background-color: transparent; }
+}
+
+@media (max-width: 959px) {
+  .attendance-table-wrapper { overflow: visible; }
+  .timesheet-desktop-table { display: none; }
+  .timesheet-mobile-cards { display: grid; gap: .75rem; padding: .75rem; }
+  .timesheet-mobile-card { padding: 1rem; border: 1px solid rgba(var(--v-border-color), .48); border-radius: .85rem; background: rgb(var(--v-theme-surface)); }
+  .timesheet-mobile-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+  .timesheet-mobile-card__header > div { display: grid; min-inline-size: 0; gap: .15rem; }
+  .timesheet-mobile-card__header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timesheet-mobile-card__header span,
+  .timesheet-mobile-card__fields span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .76rem; }
+  .timesheet-mobile-card__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-block-start: 1rem; }
+  .timesheet-mobile-card__fields > div { display: grid; gap: .15rem; min-inline-size: 0; }
+  .timesheet-mobile-card__fields strong { overflow: hidden; font-size: .88rem; text-overflow: ellipsis; white-space: nowrap; }
+  .timesheet-mobile-card__actions { display: flex; justify-content: flex-end; gap: .15rem; margin-block-start: .75rem; padding-block-start: .65rem; border-block-start: 1px solid rgba(var(--v-border-color), .42); }
 }
 </style>
 

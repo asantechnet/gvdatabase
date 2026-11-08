@@ -10,7 +10,7 @@ import ApplicantApi, { type ApplicantStage, type BuiltInService } from '@/api/ap
 import EducationalReportPrint from '@/components/educational/EducationalReportPrint.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ResponsiveDataTable from '@/components/responsive-data-table/ResponsiveDataTable.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { canAccess } from '@/utils/authorization'
@@ -31,8 +31,12 @@ const report = ref<EducationalReport | null>(null)
 const loading = ref(true)
 const loadToken = ref(0)
 const exporting = ref(false)
+const reportLoadingHeaders = computed(() => (report.value?.columns?.length
+  ? report.value.columns.map(column => ({ title: columnLabel(column), key: column }))
+  : Array.from({ length: 6 }, (_, index) => ({ title: '', key: `loading-${index}` }))))
 const page = ref(1)
 const filterDialog = ref(false)
+const employeePerformanceFilterMenu = ref(false)
 const search = ref('')
 
 const countries = ref<MasterDataRecord[]>([])
@@ -84,6 +88,8 @@ const activeTab = computed(() => tabs.find(item => item.value === tab.value))
 const pageTitle = computed(() => t(`educational.reportWorkspaces.${workspace.value}.title`))
 const pageDescription = computed(() => workspace.value === 'applications'
   ? ''
+  : workspace.value === 'hrm'
+    ? ''
   : t(`educational.reportWorkspaces.${workspace.value}.description`))
 const pageSection = computed(() => workspace.value === 'applications' ? 'applications' : workspace.value === 'finance' ? 'finance' : 'hr')
 const filteredRows = computed(() => {
@@ -240,6 +246,7 @@ function clearFilters() {
   dateFrom.value = ''
   dateTo.value = ''
   page.value = 1
+  employeePerformanceFilterMenu.value = false
   void load()
 }
 
@@ -272,6 +279,7 @@ function applyFilterDialog() {
   dateTo.value = filterDraft.dateTo
   page.value = 1
   filterDialog.value = false
+  employeePerformanceFilterMenu.value = false
   void load()
 }
 
@@ -293,7 +301,6 @@ const printGeneratedAt = ref('')
 const refreshPrintStamp = () => { printGeneratedAt.value = formatLocalizedDate(new Date(), 'long') }
 const printDirection = computed(() => (['fa-AF', 'ps-AF'].includes(String(locale.value)) ? 'rtl' : 'ltr'))
 const printColumns = computed(() => (report.value?.columns ?? []).map(columnLabel))
-const printTotalLabel = computed(() => t('educational.resultCount', { count: report.value?.total ?? 0 }))
 const printRows = computed<Array<Array<string | number>>>(() => {
   const current = report.value
   if (!current)
@@ -420,18 +427,34 @@ onBeforeUnmount(() => {
         <VRow align="center" class="table-toolbar">
           <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="$t('educational.searchReports')" /></VCol>
           <VCol cols="12" md="6" lg="7" class="table-toolbar-actions d-flex flex-nowrap justify-end gap-2">
-            <VBtn icon="tabler-filter" :variant="activeFilterCount ? 'flat' : 'tonal'" :color="activeFilterCount ? 'primary' : undefined" size="small" :aria-label="$t('common.messages.filters')" @click="openFilters"><VIcon icon="tabler-filter" /><VTooltip activator="parent" location="top">{{ $t('common.messages.filters') }}</VTooltip></VBtn>
+            <DataTableFilterMenu v-if="workspace === 'hrm'" v-model="employeePerformanceFilterMenu" :active="activeFilterCount > 0" :show-reset="false" @update:model-value="open => { if (open) syncFilterDraft() }">
+              <ErpField v-model="filterDraft.employeeId" kind="autocomplete" :items="employees.map(employee => ({ title: employee.name, value: employee.id }))" :label="$t('educational.employee')" clearable />
+              <ErpField v-model="filterDraft.dateFrom" kind="date" :label="$t('common.fields.startDate')" :config="{ dateFormat: 'Y-m-d', maxDate: filterDraft.dateTo || undefined, static: false, onOpen: dockFilterCalendar }" />
+              <ErpField v-model="filterDraft.dateTo" kind="date" :label="$t('common.fields.endDate')" :config="{ dateFormat: 'Y-m-d', minDate: filterDraft.dateFrom || undefined, static: false, onOpen: dockFilterCalendar }" />
+              <template #actions><VBtn class="education-filter-reset" variant="flat" @click="clearFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="applyFilterDialog">{{ $t('educational.apply') }}</VBtn></template>
+            </DataTableFilterMenu>
+            <VBtn v-else icon="tabler-filter" :variant="activeFilterCount ? 'flat' : 'tonal'" :color="activeFilterCount ? 'primary' : undefined" size="small" :aria-label="$t('common.messages.filters')" @click="openFilters"><VIcon icon="tabler-filter" /><VTooltip activator="parent" location="top">{{ $t('common.messages.filters') }}</VTooltip></VBtn>
             <VBtn icon="tabler-printer" variant="tonal" class="flex-shrink-0" :disabled="!report" :aria-label="$t('common.actions.print')" @click="printPage"><VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip></VBtn>
             <VBtn v-if="canExport" icon="tabler-download" variant="tonal" color="primary" class="flex-shrink-0" :loading="exporting" :aria-label="$t('educational.exportCsv')" @click="download"><VIcon icon="tabler-download" /><VTooltip activator="parent" location="top">{{ $t('educational.exportCsv') }}</VTooltip></VBtn>
           </VCol>
         </VRow>
       </VCardText>
-      <TableLoadingSkeleton v-if="loading" :columns="report?.columns.length ?? 6" :label="$t('common.messages.loading')" />
+      <ResponsiveDataTable v-if="loading" :headers="reportLoadingHeaders" :items="[]" :loading="true" :skeleton-rows="6" :sticky-key-column="false" :sticky-action-column="false" mobile-cards mobile-title-key="loading-0" :mobile-fields="['loading-1', 'loading-2']" class="education-report-loading-table" />
       <TableEmptyState v-else-if="report && !filteredRows.length" icon="tabler-report-off" :title="emptyTitle" :description="emptyDescription" />
       <div v-else-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
         <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
         <tbody><tr v-for="(row, index) in filteredRows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="column === 'status'" size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
-      </VTable></div>
+      </VTable>
+        <div class="education-report-mobile-cards">
+          <article v-for="(row, index) in filteredRows" :key="index" class="education-report-mobile-card">
+            <div v-for="column in report.columns" :key="column" class="education-report-mobile-card__field">
+              <span>{{ columnLabel(column) }}</span>
+              <strong v-if="column !== 'status'">{{ displayValue(column, row[column]) }}</strong>
+              <VChip v-else size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip>
+            </div>
+          </article>
+        </div>
+      </div>
       <VDivider v-if="report?.last_page && report.last_page > 1" />
       <VCardText v-if="report?.last_page && report.last_page > 1" class="d-flex justify-center py-2 education-pagination"><VPagination v-model="page" :length="report.last_page" size="small" :total-visible="7" @update:model-value="load" /></VCardText>
     </VCard>
@@ -445,7 +468,7 @@ onBeforeUnmount(() => {
       :facts="printFacts"
       :period="printPeriod"
       :generated-at="printGeneratedAt"
-      :total-label="printTotalLabel"
+      :total="report?.total ?? 0"
       :direction="printDirection"
     />
   </div>
@@ -542,16 +565,17 @@ onBeforeUnmount(() => {
 /* Vuetify places the actual scrolling element one level inside VTable; the
    skeleton has its own scroll host. Keep both scrollable, but never visible. */
 .education-table-scroll .v-table__wrapper,
-.education-workspace .table-loading-skeleton__scroll {
+.education-report-loading-table :deep(.v-table__wrapper) {
   scrollbar-width: none;
 }
 
 .education-table-scroll .v-table__wrapper::-webkit-scrollbar,
-.education-workspace .table-loading-skeleton__scroll::-webkit-scrollbar { display: none; }
+.education-report-loading-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
 
 .report-table { min-inline-size: 70rem; }
 .report-table :is(th, td) { min-inline-size: 9rem; white-space: nowrap; }
 .report-table th:first-child, .report-table td:first-child { min-inline-size: 5rem; }
+.education-report-mobile-cards { display: none; }
 
 /* The report filter intentionally reuses the Applications dialog language so
    users meet the same layout, actions, and visual feedback everywhere. */
@@ -576,9 +600,19 @@ onBeforeUnmount(() => {
 .applications-filter-dialog__reset:focus-visible { background-color: rgb(var(--v-theme-error)) !important; border-color: rgb(var(--v-theme-error)); color: rgb(var(--v-theme-on-error)) !important; }
 .applications-filter-dialog__apply { background-color: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
 .applications-filter-dialog__apply:hover { filter: brightness(.9); }
+.education-filter-reset { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }
+.education-filter-reset:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .v-overlay:has(.applications-filter-dialog) .v-overlay__scrim { backdrop-filter: blur(4px); background-color: rgba(var(--v-theme-on-surface), .24); }
 
-@media (max-width: 599px) {
-  .report-table { min-inline-size: 62rem; }
+@media (max-width: 959px) {
+  .education-table-scroll { overflow: visible; }
+  .report-table { display: none; }
+  .education-report-mobile-cards { display: grid; gap: .75rem; }
+  .education-report-mobile-card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .58); border-radius: .75rem; background: rgb(var(--v-theme-surface)); box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / .04); }
+  .education-report-mobile-card__field { display: grid; grid-template-columns: minmax(7.75rem, .9fr) minmax(0, 1.1fr); align-items: center; gap: .75rem; min-block-size: 2.75rem; padding: .625rem .875rem; border-block-end: 1px solid rgba(var(--v-border-color), .38); }
+  .education-report-mobile-card__field:last-child { border-block-end: 0; }
+  .education-report-mobile-card__field > span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 700; }
+  .education-report-mobile-card__field > strong { min-inline-size: 0; color: rgb(var(--v-theme-on-surface)); font-size: .8125rem; font-weight: 600; overflow-wrap: anywhere; text-align: end; }
+  html[dir="rtl"] .education-report-mobile-card__field > strong { text-align: start; }
 }
 </style>

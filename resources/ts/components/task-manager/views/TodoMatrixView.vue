@@ -7,6 +7,7 @@ import TaskApi from '@/api/task'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import type { Subtask, Task, TaskAttachment } from '@/api/kanban'
 import type { TaskPriority } from '@/types/taskManager'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const store = useTaskStore()
 const userData = useCookie<{ id?: string | number } | null>('userData')
@@ -44,13 +45,20 @@ const { t } = useI18n()
 const editingTodo = ref<Subtask | null>(null)
 const editTodoForm = ref({ title: '', category: '', priority: 'medium' as TaskPriority })
 const taskAttachmentFile = ref<File | null>(null)
+const attachmentFileInput = ref<HTMLInputElement | null>(null)
 const isUploadingAttachment = ref(false)
 const attachmentError = ref('')
+const previewAttachment = ref<TaskAttachment | null>(null)
+const previewUrl = ref('')
+const isPreviewOpen = ref(false)
 const canEditTask = () => canAccess('edit_assigned_tasks')
 
 watch(() => store.selectedTask, () => {
   taskAttachmentFile.value = null
   attachmentError.value = ''
+  if (previewUrl.value)
+    URL.revokeObjectURL(previewUrl.value)
+  previewUrl.value = ''
 }, { immediate: true })
 
 const taskAttachments = computed(() => store.selectedTask?.attachments.filter(attachment => attachment.section === 'input') ?? [])
@@ -73,6 +81,24 @@ const uploadAttachment = async () => {
   finally {
     isUploadingAttachment.value = false
   }
+}
+
+const selectAttachment = (event: Event) => {
+  taskAttachmentFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
+  ;(event.target as HTMLInputElement).value = ''
+}
+
+const isImage = (attachment: TaskAttachment) => attachment.mimeType?.startsWith('image/') ?? false
+
+const previewTaskAttachment = async (attachment: TaskAttachment) => {
+  if (!store.selectedTask)
+    return
+  if (previewUrl.value)
+    URL.revokeObjectURL(previewUrl.value)
+  const response = await TaskApi.downloadAttachment(store.selectedTask.id, attachment.id)
+  previewAttachment.value = attachment
+  previewUrl.value = URL.createObjectURL(response.data)
+  isPreviewOpen.value = true
 }
 
 const deleteAttachment = async (attachment: TaskAttachment) => {
@@ -251,22 +277,13 @@ const handleAddTodo = () => {
             v-if="canEditTask()"
             class="d-flex flex-column flex-sm-row align-sm-center gap-2 mt-3"
           >
-            <VFileInput
-              v-model="taskAttachmentFile"
-              :label="$t('components.taskManager.todomatrixview.attachTaskFile')"
-              density="compact"
-              hide-details
-              prepend-icon="tabler-paperclip"
-              :disabled="isUploadingAttachment"
-            />
-            <VBtn
-              color="secondary"
-              :disabled="!taskAttachmentFile"
-              :loading="isUploadingAttachment"
-              @click="uploadAttachment"
-            >
-              {{ $t('components.taskManager.todomatrixview.attach') }}
-            </VBtn>
+            <input ref="attachmentFileInput" type="file" class="d-none" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp" @change="selectAttachment">
+            <div class="task-attachment-picker" :class="{ 'task-attachment-picker--selected': taskAttachmentFile }">
+              <VAvatar color="primary" variant="tonal" size="38"><VIcon :icon="taskAttachmentFile ? 'tabler-file-check' : 'tabler-cloud-upload'" /></VAvatar>
+              <div class="task-attachment-picker__copy"><strong>{{ taskAttachmentFile?.name || $t('components.taskManager.todomatrixview.attachTaskFile') }}</strong><span>{{ taskAttachmentFile ? formatFileSize(taskAttachmentFile.size) : $t('common.attachments.acceptedHint') }}</span></div>
+              <VBtn color="secondary" variant="tonal" :disabled="isUploadingAttachment" @click="attachmentFileInput?.click()">{{ taskAttachmentFile ? $t('common.actions.edit') : $t('common.actions.upload') }}</VBtn>
+            </div>
+            <VBtn color="secondary" :disabled="!taskAttachmentFile" :loading="isUploadingAttachment" @click="uploadAttachment">{{ $t('components.taskManager.todomatrixview.attach') }}</VBtn>
           </div>
           <VAlert
             v-if="attachmentError"
@@ -296,6 +313,14 @@ const handleAddTodo = () => {
               <VListItemTitle>{{ attachment.name }}</VListItemTitle>
               <VListItemSubtitle>{{ formatFileSize(attachment.size) }}</VListItemSubtitle>
               <template #append>
+                <VBtn
+                  icon="tabler-eye"
+                  variant="text"
+                  size="small"
+                  :aria-label="$t('common.actions.viewFullDetails')"
+                  :title="$t('common.actions.viewFullDetails')"
+                  @click="previewTaskAttachment(attachment)"
+                />
                 <VBtn
                   icon="tabler-download"
                   variant="text"
@@ -343,11 +368,11 @@ const handleAddTodo = () => {
             @submit.prevent="handleAddTodo"
           >
             <div class="d-flex flex-column gap-3">
-              <VTextField
+              <ErpField
                 v-model="newTaskTitle"
+                class="flex-grow-1"
+                :label="$t('common.fields.title')"
                 :placeholder="$t('components.taskManager.todomatrixview.addANewSubTask')"
-                variant="outlined"
-                density="comfortable"
                 hide-details
                 @keydown.enter.prevent="handleAddTodo"
               >
@@ -360,25 +385,28 @@ const handleAddTodo = () => {
                     type="submit"
                   />
                 </template>
-              </VTextField>
-              <div class="d-flex flex-column flex-sm-row gap-3 mt-3">
-                <VTextField
-                  v-model="newTaskCategory"
-                  :label="$t('common.fields.category')"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                />
-                <VSelect
-                  v-model="newTaskPriority"
-                  :items="['low', 'medium', 'high', 'urgent']"
-                  :item-title="translateBackendValue"
-                  :label="$t('common.fields.priority')"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                />
-              </div>
+              </ErpField>
+              <VRow class="mt-1">
+                <VCol cols="12" sm="6">
+                  <ErpField
+                    v-model="newTaskCategory"
+                    :label="$t('common.fields.category')"
+                    :placeholder="$t('common.fields.category')"
+                    hide-details
+                  />
+                </VCol>
+                <VCol cols="12" sm="6">
+                  <ErpField
+                    v-model="newTaskPriority"
+                    kind="select"
+                    :items="['low', 'medium', 'high', 'urgent']"
+                    :item-title="translateBackendValue"
+                    :label="$t('common.fields.priority')"
+                    :placeholder="$t('common.fields.priority')"
+                    hide-details
+                  />
+                </VCol>
+              </VRow>
             </div>
           </VForm>
 
@@ -485,21 +513,25 @@ const handleAddTodo = () => {
       >
         <VCard :title="$t('components.taskManager.todomatrixview.editActionItem')">
           <VCardText>
-            <VTextField
+            <ErpField
               v-model="editTodoForm.title"
               :label="$t('common.fields.title')"
+              :placeholder="$t('common.fields.title')"
               class="mb-3"
             />
-            <VTextField
+            <ErpField
               v-model="editTodoForm.category"
               :label="$t('common.fields.category')"
+              :placeholder="$t('common.fields.category')"
               class="mb-3"
             />
-            <VSelect
+            <ErpField
               v-model="editTodoForm.priority"
+              kind="select"
               :items="['low', 'medium', 'high', 'urgent']"
               :item-title="translateBackendValue"
               :label="$t('common.fields.priority')"
+              :placeholder="$t('common.fields.priority')"
             />
           </VCardText>
           <VCardActions>
@@ -516,6 +548,9 @@ const handleAddTodo = () => {
             </VBtn>
           </VCardActions>
         </VCard>
+      </VDialog>
+      <VDialog v-model="isPreviewOpen" max-width="900" content-class="task-attachment-preview-dialog" @update:model-value="open => { if (!open) previewAttachment = null }">
+        <VCard class="task-attachment-preview-dialog__card"><VCardTitle class="task-attachment-preview-dialog__header px-5 py-4"><span class="text-truncate">{{ previewAttachment?.name }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" :aria-label="$t('common.actions.close')" @click="isPreviewOpen = false" /></VCardTitle><VCardText class="task-attachment-preview-dialog__body pa-4"><VImg v-if="previewAttachment && isImage(previewAttachment)" :src="previewUrl" :alt="previewAttachment.name" contain /><iframe v-else :src="previewUrl" :title="previewAttachment?.name" /></VCardText></VCard>
       </VDialog>
     </VCol>
   </VRow>
@@ -545,6 +580,12 @@ const handleAddTodo = () => {
 .todo-matrix-task-title {
   padding-block-start: 0.25rem;
 }
+
+.task-attachment-picker { display: flex; flex: 1 1 16rem; align-items: center; gap: .75rem; min-inline-size: 0; padding: .625rem .75rem; border: 1px dashed rgba(var(--v-theme-primary), .45); border-radius: .75rem; background: rgba(var(--v-theme-primary), .045); }
+.task-attachment-picker--selected { border-style: solid; }
+.task-attachment-picker__copy { display: grid; flex: 1; min-inline-size: 0; gap: .125rem; }.task-attachment-picker__copy strong, .task-attachment-picker__copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.task-attachment-picker__copy span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; }
+:global(.v-overlay:has(.task-attachment-preview-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .28); backdrop-filter: blur(5px); opacity: 1 !important; }
+:global(.task-attachment-preview-dialog__card) { overflow: hidden; }.task-attachment-preview-dialog__header { display: flex; align-items: center; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); }.task-attachment-preview-dialog__body { display: grid; min-block-size: min(60vh, 36rem); place-items: center; background: rgba(var(--v-theme-on-surface), .025); }.task-attachment-preview-dialog__body :deep(.v-img), .task-attachment-preview-dialog__body iframe { inline-size: 100%; block-size: min(60vh, 36rem); border: 0; }
 
 @media (max-width: 420px) {
   .todo-matrix-section {

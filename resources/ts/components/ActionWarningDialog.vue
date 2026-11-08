@@ -162,23 +162,24 @@ const warningTone = computed(() => actionWarningState.request?.tone || 'warning'
   text-transform: none;
 
   &--cancel {
-    border: 1px solid rgba(var(--v-theme-secondary), 0.52) !important;
-    background: rgba(var(--v-theme-secondary), 0.13) !important;
-    color: rgb(var(--v-theme-secondary)) !important;
+    border: 1px solid rgba(var(--v-theme-error), 0.62) !important;
+    background: rgba(var(--v-theme-error), 0.12) !important;
+    color: rgb(var(--v-theme-error)) !important;
 
     .v-btn__content {
-      color: rgb(var(--v-theme-secondary)) !important;
+      color: rgb(var(--v-theme-error)) !important;
     }
 
     &:hover,
     &:focus-visible,
     &.v-btn--active,
     &:active {
-      background: rgba(var(--v-theme-secondary), 0.2) !important;
-      color: rgb(var(--v-theme-secondary)) !important;
+      border-color: rgb(var(--v-theme-error)) !important;
+      background: rgb(var(--v-theme-error)) !important;
+      color: rgb(var(--v-theme-on-error)) !important;
 
       .v-btn__content {
-        color: rgb(var(--v-theme-secondary)) !important;
+        color: rgb(var(--v-theme-on-error)) !important;
       }
     }
   }
