@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 /**
  * Academy data extracted from Options → Contracts → Educational data.
@@ -59,12 +60,14 @@ async function save() {
     return
 
   try {
-    if (editing.value)
-      await MasterDataApi.update(catalog.value, editing.value.id, form.value)
-    else
-      await MasterDataApi.create(catalog.value, form.value)
+    const wasNew = !editing.value
+    const saved = editing.value
+      ? await MasterDataApi.update(catalog.value, editing.value.id, form.value)
+      : await MasterDataApi.create(catalog.value, form.value)
     dialog.value = false
     await load()
+    if (wasNew)
+      rows.value = moveCreatedRowFirst(rows.value, saved)
     toast.success(t('educational.masterData.saved'))
   }
   catch { /* API failure feedback belongs to the global notifier (Task-018). */ }

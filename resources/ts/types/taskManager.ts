@@ -36,6 +36,8 @@ export interface KanbanBoardColumn {
   id: string
   title: string
   order: number
+  isPersonal: boolean
+  isOwned: boolean
 }
 
 // --------------------------------------------------------------------------

@@ -60,11 +60,11 @@ The review also reported a seeded 4-character super-admin password. The demo see
 - `resources/ts/views/pages/account-settings/AccountSettingsSecurity.vue` — QR, recovery codes, sessions and password guidance.
 - `resources/ts/components/forms/LoginForm.vue` — recovery-code fallback and accessible password toggle.
 - `resources/ts/api/auth.ts` — two-factor, recovery-code and session types.
-- `routes/api.php` — the new session routes and their order.
 - `database/migrations/2026_11_01_000002_add_two_factor_recovery_codes.php` — hashed recovery codes.
-- `database/seeders` — demo credential policy and seeded super-admin password.
+- `database/seeders/SuperAdminSeeder.php` — demo credential policy and seeded super-admin password.
 - `package.json` — QR encoder dependency, only if no existing utility is found.
 
+Forward ownership: `routes/api.php` moved to Task-035 on 2026-11-07 for the audit row-trail read, then to Task-038 for the Academy route tree; this task's 2FA routes remain historical work and must not be reordered by those tasks.
 ## Acceptance criteria
 - [ ] Given a user starts 2FA setup, when the security page receives the response, then it shows a scannable QR code for the otpauth URI, the issuer is the company/product name from settings (or the app-name fallback), and the manual secret remains available.
 - [ ] Given the user confirms a valid TOTP code, when confirmation succeeds, then ten recovery codes are shown once, only hashes are stored, and the raw codes cannot be retrieved again.

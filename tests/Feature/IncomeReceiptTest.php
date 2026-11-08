@@ -51,8 +51,9 @@ class IncomeReceiptTest extends TestCase
         $this->assertSame($applicant->contact, $payload['applicant']['contact']);
         $this->assertSame($income->date->toDateString(), $payload['date']);
         $this->assertSame('Asantech Ltd', $payload['company']['name']);
-        $this->assertNotNull($payload['letterhead']);
-        $this->assertArrayHasKey('safe', $payload['letterhead']);
+        $this->assertSame('#123456', $payload['company']['primary_color']);
+        $this->assertSame('#654321', $payload['company']['secondary_color']);
+        $this->assertArrayNotHasKey('letterhead', $payload);
 
         // The payment block names the income record so it cannot be confused
         // with another receipt for the same applicant.
@@ -68,39 +69,6 @@ class IncomeReceiptTest extends TestCase
 
         // Signature/stamp section: the company signature is exposed.
         $this->assertSame('Asantech Ltd', $payload['signature']['name']);
-    }
-
-    public function test_receipt_letterhead_follows_the_selected_source(): void
-    {
-        $user = $this->actingAsSuperAdmin();
-        [$applicant, $income] = $this->createCaseWithPayment($user);
-
-        $this->postJson('/api/settings', [
-            ...$this->validSettings(),
-            'receipt_letterhead' => $this->fakePng('receipt.png'),
-            'receipt_letterhead_source' => 'custom',
-            'receipt_letterhead_safe_x' => 7.5,
-            'receipt_letterhead_safe_y' => 20,
-            'receipt_letterhead_safe_width' => 85,
-            'receipt_letterhead_safe_height' => 60,
-        ], ['Accept' => 'application/json'])->assertCreated();
-
-        $payload = $this->getJson("/api/incomes/{$income->id}/receipt")->assertOk()->json('data');
-
-        $this->assertSame('custom', $payload['letterhead']['source']);
-        $this->assertNotNull($payload['letterhead']['url']);
-        $this->assertEqualsWithDelta(7.5, $payload['letterhead']['safe']['x'], 0.001);
-        $this->assertEqualsWithDelta(60.0, $payload['letterhead']['safe']['height'], 0.001);
-
-        // Switching the source to "contract" reuses the general company
-        // contract letterhead without a separate upload.
-        $setting = Setting::query()->firstOrFail();
-        $this->patch("/api/settings/{$setting->id}", [
-            'receipt_letterhead_source' => 'contract',
-        ], ['Accept' => 'application/json'])->assertOk();
-
-        $payload = $this->getJson("/api/incomes/{$income->id}/receipt")->assertOk()->json('data');
-        $this->assertSame('contract', $payload['letterhead']['source']);
     }
 
     public function test_receipt_endpoint_is_protected_by_view_incomes(): void
@@ -255,6 +223,8 @@ class IncomeReceiptTest extends TestCase
             'short_company_name' => 'Asantech',
             'original_company_name' => 'Asantech Ltd',
             'business_licence' => 'LIC-001',
+            'primary_color' => '#123456',
+            'secondary_color' => '#654321',
         ];
     }
 

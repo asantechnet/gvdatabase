@@ -28,7 +28,7 @@ class AutomationController extends Controller
         $validated = Validator::make($payload, [
             'minimum_completed_tasks' => ['required', 'integer', 'min:1'],
             'amount_per_completed_task' => ['required', 'numeric', 'min:0'],
-            'minimum_cases_won' => ['required', 'integer', 'min:1'],
+            'minimum_cases_won' => ['required', 'integer', 'min:0'],
             'amount_per_case_won' => ['required', 'numeric', 'min:0'],
             'task_quality_weighting_enabled' => ['required', 'boolean'],
             'maximum_monthly_bonus' => ['required', 'numeric', 'min:0'],

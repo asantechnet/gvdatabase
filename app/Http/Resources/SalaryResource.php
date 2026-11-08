@@ -44,12 +44,16 @@ class SalaryResource extends JsonResource
             'workedDays' => (float) $this->worked_days,
             'offDays' => (float) $this->off_days,
             'advanceRecovery' => (float) $this->advance_recovery,
-            'advances' => $this->whenLoaded('advances', fn () => $this->advances->map(fn ($advance) => [
-                'id' => $advance->id,
-                'advanceNumber' => $advance->advance_number,
-                'date' => $advance->advance_date?->toDateString(),
-                'amount' => (float) $advance->amount,
-                'remarks' => $advance->remarks,
+            // Driven by the settlement ledger, not by the advance's current
+            // pointer: an advance split over several payslips still appears
+            // on the one that withheld it.
+            'advances' => $this->whenLoaded('advanceSettlements', fn () => $this->advanceSettlements->map(fn ($settlement) => [
+                'id' => $settlement->employee_advance_id,
+                'advanceNumber' => $settlement->advance?->advance_number,
+                'date' => $settlement->advance?->advance_date?->toDateString(),
+                'amount' => (float) ($settlement->advance?->amount ?? $settlement->amount),
+                'deductedAmount' => (float) $settlement->amount,
+                'remarks' => $settlement->advance?->remarks,
             ])),
             'absentDays' => (float) $this->absent_days,
             'totalDays' => (int) $this->total_days,

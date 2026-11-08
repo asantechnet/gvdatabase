@@ -49,7 +49,7 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
 
 .applicant-pipeline-skeleton__card { background: rgb(var(--v-theme-surface)); border: 1px solid rgb(var(--v-border-color) / 0.28); border-radius: 7px; min-block-size: 9.25rem; }
 
-:global(.v-theme--dark) .applicant-pipeline-skeleton__card { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, black 4%); border-color: rgb(var(--v-border-color) / 0.38); }
+:global(.v-theme--dark .applicant-pipeline-skeleton__card) { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, black 4%); border-color: rgb(var(--v-border-color) / 0.38); }
 
 .applicant-pipeline-skeleton__line,
 .applicant-pipeline-skeleton__chip,

@@ -1,4 +1,4 @@
-import api from './axios'
+import api, { mutationHeaders, type ApiMutationOptions } from './axios'
 
 export interface BonusRules {
   minimum_completed_tasks: number
@@ -20,8 +20,8 @@ const AutomationApi = {
 
     return response.data.data
   },
-  async updateBonusRules(rules: BonusRules): Promise<BonusRuleSet> {
-    const response = await api.put<{ data: BonusRuleSet }>('/automation/bonus-rules', rules)
+  async updateBonusRules(rules: BonusRules, options?: ApiMutationOptions): Promise<BonusRuleSet> {
+    const response = await api.put<{ data: BonusRuleSet }>('/automation/bonus-rules', rules, { headers: mutationHeaders(options) })
 
     return response.data.data
   },

@@ -2183,8 +2183,8 @@ onBeforeUnmount(revokeObjectUrls)
   color: #172a2a !important;
 }
 
-:global(.v-theme--dark) .settings-navigation :deep(.v-list-item--active .v-list-item-title),
-:global(.v-theme--dark) .settings-navigation :deep(.v-list-item--active .v-icon) {
+:global(.v-theme--dark .settings-navigation .v-list-item--active .v-list-item-title),
+:global(.v-theme--dark .settings-navigation .v-list-item--active .v-icon) {
   color: #fff !important;
 }
 

@@ -8,16 +8,11 @@ export interface ReceiptMoney {
   decimalPlaces?: number
 }
 
-export interface ReceiptLetterhead {
-  source: 'none' | 'contract' | 'custom'
-  url: string | null
-  raw: string | null
-  safe: { x: number; y: number; width: number; height: number }
-}
-
 export interface ReceiptCompany {
   name: string | null
   short_name: string | null
+  primary_color: string
+  secondary_color: string
   logo_url: string | null
   signature_url: string | null
   address: string | null
@@ -93,7 +88,6 @@ export interface ReceiptPayload {
     balance: number
     currency: ReceiptMoney | null
   }
-  letterhead: ReceiptLetterhead
   signature: { url: string | null; name: string | null }
   recorded_by: { id: number; name: string } | null
 }

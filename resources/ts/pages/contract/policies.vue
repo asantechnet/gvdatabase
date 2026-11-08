@@ -16,6 +16,7 @@ import { confirmActionWarning } from '@/composables/useActionWarning'
 import { extractPlaceholderKeys, hydratePlaceholders, legacyContentToHtml, localizePlaceholderGroups, serializePlaceholders } from '@/utils/contractPlaceholders'
 import { translateBackendValue, translateContractPolicyType, translateContractTypeRecord } from '@/utils/localization'
 import { canAccess } from '@/utils/authorization'
+import { moveRowIdFirst } from '@/utils/createdFirst'
 
 const route = useRoute()
 const toast = useToast()
@@ -448,6 +449,8 @@ const saveContract = async () => {
     else templates.value[index] = saved
     toast.success(tr(isNewTemplate ? 'messages.templateCreated' : 'messages.templateUpdated'))
     await loadTemplates()
+    if (isNewTemplate)
+      templates.value = moveRowIdFirst(templates.value, saved.id)
     resetForm()
     editorDialog.value = false
   }

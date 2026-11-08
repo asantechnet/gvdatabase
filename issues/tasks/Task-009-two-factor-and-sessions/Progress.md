@@ -69,3 +69,4 @@
 - `2026-10-31 00:00 Asia/Kabul` Created task record from validated issue 09; implementation has not started.
 - `2026-10-31` Claimed by `Buffy (erp-task-implementer)`.
 - `2026-10-31` Implemented migration, issuer, recovery codes, login fallback, session endpoints, security/login UI, demo password and feature tests. Test run: 4 passed (44 assertions); `npm run typecheck` exit 0; Playwright login snapshot shows single accessible names. Status → `Review`.
+- `2026-11-07` Narrowed exclusive ownership from the whole seeders directory to `database/seeders/SuperAdminSeeder.php` so the Academy tasks can own their new seeders without an overlap; no code change.

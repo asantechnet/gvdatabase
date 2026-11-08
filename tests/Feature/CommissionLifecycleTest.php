@@ -370,4 +370,41 @@ class CommissionLifecycleTest extends TestCase
         $this->assertSame(2, $employee->serviceCommissions()->count());
         $this->assertSame(5.5, (float) $employee->serviceCommissions()->where('service', 'academy')->value('percentage'));
     }
+
+    public function test_commission_settlement_slip_serializes_the_printable_document(): void
+    {
+        $this->actingSuperAdmin();
+        $employee = $this->commissionEmployee('scholarship', 40);
+        $contract = $this->liveContract([$employee->id]);
+        $this->advanceCase($contract->applicant, ApplicantStage::COMPLETED_KEY);
+
+        $accrual = CommissionAccrual::where('employee_id', $employee->id)->firstOrFail();
+        $today = now()->toDateString();
+        $settlementId = $this->postJson('/api/commission-settlements', [
+            'employee_id' => $employee->id,
+            'base_currency_id' => $accrual->base_currency_id,
+            'period_start' => $today,
+            'period_end' => $today,
+            'accrual_ids' => [$accrual->id],
+        ])->assertCreated()->json('data.id');
+
+        $this->getJson("/api/commission-settlements/{$settlementId}/slip")
+            ->assertOk()
+            ->assertJsonPath('data.document', 'commission_slip')
+            ->assertJsonPath('data.employee.id', $employee->id)
+            ->assertJsonPath('data.employee.name', $employee->name)
+            ->assertJsonPath('data.settlement.status', 'approved')
+            ->assertJsonPath('data.settlement.period_start', $today)
+            ->assertJsonPath('data.accruals.0.service', 'scholarship')
+            ->assertJsonPath('data.accruals.0.commission_base_amount', fn ($value) => (float) $value === 40.0)
+            ->assertJsonPath('data.totals.gross', fn ($value) => (float) $value === 40.0)
+            ->assertJsonPath('data.totals.count', 1)
+            ->assertJsonStructure([
+                'data' => [
+                    'reference', 'date',
+                    'company' => ['name', 'logo_url', 'primary_color', 'secondary_color'],
+                    'signature' => ['url', 'name'],
+                ],
+            ]);
+    }
 }

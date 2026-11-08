@@ -10,6 +10,12 @@ use Illuminate\Database\Seeder;
 /** Seeds conservative defaults; super administrators retain the policy bypass. */
 class RolePermissionSeeder extends Seeder
 {
+    /** Operational roles held by employees; the applicant portal role is excluded. */
+    public const EMPLOYEE_ROLES = [
+        'admin', 'manager', 'team_lead', 'staff', 'senior_counselor',
+        'counselor', 'case_officer', 'document_officer', 'finance_officer', 'viewer',
+    ];
+
     public function run(): void
     {
         $roleIds = Role::query()->pluck('id', 'name')->all();
@@ -81,7 +87,7 @@ class RolePermissionSeeder extends Seeder
                 'view_currencies', 'view_financial_reports', 'view_commissions',
                 'view_all_boards', 'view_assigned_boards',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
-                'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags',
+                'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags', 'view_task_settings',
                 'create_subtasks_on_assigned_tasks', 'edit_all_subtasks', 'edit_own_subtasks', 'delete_all_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_all_comments', 'edit_own_comments', 'delete_all_comments', 'delete_own_comments',
                 'view_visitors', 'create_visitors', 'edit_visitors', 'review_visitors',
@@ -199,6 +205,15 @@ class RolePermissionSeeder extends Seeder
             'view_bonuses', 'view_off_days',
             'print_leave_requests',
         ];
+
+        // Every employee owns a private Personal board. This permission is
+        // separate from create_tasks, which governs shared boards.
+        foreach (self::EMPLOYEE_ROLES as $employeeRole) {
+            $grants[$employeeRole] = array_values(array_unique([
+                ...($grants[$employeeRole] ?? []),
+                'create_personal_tasks',
+            ]));
+        }
 
         return $grants;
     }

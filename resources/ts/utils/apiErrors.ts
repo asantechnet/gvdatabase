@@ -13,8 +13,18 @@ export interface ApiError {
 }
 
 /** The first entry of a field value that may be a string or a list of strings. */
-const firstFieldValue = (value: string[] | string | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value
+const asText = (value: unknown): string | undefined => {
+  if (typeof value === 'string')
+    return value
+  if (Array.isArray(value))
+    return asText(value[0])
+  if (value && typeof value === 'object' && 'message' in value)
+    return asText((value as { message?: unknown }).message)
+
+  return undefined
+}
+
+const firstFieldValue = (value: unknown): string | undefined => asText(value)
 
 /** Backend codes always live in a known namespace; anything else is already human. */
 const isErrorCode = (value: string) => value.startsWith('validation.') || value.startsWith('business.')
@@ -53,6 +63,11 @@ const errorMessages: Record<string, string> = {
   'business.currency_rate_invalid': 'Select a currency with a positive exchange rate.',
   'business.service_currency_rate_invalid': 'One or more selected services have an invalid currency rate.',
   'business.employee_not_selectable': 'This employee is not eligible for this action.',
+  'business.advance_month_payroll_paid': 'This month\'s payroll already paid out. Record the advance in a month that is still open.',
+  'business.advance_repayment_exceeds_balance': 'The repayment is more than what is still owed on this advance.',
+  'business.advance_amount_below_settled': 'The amount is less than what has already been paid back.',
+  'business.advance_locked_by_payroll': 'A paid payslip already withheld this advance, so it cannot be deleted.',
+  'business.advance_recovery_locked': 'Advance recovery cannot change after the payslip paid out.',
   'business.attendance_already_recorded': 'Attendance has already been recorded for this date.',
   'business.deduction_not_owned': 'One or more deductions do not belong to this salary payment.',
   'business.employee_has_no_account': 'The selected employee does not have a system account.',
@@ -92,6 +107,8 @@ const errorMessages: Record<string, string> = {
   'business.bonus_currency_snapshot_invalid': 'The bonus does not have a valid currency snapshot.',
   'business.workday_attendance_conflict': 'Your attendance is already marked with a status that prevents starting the day.',
   'business.workday_already_ended': 'This workday has already ended.',
+  'business.off_day_attendance_not_deletable': 'An off-day attendance record cannot be deleted. Change the off-day or leave record instead.',
+  'business.off_day_attendance_not_allowed': 'This day is a company off day. Attendance cannot be recorded.',
   'business.workday_already_started': 'End your active workday before starting another one.',
   'business.workday_not_started': 'Start your workday before ending it.',
   'business.daily_report_already_submitted': 'Your report for this workday has already been submitted.',
@@ -126,9 +143,10 @@ const errorMessages: Record<string, string> = {
 }
 
 export const humanizeApiError = (code?: string, fallback = translate('common.messages.unableToSaveChanges')): string => {
-  if (!code)
+  const normalizedCode = asText(code)
+  if (!normalizedCode)
     return fallback
-  const translated = translate(`backend.errors.${code}`)
+  const translated = translate(`backend.errors.${normalizedCode}`)
 
   // Error codes are the API contract. Do not fall back to an English literal
   // here: a missing catalog entry should use the caller's localized fallback.
@@ -137,7 +155,7 @@ export const humanizeApiError = (code?: string, fallback = translate('common.mes
 
   // An unmapped validation rule should still read as a validation problem
   // instead of leaking the machine code (e.g. "validation.alpha_dash").
-  if (code.startsWith('validation.')) {
+  if (normalizedCode.startsWith('validation.')) {
     const generic = translate('backend.errors.validation.invalid')
     if (generic && !generic.startsWith('[missing:'))
       return generic

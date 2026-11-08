@@ -22,7 +22,7 @@ class SalaryPaymentController extends Controller
             if ((float) $data['amount'] > $remaining + 0.00000001) throw ValidationException::withMessages(['amount' => ['The payment cannot exceed the outstanding balance.']]);
             $expenses->createPayment($salary, (float) $data['amount'], $data['date'], $data['remarks'] ?? null, $request->user()->id);
         });
-        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
+        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advanceSettlements.advance', 'recorder']));
     }
 
     public function destroy(Salary $salary, SalaryPayment $payment, SalaryExpenseSynchronizer $expenses): SalaryResource
@@ -34,6 +34,6 @@ class SalaryPaymentController extends Controller
             $payment->delete();
             $expenses->refreshPaymentTotals(Salary::query()->with('deductions')->lockForUpdate()->findOrFail($salary->id));
         });
-        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'recorder']));
+        return new SalaryResource($salary->fresh(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advanceSettlements.advance', 'recorder']));
     }
 }

@@ -19,7 +19,7 @@ class EmployeeAdvanceController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
-        $query = EmployeeAdvance::with(['employee', 'currency', 'recorder']);
+        $query = EmployeeAdvance::with(['employee', 'currency', 'recorder', 'settlements']);
 
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->integer('employee_id'));
@@ -69,7 +69,35 @@ class EmployeeAdvanceController extends Controller
 
         $advance = $this->advances->record($validated, $request->user()?->id);
 
-        return new EmployeeAdvanceResource($advance->load(['employee', 'currency', 'recorder']));
+        return new EmployeeAdvanceResource($advance->load(['employee', 'currency', 'recorder', 'settlements']));
+    }
+
+    /** Edit the advance amount, date or remarks. */
+    public function update(Request $request, EmployeeAdvance $employeeAdvance): EmployeeAdvanceResource
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'remarks' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $advance = $this->advances->update($employeeAdvance, $validated);
+
+        return new EmployeeAdvanceResource($advance->load(['employee', 'currency', 'recorder', 'settlements']));
+    }
+
+    /** Record money the employee handed back against the advance. */
+    public function settle(Request $request, EmployeeAdvance $employeeAdvance): EmployeeAdvanceResource
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'remarks' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $advance = $this->advances->settle($employeeAdvance, $validated, $request->user()?->id);
+
+        return new EmployeeAdvanceResource($advance->load(['employee', 'currency', 'recorder', 'settlements']));
     }
 
     public function destroy(EmployeeAdvance $employeeAdvance): JsonResponse

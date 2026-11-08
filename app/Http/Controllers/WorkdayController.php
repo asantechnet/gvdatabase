@@ -43,7 +43,11 @@ class WorkdayController extends Controller
                 ->where('employee_id', $employee->id)->where('date', $localNow->toDateString())->first();
         }
 
-        return response()->json(['data' => $this->statusPayload($attendance, $company->timezone())]);
+        return response()->json(['data' => $this->statusPayload(
+            $attendance,
+            $company->timezone(),
+            $attendance !== null && $this->checkoutGeofenceOffice($employee, $attendance, $company) !== null,
+        )]);
     }
 
     private function unavailable(string $state, CompanyProfile $company): JsonResponse
@@ -179,25 +183,44 @@ class WorkdayController extends Controller
             return $attendance;
         });
 
-        return response()->json(['data' => $this->statusPayload($attendance->load('dailyReport'), $company->timezone())]);
+        return response()->json(['data' => $this->statusPayload(
+            $attendance->load('dailyReport'),
+            $company->timezone(),
+            $this->checkoutGeofenceOffice($employee, $attendance, $company) !== null,
+        )]);
     }
 
-    public function end(Request $request, CompanyProfile $company, AttendanceCalculationService $calculator): JsonResponse
+    public function end(Request $request, CompanyProfile $company, AttendanceCalculationService $calculator, OfficeGeofenceService $geofence): JsonResponse
     {
-        $validated = $request->validate([
+        $employee = $request->user()->employee;
+        abort_unless($employee, 422, 'business.employee_has_no_account');
+        $localNow = now($company->timezone());
+        $utcNow = now('UTC');
+
+        // The fence that admitted the shift must release it. A workday that
+        // started without a fence is never trapped at checkout.
+        $pending = $this->pendingAttendance($employee->id)->with('office')->first();
+        $needsLocation = $pending !== null && $this->checkoutGeofenceOffice($employee, $pending, $company) !== null;
+
+        $rules = [
             'attendanceId' => ['sometimes', 'integer', 'min:1'],
             'summary' => ['required', 'string', 'max:5000'],
             'achievements' => ['nullable', 'string', 'max:5000'],
             'challenges' => ['nullable', 'string', 'max:5000'],
             'nextDayPlan' => ['nullable', 'string', 'max:5000'],
             'supportNeeded' => ['nullable', 'string', 'max:5000'],
-        ]);
-        $employee = $request->user()->employee;
-        abort_unless($employee, 422, 'business.employee_has_no_account');
-        $localNow = now($company->timezone());
-        $utcNow = now('UTC');
+        ];
+        if ($needsLocation) {
+            $rules += [
+                'latitude' => ['required', 'numeric', 'between:-90,90'],
+                'longitude' => ['required', 'numeric', 'between:-180,180'],
+                'accuracy_meters' => ['required', 'numeric', 'between:0,5000'],
+                'observed_at' => ['required', 'numeric'],
+            ];
+        }
+        $validated = $request->validate($rules);
 
-        [$attendance, $report] = DB::transaction(function () use ($request, $validated, $employee, $localNow, $utcNow, $calculator) {
+        [$attendance, $report] = DB::transaction(function () use ($request, $validated, $employee, $localNow, $utcNow, $calculator, $company, $geofence) {
             Employee::query()->whereKey($employee->id)->lockForUpdate()->firstOrFail();
             $attendance = $this->pendingAttendance($employee->id)->lockForUpdate()->first();
 
@@ -213,6 +236,10 @@ class WorkdayController extends Controller
             // Also protect the browser's current local day when ending an overnight session.
             app(AttendanceBrowserGuard::class)->claim($employee->id, $localNow->toDateString());
             abort_if(DailyReport::where('attendance_id', $attendance->id)->exists(), 409, 'business.daily_report_already_submitted');
+
+            // Verified before the report is written, so a rejected checkout
+            // never leaves a submitted report behind.
+            $checkoutLocation = $this->checkoutLocation($employee, $attendance, $validated, $company, $geofence);
 
             $report = DailyReport::create([
                 'user_id' => $request->user()->id,
@@ -232,6 +259,7 @@ class WorkdayController extends Controller
                     'checked_out_at' => $utcNow,
                     'check_out_source' => 'end_my_day',
                     'geofence_exit_detected_at' => null,
+                    ...$checkoutLocation,
                 ]);
             }
 
@@ -246,7 +274,46 @@ class WorkdayController extends Controller
         ]]);
     }
 
-    private function statusPayload(?Attendance $attendance, string $timezone): array
+    /**
+     * The office whose fence governs this checkout, or null when the shift did
+     * not start inside a fence or the fence has since been retired.
+     */
+    private function checkoutGeofenceOffice(Employee $employee, Attendance $attendance, CompanyProfile $company): ?Office
+    {
+        if (! $company->automaticAttendanceEnabled() || $attendance->check_in_latitude === null) {
+            return null;
+        }
+        $attendance->loadMissing('office');
+        $office = $attendance->office ?? $employee->office;
+
+        return $office?->hasActiveGeofence() ? $office : null;
+    }
+
+    /** Checkout coordinates for a shift that started inside the fence. */
+    private function checkoutLocation(Employee $employee, Attendance $attendance, array $validated, CompanyProfile $company, OfficeGeofenceService $geofence): array
+    {
+        $office = $this->checkoutGeofenceOffice($employee, $attendance, $company);
+        if (! $office) {
+            return [];
+        }
+        abort_unless(isset($validated['latitude']), 422, 'business.attendance_outside_office');
+        abort_if(abs((float) $validated['observed_at'] - now('UTC')->getTimestampMs()) > 60000,
+            422, 'business.attendance_location_stale');
+        $observation = $geofence->evaluate($office, (float) $validated['latitude'],
+            (float) $validated['longitude'], (int) ceil((float) $validated['accuracy_meters']));
+        abort_unless($observation['action'] === 'inside', 422, match ($observation['action']) {
+            'inaccurate', 'boundary' => 'business.attendance_location_uncertain',
+            default => 'business.attendance_outside_office',
+        });
+
+        return [
+            'check_out_latitude' => $validated['latitude'], 'check_out_longitude' => $validated['longitude'],
+            'check_out_accuracy_meters' => $observation['accuracy_meters'],
+            'check_out_distance_meters' => $observation['distance_meters'],
+        ];
+    }
+
+    private function statusPayload(?Attendance $attendance, string $timezone, bool $requiresCheckoutLocation = false): array
     {
         $halfDayAway = (float) $attendance?->leave_days > 0 && (float) $attendance?->leave_days < 1;
         $state = ! $attendance
@@ -277,6 +344,7 @@ class WorkdayController extends Controller
                 'checkInTime' => $attendance->check_in_time ? substr($attendance->check_in_time, 0, 5) : null,
                 'checkOutTime' => $attendance->check_out_time ? substr($attendance->check_out_time, 0, 5) : null,
                 'workedMinutes' => $attendance->net_worked_minutes,
+                'requiresCheckoutLocation' => $requiresCheckoutLocation,
             ] : null,
             'report' => $attendance?->dailyReport
                 ? (new DailyReportResource($attendance->dailyReport))->resolve(request())

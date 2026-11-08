@@ -92,3 +92,4 @@
 ## Activity log (append-only)
 - `2026-11-01 00:00 UTC` Created the task contract; copy not started.
 - `2026-11-02` Added the frozen keys, frontend code labels and PHP business codes; parity and JSON checks passed; status moved to `Review`.
+- `2026-11-07` Forward ownership of the six locale/PHP catalogue files moved to Task-043 for the Academy revamp; the org-scope keys remain frozen and unchanged.

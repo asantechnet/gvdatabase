@@ -125,12 +125,17 @@ async function save() {
       content: serializedContent,
     }
 
+    const wasNew = !editing.value
     const saved = editing.value ? await ContractPolicyApi.update(editing.value.id, payload) : await ContractPolicyApi.create(payload)
     const index = policies.value.findIndex(policy => policy.id === saved.id)
-    if (index === -1)
+    if (index >= 0)
+      policies.value.splice(index, 1)
+    if (wasNew)
+      policies.value.unshift(saved)
+    else {
       policies.value.push(saved)
-    else policies.value[index] = saved
-    policies.value.sort((a, b) => a.type.localeCompare(b.type) || a.label.localeCompare(b.label))
+      policies.value.sort((a, b) => a.type.localeCompare(b.type) || a.label.localeCompare(b.label))
+    }
     dialog.value = false
     toast.success(t(editing.value ? 'pages.settings.policies.policies.policyLibrary.updated' : 'pages.settings.policies.policies.policyLibrary.created'))
   }

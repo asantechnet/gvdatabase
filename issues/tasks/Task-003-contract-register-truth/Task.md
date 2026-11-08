@@ -51,12 +51,11 @@ A contract register row tells the truth about what the contract is (primary or e
 - Files this task must not modify: `resources/ts/pages/educational-dashboard.vue`, `resources/ts/utils/localization.ts`, `resources/ts/components/responsive-data-table/**`.
 
 ## Exclusive file ownership
-- `resources/ts/pages/contract_list.vue` — columns, expiry badges, role labels and filter UI.
-- `resources/ts/composables/useContracts.ts` — list parameters and pagination state.
-- `resources/ts/api/contracts.ts` — `expiring` parameter, role/end/payment types.
-- `app/Http/Controllers/ContractController.php` — expiring filter and relation loading.
-- `app/Http/Resources/ContractResource.php` — additive role/expiry/payment fields.
+- `resources/ts/composables/useContracts.ts` — contract register read and typed instance state; retained.
 
+Forward ownership of `ContractController`, `ContractResource` and `resources/ts/api/contracts.ts` moved to Task-046 on 2026-11-07 for case-free contracts and plural responsibility; this task's register behaviour remains historical evidence.
+
+Forward ownership: `resources/ts/pages/contract_list.vue` moved to Task-035 on 2026-11-07 for the audit-rail integration; this task's register work remains historical evidence.
 ## Acceptance criteria
 - [ ] Given an active employee contract ending within 30 days, when the register opens, then the row shows its end date, days remaining and an expiring badge, and the row is visually distinguishable from a non-expiring active contract.
 - [ ] Given the register URL contains the expiring filter, when the page loads, then only active contracts with an end date inside the 30-day window are listed, and an active-filter chip with a clear action is visible.

@@ -7,7 +7,9 @@ use App\Models\Board;
 use App\Models\Task;
 use App\Models\User;
 use App\Services\EducationalWorkflowNotificationService;
+use App\Services\TaskBonusCalculationService;
 use App\Support\EmployeeScope;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +20,7 @@ class TaskController extends Controller
 {
     public function __construct(
         private readonly EducationalWorkflowNotificationService $notifications,
+        private readonly TaskBonusCalculationService $bonuses,
     ) {}
 
     public function store(Request $request)
@@ -227,6 +230,15 @@ class TaskController extends Controller
         });
 
         return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+    }
+
+    /** Read-only projection used by the task drawer before anything is saved. */
+    public function bonusPreview(Request $request, Task $task): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('edit_all_tasks'), 403, 'auth.forbidden');
+        abort_unless((int) $task->progress === 100, 422, 'business.task_bonus_review_requires_completion');
+
+        return response()->json(['success' => true, 'data' => $this->bonuses->preview($task)]);
     }
 
     /**

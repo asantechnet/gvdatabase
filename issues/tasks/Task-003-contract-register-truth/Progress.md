@@ -57,3 +57,4 @@
 ## Activity log (append-only)
 - `2026-10-31 00:00 Asia/Kabul` Created task record from validated issues 04, 06 and 17; implementation has not started.
 - `2026-10-31` Implemented the expiring filter, additive role/expiry/schedule/payment resource fields, register columns/chips and three-locale copy; added `ContractRegisterTest`. Typecheck, task tests and the validator pass. Status moved to `Review`.
+- `2026-11-07` Forward ownership of the paths needed for Task-046 moved to Task-046; the delivered behaviour remains historical evidence.

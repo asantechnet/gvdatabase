@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import mapboxgl, { type GeoJSONSource, type Map as MapboxMap, type Marker } from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import type { Circle, Map as LeafletMap, Marker as LeafletMarker, LeafletMouseEvent } from 'leaflet'
 
 const props = defineProps<{
   readonly?: boolean
@@ -20,27 +21,53 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const container = ref<HTMLElement | null>(null)
-let map: MapboxMap | null = null
-let officeMarker: Marker | null = null
-let radiusMarker: Marker | null = null
-let currentMarker: Marker | null = null
+let map: LeafletMap | null = null
+let officeMarker: LeafletMarker | null = null
+let radiusMarker: LeafletMarker | null = null
+let radiusCircle: Circle | null = null
+let currentMarker: LeafletMarker | null = null
 let resizeObserver: ResizeObserver | null = null
-let syncing = false
+let resizeFrame = 0
+let dragging = false
+let hasLocation = props.latitude != null && props.longitude != null
 
 const fallback = { latitude: 34.5553, longitude: 69.2075 }
+const MIN_RADIUS = 10
+const MAX_RADIUS = 5000
 
-const center = () => ({
-  latitude: props.latitude ?? props.currentLatitude ?? fallback.latitude,
-  longitude: props.longitude ?? props.currentLongitude ?? fallback.longitude,
-})
+function numeric(value: number | null | undefined, fallbackValue: number) {
+  if (value === null || value === undefined || (value as unknown) === '')
+    return fallbackValue
+
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed) ? parsed : fallbackValue
+}
+
+function latitudeValue() {
+  return Math.min(90, Math.max(-90, numeric(props.latitude, fallback.latitude)))
+}
+
+function longitudeValue() {
+  return Math.min(180, Math.max(-180, numeric(props.longitude, fallback.longitude)))
+}
+
+function clampRadius(value: number) {
+  return Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, Math.round(numeric(value, 100))))
+}
+
+function round(value: number) {
+  return Number(value.toFixed(7))
+}
 
 // The Settings tab finishes its card/layout transition just after this
-// component mounts. Mapbox otherwise retains that intermediate canvas size,
-// which can leave the map blank even though tiles were initially visible.
-function resizeAfterLayout() {
-  requestAnimationFrame(() => {
-    map?.resize()
-    requestAnimationFrame(() => map?.resize())
+// component mounts. Leaflet otherwise keeps the intermediate container size,
+// which can leave the map blank or clipped.
+function invalidateSize() {
+  cancelAnimationFrame(resizeFrame)
+  resizeFrame = requestAnimationFrame(() => {
+    map?.invalidateSize({ animate: false })
+    resizeFrame = requestAnimationFrame(() => map?.invalidateSize({ animate: false }))
   })
 }
 
@@ -59,129 +86,196 @@ function destination(latitude: number, longitude: number, distanceMeters: number
     Math.cos(angular) - Math.sin(latitude1) * Math.sin(latitude2),
   )
 
-  return [longitude2 * 180 / Math.PI, latitude2 * 180 / Math.PI] as [number, number]
+  return L.latLng(latitude2 * 180 / Math.PI, longitude2 * 180 / Math.PI)
 }
 
-function circleFeature(latitude: number, longitude: number, radiusMeters: number) {
-  const coordinates: [number, number][] = []
-  for (let bearing = 0; bearing <= 360; bearing += 5)
-    coordinates.push(destination(latitude, longitude, radiusMeters, bearing))
-
-  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coordinates] } }
+function radiusEdge(radius: number) {
+  return destination(latitudeValue(), longitudeValue(), radius, 90)
 }
 
-function distanceMeters(latitudeA: number, longitudeA: number, latitudeB: number, longitudeB: number) {
-  const earthRadius = 6371008.8
-  const latitudeDelta = (latitudeB - latitudeA) * Math.PI / 180
-  const longitudeDelta = (longitudeB - longitudeA) * Math.PI / 180
-
-  const raw = Math.sin(latitudeDelta / 2) ** 2
-    + Math.cos(latitudeA * Math.PI / 180) * Math.cos(latitudeB * Math.PI / 180) * Math.sin(longitudeDelta / 2) ** 2
-
-  const a = Math.min(1, Math.max(0, raw))
-  return Math.round(earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
+function pinIcon(className: string, size: number) {
+  return L.divIcon({
+    className: `office-geofence-pin ${className}`,
+    html: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
 }
 
-function syncMap(fly = false) {
-  if (!map || !officeMarker || !radiusMarker || syncing)
+function syncCurrentLocation() {
+  if (!map)
     return
-  syncing = true
 
-  const location = center()
-  const radius = Math.min(5000, Math.max(10, Number(props.radiusMeters) || 100))
+  if (props.currentLatitude == null || props.currentLongitude == null) {
+    currentMarker?.remove()
+    currentMarker = null
 
-  officeMarker.setLngLat([location.longitude, location.latitude])
-  radiusMarker.setLngLat(destination(location.latitude, location.longitude, radius, 90))
-
-  const source = map.getSource('office-radius') as GeoJSONSource | undefined
-
-  source?.setData(circleFeature(location.latitude, location.longitude, radius) as any)
-  if (fly)
-    map.easeTo({ center: [location.longitude, location.latitude], duration: 350 })
-
-  if (props.currentLatitude != null && props.currentLongitude != null) {
-    if (!currentMarker) {
-      currentMarker = new mapboxgl.Marker({ color: '#00a76f', scale: 0.75 })
-        .setPopup(new mapboxgl.Popup({ offset: 20 }).setText(t('pages.settings.geofence.currentLocation')))
-        .addTo(map)
-    }
-    currentMarker.setLngLat([props.currentLongitude, props.currentLatitude])
+    return
   }
-  syncing = false
+
+  const point = L.latLng(
+    Math.min(90, Math.max(-90, numeric(props.currentLatitude, fallback.latitude))),
+    Math.min(180, Math.max(-180, numeric(props.currentLongitude, fallback.longitude))),
+  )
+
+  if (!currentMarker) {
+    currentMarker = L.marker(point, {
+      icon: pinIcon('office-geofence-pin--current', 16),
+      keyboard: false,
+      zIndexOffset: 200,
+    })
+      .addTo(map)
+      .bindPopup(t('pages.settings.geofence.currentLocation'))
+  }
+  else {
+    currentMarker.setLatLng(point)
+  }
+}
+
+function syncMap(pan = false) {
+  if (!map)
+    return
+
+  const center = L.latLng(latitudeValue(), longitudeValue())
+  const radius = clampRadius(props.radiusMeters)
+
+  officeMarker?.setLatLng(center)
+  radiusMarker?.setLatLng(radiusEdge(radius))
+  radiusCircle?.setLatLng(center).setRadius(radius)
+  syncCurrentLocation()
+
+  // Re-center only when the office coordinates move, never while a marker is
+  // being dragged or when only the radius changes.
+  if (pan && !dragging && map.distance(map.getCenter(), center) > 1)
+    map.panTo(center)
 }
 
 onMounted(() => {
   if (!container.value)
     return
-  const location = center()
 
-  map = new mapboxgl.Map({
-    container: container.value,
-    center: [location.longitude, location.latitude],
-    zoom: 15,
-    attributionControl: true,
-    style: {
-      version: 8,
-      sources: {
-        osm: {
-          type: 'raster',
-          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-          tileSize: 256,
-          attribution: '© OpenStreetMap contributors',
-          maxzoom: 19,
-        },
-      },
-      layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-    },
+  const center = L.latLng(latitudeValue(), longitudeValue())
+  const radius = clampRadius(props.radiusMeters)
+
+  map = L.map(container.value, {
+    center,
+    zoom: props.latitude != null && props.longitude != null ? 16 : 13,
+    minZoom: 3,
+    maxZoom: 19,
+    zoomControl: false,
+    worldCopyJump: true,
+    scrollWheelZoom: false,
   })
-  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
-  resizeObserver = new ResizeObserver(resizeAfterLayout)
-  resizeObserver.observe(container.value)
+  L.control.zoom({ position: 'topright' }).addTo(map)
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map)
 
-  officeMarker = new mapboxgl.Marker({ color: '#7367f0', draggable: !props.readonly }).setLngLat([location.longitude, location.latitude]).addTo(map)
-  radiusMarker = new mapboxgl.Marker({ color: '#ff9f43', draggable: !props.readonly, scale: 0.7 }).setLngLat([location.longitude, location.latitude]).addTo(map)
+  radiusCircle = L.circle(center, {
+    radius,
+    color: '#7367f0',
+    weight: 2,
+    fillColor: '#7367f0',
+    fillOpacity: 0.16,
+    interactive: false,
+  }).addTo(map)
 
+  officeMarker = L.marker(center, {
+    icon: pinIcon('office-geofence-pin--office', 22),
+    draggable: !props.readonly,
+    autoPan: true,
+    keyboard: false,
+    zIndexOffset: 300,
+  }).addTo(map)
+
+  radiusMarker = L.marker(radiusEdge(radius), {
+    icon: pinIcon('office-geofence-pin--radius', 18),
+    draggable: !props.readonly,
+    autoPan: true,
+    keyboard: false,
+    zIndexOffset: 250,
+  }).addTo(map)
+
+  officeMarker.getElement()?.setAttribute('aria-label', t('pages.settings.geofence.officeMarker'))
+  radiusMarker.getElement()?.setAttribute('aria-label', t('pages.settings.geofence.radiusMarker'))
+
+  officeMarker.on('dragstart', () => {
+    dragging = true
+  })
+  radiusMarker.on('dragstart', () => {
+    dragging = true
+  })
+  officeMarker.on('dragend', () => {
+    dragging = false
+  })
+  radiusMarker.on('dragend', () => {
+    dragging = false
+  })
   officeMarker.on('drag', () => {
-    if (props.readonly) return
-    const point = officeMarker!.getLngLat().wrap()
+    if (props.readonly || !officeMarker)
+      return
 
-    emit('update:latitude', Number(point.lat.toFixed(7)))
-    emit('update:longitude', Number(point.lng.toFixed(7)))
+    const point = officeMarker.getLatLng()
+
+    emit('update:latitude', round(point.lat))
+    emit('update:longitude', round(point.lng))
   })
   radiusMarker.on('drag', () => {
-    if (props.readonly) return
-    const point = radiusMarker!.getLngLat().wrap()
-    const location = center()
+    if (props.readonly || !radiusMarker || !map)
+      return
 
-    emit('update:radiusMeters', Math.min(5000, Math.max(10, distanceMeters(location.latitude, location.longitude, point.lat, point.lng))))
+    const origin = L.latLng(latitudeValue(), longitudeValue())
+
+    emit('update:radiusMeters', clampRadius(map.distance(origin, radiusMarker.getLatLng())))
   })
-  map.on('click', event => {
-    if (props.readonly) return
-    emit('update:latitude', Number(event.lngLat.lat.toFixed(7)))
-    emit('update:longitude', Number(event.lngLat.wrap().lng.toFixed(7)))
+  map.on('click', (event: LeafletMouseEvent) => {
+    if (props.readonly || !map)
+      return
+
+    emit('update:latitude', round(event.latlng.lat))
+    emit('update:longitude', round(event.latlng.lng))
+
+    // Picking a location from a wider view leaves the radius handle hidden
+    // under the office pin, so close in enough to edit the boundary.
+    if (map.getZoom() < 15)
+      map.setView(event.latlng, 16)
   })
-  map.on('load', () => {
-    map!.addSource('office-radius', { type: 'geojson', data: circleFeature(location.latitude, location.longitude, props.radiusMeters) as any })
-    map!.addLayer({ id: 'office-radius-fill', type: 'fill', source: 'office-radius', paint: { 'fill-color': '#7367f0', 'fill-opacity': 0.16 } })
-    map!.addLayer({ id: 'office-radius-line', type: 'line', source: 'office-radius', paint: { 'line-color': '#7367f0', 'line-width': 2 } })
-    syncMap()
-    resizeAfterLayout()
-    window.setTimeout(resizeAfterLayout, 200)
-  })
+
+  resizeObserver = new ResizeObserver(invalidateSize)
+  resizeObserver.observe(container.value)
+  invalidateSize()
+  window.setTimeout(invalidateSize, 200)
+  syncCurrentLocation()
 })
 
 watch(() => props.readonly, value => {
-  officeMarker?.setDraggable(!value)
-  radiusMarker?.setDraggable(!value)
+  if (officeMarker)
+    officeMarker.dragging?.[value ? 'disable' : 'enable']()
+  if (radiusMarker)
+    radiusMarker.dragging?.[value ? 'disable' : 'enable']()
 })
-watch(() => [props.latitude, props.longitude, props.radiusMeters, props.currentLatitude, props.currentLongitude], () => syncMap(true))
+watch(() => [props.latitude, props.longitude, props.radiusMeters, props.currentLatitude, props.currentLongitude], () => {
+  const nextHasLocation = props.latitude != null && props.longitude != null
+  const pickedFirstLocation = !hasLocation && nextHasLocation
+
+  hasLocation = nextHasLocation
+  syncMap(true)
+
+  if (pickedFirstLocation && map && map.getZoom() < 16)
+    map.setView([latitudeValue(), longitudeValue()], 16)
+})
+
 onBeforeUnmount(() => {
+  cancelAnimationFrame(resizeFrame)
   resizeObserver?.disconnect()
   resizeObserver = null
-  currentMarker?.remove()
-  officeMarker?.remove()
-  radiusMarker?.remove()
   map?.remove()
+  map = null
+  currentMarker = null
+  officeMarker = null
+  radiusMarker = null
+  radiusCircle = null
 })
 </script>
 
@@ -195,11 +289,36 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .office-geofence-map {
-  min-block-size: 280px;
-  overflow: hidden;
+  position: relative;
+  background: rgb(var(--v-theme-surface));
+  block-size: 360px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 8px;
-  block-size: 360px;
   inline-size: 100%;
+  min-block-size: 280px;
+  overflow: hidden;
+}
+
+.office-geofence-map :deep(.office-geofence-pin) {
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  box-sizing: border-box;
+}
+
+.office-geofence-map :deep(.office-geofence-pin--office) {
+  background: #7367f0;
+}
+
+.office-geofence-map :deep(.office-geofence-pin--radius) {
+  background: #ff9f43;
+}
+
+.office-geofence-map :deep(.office-geofence-pin--current) {
+  background: #00a76f;
+}
+
+.office-geofence-map :deep(.leaflet-container) {
+  font: inherit;
 }
 </style>

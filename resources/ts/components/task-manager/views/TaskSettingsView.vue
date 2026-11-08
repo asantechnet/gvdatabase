@@ -2,6 +2,7 @@
 import { useToast } from 'vue-toastification'
 import TagApi, { type Tag } from '@/api/tag'
 import { useTaskStore } from '@/stores/useTaskStore'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const store = useTaskStore()
 const toast = useToast()
@@ -35,10 +36,13 @@ const save = async () => {
     return toast.error(translate('components.taskManager.tasksettingsview.labelNameIsRequired'))
   saving.value = true
   try {
-    if (editing.value)
-      await TagApi.update(editing.value.id, { name: form.value.name.trim(), color: form.value.color })
-    else await TagApi.create({ name: form.value.name.trim(), color: form.value.color })
+    const wasNew = !editing.value
+    const saved = editing.value
+      ? await TagApi.update(editing.value.id, { name: form.value.name.trim(), color: form.value.color })
+      : await TagApi.create({ name: form.value.name.trim(), color: form.value.color })
     await store.fetchTags()
+    if (wasNew)
+      store.tags = moveCreatedRowFirst(store.tags, saved)
     dialogOpen.value = false
     toast.success(translate(editing.value
       ? 'components.taskManager.tasksettingsview.labelUpdated'

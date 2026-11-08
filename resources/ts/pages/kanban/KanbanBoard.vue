@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import KanbanBoardEditDrawer from './KanbanBoardEditDrawer.vue'
 import KanbanItems from './KanbanItems.vue'
-import type { AddNewKanbanItem, EditKanbanItem, KanbanBoard, KanbanData, KanbanState } from '@/types/legacyKanban'
+import type { AddNewKanbanItem, EditKanbanItem, KanbanBoard, KanbanData } from '@/types/legacyKanban'
 
 const props = withDefaults(defineProps<{
   kanbanData: KanbanData
@@ -13,9 +13,9 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'addNewItem', value: AddNewKanbanItem): void
-  (e: 'editItem', value: EditKanbanItem): void
+  (e: 'viewItem', value: EditKanbanItem): void
+  (e: 'editFullItem', value: EditKanbanItem): void
   (e: 'deleteItem', value: EditKanbanItem): void
-  (e: 'updateItemsState', value: KanbanState): void
   (e: 'commentsClick', value: any): void
   (e: 'attachmentsClick', value: any): void
 }>()
@@ -56,20 +56,22 @@ watch(() => props.openItemId, itemId => {
   }
 }, { flush: 'post' })
 
-const updateStateFn = (kanbanState: KanbanState) => {
-  emit('updateItemsState', kanbanState)
-}
-
 watch(() => props, () => {
   localKanbanData.value = props.kanbanData.boards
 }, { deep: true })
 
-const emitUpdatedTaskFn = (item: EditKanbanItem) => {
-  emit('editItem', item)
+const emitViewItemFn = (item: EditKanbanItem | undefined) => {
+  if (item)
+    emit('viewItem', item)
 }
 
 const deleteKanbanItemFn = (item: EditKanbanItem) => {
   emit('deleteItem', item)
+}
+
+const emitEditFullItemFn = (item: EditKanbanItem | undefined) => {
+  if (item)
+    emit('editFullItem', item)
 }
 </script>
 
@@ -85,11 +87,14 @@ const deleteKanbanItemFn = (item: EditKanbanItem) => {
           :kanban-ids="kb.itemsIds"
           :board-name="kb.title"
           :board-id="kb.id"
+          :is-personal="kb.isPersonal"
+          :is-owned="kb.isOwned"
           :kanban-items="kanbanData.items"
           :kanban-data="kanbanData"
           @add-new-item="addNewItem"
+          @view-item="emitViewItemFn"
           @edit-item="editKanbanItemFn"
-          @update-items-state="updateStateFn"
+          @edit-full-item="emitEditFullItemFn"
           @delete-item="deleteKanbanItemFn"
           @comments-click="emit('commentsClick', $event)"
           @attachments-click="emit('attachmentsClick', $event)"
@@ -101,7 +106,6 @@ const deleteKanbanItemFn = (item: EditKanbanItem) => {
   <KanbanBoardEditDrawer
     v-model:is-drawer-open="isKanbanBoardEditVisible"
     :kanban-item="editKanbanItem"
-    @update:kanban-item="emitUpdatedTaskFn"
     @delete-kanban-item="deleteKanbanItemFn"
   />
 </template>

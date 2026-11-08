@@ -55,12 +55,12 @@ Commission accrual fires on the event the business actually uses, and every comm
 - Files this task must not modify: `app/Http/Controllers/ContractController.php`, `resources/ts/pages/contract_list.vue`, `app/Services/ApplicantContractPaymentService.php`.
 
 ## Exclusive file ownership
-- `app/Services/CommissionService.php` — trigger, eligibility and idempotent sync.
 - `app/Http/Controllers/CommissionController.php` — sync result and permission boundary.
 - `resources/ts/pages/commissions.vue` — subtitle, action copy and pluralized toasts.
-- `tests/Feature/CommissionLifecycleTest.php` — updated lifecycle coverage.
 - `app/Observers/ContractObserver.php` — new contract-completion hook if that trigger is approved.
 - `app/Providers/AppServiceProvider.php` — observer registration.
+
+Forward ownership of the contract-generation, applicant, stage, commission and contract-register paths needed by Task-046 moved on 2026-11-07; this task's delivered behaviour remains historical evidence.
 
 ## Acceptance criteria
 - [ ] Given the approved trigger decision is recorded in `Progress.md`, when the implementation is reviewed, then the code, page copy and requirement text all name that same event and no other event controls accrual.

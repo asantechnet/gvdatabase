@@ -6,6 +6,50 @@ import type {
   UpdateTaskData,
 } from './kanban'
 
+export interface TaskBonusRules {
+  minimum_completed_tasks: number
+  amount_per_completed_task: number
+  minimum_cases_won: number
+  amount_per_case_won: number
+  task_quality_weighting_enabled: boolean
+  maximum_monthly_bonus: number
+  excluded_employee_ids: number[]
+  excluded_office_ids: number[]
+}
+
+export interface TaskBonusNomination {
+  id: string
+  isGranted: boolean
+  suggestedAmount: number
+  calculatedAt: string | null
+}
+
+export interface TaskBonusAssigneeProjection {
+  employeeId: number
+  userId: number
+  name: string
+  contributionPercent: number
+  thisTaskCredit: number
+  otherCredit: number
+  monthCredit: number
+  casesWon: number
+  eligible: boolean
+  reasons: string[]
+  projectedAmount: number | null
+  capped: boolean
+  nomination: TaskBonusNomination | null
+}
+
+export interface TaskBonusPreview {
+  month: string
+  completedAt: string | null
+  alreadyProcessed: boolean
+  ruleVersion: number
+  rules: TaskBonusRules
+  currency: { code: string; symbol: string; decimalPlaces: number } | null
+  assignees: TaskBonusAssigneeProjection[]
+}
+
 // Task API endpoints
 const TaskApi = {
   // Create a new task
@@ -57,6 +101,12 @@ const TaskApi = {
 
   reviewBonusInputs: async (id: string, data: { quality_score: number; rejected?: boolean; contributions?: Record<string, number> }) => {
     const response = await api.patch<{ data: Task }>(`/tasks/${id}/bonus-review`, data)
+
+    return response.data.data
+  },
+
+  getBonusPreview: async (id: string): Promise<TaskBonusPreview> => {
+    const response = await api.get<{ data: TaskBonusPreview }>(`/tasks/${id}/bonus-preview`)
 
     return response.data.data
   },

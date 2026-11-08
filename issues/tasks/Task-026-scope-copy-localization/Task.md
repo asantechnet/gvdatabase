@@ -59,12 +59,7 @@ The repository already has three frontend locale files under `resources/ts/plugi
 - Files this task must not modify: any `resources/ts/**/*.vue` or `*.ts` file, any `app/**` file, `routes/api.php`, `tests/**`.
 
 ## Exclusive file ownership
-- `resources/ts/plugins/i18n/locales/en.json` — English labels, hints and disclosure copy.
-- `resources/ts/plugins/i18n/locales/fa-AF.json` — Dari labels, hints and disclosure copy.
-- `resources/ts/plugins/i18n/locales/ps-AF.json` — Pashto labels, hints and disclosure copy.
-- `lang/en/api.php` — English business codes.
-- `lang/fa/api.php` — Dari business codes.
-- `lang/ps/api.php` — Pashto business codes.
+- None (delivered). Forward ownership of the six locale/PHP catalogue files moved to Task-043 on 2026-11-07 for the Academy revamp; the org-scope keys above remain frozen.
 
 ## Acceptance criteria
 - [ ] Given the three frontend locale files, when their nested key paths are compared, then every new key added by this task exists in all three with a non-empty value and no existing key was removed.

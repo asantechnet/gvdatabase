@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import CurrencyApi, { type Currency, type CurrencyForm } from '@/api/currency'
 import CurrencyFormDialog from '@/components/forms/CurrencyForm.vue'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 type StatusFilter = 'all' | 'active' | 'inactive'
 
@@ -80,8 +81,9 @@ const fetchCurrencies = async () => {
 const createCurrency = async () => {
   try {
     formErrors.value = {}
-    await CurrencyApi.create(formData.value)
+    const created = await CurrencyApi.create(formData.value)
     await fetchCurrencies()
+    currencies.value = moveCreatedRowFirst(currencies.value, created.data)
     toast.success(translate('pages.finance.currencies.currencies.currencyCreatedSuccessfully'))
 
     return true

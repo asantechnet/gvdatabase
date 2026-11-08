@@ -27,13 +27,13 @@ import ResponsiveDataTableServer from "@/components/responsive-data-table/Respon
 import {
   formatActiveMoney,
   formatLocalizedDate,
-  formatLocalizedNumber,
   translate,
 } from "@/utils/localization";
 import { printDocument } from "@/utils/printDocument";
+import { moveCreatedRowFirst } from "@/utils/createdFirst";
 
 const toast = useToast();
-const { t: $t } = useI18n();
+const { t: $t, locale } = useI18n();
 
 interface PayrollRow {
   [key: string]: unknown;
@@ -54,8 +54,30 @@ interface PayrollRow {
 }
 
 const today = new Date();
-const month = ref(
-  `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+const selectedYear = ref(today.getFullYear());
+const selectedMonth = ref(today.getMonth() + 1);
+const month = computed(
+  () => `${selectedYear.value}-${String(selectedMonth.value).padStart(2, "0")}`,
+);
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear();
+
+  return Array.from({ length: 11 }, (_, index) => {
+    const year = currentYear - index;
+
+    return {
+      title: new Intl.NumberFormat(locale.value, { useGrouping: false }).format(year),
+      value: year,
+    };
+  });
+});
+const monthOptions = computed(() =>
+  Array.from({ length: 12 }, (_, index) => ({
+    title: new Intl.DateTimeFormat(locale.value, { month: "long" }).format(
+      new Date(2020, index, 1),
+    ),
+    value: index + 1,
+  })),
 );
 const activeTab = ref<"payslips" | "advances">("payslips");
 const search = ref("");
@@ -124,6 +146,18 @@ const advanceForm = ref<{
 });
 const deleteAdvanceDialog = ref(false);
 const selectedAdvance = ref<EmployeeAdvance | null>(null);
+const settleDialog = ref(false);
+const settleForm = ref({
+  amount: 0,
+  date: today.toISOString().slice(0, 10),
+  remarks: "",
+});
+const editAdvanceDialog = ref(false);
+const editAdvanceForm = ref({
+  amount: 0,
+  date: today.toISOString().slice(0, 10),
+  remarks: "",
+});
 const advanceReceiptDialog = ref(false);
 const advanceReceipt = ref<AdvanceReceiptData | null>(null);
 const advanceReceiptRef = ref<InstanceType<
@@ -204,18 +238,14 @@ const companyProfile = computed(() => ({
   tinNumber: companySetting.value?.business_licence || undefined,
   logo: companySetting.value?.website_logo_url || undefined,
   signature: companySetting.value?.company_signature_url || undefined,
+  primaryColor: companySetting.value?.primary_color || undefined,
+  secondaryColor: companySetting.value?.secondary_color || undefined,
 }));
 
 // One formatter for the whole register: the currency code appears exactly once
 // and no symbol is concatenated by hand.
 const formatAmount = (amount: number | null | undefined) =>
   formatActiveMoney(amount, displayMoneyCurrency.value);
-
-const formatInWords = (amount: number) =>
-  translate("documents.payslip.amountInWordsFallback", {
-    amount: formatLocalizedNumber(amount, { minimumFractionDigits: 2 }),
-    currency: currencyCode.value,
-  });
 
 // Loading ----------------------------------------------------------------
 // (see `load` below, which pages the register and the advances ledger)
@@ -339,7 +369,7 @@ async function saveCreate() {
       return;
     }
 
-    await SalaryApi.create({
+    const created = await SalaryApi.create({
       employee_id: createForm.value.employee_id,
       salaryMonth: month.value,
       currency_id: baseCurrencyId.value,
@@ -352,6 +382,9 @@ async function saveCreate() {
     toast.success($t("pages.payrolls.saved"));
     createDialog.value = false;
     await load();
+    const createdIndex = registerRows.value.findIndex(row => row.salary?.id === created.data.id);
+    if (createdIndex > 0)
+      registerRows.value.unshift(...registerRows.value.splice(createdIndex, 1));
   } catch (error) {
   } finally {
     saving.value = false;
@@ -482,8 +515,6 @@ async function openPayslip(row: PayrollRow) {
     }),
     currency: salary.currency?.code ?? currencyCode.value,
     company: companyProfile.value,
-    letterheadUrl: companySetting.value?.letterheads?.payslip?.url || undefined,
-    letterheadSafe: companySetting.value?.letterheads?.payslip?.safe,
     employee: {
       name: salary.employeeName,
       designation: getEmployeePosition(employee),
@@ -500,17 +531,19 @@ async function openPayslip(row: PayrollRow) {
     },
     earnings,
     deductions: (salary.deductions ?? []).map((deduction) => ({
-      label: deduction.isAutomatic
-        ? $t("pages.payrolls.automaticDeduction")
-        : deduction.description,
+      label: deduction.code === "advance_recovery"
+        ? $t("pages.payroll.staffSalary.staffSalary.advanceRecovery")
+        : deduction.isAutomatic
+          ? $t("pages.payrolls.automaticDeduction")
+          : deduction.description,
       amount: Number(deduction.amount),
     })),
     advances: (salary.advances ?? []).map((advance) => ({
       label: `${advance.advanceNumber ?? "—"}${advance.date ? ` · ${formatLocalizedDate(advance.date)}` : ""}`,
-      amount: Number(advance.amount),
+      amount: Number(advance.deductedAmount ?? advance.amount),
     })),
+    advanceRecovery: Number(salary.advanceRecovery ?? 0),
     reimbursements: [],
-    amountInWords: formatInWords(Number(salary.netAmount ?? 0)),
   };
   payslipDialog.value = true;
   await nextTick();
@@ -584,7 +617,7 @@ async function saveAdvance() {
 
   saving.value = true;
   try {
-    await EmployeeAdvanceApi.create({
+    const created = await EmployeeAdvanceApi.create({
       employee_id: advanceForm.value.employee_id,
       amount: Number(advanceForm.value.amount),
       date: advanceForm.value.date,
@@ -592,11 +625,106 @@ async function saveAdvance() {
     } as CreateEmployeeAdvanceData);
     toast.success($t("pages.payrolls.advanceSaved"));
     advanceDialog.value = false;
+    advancesPage.value = 1;
+    await load();
+    advances.value = moveCreatedRowFirst(advances.value, created).slice(0, advancesPerPage.value);
+  } catch (error) {
+  } finally {
+    saving.value = false;
+  }
+}
+
+function openSettle(advance: EmployeeAdvance) {
+  selectedAdvance.value = advance;
+  settleForm.value = {
+    amount: Number(advance.remainingAmount ?? advance.amount),
+    date: today.toISOString().slice(0, 10),
+    remarks: "",
+  };
+  settleDialog.value = true;
+}
+
+async function saveSettlement() {
+  if (!selectedAdvance.value) return;
+
+  saving.value = true;
+  try {
+    await EmployeeAdvanceApi.settle(selectedAdvance.value.id, {
+      amount: Number(settleForm.value.amount),
+      date: settleForm.value.date,
+      remarks: settleForm.value.remarks,
+    });
+    toast.success($t("pages.payrolls.repaymentSaved"));
+    settleDialog.value = false;
     await load();
   } catch (error) {
   } finally {
     saving.value = false;
   }
+}
+
+function openEditAdvance(advance: EmployeeAdvance) {
+  selectedAdvance.value = advance;
+  editAdvanceForm.value = {
+    amount: Number(advance.amount),
+    date: advance.date,
+    remarks: advance.remarks ?? "",
+  };
+  editAdvanceDialog.value = true;
+}
+
+async function saveAdvanceEdit() {
+  if (!selectedAdvance.value) return;
+
+  saving.value = true;
+  try {
+    await EmployeeAdvanceApi.update(selectedAdvance.value.id, {
+      amount: Number(editAdvanceForm.value.amount),
+      date: editAdvanceForm.value.date,
+      remarks: editAdvanceForm.value.remarks,
+    });
+    toast.success($t("pages.payrolls.advanceUpdated"));
+    editAdvanceDialog.value = false;
+    await load();
+  } catch (error) {
+  } finally {
+    saving.value = false;
+  }
+}
+
+/** The advance deduction is optional while the payslip has not paid out. */
+async function toggleAdvanceRecovery(row: PayrollRow) {
+  const salary = row.salary;
+  if (!salary) return;
+
+  saving.value = true;
+  try {
+    await SalaryApi.setAdvanceRecovery(
+      salary.id,
+      Number(salary.advanceRecovery ?? 0) <= 0,
+    );
+    toast.success($t("pages.payrolls.advanceRecoveryUpdated"));
+    await load();
+  } catch (error) {
+  } finally {
+    saving.value = false;
+  }
+}
+
+function advanceStatusLabel(status: EmployeeAdvance["status"]) {
+  return {
+    settled: $t("pages.payrolls.settledAdvance"),
+    partial: $t("pages.payrolls.partiallySettledAdvance"),
+    outstanding: $t("pages.payrolls.outstandingAdvance"),
+  }[status ?? "outstanding"];
+}
+
+function advanceStatusColor(status: EmployeeAdvance["status"]) {
+  return {
+    settled: "success",
+    partial: "info",
+    outstanding: "warning",
+  }[status ?? "outstanding"];
 }
 
 function confirmDeleteAdvance(advance: EmployeeAdvance) {
@@ -629,7 +757,6 @@ function openAdvanceReceipt(advance: EmployeeAdvance) {
     amount: advance.amount,
     currency: advance.currency,
     remarks: advance.remarks,
-    amountInWords: formatInWords(advance.amount),
     employee: {
       name: advance.employeeName,
       idNumber: employee?.id_number ?? null,
@@ -680,13 +807,24 @@ onMounted(load);
     <VCard class="payrolls-screen">
       <VCardTitle class="d-flex flex-wrap align-center ga-3 pa-5">
         <VIcon icon="tabler-wallet" />{{ $t("pages.payrolls.title")
-        }}<VSpacer /><VTextField
-          v-model="month"
-          type="month"
-          density="compact"
-          hide-details
-          style="max-width: 190px"
-        /><VBtn
+        }}<VSpacer /><div class="d-flex flex-wrap align-center ga-2">
+          <VSelect
+            v-model="selectedYear"
+            :items="yearOptions"
+            :label="$t('common.fields.year')"
+            density="compact"
+            hide-details
+            style="max-width: 120px"
+          />
+          <VSelect
+            v-model="selectedMonth"
+            :items="monthOptions"
+            :label="$t('common.fields.month')"
+            density="compact"
+            hide-details
+            style="max-width: 160px"
+          />
+        </div><VBtn
           prepend-icon="tabler-player-play"
           :loading="loading"
           @click="generateDialog = true"
@@ -757,7 +895,7 @@ onMounted(load);
       <VCardText>
         <VWindow v-model="activeTab" class="payroll-window">
           <VWindowItem value="payslips">
-            <div class="d-flex flex-wrap align-center ga-3 mb-4">
+            <div class="d-flex flex-wrap align-center justify-end ga-3 mb-4 px-4">
               <VTextField
                 v-model="search"
                 :label="$t('common.actions.search')"
@@ -858,6 +996,31 @@ onMounted(load);
                       @click="openPayslip(item)"
                     />
                     <VBtn
+                      icon="tabler-arrow-back-up"
+                      size="small"
+                      variant="text"
+                      :color="
+                        Number(item.salary.advanceRecovery ?? 0) > 0
+                          ? 'warning'
+                          : 'success'
+                      "
+                      :disabled="
+                        Number(item.salary.advanceRecovery ?? 0) > 0 &&
+                        (item.salary.payments?.length ?? 0) > 0
+                      "
+                      :title="
+                        Number(item.salary.advanceRecovery ?? 0) > 0
+                          ? $t('pages.payrolls.removeAdvanceRecovery')
+                          : $t('pages.payrolls.applyAdvanceRecovery')
+                      "
+                      :aria-label="
+                        Number(item.salary.advanceRecovery ?? 0) > 0
+                          ? $t('pages.payrolls.removeAdvanceRecovery')
+                          : $t('pages.payrolls.applyAdvanceRecovery')
+                      "
+                      @click="toggleAdvanceRecovery(item)"
+                    />
+                    <VBtn
                       icon="tabler-receipt-refund"
                       size="small"
                       variant="text"
@@ -889,7 +1052,7 @@ onMounted(load);
             </ResponsiveDataTableServer>
           </VWindowItem>
           <VWindowItem value="advances">
-            <div class="d-flex flex-wrap align-center ga-3 mb-4">
+            <div class="d-flex flex-wrap align-center justify-end ga-3 mb-4 px-4">
               <VBtn
                 prepend-icon="tabler-plus"
                 color="primary"
@@ -914,6 +1077,10 @@ onMounted(load);
                 { title: $t('common.fields.employee'), key: 'employeeName' },
                 { title: $t('pages.payrolls.date'), key: 'date' },
                 { title: $t('pages.payrolls.amount'), key: 'amount' },
+                {
+                  title: $t('pages.payrolls.remainingAdvance'),
+                  key: 'remainingAmount',
+                },
                 { title: $t('common.fields.status'), key: 'status' },
                 {
                   title: $t('common.messages.actions'),
@@ -937,17 +1104,16 @@ onMounted(load);
               <template #item.amount="{ item }">
                 {{ formatAmount(item.amount) }}
               </template>
+              <template #item.remainingAmount="{ item }">
+                {{ formatAmount(item.remainingAmount) }}
+              </template>
               <template #item.status="{ item }">
                 <VChip
-                  :color="item.salaryId ? 'success' : 'warning'"
+                  :color="advanceStatusColor(item.status)"
                   size="small"
                   variant="tonal"
                 >
-                  {{
-                    item.salaryId
-                      ? $t("pages.payrolls.recovered")
-                      : $t("pages.payrolls.outstandingAdvance")
-                  }}
+                  {{ advanceStatusLabel(item.status) }}
                 </VChip>
               </template>
               <template #item.actions="{ item }">
@@ -959,6 +1125,24 @@ onMounted(load);
                     :title="$t('pages.payrolls.printReceipt')"
                     :aria-label="$t('pages.payrolls.printReceipt')"
                     @click="openAdvanceReceipt(item)"
+                  />
+                  <VBtn
+                    icon="tabler-receipt-refund"
+                    size="small"
+                    variant="text"
+                    color="success"
+                    :disabled="item.status === 'settled'"
+                    :title="$t('pages.payrolls.recordRepayment')"
+                    :aria-label="$t('pages.payrolls.recordRepayment')"
+                    @click="openSettle(item)"
+                  />
+                  <VBtn
+                    icon="tabler-pencil"
+                    size="small"
+                    variant="text"
+                    :title="$t('pages.payrolls.editAdvance')"
+                    :aria-label="$t('pages.payrolls.editAdvance')"
+                    @click="openEditAdvance(item)"
                   />
                   <VBtn
                     icon="tabler-trash"
@@ -1253,6 +1437,85 @@ onMounted(load);
           </VBtn>
           <VBtn color="error" :loading="saving" @click="deleteAdvance">
             {{ $t("common.actions.delete") }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Advance repayment -->
+    <VDialog v-model="settleDialog" max-width="520">
+      <VCard :title="$t('pages.payrolls.repaymentTitle')">
+        <VCardText class="d-flex flex-column ga-4">
+          <VAlert v-if="selectedAdvance" variant="tonal" color="info">
+            {{ selectedAdvance.advanceNumber }} ·
+            {{ formatAmount(selectedAdvance.remainingAmount) }}
+            {{ $t("pages.payrolls.remainingAdvance") }}
+          </VAlert>
+          <VTextField
+            v-model.number="settleForm.amount"
+            type="number"
+            min="0"
+            :label="$t('pages.payrolls.amount')"
+          />
+          <VTextField
+            v-model="settleForm.date"
+            type="date"
+            :label="$t('pages.payrolls.date')"
+          />
+          <VTextField
+            v-model="settleForm.remarks"
+            :label="$t('pages.payrolls.remarks')"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="settleDialog = false">
+            {{ $t("common.actions.cancel") }}
+          </VBtn>
+          <VBtn
+            color="success"
+            :loading="saving"
+            :disabled="settleForm.amount <= 0"
+            @click="saveSettlement"
+          >
+            {{ $t("common.actions.save") }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- Edit advance -->
+    <VDialog v-model="editAdvanceDialog" max-width="520">
+      <VCard :title="$t('pages.payrolls.editAdvance')">
+        <VCardText class="d-flex flex-column ga-4">
+          <VTextField
+            v-model.number="editAdvanceForm.amount"
+            type="number"
+            min="0"
+            :label="$t('pages.payrolls.amount')"
+          />
+          <VTextField
+            v-model="editAdvanceForm.date"
+            type="date"
+            :label="$t('pages.payrolls.date')"
+          />
+          <VTextField
+            v-model="editAdvanceForm.remarks"
+            :label="$t('pages.payrolls.remarks')"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="editAdvanceDialog = false">
+            {{ $t("common.actions.cancel") }}
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="saving"
+            :disabled="editAdvanceForm.amount <= 0"
+            @click="saveAdvanceEdit"
+          >
+            {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
       </VCard>

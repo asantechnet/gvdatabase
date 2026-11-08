@@ -9,6 +9,7 @@ import CommissionApi, {
   type CommissionSummary,
 } from "@/api/commission";
 import EmployeeApi, { type Employee } from "@/api/employee";
+import CommissionSlipPrinter from "@/components/commission/CommissionSlipPrinter.vue";
 import { canAccess } from "@/utils/authorization";
 import {
   formatActiveMoney,
@@ -16,6 +17,7 @@ import {
 } from "@/utils/localization";
 import TableEmptyState from "@/components/TableEmptyState.vue";
 import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
+import { moveRowIdFirst } from "@/utils/createdFirst";
 
 const { t } = useI18n();
 const tr = (key: string, values?: Record<string, unknown>) =>
@@ -37,6 +39,8 @@ const paymentDialog = ref(false);
 const selectedSettlement = ref<CommissionSettlement | null>(null);
 const selectedAccrualIds = ref<number[]>([]);
 const paymentDate = ref(new Date().toISOString().slice(0, 10));
+const slipDialog = ref(false);
+const printSettlementId = ref<number | null>(null);
 
 const form = ref({
   employee_id: null as number | null,
@@ -253,7 +257,7 @@ const createSettlement = async () => {
     return;
   loading.value = true;
   try {
-    await CommissionApi.createSettlement({
+    const created = await CommissionApi.createSettlement({
       employee_id: form.value.employee_id,
       base_currency_id: form.value.base_currency_id,
       period_start: form.value.period_start,
@@ -264,6 +268,7 @@ const createSettlement = async () => {
     dialog.value = false;
     toast.success(tr("settlementCreated"));
     await load();
+    settlements.value = moveRowIdFirst(settlements.value, created.id);
     activeTab.value = "settlements";
   } catch (error) {
   } finally {
@@ -281,7 +286,7 @@ const createAdjustment = async () => {
     return;
   loading.value = true;
   try {
-    await CommissionApi.createAdjustment({
+    const created = await CommissionApi.createAdjustment({
       ...adjustmentForm.value,
       employee_id: adjustmentForm.value.employee_id,
       base_currency_id: adjustmentForm.value.base_currency_id,
@@ -289,6 +294,7 @@ const createAdjustment = async () => {
     adjustmentDialog.value = false;
     toast.success(tr("adjustmentAdded"));
     await load();
+    accruals.value = moveRowIdFirst(accruals.value, created.id);
   } catch (error) {
   } finally {
     loading.value = false;
@@ -302,6 +308,11 @@ const approve = async (row: CommissionSettlement) => {
     await load();
   } catch (error) {
   }
+};
+
+const openSlip = (row: CommissionSettlement) => {
+  printSettlementId.value = row.id;
+  slipDialog.value = true;
 };
 
 const openPayment = (row: CommissionSettlement) => {
@@ -665,6 +676,13 @@ onMounted(load);
             <template #item.actions="{ item }">
               <div class="d-flex ga-1">
                 <VBtn
+                  size="small"
+                  variant="text"
+                  prepend-icon="tabler-printer"
+                  @click="openSlip(item)"
+                  >{{ tr("printSlip") }}</VBtn
+                >
+                <VBtn
                   v-if="
                     item.status === 'draft' && canAccess('approve_commissions')
                   "
@@ -919,5 +937,10 @@ onMounted(load);
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <CommissionSlipPrinter
+      v-model="slipDialog"
+      :settlement-id="printSettlementId"
+    />
   </div>
 </template>

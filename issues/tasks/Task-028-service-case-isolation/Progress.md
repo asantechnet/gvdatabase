@@ -68,6 +68,7 @@
 - Unlined parties are intentionally absent from the pipeline; they remain on `/applications`. An intake lane would be a separate product decision.
 - `applicant_stage_histories` still receives an initial line row at contract generation, so a move adds exactly one further row rather than being the line's first history row.
 - No schema change and no migration. Pipeline `totals` keep their existing keys but now count lines, split by the line stage's terminal state.
+- Forward ownership of `ApplicantContractResource`, `service-case.vue` and `serviceCases.ts` moved to Task-047 on 2026-11-07 for the contract-aware case extension; this task's delivered line-isolation behaviour remains historical evidence.
 
 ## Blockers and open questions
 - The 390/768/1280 px LTR/RTL light/dark browser pass has not been run; that is the only open acceptance criterion.
@@ -79,6 +80,10 @@
 - The locale files are shared with Task-026; only the `educational.caseUi` subtree and the pipeline count note changed.
 - Do not reintroduce the applicant-level fallback writer for a lined party, a bulk multi-line mover, or a stage document check. Each needs a new approved decision.
 - The applicant mirror `applicants.current_stage_id` is still written for dashboards and reports but is never the editable stage for a lined party.
+- Do not edit the forward-owned contract payload or service-case workspace; Task-047 consumes this task's line-isolation contract.
 
 ## Activity log (append-only)
 - `2026-11-04` Implemented Task-028 end to end. The line is the case: the new read endpoint and `/service-cases/:line` workspace expose only one line's history, tasks and finance; the applicant page is a party profile with read-only case rows; the pipeline is line-only and moves only `card.line_id`; the document gate is removed while the terminal-reason rule stays. Added `ServiceCaseIsolationTest` and updated the affected suites. 53 affected tests / 411 assertions and 52 regression tests / 796 assertions passed; typecheck, i18n check and diff check passed. Status moved to `Review` with only the viewport/direction/theme pass open. Pint reports only pre-existing findings also present in HEAD.
+- `2026-11-07` Forward ownership of the static router moved to Task-044 for the Academy route tree; the delivered service-case route remains historical evidence.
+- `2026-11-07` Forward ownership of the paths needed for Task-046 moved to Task-046; the delivered behaviour remains historical evidence.
+- `2026-11-07` Forward ownership of `ApplicantContractResource`, `service-case.vue` and `serviceCases.ts` moved to Task-047 for the related-contract payload and UI.

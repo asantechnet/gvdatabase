@@ -47,8 +47,9 @@ A valid Create contract form submits and creates the contract, because the brows
 
 ## Exclusive file ownership
 - `resources/ts/utils/apiValidation.ts` — remove the stale start_date rule and keep the four routes on one schema.
-- `resources/ts/pages/service-contracts.vue` — clear form-level errors on edit and confirm the payload has no start_date.
 - `tests/Feature/ServiceContractStartDateTest.php` — new regression test for the client/schema contract and server acceptance.
+
+Forward ownership: `resources/ts/pages/service-contracts.vue` moved to Task-035 on 2026-11-07 for the audit-rail integration; this task no longer edits it.
 
 ## Acceptance criteria
 - [ ] Given the four service-contract POST routes, when `serviceContractRules` is inspected, then it no longer requires or accepts a client-supplied `start_date`, matching the server `prohibited` rule.

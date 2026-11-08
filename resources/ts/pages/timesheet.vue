@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { VAlert, VAvatar, VBtn, VCard, VCardText, VChip, VCol, VDialog, VIcon, VRow, VSelect } from 'vuetify/components'
 import TimesheetTemplate from './templates/timesheet_template.vue'
 import { printDocument } from '@/utils/printDocument'
-import AttendanceApi, { type Attendance, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
+import AttendanceApi, { type Attendance, type AttendanceOffDay, type DailyReport, type UnmarkedStaff } from '@/api/attendance'
 import EmployeeApi, { type Employee } from '@/api/employee'
 import OfficeApi, { type Office } from '@/api/office'
 import SettingApi from '@/api/setting'
@@ -41,6 +41,8 @@ const employees = ref<Employee[]>([])
 const offices = ref<Office[]>([])
 const attendanceRecords = ref<Attendance[]>([])
 const unmarkedStaff = ref<UnmarkedStaff[]>([])
+const companyOffDay = ref<AttendanceOffDay | null>(null)
+const isCompanyOffDay = computed(() => Boolean(companyOffDay.value?.is_off_day))
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
 const toast = useToast()
@@ -101,8 +103,24 @@ const fetchAttendanceRecords = async () => {
   }
 }
 
+const loadCompanyOffDay = async () => {
+  try {
+    companyOffDay.value = await AttendanceApi.getOffDay(logDate.value)
+  }
+  catch {
+    // Keep the logger usable when the off-day lookup is unavailable.
+    companyOffDay.value = null
+  }
+}
+
 // Fetch unmarked staff for the selected LOG date
 const fetchUnmarkedStaff = async () => {
+  if (isFriday(logDate.value) || isCompanyOffDay.value) {
+    unmarkedStaff.value = []
+
+    return
+  }
+
   try {
     loading.value = true
 
@@ -129,6 +147,14 @@ const logAttendance = async (status: 'present' | 'absent') => {
     return
   if (isFriday(logDate.value)) {
     error.value = 'Friday is the Afghanistan weekend. Attendance cannot be recorded.'
+
+    return
+  }
+  if (isCompanyOffDay.value) {
+    const message = translate('pages.attendance.timesheet.timesheet.offDayNoAttendance')
+
+    error.value = message
+    toast.warning(message)
 
     return
   }
@@ -303,6 +329,7 @@ onMounted(async () => {
   startDate.value = today
   endDate.value = today
   logDate.value = today
+  await loadCompanyOffDay()
   checkInTime.value = settingResponse.data?.office_open_time || ''
   checkOutTime.value = settingResponse.data?.office_close_time || ''
   breakMinutes.value = settingResponse.data?.default_break_minutes || 0
@@ -316,6 +343,7 @@ watch([startDate, endDate, employeeFilter, officeFilter, statusFilter], async ()
 
 // Watch target logging date changes to get relevant unmarked staff
 watch(logDate, async () => {
+  await loadCompanyOffDay()
   await fetchUnmarkedStaff()
 })
 </script>
@@ -483,6 +511,17 @@ watch(logDate, async () => {
             >
               {{ $t('common.ui.fridayIsTheAfghanistanWeekendAttendanceIsNotRequiredOrRecordedToday') }}
             </VAlert>
+            <VAlert
+              v-if="isCompanyOffDay && !isFriday(logDate)"
+              type="info"
+              variant="tonal"
+              class="mb-4"
+            >
+              {{ $t('pages.attendance.timesheet.timesheet.offDayNoAttendance') }}
+              <template v-if="companyOffDay?.reason">
+                — {{ companyOffDay.reason }}
+              </template>
+            </VAlert>
 
             <!-- Dropdown Staff Selection -->
             <VSelect
@@ -496,7 +535,7 @@ watch(logDate, async () => {
               density="comfortable"
               class="mb-5"
               :loading="loading"
-              :disabled="isFriday(logDate)"
+              :disabled="isFriday(logDate) || isCompanyOffDay"
               :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'"
             >
               <template #item="{ props, item }">
@@ -528,6 +567,7 @@ watch(logDate, async () => {
                   density="comfortable"
                   hide-details
                   clearable
+                  :disabled="isFriday(logDate) || isCompanyOffDay"
                 />
               </VCol>
               <VCol cols="6">
@@ -538,6 +578,7 @@ watch(logDate, async () => {
                   density="comfortable"
                   hide-details
                   clearable
+                  :disabled="isFriday(logDate) || isCompanyOffDay"
                 />
               </VCol>
             </VRow>
@@ -548,6 +589,7 @@ watch(logDate, async () => {
               min="0"
               max="720"
               class="mb-3"
+              :disabled="isFriday(logDate) || isCompanyOffDay"
             />
 
             <!-- Logger Submission Buttons -->
@@ -558,7 +600,7 @@ watch(logDate, async () => {
                   block
                   size="large"
                   variant="flat"
-                  :disabled="!selectedStaffId || loading || isFriday(logDate)"
+                  :disabled="!selectedStaffId || loading || isFriday(logDate) || isCompanyOffDay"
                   class="action-btn-success font-weight-bold"
                   @click="logAttendance('present')"
                 >
@@ -577,7 +619,7 @@ watch(logDate, async () => {
                   block
                   size="large"
                   variant="flat"
-                  :disabled="!selectedStaffId || loading || isFriday(logDate)"
+                  :disabled="!selectedStaffId || loading || isFriday(logDate) || isCompanyOffDay"
                   class="action-btn-error font-weight-bold"
                   @click="logAttendance('absent')"
                 >
@@ -910,6 +952,7 @@ watch(logDate, async () => {
                         @click="openCorrection(record)"
                       />
                       <VBtn
+                        v-if="!record.is_off_day && record.status !== 'off_day'"
                         icon="tabler-trash"
                         variant="text"
                         color="error"

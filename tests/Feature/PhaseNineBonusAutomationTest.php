@@ -102,23 +102,54 @@ class PhaseNineBonusAutomationTest extends TestCase
         $this->assertSame(1, BonusRuleSet::where('is_active', true)->count());
     }
 
-    public function test_bonus_requires_both_task_credit_and_a_case_win(): void
+    public function test_completed_task_credit_alone_produces_a_nomination(): void
     {
         Carbon::setTestNow('2026-08-13 08:00:00 UTC');
         $this->superAdmin();
         Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1]);
 
         $taskUser = User::factory()->create();
-        Employee::factory()->create(['user_id' => $taskUser->id]);
+        $employee = Employee::factory()->create(['user_id' => $taskUser->id]);
         $task = Task::factory()->create(['board_id' => Board::factory(), 'progress' => 100, 'completed_at' => '2026-07-10 06:00:00']);
         $task->users()->attach($taskUser->id, ['contribution_percent' => 100]);
 
-        $winner = Employee::factory()->create();
-        $applicant = Applicant::factory()->create(['responsible_employee_id' => $winner->id]);
-        CaseWin::create(['applicant_id' => $applicant->id, 'employee_id' => $winner->id, 'won_at' => '2026-07-11 06:00:00', 'stage_key' => 'visa_approved']);
-
         $this->artisan('bonuses:calculate', ['--month' => '2026-07'])->assertSuccessful();
+
+        $nomination = WorthyEmployee::firstOrFail();
+        $this->assertSame($employee->id, $nomination->employee_id);
+        $this->assertSame(0, $nomination->calculation_inputs['cases_won']);
+        $this->assertEqualsWithDelta(1, $nomination->calculation_inputs['task_credit'], .0001);
+        $this->assertEqualsWithDelta(10, $nomination->suggested_amount, .001);
+        $this->assertFalse($nomination->is_granted);
+    }
+
+    public function test_bonus_preview_explains_the_projection_without_writing_anything(): void
+    {
+        Carbon::setTestNow('2026-08-13 08:00:00 UTC');
+        $reviewer = $this->superAdmin();
+        $worker = User::factory()->create();
+        $employee = Employee::factory()->create(['user_id' => $worker->id]);
+        Currency::factory()->create(['is_base' => true, 'is_active' => true, 'rate' => 1, 'code' => 'AFN', 'symbol' => '؋']);
+        $task = Task::factory()->create(['board_id' => Board::factory(), 'progress' => 100, 'completed_at' => '2026-07-10 06:00:00']);
+        $task->users()->attach($worker->id, ['contribution_percent' => 100]);
+
+        Sanctum::actingAs($reviewer, ['access']);
+        $response = $this->getJson("/api/tasks/{$task->id}/bonus-preview")->assertOk();
+
+        $this->assertSame('2026-07', $response->json('data.month'));
+        $this->assertSame($employee->id, $response->json('data.assignees.0.employeeId'));
+        $this->assertEqualsWithDelta(1, $response->json('data.assignees.0.thisTaskCredit'), .0001);
+        $this->assertEqualsWithDelta(1, $response->json('data.assignees.0.monthCredit'), .0001);
+        $this->assertSame(0, $response->json('data.assignees.0.casesWon'));
+        $this->assertTrue($response->json('data.assignees.0.eligible'));
+        $this->assertEqualsWithDelta(10, $response->json('data.assignees.0.projectedAmount'), .001);
+        $this->assertNull($response->json('data.assignees.0.nomination'));
+
         $this->assertDatabaseCount('worthy_employees', 0);
+        $this->assertDatabaseCount('automation_runs', 0);
+
+        Sanctum::actingAs(User::factory()->create(), ['access']);
+        $this->getJson("/api/tasks/{$task->id}/bonus-preview")->assertForbidden();
     }
 
     public function test_analytics_backfill_is_idempotent_and_failure_history_is_retryable(): void

@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ReceiptLine, ReceiptMoney, ReceiptPayload } from '@/api/receipts'
 import { formatLocalizedDate } from '@/utils/localization'
+import { formatAmountInWords } from '@/utils/amountInWords'
+import { documentBrandStyle } from '@/utils/documentBranding'
 import { printReceipt, receiptCopies, type ReceiptPaperSize } from '@/utils/printReceipt'
 
 export type { ReceiptPaperSize } from '@/utils/printReceipt'
@@ -27,8 +29,10 @@ const { t, locale } = useI18n()
 const direction = computed(() => (locale.value === 'en' ? 'ltr' : 'rtl'))
 const copies = computed(() => receiptCopies(props.copies))
 
-const letterhead = computed(() => props.receipt.letterhead)
-const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
+const brandStyle = computed(() => documentBrandStyle(
+  props.receipt.company.primary_color,
+  props.receipt.company.secondary_color,
+))
 
 const labels = computed(() => ({
   title: t('documents.receipt.title'),
@@ -47,13 +51,6 @@ const labels = computed(() => ({
   thankYou: t('documents.receipt.thankYou'),
 }))
 
-const safeStyle = computed(() => ({
-  insetInlineStart: `${letterhead.value?.safe?.x ?? 0}%`,
-  insetBlockStart: `${letterhead.value?.safe?.y ?? 0}%`,
-  width: `${letterhead.value?.safe?.width ?? 100}%`,
-  height: `${letterhead.value?.safe?.height ?? 100}%`,
-}))
-
 const formatMoney = (value: number | null | undefined, currency: ReceiptMoney | null) => {
   const decimals = currency?.decimalPlaces ?? 2
   const amount = Number(value ?? 0)
@@ -62,6 +59,12 @@ const formatMoney = (value: number | null | undefined, currency: ReceiptMoney | 
 }
 
 const formatAmount = (value: number | null | undefined, currency: ReceiptMoney | null) => formatMoney(value, currency ?? props.receipt.totals.currency)
+
+const amountInWords = computed(() => formatAmountInWords(
+  props.receipt.income.line_total,
+  locale.value,
+  props.receipt.income.currency,
+))
 
 const formatDate = (value: string | null | undefined) => value
   ? formatLocalizedDate(`${value}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
@@ -81,19 +84,15 @@ const isCustomerCopy = (copy: number) => isTwoUp.value && copy % 2 === 1
 const twoUpContentScale = computed(() => (paperSizeCss.value === 'A5 2x' ? 0.7 : 1))
 
 const contentStyle = computed(() => {
-  const style: Record<string, string> = hasLetterhead.value ? { ...safeStyle.value } : {}
   const scale = twoUpContentScale.value
 
-  if (scale !== 1) {
-    if (hasLetterhead.value) {
-      style.width = `${parseFloat(style.width || '100') / scale}%`
-      style.height = `${parseFloat(style.height || '100') / scale}%`
-    }
-    style.transform = `scale(${scale})`
-    style.transformOrigin = direction.value === 'rtl' ? 'top right' : 'top left'
-  }
+  if (scale === 1)
+    return {}
 
-  return style
+  return {
+    transform: `scale(${scale})`,
+    transformOrigin: direction.value === 'rtl' ? 'top right' : 'top left',
+  }
 })
 
 async function print() {
@@ -110,7 +109,7 @@ defineExpose({ print })
     ref="rootRef"
     class="receipt-sheet"
     :class="{ 'receipt-sheet--two-up': isTwoUp, 'receipt-sheet--two-up-compact': paperSizeCss === 'A5 2x' }"
-    :style="twoUp ? { '--receipt-card-height': `${twoUp.height}mm` } : undefined"
+    :style="[brandStyle, twoUp ? { '--receipt-card-height': `${twoUp.height}mm` } : undefined]"
     :dir="direction"
   >
     <article
@@ -118,15 +117,8 @@ defineExpose({ print })
       :key="copy"
       class="receipt-card"
     >
-      <img
-        v-if="hasLetterhead"
-        class="receipt-card__art"
-        :src="letterhead.url ?? undefined"
-        alt=""
-      >
       <div
         class="receipt-card__content"
-        :class="{ 'receipt-card__content--safe': hasLetterhead }"
         :style="contentStyle"
       >
         <header class="receipt-head">
@@ -238,6 +230,11 @@ defineExpose({ print })
           </div>
         </section>
 
+        <div class="receipt-words">
+          <span>{{ t('documents.receipt.amountInWords') }}</span>
+          <strong>{{ amountInWords }}</strong>
+        </div>
+
         <footer class="receipt-foot">
           <div class="receipt-foot__note">
             <p>{{ labels.thankYou }}</p>
@@ -286,14 +283,6 @@ defineExpose({ print })
   overflow-wrap: anywhere;
 }
 
-.receipt-card__art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .receipt-card__content {
   display: flex;
   flex-direction: column;
@@ -304,19 +293,13 @@ defineExpose({ print })
 
 .receipt-card__content > * { flex-shrink: 0; }
 
-.receipt-card__content--safe {
-  position: absolute;
-  padding: 3mm;
-  overflow: hidden;
-}
-
 .receipt-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 6mm;
   padding-block-end: 2.5mm;
-  border-block-end: 2px solid #16a1d7;
+  border-block-end: 2px solid var(--doc-primary);
 }
 
 .receipt-head__company {
@@ -356,7 +339,7 @@ defineExpose({ print })
 }
 
 .receipt-head__eyebrow {
-  color: #16a1d7;
+  color: var(--doc-primary);
   font-size: 12pt;
   font-weight: 800;
   letter-spacing: 0;
@@ -390,8 +373,8 @@ defineExpose({ print })
 .receipt-lines h4 {
   margin: 0 0 1.5mm;
   padding-block-end: 1mm;
-  border-block-end: 1px solid #e2e8f0;
-  color: #16a1d7;
+  border-block-end: 1px solid var(--doc-primary-tint);
+  color: var(--doc-primary);
   font-size: 8pt;
   font-weight: 700;
   letter-spacing: 0;
@@ -472,8 +455,30 @@ defineExpose({ print })
 }
 
 .receipt-totals__received {
-  border-color: #16a1d7 !important;
-  background: #f1fbff;
+  border-color: var(--doc-primary) !important;
+  background: var(--doc-primary-soft);
+}
+
+.receipt-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 3mm;
+  margin-block-start: 1.5mm;
+  padding: 1.5mm 2.5mm;
+  border-inline-start: 3px solid var(--doc-primary);
+  background: var(--doc-primary-soft);
+  font-size: 7pt;
+}
+
+.receipt-words span {
+  color: #52616b;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.receipt-words strong {
+  font-size: 7.4pt;
+  font-weight: 700;
 }
 
 /* The payment voucher shows a payout total and its state, not a 4-column
@@ -496,7 +501,7 @@ defineExpose({ print })
 }
 
 .receipt-totals__received strong {
-  color: #0f6f92;
+  color: var(--doc-primary);
 }
 
 .receipt-foot {
@@ -561,7 +566,7 @@ defineExpose({ print })
   padding: 5mm;
 }
 
-.receipt-sheet--two-up-compact .receipt-card__content:not(.receipt-card__content--safe) {
+.receipt-sheet--two-up-compact .receipt-card__content {
   width: 142.857%;
   height: 142.857%;
 }

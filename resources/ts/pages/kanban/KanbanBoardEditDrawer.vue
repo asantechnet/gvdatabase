@@ -5,9 +5,11 @@ import { VForm } from 'vuetify/components/VForm'
 import TaskAssigneeApi, { type TaskAssigneeOption } from '@/api/taskAssignee'
 import TagApi from '@/api/tag'
 import { useTaskStore } from '@/stores/useTaskStore'
-import { canAccess } from '@/utils/authorization'
+import { canAccess, canManagePersonalTasks } from '@/utils/authorization'
 import type { EditKanbanItem, KanbanItem } from '@/types/legacyKanban'
+import type { Task } from '@/api/kanban'
 import KanbanTaskEditForm from '@/components/forms/KanbanTaskEditForm.vue'
+import TaskBonusDialog from '@/components/task-manager/components/TaskBonusDialog.vue'
 
 interface Emit {
   (e: 'update:isDrawerOpen', value: boolean): void
@@ -42,23 +44,36 @@ const refEditTaskForm = ref<VForm>()
 const config = { enableTime: false, dateFormat: 'Y-m-d' }
 const employees = ref<TaskAssigneeOption[]>([])
 const isLoadingEmployees = ref(false)
-const canEditTask = () => canAccess('edit_assigned_tasks')
 const canAssignMembers = () => canAccess('assign_task_members')
 const canManageTags = () => canAccess('manage_task_tags')
-const canDeleteTask = () => canAccess('delete_assigned_tasks')
 
-// Get current task from store safely
+// Get current task and its board from the store safely.
 const currentTask = computed(() => {
   return store.tasks?.find(task => task.id === String(props.kanbanItem?.item.id))
 })
+const currentBoard = computed(() => {
+  return store.boards.find(board => String(board.id) === String(props.kanbanItem?.boardId))
+})
+const canManagePersonal = computed(() => canManagePersonalTasks(currentBoard.value?.is_personal, currentBoard.value?.is_owned))
+const canEditTask = () => canAccess('edit_assigned_tasks') || canManagePersonal.value
+const canDeleteTask = () => canAccess('delete_assigned_tasks') || canManagePersonal.value
+const canReviewBonus = computed(() => !!currentTask.value && currentTask.value.progress === 100 && canAccess('edit_all_tasks'))
+
+// Assignees are mapped from the task itself, never from the optional
+// `/task-assignees` list: that list can still be loading, and an empty member
+// array used to be submitted as "remove everyone".
+const taskMembers = (task?: Task | null): TaskAssigneeOption[] => (task?.assignees ?? []).map(assignee => ({
+  id: String(assignee.id),
+  name: assignee.name,
+  email: assignee.email ?? '',
+  avatar: assignee.avatar ?? null,
+}))
 
 // Initialize local kanban item
 const localKanbanItem = ref<KanbanItem & { members: TaskAssigneeOption[] }>({
   ...props.kanbanItem.item,
   labels: currentTask.value?.tags?.map(tag => tag.name) || [],
-  members: currentTask.value?.assignees
-    ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
-    .filter((employee): employee is TaskAssigneeOption => employee !== null) || [],
+  members: taskMembers(currentTask.value),
 })
 
 // Fetch employees from API
@@ -69,11 +84,8 @@ const fetchEmployees = async () => {
     isLoadingEmployees.value = true
     employees.value = await TaskAssigneeApi.getAll()
 
-    if (currentTask.value) {
-      localKanbanItem.value.members = currentTask.value.assignees
-        ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
-        .filter((employee): employee is TaskAssigneeOption => employee !== null) || []
-    }
+    if (currentTask.value)
+      localKanbanItem.value.members = taskMembers(currentTask.value)
   }
   catch (error) {
     console.error('Failed to fetch employees:', error)
@@ -115,9 +127,7 @@ watch(() => props.kanbanItem, () => {
         title: task.title,
         dueDate: task.dueDate,
         labels: task.tags?.map(tag => tag.name) || [],
-        members: task.assignees
-          ?.map(user => employees.value.find(employee => employee.id.toString() === user.id) || null)
-          .filter((employee): employee is TaskAssigneeOption => employee !== null) || [],
+        members: taskMembers(task),
       }
     }
   }
@@ -137,17 +147,20 @@ const updateKanbanItem = async (updatedItem = localKanbanItem.value) => {
       return tag ? tag.id : null
     }).filter(id => id !== null) as string[]
 
-    // Get user IDs for selected members
-    const userIds = localKanbanItem.value.members.map(member => {
-      return member?.id ? String(member.id) : null
-    }).filter(id => id !== null) as string[]
+    // Only send assignees when the selection actually changed. An untouched
+    // form must never rewrite the pivot from a partially loaded option list.
+    const selectedMemberIds = localKanbanItem.value.members.map(member => String(member.id)).sort()
+    const currentMemberIds = taskMembers(currentTask.value).map(member => member.id).sort()
+    const membersChanged = selectedMemberIds.length !== currentMemberIds.length
+      || selectedMemberIds.some((id, index) => id !== currentMemberIds[index])
+    const userIds = selectedMemberIds
 
     // Update task in Pinia store
     await store.updateTask(currentTask.value.id, {
       title: localKanbanItem.value.title,
       due_date: localKanbanItem.value.dueDate,
       ...(canManageTags() ? { tags: tagIds } : {}),
-      ...(canAssignMembers() ? { assignees: userIds } : {}),
+      ...(canAssignMembers() && membersChanged ? { assignees: userIds } : {}),
     })
 
     // Emit updated payload
@@ -209,6 +222,10 @@ onMounted(() => {
       <VCardTitle>{{ $t('common.messages.editTask') }}</VCardTitle>
       <VCardSubtitle>{{ props.kanbanItem?.boardName }}</VCardSubtitle>
       <template #append>
+        <TaskBonusDialog
+          v-if="canReviewBonus && currentTask"
+          :task="currentTask"
+        />
         <VBtn
           icon="tabler-x"
           variant="text"

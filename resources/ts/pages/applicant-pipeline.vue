@@ -372,7 +372,7 @@ onMounted(async () => {
   box-shadow: 0 1px 2px rgb(var(--v-theme-on-surface) / 0.025);
 }
 
-:global(.v-theme--dark) .pipeline-case-card {
+:global(.v-theme--dark .pipeline-case-card) {
   background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, black 4%) !important;
   border-color: rgb(var(--v-border-color) / 0.38);
 }

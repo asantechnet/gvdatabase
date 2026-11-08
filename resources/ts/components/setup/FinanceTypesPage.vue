@@ -4,6 +4,7 @@ import { type FinanceType, type FinanceTypeKind, deleteFinanceType, getFinanceTy
 import { financeTypeLabel } from '@/utils/financeTypes'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const props = defineProps<{ kind: FinanceTypeKind }>()
 const { t } = useI18n()
@@ -49,10 +50,13 @@ async function save() {
   }
   saving.value = true
   try {
-    await saveFinanceType(props.kind, name.value.trim(), editing.value?.id)
+    const wasNew = !editing.value
+    const saved = await saveFinanceType(props.kind, name.value.trim(), editing.value?.id)
     dialog.value = false
     toast.success(t('pages.finance.types.saved'))
     await load()
+    if (wasNew)
+      records.value = moveCreatedRowFirst(records.value, saved)
   }
   catch (error) {
     nameError.value = apiFieldErrors(error).name ?? ''

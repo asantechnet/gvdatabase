@@ -3,9 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { VForm } from 'vuetify/components/VForm'
 import { useTaskStore } from '@/stores/useTaskStore'
-import { canAccess } from '@/utils/authorization'
-import TaskApi from '@/api/task'
+import { canAccess, canManagePersonalTasks } from '@/utils/authorization'
 import type { TaskPriority } from '@/types/taskManager'
+import TaskBonusDialog from './TaskBonusDialog.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -18,14 +18,12 @@ const emit = defineEmits<{
 const store = useTaskStore()
 const refEditTaskForm = ref<VForm>()
 const isDeleteConfirmOpen = ref(false)
-const canEditTask = () => canAccess('edit_assigned_tasks')
-const canDeleteTask = () => canAccess('delete_assigned_tasks')
+const selectedBoard = computed(() => store.boards.find(board => board.id === store.selectedTask?.boardId))
+const canManagePersonal = computed(() => canManagePersonalTasks(selectedBoard.value?.is_personal, selectedBoard.value?.is_owned))
+const canEditTask = () => canAccess('edit_assigned_tasks') || canManagePersonal.value
+const canDeleteTask = () => canAccess('delete_assigned_tasks') || canManagePersonal.value
+const canManageDependencies = () => canAccess('manage_task_dependencies')
 const canReviewBonus = () => canAccess('edit_all_tasks')
-const bonusQuality = ref(3)
-const markRejected = ref(false)
-const contributions = ref<Record<string, number>>({})
-const bonusReviewError = ref('')
-const isSavingBonusReview = ref(false)
 
 // Priority options
 const priorityOptions = computed(() => [
@@ -71,12 +69,6 @@ watch(() => store.selectedTask, async newTask => {
       progress: newTask.progress,
     }
 
-    bonusQuality.value = newTask.managerQualityScore ?? 3
-    markRejected.value = false
-
-    const equalShare = newTask.assignees.length ? 100 / newTask.assignees.length : 0
-
-    contributions.value = Object.fromEntries(newTask.assignees.map(assignee => [assignee.id, assignee.contributionPercent ?? equalShare]))
   }
 }, { immediate: true })
 
@@ -99,7 +91,7 @@ const updateTask = async () => {
       priority: localTask.value.priority,
       start_date: localTask.value.startDate,
       due_date: localTask.value.dueDate,
-      dependencies: localTask.value.dependencies,
+      ...(canManageDependencies() ? { dependencies: localTask.value.dependencies } : {}),
       ...(store.selectedTask?.subtasks.length === 0 ? { progress: localTask.value.progress } : {}),
     })
     emit('update:isOpen', false)
@@ -128,41 +120,11 @@ const confirmDelete = () => {
 const cancelDelete = () => {
   isDeleteConfirmOpen.value = false
 }
-
-const saveBonusReview = async () => {
-  if (!store.selectedTaskId || !store.selectedTask)
-    return
-  bonusReviewError.value = ''
-
-  const total = Object.values(contributions.value).reduce((sum, value) => sum + Number(value || 0), 0)
-  if (Math.abs(total - 100) > 0.01) {
-    bonusReviewError.value = translate('components.taskManager.taskdetaildrawer.contributionPercentagesMustTotal100')
-
-    return
-  }
-  isSavingBonusReview.value = true
-  try {
-    const updated = await TaskApi.reviewBonusInputs(store.selectedTaskId, {
-      quality_score: bonusQuality.value,
-      rejected: markRejected.value,
-      contributions: contributions.value,
-    })
-
-    Object.assign(store.selectedTask, updated)
-    markRejected.value = false
-  }
-  catch (error: any) {
-    bonusReviewError.value = error?.response?.data?.message ?? translate('components.taskManager.taskdetaildrawer.unableToSaveBonusReview')
-  }
-  finally {
-    isSavingBonusReview.value = false
-  }
-}
 </script>
 
 <template>
   <VDialog
-    v-model="props.isOpen"
+    :model-value="props.isOpen"
     max-width="1000"
     scrollable
     class="task-detail-dialog"
@@ -188,6 +150,10 @@ const saveBonusReview = async () => {
           </div>
         </template>
         <template #append>
+          <TaskBonusDialog
+            v-if="canReviewBonus() && store.selectedTask && store.selectedTask.progress === 100"
+            :task="store.selectedTask"
+          />
           <VBtn
             icon="tabler-x"
             variant="text"
@@ -213,62 +179,6 @@ const saveBonusReview = async () => {
                 :disabled="!canEditTask()"
                 required
               />
-            </VCol>
-
-            <VCol
-              v-if="canReviewBonus() && store.selectedTask?.progress === 100"
-              cols="12"
-              md="6"
-            >
-              <VDivider class="my-3" />
-              <div class="text-subtitle-1 font-weight-bold mb-3">
-                {{ $t('components.taskManager.taskdetaildrawer.bonusCalculationInputs') }}
-              </div>
-              <VAlert
-                v-if="bonusReviewError"
-                type="error"
-                variant="tonal"
-                class="mb-3"
-              >
-                {{ bonusReviewError }}
-              </VAlert>
-              <VSlider
-                v-model="bonusQuality"
-                min="1"
-                max="5"
-                step="0.5"
-                :label="$t('components.taskManager.taskdetaildrawer.managerQuality')"
-                thumb-label="always"
-              />
-              <div class="text-caption text-medium-emphasis mb-2">
-                {{ $t('components.taskManager.taskdetaildrawer.participationMustTotal100TheseValuesAreSnapshottedWhenTheMonthlyCalcul') }}
-              </div>
-              <VTextField
-                v-for="assignee in store.selectedTask.assignees"
-                :key="assignee.id"
-                v-model.number="contributions[assignee.id]"
-                type="number"
-                min="0"
-                max="100"
-                suffix="%"
-                :label="assignee.name"
-                density="compact"
-              />
-              <VCheckbox
-                v-model="markRejected"
-                :label="$t('components.taskManager.taskdetaildrawer.recordOneRejectionPenalty')"
-                color="warning"
-                hide-details
-              />
-              <VBtn
-                color="primary"
-                variant="tonal"
-                class="mt-3"
-                :loading="isSavingBonusReview"
-                @click="saveBonusReview"
-              >
-                {{ $t('components.taskManager.taskdetaildrawer.saveBonusInputs') }}
-              </VBtn>
             </VCol>
 
             <!-- Priority -->
@@ -321,7 +231,11 @@ const saveBonusReview = async () => {
             </VCol>
 
             <!-- Gantt relationships -->
-            <VCol cols="12" md="6">
+            <VCol
+              v-if="canManageDependencies()"
+              cols="12"
+              md="6"
+            >
               <VSelect
                 v-model="localTask.dependencies"
                 :items="dependencyOptions"

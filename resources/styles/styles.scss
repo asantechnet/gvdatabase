@@ -1131,3 +1131,64 @@ html[dir='rtl'] .driver-popover-close-btn {
 @media screen {
   .layout-wrapper .layout-page-content { min-inline-size: 0; }
 }
+
+// Browser autofill paints the native input, not the Vuetify field wrapper. Hide
+// that paint without replacing it with a fixed color: the extremely long
+// transition delay means the autofill background never becomes visible, so the
+// field keeps its normal outlined/surface background in every theme.
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-text-fill-color: rgb(var(--v-theme-on-surface)) !important;
+  caret-color: rgb(var(--v-theme-on-surface));
+  transition: background-color 2147483647s ease-in-out 0s, color 2147483647s ease-in-out 0s !important;
+}
+
+input:autofill,
+textarea:autofill,
+select:autofill {
+  background-color: transparent !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  filter: none;
+}
+
+// Every dropdown list (select, autocomplete, combobox and menu) is a teleported
+// overlay list. Keep its scrollbar slim and remove the native step buttons.
+.v-overlay__content .v-list,
+.v-overlay__content.v-list {
+  scrollbar-color: rgba(var(--v-theme-on-surface), .28) transparent;
+  scrollbar-width: thin;
+}
+
+.v-overlay__content .v-list::-webkit-scrollbar,
+.v-overlay__content.v-list::-webkit-scrollbar {
+  block-size: 6px;
+  inline-size: 6px;
+}
+
+.v-overlay__content .v-list::-webkit-scrollbar-track,
+.v-overlay__content.v-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.v-overlay__content .v-list::-webkit-scrollbar-thumb,
+.v-overlay__content.v-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--v-theme-on-surface), .28);
+}
+
+.v-overlay__content .v-list::-webkit-scrollbar-thumb:hover,
+.v-overlay__content.v-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--v-theme-on-surface), .46);
+}
+
+.v-overlay__content .v-list::-webkit-scrollbar-button,
+.v-overlay__content.v-list::-webkit-scrollbar-button {
+  display: none;
+  block-size: 0;
+  inline-size: 0;
+}

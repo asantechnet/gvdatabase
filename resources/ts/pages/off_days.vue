@@ -8,6 +8,7 @@ import ResponsiveDataTableServer from '@/components/responsive-data-table/Respon
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -91,14 +92,23 @@ async function save() {
   saving.value = true
   error.value = ''
   try {
-    if (selected.value)
-      await OffDayApi.update(selected.value.id, { ...form.value, reason: form.value.reason.trim() })
-    else
-      await OffDayApi.create({ ...form.value, reason: form.value.reason.trim() })
+    const saved = selected.value
+      ? await OffDayApi.update(selected.value.id, { ...form.value, reason: form.value.reason.trim() })
+      : await OffDayApi.create({ ...form.value, reason: form.value.reason.trim() })
+
+    const wasNew = !selected.value
 
     toast.success(t('pages.offDays.saved'))
     dialog.value = false
-    await load()
+
+    if (wasNew) {
+      page.value = 1
+      await load()
+      rows.value = moveCreatedRowFirst(rows.value, saved).slice(0, perPage.value)
+    }
+    else {
+      await load()
+    }
   }
   catch (e) {
     error.value = apiErrorMessage(e, t('pages.offDays.unableToSave'))

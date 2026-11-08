@@ -110,19 +110,9 @@ Make the applicant-stage catalogue enforce the business model instead of exposin
 - Existing migrations — add new dated migrations instead.
 
 ## Exclusive file ownership
-- `app/Http/Controllers/ApplicantStageController.php`
-- `app/Models/ApplicantStage.php`
-- `app/Models/Applicant.php`
-- `app/Models/ApplicantContract.php`
-- `app/Services/ApplicantStageContext.php`
 - `app/Http/Controllers/EducationalMasterDataController.php`
-- `resources/ts/pages/applicant-stages.vue`
-- `resources/ts/api/applicantStages.ts`
 - `database/migrations/2026_11_04_000001_add_test_scope_to_applicant_stages.php`
 - `database/migrations/2026_11_04_000002_enforce_canonical_terminal_stages.php`
-- `tests/Feature/ApplicantStageCatalogTest.php`
-- `tests/Feature/ApplicantStageScopeTest.php`
-- `tests/Feature/ApplicantStageContextTest.php`
 
 ## Implementation notes
 1. Record the 29-task baseline and transfer forward ownership of the stage catalogue, stage editor and stage catalogue test from the delivered stage-lock task in `docs/Tasks` to this task.
@@ -141,6 +131,8 @@ Make the applicant-stage catalogue enforce the business model instead of exposin
 10. Add the locale keys and backend business message in English, Dari and Pashto. Remove the dead terminal-switch hint.
 11. Add and update the tests, then run the stage catalogue, scope and context suites plus the existing applicant workflow/pipeline/contract-stage suites. Run `npm run typecheck`, `npm run i18n:check`, and a fresh SQLite migration twice.
 12. Update `Progress.md` with actual commands, counts and limitations, then hand off the stage-options contract to the service-case task.
+
+Forward ownership of the contract-generation, applicant, stage, commission and contract-register paths needed by Task-046 moved on 2026-11-07; this task's delivered behaviour remains historical evidence.
 
 ## Acceptance criteria
 - [ ] Given the stage catalogue for scholarship, private, test offer and academy, when it is read with `all=1`, then scholarship, private and test offer contain exactly `completed`, `cancelled`, `rejected` and `withdrawn` as terminal rows and academy contains exactly `completed`, `cancelled` and `withdrawn`, each reports `is_terminal: true`, `is_active: true` and `is_locked: true`, and no other row for that service is terminal.

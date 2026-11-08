@@ -163,6 +163,8 @@ class HrPayrollOffDaysTest extends TestCase
         ])->assertCreated()
             ->assertJsonPath('data.advanceRecovery', 300)
             ->assertJsonPath('data.amountDue', 700)
+            ->assertJsonPath('data.advances.0.id', $advanceId)
+            ->assertJsonPath('data.advances.0.amount', 300)
             ->json('data.id');
 
         $this->assertDatabaseHas('salary_deductions', [

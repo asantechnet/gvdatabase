@@ -12,16 +12,22 @@ class TaskPolicy
 {
     public function view(User $user, Task $task): bool
     {
-        return TaskAccess::canViewTask($user, $task);
+        return TaskAccess::canManagePersonalTask($user, $task)
+            || TaskAccess::canViewTask($user, $task);
     }
 
     public function create(User $user, Board $board): bool
     {
-        return $user->hasPermission('create_tasks') && TaskAccess::canViewBoard($user, $board);
+        return ($user->hasPermission('create_tasks') || TaskAccess::canManagePersonalBoard($user, $board))
+            && TaskAccess::canViewBoard($user, $board);
     }
 
     public function update(User $user, Task $task): bool
     {
+        if (TaskAccess::canManagePersonalTask($user, $task)) {
+            return true;
+        }
+
         return $this->view($user, $task) && (
             $user->hasPermission('edit_all_tasks')
             || ($user->hasPermission('edit_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
@@ -36,6 +42,10 @@ class TaskPolicy
 
     public function delete(User $user, Task $task): bool
     {
+        if (TaskAccess::canManagePersonalTask($user, $task)) {
+            return true;
+        }
+
         return $this->view($user, $task) && (
             $user->hasPermission('delete_all_tasks')
             || ($user->hasPermission('delete_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
@@ -45,6 +55,12 @@ class TaskPolicy
 
     public function move(User $user, Task $task, Board $destination): bool
     {
+        // Personal CRUD may reorder within the owner's own board, never move
+        // the task onto a shared board or another user's board.
+        if (TaskAccess::canManagePersonalTask($user, $task) && TaskAccess::canManagePersonalBoard($user, $destination)) {
+            return (int) $task->board_id === (int) $destination->id;
+        }
+
         $canMove = $user->hasPermission('move_all_tasks')
             || ($user->hasPermission('move_assigned_tasks') && TaskAccess::isTaskAssignee($user, $task))
             || ($user->hasPermission('move_assigned_tasks') && TaskAccess::isTeamTaskAssignee($user, $task));

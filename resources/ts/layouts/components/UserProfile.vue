@@ -16,22 +16,26 @@ const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
 const userData = useCookie<any>('userData')
+const isSuperAdmin = computed(() => (Array.isArray(userData.value?.roles) ? userData.value.roles : [])
+  .some((role: string | { name?: string }) => (typeof role === 'string' ? role : role?.name) === 'super_admin'))
 const paidTimeOffDialog = ref(false)
 const startDayDialog = ref(false)
 const endDayDialog = ref(false)
 const startLoading = ref(false)
 
-const userProfileList = [
+const userProfileList = computed(() => [
   { type: 'navItem', icon: 'tabler-user', title: translate('components.navigation.userprofile.myAccount'), to: { name: 'account-settings', params: { tab: 'account' } } },
   { type: 'navItem', icon: 'tabler-lock', title: translate('common.messages.security'), to: { name: 'account-settings', params: { tab: 'security' } } },
   { type: 'navItem', icon: 'tabler-bell', title: translate('components.navigation.userprofile.notificationPreferences'), to: { name: 'account-settings', params: { tab: 'notifications' } } },
-  { type: 'navItem', icon: 'tabler-calendar-stats', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), to: { name: 'account-settings', params: { tab: 'work-history' } } },
+  ...(!isSuperAdmin.value
+    ? [{ type: 'navItem', icon: 'tabler-calendar-stats', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), to: { name: 'account-settings', params: { tab: 'work-history' } } }]
+    : []),
   ...(canAccess('view_recurring_events')
     ? [{ type: 'navItem', icon: 'tabler-repeat', title: translate('common.navigation.recurringEvents'), to: { name: 'recurring-events' } }]
     : []),
   { type: 'divider' },
   { type: 'navItem', icon: 'tabler-bell-ringing', title: translate('components.navigation.userprofile.myNotifications'), to: { name: 'notifications' } },
-]
+])
 
 async function refreshUser() {
   try {
@@ -162,12 +166,14 @@ onMounted(() => {
               />
             </template>
             <VListItem
+              v-if="!isSuperAdmin"
               prepend-icon="tabler-beach"
               @click="paidTimeOffDialog = true"
             >
               <VListItemTitle>{{ $t('pages.leaveRequests.myTitle') }}</VListItemTitle>
             </VListItem>
             <WorkdayControl
+              v-if="!isSuperAdmin"
               :key="userData?.id"
               @open-start-dialog="startDayDialog = true"
               @open-end-dialog="endDayDialog = true"

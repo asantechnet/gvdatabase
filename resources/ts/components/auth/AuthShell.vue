@@ -127,7 +127,7 @@ onMounted(() => { void loadBranding() })
 .auth-shell__body { margin-block-start: 1.5rem; }
 .auth-shell__footer { margin-block-start: 1.5rem; text-align: center; }
 
-:global(.v-theme--dark) .auth-shell__card {
+:global(.v-theme--dark .auth-shell__card) {
   border-color: rgba(var(--v-border-color), .28);
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 24px 48px -24px rgb(0 0 0 / 58%), 0 12px 24px -16px rgb(0 0 0 / 30%);

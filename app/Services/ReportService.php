@@ -228,7 +228,7 @@ class ReportService
         }
 
         if ($user->hasPermission('view_employees')) {
-            $employees = Employee::selectable()->with(['office:id,name', 'position:id,title'])
+            $employees = Employee::selectable()->active()->with(['office:id,name', 'position:id,title'])
                 ->whereBetween('join_date', [$start->toDateString(), $end->toDateString()])
                 ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->whereKey($id))
                 ->when($filters['office_id'] ?? null, fn (Builder $q, $id) => $q->where('office_id', $id))
@@ -239,7 +239,7 @@ class ReportService
                 ]);
             $sections[] = $this->section('employee_roster', ['join_date', 'employee', 'office', 'position', 'department'], $employees, [
                 'joined_in_period' => $employees->count(),
-                'company_headcount' => Employee::selectable()->count(),
+                'company_headcount' => Employee::selectable()->active()->count(),
             ]);
         }
 

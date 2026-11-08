@@ -110,7 +110,7 @@ const contracts: Record<string, Schema> = {
   'POST /attendances/:id/checkout-correction': { date: ['required', 'date'], time: ['required', 'string'] },
   'POST /attendances': { staff_id: ['required', 'integer'], date: ['required', 'date'], status: ['required', 'in:present,absent'], check_in_time: ['nullable', 'string'], check_out_time: ['nullable', 'string'], break_minutes: ['nullable', 'integer', 'between:0,720'] },
   'POST /workday/start': { latitude: ['nullable', 'numeric', 'between:-90,90'], longitude: ['nullable', 'numeric', 'between:-180,180'], accuracy_meters: ['nullable', 'numeric', 'between:0,5000'], observed_at: ['nullable', 'numeric'] },
-  'POST /workday/end': { attendanceId: ['nullable', 'integer', 'min:1'], summary: ['required', 'string', 'max:5000'], achievements: ['nullable', 'string', 'max:5000'], challenges: ['nullable', 'string', 'max:5000'], nextDayPlan: ['nullable', 'string', 'max:5000'], supportNeeded: ['nullable', 'string', 'max:5000'] },
+  'POST /workday/end': { attendanceId: ['nullable', 'integer', 'min:1'], summary: ['required', 'string', 'max:5000'], achievements: ['nullable', 'string', 'max:5000'], challenges: ['nullable', 'string', 'max:5000'], nextDayPlan: ['nullable', 'string', 'max:5000'], supportNeeded: ['nullable', 'string', 'max:5000'], latitude: ['nullable', 'numeric'], longitude: ['nullable', 'numeric'], accuracy_meters: ['nullable', 'numeric'], observed_at: ['nullable', 'numeric'] },
   'POST /workday/geofence': { latitude: ['required', 'numeric', 'between:-90,90'], longitude: ['required', 'numeric', 'between:-180,180'], accuracy_meters: ['required', 'numeric', 'between:0,5000'] },
   'POST /worthy-employees': { employeeId: ['required'], achievementDetails: ['required', 'string'], amount: ['required', 'numeric', 'min:0'], selectedType: ['required', 'in:Performance,Customer Appreciation,Task Completion,Work Anniversary,Manager Recognition'], bonusMonth: ['month'] },
   'PATCH /worthy-employees/:id': { amount: ['numeric', 'min:0'], selectedAmount: ['numeric', 'min:0'], selectedType: ['in:Performance,Customer Appreciation,Task Completion,Work Anniversary,Manager Recognition'], isGranted: ['boolean'] },
@@ -129,7 +129,9 @@ const contracts: Record<string, Schema> = {
   'POST /tasks/:id/attachments': { file: ['required', 'file', 'max:10240'], section: ['in:input'] },
   'POST /applicant-portal/attachments': { file: ['required', 'file', 'max:10240'], label: ['nullable', 'string', 'max:120'] },
   'PUT /tasks/:id/move': { board_id: ['required'], order: ['required', 'integer', 'min:0'] },
-  'PATCH /tasks/:id/bonus-review': { quality_score: ['required', 'numeric', 'between:1,5'], rejected: ['boolean'], contributions: ['array'] },
+  // `contributions` is a keyed object map (user id => percent), not a list. The
+  // generic validator cannot walk it, so its values stay server-validated.
+  'PATCH /tasks/:id/bonus-review': { quality_score: ['required', 'numeric', 'between:1,5'], rejected: ['boolean'], contributions: ['sometimes'] },
   'POST /tasks/:id/comments': { content: ['required', 'string', 'max:2000'] },
   'PUT /tasks/:id/comments/:id': { content: ['required', 'string', 'max:2000'] },
   'POST /tasks/:id/subtasks': { title: ['required', 'string', 'max:255'], category: ['nullable', 'string', 'max:255'], is_completed: ['boolean'] },
@@ -154,7 +156,7 @@ const contracts: Record<string, Schema> = {
   'PUT /assets/:id': { serial_number: ['string', 'max:255'], item: ['string', 'max:255'], quantity: ['integer', 'min:1'], price: ['numeric', 'min:0'], model: ['string', 'max:255'], condition: ['in:new,good,fair,poor,damaged'], office_id: ['integer'] },
   'POST /files/upload': { file: ['required'], folder: ['string', 'max:100'] },
   'DELETE /files/delete': { file_path: ['required', 'string'] },
-  'PUT /automation/bonus-rules': { minimum_completed_tasks: ['required', 'integer', 'min:1'], amount_per_completed_task: ['required', 'numeric', 'min:0'], minimum_cases_won: ['required', 'integer', 'min:1'], amount_per_case_won: ['required', 'numeric', 'min:0'], task_quality_weighting_enabled: ['required', 'boolean'], maximum_monthly_bonus: ['required', 'numeric', 'min:0'], excluded_employee_ids: ['present', 'array'], excluded_office_ids: ['present', 'array'] },
+  'PUT /automation/bonus-rules': { minimum_completed_tasks: ['required', 'integer', 'min:0'], amount_per_completed_task: ['required', 'numeric', 'min:0'], minimum_cases_won: ['required', 'integer', 'min:0'], amount_per_case_won: ['required', 'numeric', 'min:0'], task_quality_weighting_enabled: ['required', 'boolean'], maximum_monthly_bonus: ['required', 'numeric', 'min:0'], excluded_employee_ids: ['present', 'array'], excluded_office_ids: ['present', 'array'] },
   'GET /automation/runs': { job: ['nullable', 'string', 'max:80'], status: ['nullable', 'in:running,completed,failed'] },
   'GET /automation/analytics': { from: ['nullable', 'date'], to: ['nullable', 'date', 'after_or_equal:from'], year: ['nullable', 'integer', 'between:2000,3000'] },
   'GET /reports/expences': { start_date: ['date'], end_date: ['date', 'after_or_equal:start_date'] },

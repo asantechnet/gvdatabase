@@ -44,7 +44,12 @@ export interface WorthyEmployee {
   isAutomatic: boolean
   calculationKey: string | null
   calculationScore: number | null
-  calculationInputs: { tasks?: Array<{ task_id: string | number; task_title: string; completed_at?: string | null }>; formula?: string } | null
+  calculationInputs: {
+    task_credit?: number
+    case_wins?: Array<{ case_win_id: string | number; applicant_id: string | number; employee_id: string | number; won_at?: string | null; stage_key: string }>
+    tasks?: Array<{ task_id: string | number; task_title: string; completed_at?: string | null; contribution_percent?: number; quality_score?: number | null; credit?: number }>
+    formula?: string
+  } | null
   ruleSnapshot: { id: number; version: number; rules: Record<string, unknown> } | null
   calculatedAt: string | null
   salaryConversion?: SalaryConversionSnapshot

@@ -12,7 +12,7 @@ The governing rule, confirmed by the owner during this audit, is that Start my d
 | Missing assignment while the firm's fence is enabled | Block with an informative configuration message. Missing assignment cannot bypass the fence. |
 | GPS uncertainty | Accept only when distance + accuracy fits within the radius, with accuracy at most 100 meters. Boundary readings cannot prove attendance. Observations older than 60 seconds, or more than 60 seconds in the future, are rejected. |
 | Leave for lunch, run an errand, lose connection, hide the tab, close the browser, or sign out | The workday stays open. None of these events is a checkout. |
-| End my day outside the office | Accept the explicit report and record checkout. No GPS permission is required to finish an existing workday. |
+| End my day outside the office (updated 2026-11-08) | Accept the report only with a fresh location inside the fence that admitted the shift; the checkout stores its coordinates. A workday that started without a fence still ends without a location. |
 | Repeated Start click | Preserve the original check-in and logged-at values. No duplicate attendance row. |
 | Overnight work, including Thursday into Friday | Keep one attendance row on the check-in date; allow checkout/report on Friday. Friday still blocks a new workday. |
 | Administrator disables automatic attendance during a shift | Existing workdays can still be ended and their reports submitted. New self-service starts are disabled. |

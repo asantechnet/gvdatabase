@@ -5,9 +5,11 @@ import KanbanView from './views/KanbanView.vue'
 import TodoMatrixView from './views/TodoMatrixView.vue'
 import TaskSettingsView from './views/TaskSettingsView.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
+import { canAccess } from '@/utils/authorization'
 
 const store = useTaskStore()
 const route = useRoute()
+const canViewSettings = () => canAccess('view_task_settings')
 
 const validViews = ['kanban', 'todos', 'settings'] as const
 
@@ -16,7 +18,7 @@ const validViews = ['kanban', 'todos', 'settings'] as const
 const applyRouteQuery = () => {
   const view = String(route.query.view ?? '')
   if (validViews.includes(view as typeof validViews[number]))
-    store.setView(view as typeof validViews[number])
+    store.setView((view === 'settings' && !canViewSettings() ? 'kanban' : view) as typeof validViews[number])
 
   const taskId = Number(route.query.task)
   if (Number.isInteger(taskId) && taskId > 0)
@@ -40,24 +42,37 @@ watch(() => store.tasks.length, () => {
     store.selectTask(String(taskId))
 })
 
+// Settings is a permission-scoped tab: a role without the view grant falls
+// back to the board instead of rendering an empty settings surface.
+watch(() => store.activeView, view => {
+  if (view === 'settings' && !canViewSettings())
+    store.setView('kanban')
+})
+
 // Bi-directional binding to the Pinia state
 const activeTab = computed({
   get: () => store.activeView,
   set: val => store.setView(val as any),
 })
 
-const tabs = computed(() => [
-  { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
-  { title: translate('components.taskManager.taskappshell.todoMatrix'), value: 'todos', icon: 'tabler-list-check' },
-  { title: translate('common.messages.settings'), value: 'settings', icon: 'tabler-settings' },
-])
+const tabs = computed(() => {
+  const items = [
+    { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
+    { title: translate('components.taskManager.taskappshell.todoMatrix'), value: 'todos', icon: 'tabler-list-check' },
+  ]
+
+  if (canViewSettings())
+    items.push({ title: translate('common.messages.settings'), value: 'settings', icon: 'tabler-settings' })
+
+  return items
+})
 
 // Dynamically swap views directly in this layout
 const currentComponent = computed(() => {
   switch (store.activeView) {
     case 'kanban': return KanbanView
     case 'todos': return TodoMatrixView
-    case 'settings': return TaskSettingsView
+    case 'settings': return canViewSettings() ? TaskSettingsView : KanbanView
     default: return KanbanView
   }
 })

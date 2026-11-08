@@ -37,7 +37,7 @@ class SalaryController extends Controller
 
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
-        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder']);
+        $query = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advanceSettlements.advance', 'recorder']);
 
         if ($request->filled('salaryMonthFilter')) {
             $query->where('salary_month', $request->salaryMonthFilter);
@@ -103,7 +103,7 @@ class SalaryController extends Controller
 
         $page = $employees->paginate($this->requestedPerPage($request) ?? 25)->withQueryString();
 
-        $salaries = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder'])
+        $salaries = Salary::with(['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advanceSettlements.advance', 'recorder'])
             ->where('salary_month', $data['month'])
             ->whereIn('employee_id', $page->getCollection()->pluck('id'))
             ->get()->keyBy('employee_id');
@@ -235,6 +235,34 @@ class SalaryController extends Controller
         return new SalaryResource($salary->load($this->relations()));
     }
 
+    /**
+     * Opt a payslip in or out of advance recovery.
+     *
+     * The deduction is optional while the payslip is unpaid; once any amount
+     * has been paid out the net is settled and the recovery can no longer be
+     * changed under it.
+     */
+    public function setAdvanceRecovery(Request $request, Salary $salary): SalaryResource
+    {
+        $validated = $request->validate(['applied' => ['required', 'boolean']]);
+
+        DB::transaction(function () use ($salary, $validated): void {
+            $salary = Salary::query()->lockForUpdate()->findOrFail($salary->id);
+
+            if ($salary->payments()->exists()) {
+                throw ValidationException::withMessages([
+                    'applied' => ['business.advance_recovery_locked'],
+                ]);
+            }
+
+            $validated['applied']
+                ? $this->advances->apply($salary)
+                : $this->advances->release($salary);
+        });
+
+        return new SalaryResource($salary->fresh($this->relations()));
+    }
+
     public function update(Request $request, Salary $salary): SalaryResource
     {
         $validated = $this->validateSalaryRequest($request, $salary->id);
@@ -323,7 +351,7 @@ class SalaryController extends Controller
     /** @return array<int, string> */
     private function relations(): array
     {
-        return ['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advances', 'recorder'];
+        return ['employee', 'currency', 'bonuses', 'deductions', 'payments', 'advanceSettlements.advance', 'recorder'];
     }
 
     /**

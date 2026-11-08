@@ -1,30 +1,28 @@
 <script setup lang="ts">
-import { animations, handleEnd, performTransfer } from '@formkit/drag-and-drop'
-import { dragAndDrop } from '@formkit/drag-and-drop/vue'
 import { VForm } from 'vuetify/components/VForm'
 import KanbanCard from './KanbanCard.vue'
-import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId, KanbanState } from '@/types/legacyKanban'
-import { canAccess } from '@/utils/authorization'
+import type { AddNewKanbanItem, EditKanbanItem, KanbanData, KanbanId } from '@/types/legacyKanban'
+import { canCreateTaskOnBoard } from '@/utils/authorization'
 
 const props = defineProps<{
   kanbanIds: KanbanId[]
   groupName: string
   boardName: string
   boardId: KanbanId
+  isPersonal?: boolean
+  isOwned?: boolean
   kanbanData: KanbanData
 }>()
 
 const emit = defineEmits<{
   (e: 'addNewItem', value: AddNewKanbanItem): void
+  (e: 'viewItem', value: EditKanbanItem | undefined): void
   (e: 'editItem', value: EditKanbanItem | undefined): void
-  (e: 'updateItemsState', value: KanbanState): void
+  (e: 'editFullItem', value: EditKanbanItem | undefined): void
   (e: 'deleteItem', value: EditKanbanItem): void
   (e: 'commentsClick', value: EditKanbanItem): void
   (e: 'attachmentsClick', value: EditKanbanItem): void
 }>()
-
-const refKanbanBoard = ref<HTMLElement>()
-const localIds = ref<KanbanId[]>(props.kanbanIds)
 
 const isAddNewFormVisible = ref(false)
 const refForm = ref<VForm>()
@@ -40,27 +38,7 @@ const addNewItem = () => {
   })
 }
 
-if (canAccess('move_assigned_tasks')) {
-  dragAndDrop({
-    parent: refKanbanBoard,
-    values: localIds,
-    group: props.groupName,
-    draggable: child => child.classList.contains('kanban-card'),
-    plugins: [animations()],
-    performTransfer: (state, data) => {
-      performTransfer(state, data)
-      emit('updateItemsState', { boardId: props.boardId, ids: localIds.value })
-    },
-    handleEnd: data => {
-      handleEnd(data)
-      emit('updateItemsState', { boardId: props.boardId, ids: localIds.value })
-    },
-  })
-}
-
-watch(() => props, () => {
-  localIds.value = props.kanbanIds
-}, { immediate: true, deep: true })
+// Drag-and-drop is intentionally disabled on the task board.
 
 const resolveItemUsingId = (id: KanbanId) => props.kanbanData.items.find(item => item.id === id)
 
@@ -68,6 +46,18 @@ const editItem = (id: KanbanId) => {
   const item = resolveItemUsingId(id)
   if (item)
     emit('editItem', { item, boardId: props.boardId, boardName: props.boardName })
+}
+
+const editFullItem = (id: KanbanId) => {
+  const item = resolveItemUsingId(id)
+  if (item)
+    emit('editFullItem', { item, boardId: props.boardId, boardName: props.boardName })
+}
+
+const viewItem = (id: KanbanId) => {
+  const item = resolveItemUsingId(id)
+  if (item)
+    emit('viewItem', { item, boardId: props.boardId, boardName: props.boardName })
 }
 
 const deleteItem = (item: EditKanbanItem) => {
@@ -97,7 +87,7 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
 
         <div class="d-flex align-center">
           <VTooltip
-            v-if="canAccess('create_tasks')"
+            v-if="canCreateTaskOnBoard(props.isPersonal, props.isOwned)"
             location="top"
           >
             <template #activator="{ props: tooltipProps }">
@@ -159,23 +149,25 @@ const handleEnterKeydown = (event: { key: string; shiftKey: any }) => {
     </VForm>
 
     <div
-      v-if="localIds"
-      ref="refKanbanBoard"
       class="kanban-board-drop-zone rounded d-flex flex-column gap-4"
-      :class="localIds.length ? 'mb-4' : ''"
+      :class="kanbanIds.length ? 'mb-4' : ''"
     >
       <template
-        v-for="id in localIds"
+        v-for="id in kanbanIds"
         :key="id"
       >
         <KanbanCard
           :item="resolveItemUsingId(id)"
           :board-id="props.boardId"
           :board-name="props.boardName"
+          :is-personal="props.isPersonal"
+          :is-owned="props.isOwned"
+          @view-item="viewItem(id)"
+          @edit-item="editItem(id)"
+          @edit-full-item="editFullItem(id)"
           @delete-kanban-item="deleteItem"
           @comments-click="emit('commentsClick', $event)"
           @attachments-click="emit('attachmentsClick', $event)"
-          @click="canAccess('edit_assigned_tasks') && editItem(id)"
         />
       </template>
     </div>

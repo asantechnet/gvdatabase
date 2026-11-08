@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { printDocument } from '@/utils/printDocument'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { formatAmountInWords } from '@/utils/amountInWords'
+import { documentBrandStyle } from '@/utils/documentBranding'
 
 export interface Company {
   name: string
@@ -11,6 +14,8 @@ export interface Company {
   tinNumber?: string
   logo?: string
   signature?: string
+  primaryColor?: string
+  secondaryColor?: string
 }
 
 export interface Employee {
@@ -35,13 +40,6 @@ export interface EarningDeduction {
   amount: number
 }
 
-export interface LetterheadSafeArea {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 export interface SalarySlipProps {
   documentTitle?: string
   documentNumber?: string
@@ -54,11 +52,8 @@ export interface SalarySlipProps {
   reimbursements?: EarningDeduction[]
   /** Advances recovered in this payroll period, itemized by reference. */
   advances?: EarningDeduction[]
-  amountInWords: string
-  /** Optional letterhead artwork from Settings → Documents. */
-  letterheadUrl?: string
-  /** Safe-zone (percent of the page) where the payslip content is allowed to land. */
-  letterheadSafe?: LetterheadSafeArea
+  /** Total advance recovery, used when the itemized rows are unavailable. */
+  advanceRecovery?: number
 }
 
 const props = withDefaults(defineProps<SalarySlipProps>(), {
@@ -67,24 +62,16 @@ const props = withDefaults(defineProps<SalarySlipProps>(), {
   deductions: () => [],
   reimbursements: () => [],
   advances: () => [],
-  letterheadUrl: '',
-  letterheadSafe: () => ({ x: 8, y: 14, width: 84, height: 72 }),
+  advanceRecovery: 0,
 })
 
+const { locale } = useI18n()
 const payslipContainerRef = ref<HTMLElement | null>(null)
 
-const hasLetterhead = computed(() => Boolean(props.letterheadUrl))
-
-const letterheadBackground = computed(() => (props.letterheadUrl
-  ? { backgroundImage: `url(${props.letterheadUrl})` }
-  : undefined))
-
-const letterheadSafeStyle = computed(() => ({
-  insetInlineStart: `${props.letterheadSafe?.x ?? 8}%`,
-  insetBlockStart: `${props.letterheadSafe?.y ?? 14}%`,
-  width: `${props.letterheadSafe?.width ?? 84}%`,
-  height: `${props.letterheadSafe?.height ?? 72}%`,
-}))
+const brandStyle = computed(() => documentBrandStyle(
+  props.company.primaryColor,
+  props.company.secondaryColor,
+))
 
 const grossSalary = computed(() => props.earnings.reduce((sum, item) => sum + item.amount, 0))
 
@@ -95,6 +82,12 @@ const totalReimbursements = computed(() => props.reimbursements.reduce((sum, ite
 const netPay = computed(() => grossSalary.value - totalDeductions.value)
 
 const totalNetPayable = computed(() => netPay.value + totalReimbursements.value)
+
+const amountInWords = computed(() => formatAmountInWords(
+  totalNetPayable.value,
+  locale.value,
+  { code: props.currency, decimalPlaces: 2 },
+))
 
 const offDays = computed(() => Number(props.employee.offDays ?? 0))
 
@@ -126,15 +119,11 @@ defineExpose({ print: printSalarySlip })
   <div
     ref="payslipContainerRef"
     class="payslip-container print-document"
-    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'payslip-container--letterhead': hasLetterhead }"
-    :style="letterheadBackground"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :style="brandStyle"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
   >
-    <div
-      class="payslip-content"
-      :class="{ 'payslip-content--safe': hasLetterhead }"
-      :style="hasLetterhead ? letterheadSafeStyle : undefined"
-    >
+    <div class="payslip-content">
       <header class="doc-head">
         <div class="brand">
           <img
@@ -296,7 +285,7 @@ defineExpose({ print: printSalarySlip })
       </div>
 
       <section
-        v-if="advances.length"
+        v-if="advances.length || advanceRecovery > 0"
         class="advances"
       >
         <h3 class="ledger__title">
@@ -311,6 +300,12 @@ defineExpose({ print: printSalarySlip })
               <td>{{ item.label }}</td>
               <td class="num">
                 {{ formatCurrency(item.amount) }}
+              </td>
+            </tr>
+            <tr v-if="!advances.length">
+              <td>{{ $t('pages.payroll.staffSalary.staffSalary.advanceRecovery') }}</td>
+              <td class="num">
+                {{ formatCurrency(advanceRecovery) }}
               </td>
             </tr>
           </tbody>
@@ -348,10 +343,7 @@ defineExpose({ print: printSalarySlip })
       <section class="net-banner">
         <div class="net-banner__info">
           <span class="net-banner__label">{{ $t('documents.payslip.totalNetPayable', { currency }) }}</span>
-          <span
-            v-if="amountInWords"
-            class="net-banner__words"
-          >{{ amountInWords }}</span>
+          <span class="net-banner__words">{{ $t('documents.payslip.amountInWords') }}: {{ amountInWords }}</span>
         </div>
         <div class="net-banner__amount">
           {{ formatCurrency(totalNetPayable) }}
@@ -391,8 +383,8 @@ defineExpose({ print: printSalarySlip })
   --payslip-ink: #16212f;
   --payslip-muted: #5b6b7c;
   --payslip-line: #d6dee7;
-  --payslip-accent: #0f6f92;
-  --payslip-soft: #f4f8fb;
+  --payslip-accent: var(--doc-primary);
+  --payslip-soft: var(--doc-primary-soft);
 
   box-sizing: border-box;
   width: 100%;
@@ -409,21 +401,11 @@ defineExpose({ print: printSalarySlip })
   line-height: 1.35;
 }
 
-.payslip-container--letterhead {
-  padding: 0;
-}
-
 .payslip-content {
   display: flex;
   flex-direction: column;
   gap: 3mm;
   min-height: 100%;
-}
-
-.payslip-content--safe {
-  position: absolute;
-  padding: 4mm;
-  overflow: hidden;
 }
 
 .payslip-container.persian-document {
@@ -571,7 +553,7 @@ defineExpose({ print: printSalarySlip })
 
 .attendance-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid var(--payslip-line);
   border-radius: 1.5mm;
   overflow: hidden;
@@ -591,7 +573,7 @@ defineExpose({ print: printSalarySlip })
 }
 
 .attendance-strip__item--off {
-  background: #eef7f1;
+  background: var(--doc-secondary-soft);
 }
 
 .attendance-strip__label {
@@ -671,10 +653,11 @@ defineExpose({ print: printSalarySlip })
   justify-content: space-between;
   gap: 5mm;
   padding: 3mm 4mm;
-  border: 1px solid #9ec7d8;
+  border: 1px solid var(--doc-primary-tint);
   border-inline-start: 4px solid var(--payslip-accent);
+  border-inline-end: 3px solid var(--doc-secondary);
   border-radius: 1.5mm;
-  background: #f2f9fc;
+  background: var(--payslip-soft);
 }
 
 .net-banner__info {
@@ -684,7 +667,7 @@ defineExpose({ print: printSalarySlip })
 }
 
 .net-banner__label {
-  color: #0b5673;
+  color: var(--payslip-accent);
   font-size: 7pt;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -698,7 +681,7 @@ defineExpose({ print: printSalarySlip })
 }
 
 .net-banner__amount {
-  color: #0b4a63;
+  color: var(--payslip-accent);
   font-size: 14pt;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -762,7 +745,7 @@ defineExpose({ print: printSalarySlip })
 }
 
 @media print {
-  .payslip-container {
+  body.printing-payslip-document .payslip-container {
     box-shadow: none;
   }
 }

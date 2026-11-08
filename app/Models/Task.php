@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Support\EmployeeScope;
 use Database\Factories\TaskFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,6 +78,43 @@ class Task extends Model
             if ($previous >= 100 && $next < 100) {
                 $task->reopened_count = (int) $task->reopened_count + 1;
                 $task->completed_at = null;
+            }
+        });
+    }
+
+    /**
+     * Tasks visible in a board listing. A personal-board holder sees every
+     * task on their own board; shared boards keep the assignment scope.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasPermission('view_all_tasks')) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $visible) use ($user) {
+            $hasPersonal = $user->hasPermission('create_personal_tasks');
+            $hasAssigned = $user->hasPermission('view_assigned_tasks');
+
+            if ($hasPersonal) {
+                $visible->whereHas('board', fn (Builder $board) => $board->where('user_id', $user->id));
+            }
+
+            if ($hasAssigned) {
+                $assigneeScope = fn (Builder $assignees) => $assignees->whereIn(
+                    'users.id',
+                    app(EmployeeScope::class)->visibleUserIds($user),
+                );
+
+                if ($hasPersonal) {
+                    $visible->orWhereHas('users', $assigneeScope);
+                } else {
+                    $visible->whereHas('users', $assigneeScope);
+                }
+            }
+
+            if (! $hasPersonal && ! $hasAssigned) {
+                $visible->whereRaw('1 = 0');
             }
         });
     }

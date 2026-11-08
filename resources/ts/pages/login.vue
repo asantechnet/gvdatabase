@@ -61,7 +61,7 @@ const handleLogin = async () => {
     await router.replace(
       session.user.roles?.includes('applicant') && session.user.permissions?.includes('view_own_applicant_portal') ? '/my-case'
         : session.user.permissions?.includes('view_dashboard') ? '/home'
-          : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards'].includes(permission)) ? '/tasks'
+          : session.user.permissions?.some((permission: string) => ['view_all_boards', 'view_assigned_boards', 'create_personal_tasks'].includes(permission)) ? '/tasks'
             : '/account-settings',
     )
   }

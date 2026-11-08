@@ -10,12 +10,17 @@ import { canAccess } from '@/utils/authorization'
 
 const route = useRoute()
 const router = useRouter()
+const userData = useCookie<any>('userData')
+const isSuperAdmin = computed(() => (Array.isArray(userData.value?.roles) ? userData.value.roles : [])
+  .some((role: string | { name?: string }) => (typeof role === 'string' ? role : role?.name) === 'super_admin'))
 
 const tabs = computed(() => [
   { value: 'account', title: translate('pages.settings.accountSettings.accountSettings.account'), icon: 'tabler-user', component: AccountSettingsAccount },
   { value: 'security', title: translate('common.messages.security'), icon: 'tabler-lock', component: AccountSettingsSecurity },
   { value: 'notifications', title: translate('common.messages.notifications'), icon: 'tabler-bell', component: AccountSettingsNotification },
-  { value: 'work-history', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), icon: 'tabler-calendar-stats', component: AccountSettingsWorkHistory },
+  ...(!isSuperAdmin.value
+    ? [{ value: 'work-history', title: translate('pages.settings.accountSettings.accountSettings.workHistory'), icon: 'tabler-calendar-stats', component: AccountSettingsWorkHistory }]
+    : []),
   ...(canAccess('view_account_deactivation_requests')
     ? [{ value: 'deactivation-requests', title: translate('pages.settings.accountSettings.accountSettings.deactivationRequests'), icon: 'tabler-user-cancel', component: AccountDeactivationRequests }]
     : []),

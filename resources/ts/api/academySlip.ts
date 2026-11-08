@@ -1,9 +1,11 @@
 import api from './axios'
-import type { ReceiptLetterhead, ReceiptMoney } from './receipts'
+import type { ReceiptMoney } from './receipts'
 
 export interface AcademySlipCompany {
   name: string | null
   short_name: string | null
+  primary_color: string
+  secondary_color: string
   logo_url: string | null
   signature_url: string | null
   address: string | null
@@ -55,7 +57,6 @@ export interface AcademySlipPayload {
     balance: number
     currency: ReceiptMoney | null
   }
-  letterhead: ReceiptLetterhead
   signature: { url: string | null; name: string | null }
 }
 

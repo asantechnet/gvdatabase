@@ -6,7 +6,6 @@ use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\Task;
 use App\Models\User;
-use App\Support\PaymentStatus;
 use App\Support\ServiceBoard;
 
 /**
@@ -37,7 +36,7 @@ class ContractTaskService
      */
     public function ensureForApplicantContract(ApplicantContract $line, ?User $actor = null): ?Task
     {
-        $line->loadMissing(['currency', 'contract', 'applicant']);
+        $line->loadMissing('applicant');
         $applicant = $line->applicant;
         if (! $applicant) {
             return null;
@@ -75,7 +74,11 @@ class ContractTaskService
             'applicant_id' => $applicant->id,
             'applicant_contract_id' => $line->id,
             'title' => "Deliver {$label} — {$applicant->name}",
-            'description' => $this->describe($line),
+            // The contract remains the source of truth for its number, fee,
+            // payment state and dates. Copying that metadata into the task put
+            // financial detail on staff task cards, so delivery tasks start
+            // with no description.
+            'description' => null,
             'priority' => 'high',
             'due_date' => now()->addDays(7)->toDateString(),
             'order' => (Task::query()->where('board_id', $board->id)->max('order') ?? -1) + 1,
@@ -130,17 +133,4 @@ class ContractTaskService
         }
     }
 
-    /** Human-readable context for the person delivering the contract. */
-    private function describe(ApplicantContract $line): string
-    {
-        $currency = $line->currency?->code;
-        $contract = $line->contract;
-
-        return implode(' · ', array_filter([
-            'Contract '.($contract?->contract_number ?? "#{$line->contract_id}"),
-            'Service fee: '.($line->fee ?? '—').($currency ? " {$currency}" : ''),
-            'Payment: '.PaymentStatus::label($line->payment_status),
-            $contract?->start_date ? 'Starts '.$contract->start_date->toDateString() : null,
-        ]));
-    }
 }

@@ -42,6 +42,15 @@ class OfficeGeofenceService
         $office = $employee->office;
         abort_unless($office?->hasActiveGeofence(), 422, 'business.office_geofence_unavailable');
 
+        return $this->result($this->evaluate($office, $latitude, $longitude, $accuracyMeters), $office);
+    }
+
+    /**
+     * Classify a position against an office fence without eligibility guards.
+     * Check-in and check-out share this so both sides of a shift agree.
+     */
+    public function evaluate(Office $office, float $latitude, float $longitude, int $accuracyMeters): array
+    {
         $distance = $this->distanceMeters(
             (float) $office->latitude,
             (float) $office->longitude,
@@ -50,7 +59,7 @@ class OfficeGeofenceService
         );
 
         if ($accuracyMeters > self::MAX_ACCURACY_METERS) {
-            return $this->result('inaccurate', $office, $distance, $accuracyMeters);
+            return ['action' => 'inaccurate', 'distance_meters' => $distance, 'accuracy_meters' => $accuracyMeters];
         }
 
         $radius = (int) $office->geofence_radius_meters;
@@ -58,17 +67,17 @@ class OfficeGeofenceService
         $action = $distance + $accuracyMeters <= $radius ? 'inside'
             : ($distance - max(15, $accuracyMeters) > $radius ? 'outside' : 'boundary');
 
-        return $this->result($action, $office, $distance, $accuracyMeters);
+        return ['action' => $action, 'distance_meters' => $distance, 'accuracy_meters' => $accuracyMeters];
     }
 
-    private function result(string $action, Office $office, int $distance, int $accuracy): array
+    private function result(array $evaluation, Office $office): array
     {
         // Location checks are evidence only. Explicit Start/End actions own punches.
         return [
-            'action' => $action,
-            'inside' => $action === 'inside',
-            'distance_meters' => $distance,
-            'accuracy_meters' => $accuracy,
+            'action' => $evaluation['action'],
+            'inside' => $evaluation['action'] === 'inside',
+            'distance_meters' => $evaluation['distance_meters'],
+            'accuracy_meters' => $evaluation['accuracy_meters'],
             'exit_confirmation_seconds_remaining' => 0,
             'office' => $this->officePayload($office),
             'attendance' => null,

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { AcademySlipPayload } from '@/api/academySlip'
 import type { ReceiptMoney } from '@/api/receipts'
 import { formatLocalizedDate } from '@/utils/localization'
+import { documentBrandStyle } from '@/utils/documentBranding'
 import { academySlipCopies, printAcademySlip, type AcademySlipPaperSize } from '@/utils/printAcademySlip'
 
 export type { AcademySlipPaperSize } from '@/utils/printAcademySlip'
@@ -28,14 +29,10 @@ const { t, locale } = useI18n()
 const direction = computed(() => (locale.value === 'en' ? 'ltr' : 'rtl'))
 const copies = computed(() => academySlipCopies(props.copies))
 
-const letterhead = computed(() => props.slip.letterhead)
-const hasLetterhead = computed(() => Boolean(letterhead.value?.url))
-const safeStyle = computed(() => ({
-  insetInlineStart: `${letterhead.value?.safe?.x ?? 0}%`,
-  insetBlockStart: `${letterhead.value?.safe?.y ?? 0}%`,
-  width: `${letterhead.value?.safe?.width ?? 100}%`,
-  height: `${letterhead.value?.safe?.height ?? 100}%`,
-}))
+const brandStyle = computed(() => documentBrandStyle(
+  props.slip.company.primary_color,
+  props.slip.company.secondary_color,
+))
 
 const formatMoney = (value: number | null | undefined, currency: ReceiptMoney | null) => {
   const decimals = currency?.decimalPlaces ?? 2
@@ -57,19 +54,15 @@ const isTwoUp = computed(() => twoUp.value !== null)
 const twoUpContentScale = computed(() => (paperSizeCss.value === 'A5 2x' ? 0.7 : 1))
 
 const contentStyle = computed(() => {
-  const style: Record<string, string> = hasLetterhead.value ? { ...safeStyle.value } : {}
   const scale = twoUpContentScale.value
 
-  if (scale !== 1) {
-    if (hasLetterhead.value) {
-      style.width = `${parseFloat(style.width || '100') / scale}%`
-      style.height = `${parseFloat(style.height || '100') / scale}%`
-    }
-    style.transform = `scale(${scale})`
-    style.transformOrigin = direction.value === 'rtl' ? 'top right' : 'top left'
-  }
+  if (scale === 1)
+    return {}
 
-  return style
+  return {
+    transform: `scale(${scale})`,
+    transformOrigin: direction.value === 'rtl' ? 'top right' : 'top left',
+  }
 })
 
 async function print() {
@@ -86,7 +79,7 @@ defineExpose({ print })
     ref="rootRef"
     class="academy-sheet"
     :class="{ 'academy-sheet--two-up': isTwoUp, 'academy-sheet--two-up-compact': paperSizeCss === 'A5 2x' }"
-    :style="twoUp ? { '--academy-card-height': `${twoUp.height}mm` } : undefined"
+    :style="[brandStyle, twoUp ? { '--academy-card-height': `${twoUp.height}mm` } : undefined]"
     :dir="direction"
   >
     <article
@@ -94,15 +87,8 @@ defineExpose({ print })
       :key="copy"
       class="academy-card"
     >
-      <img
-        v-if="hasLetterhead"
-        class="academy-card__art"
-        :src="letterhead.url ?? undefined"
-        alt=""
-      >
       <div
         class="academy-card__content"
-        :class="{ 'academy-card__content--safe': hasLetterhead }"
         :style="contentStyle"
       >
         <header class="academy-head">
@@ -227,14 +213,6 @@ defineExpose({ print })
   overflow-wrap: anywhere;
 }
 
-.academy-card__art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .academy-card__content {
   display: flex;
   flex-direction: column;
@@ -245,19 +223,13 @@ defineExpose({ print })
 
 .academy-card__content > * { flex-shrink: 0; }
 
-.academy-card__content--safe {
-  position: absolute;
-  padding: 3mm;
-  overflow: hidden;
-}
-
 .academy-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 6mm;
   padding-block-end: 2.5mm;
-  border-block-end: 2px solid #0f766e;
+  border-block-end: 2px solid var(--doc-primary);
 }
 
 .academy-head__logo {
@@ -276,7 +248,7 @@ defineExpose({ print })
   font-size: 13pt;
   font-weight: 700;
   line-height: 1.2;
-  color: #0f766e;
+  color: var(--doc-primary);
 }
 
 .academy-head__meta {
@@ -298,7 +270,7 @@ defineExpose({ print })
 .academy-head__eyebrow {
   font-size: 12pt;
   font-weight: 800;
-  color: #0f766e;
+  color: var(--doc-primary);
   text-transform: uppercase;
 }
 
@@ -332,8 +304,8 @@ defineExpose({ print })
 .academy-lines h4 {
   margin: 0 0 1.5mm;
   padding-block-end: 1mm;
-  border-block-end: 1px solid #e2e8f0;
-  color: #0f766e;
+  border-block-end: 1px solid var(--doc-primary-tint);
+  color: var(--doc-primary);
   font-size: 8pt;
   font-weight: 700;
   text-transform: uppercase;
@@ -390,8 +362,9 @@ defineExpose({ print })
 
 .academy-lines__total th,
 .academy-lines__total td {
-  background: #f0fdfa;
-  color: #0f766e;
+  border-block-start: 1.5px solid var(--doc-secondary);
+  background: var(--doc-primary-soft);
+  color: var(--doc-primary);
   font-weight: 700;
 }
 
@@ -444,7 +417,7 @@ defineExpose({ print })
   padding: 5mm;
 }
 
-.academy-sheet--two-up-compact .academy-card__content:not(.academy-card__content--safe) {
+.academy-sheet--two-up-compact .academy-card__content {
   width: 142.857%;
   height: 142.857%;
 }

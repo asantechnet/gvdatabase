@@ -2,6 +2,19 @@ import api from './axios'
 import type { Currency } from './currency'
 import { cleanListParams, readPage, type ListPage, type ListPageParams } from './pagination'
 
+/** How much of the advance has been paid back. Derived from its settlements. */
+export type EmployeeAdvanceStatus = 'outstanding' | 'partial' | 'settled'
+
+/** One reduction of the debt: a payroll withholding or cash returned. */
+export interface EmployeeAdvanceSettlement {
+  id: number
+  kind: 'payroll' | 'cash'
+  amount: number
+  date: string | null
+  salaryId: number | null
+  remarks: string | null
+}
+
 /** A salary advance paid to an employee ahead of the payroll period. */
 export interface EmployeeAdvance {
   id: number
@@ -16,8 +29,14 @@ export interface EmployeeAdvance {
   date: string
   remarks: string
   expenseId: number | null
+  status: EmployeeAdvanceStatus
+  /** Total paid back so far, by payroll or in cash. */
+  settledAmount: number
+  /** What is still owed. */
+  remainingAmount: number
   salaryId?: number | null
   recoveredAt?: string | null
+  settlements?: EmployeeAdvanceSettlement[]
   recordedBy?: { id: number; name: string } | null
 }
 
@@ -30,6 +49,18 @@ export interface EmployeeAdvanceParams {
 
 export interface CreateEmployeeAdvanceData {
   employee_id: number
+  amount: number
+  date: string
+  remarks?: string
+}
+
+export interface UpdateEmployeeAdvanceData {
+  amount: number
+  date: string
+  remarks?: string
+}
+
+export interface SettleEmployeeAdvanceData {
   amount: number
   date: string
   remarks?: string
@@ -54,6 +85,19 @@ const EmployeeAdvanceApi = {
 
   create: async (data: CreateEmployeeAdvanceData): Promise<EmployeeAdvance> => {
     const response = await api.post('/employee-advances', data)
+
+    return response.data.data
+  },
+
+  update: async (id: number, data: UpdateEmployeeAdvanceData): Promise<EmployeeAdvance> => {
+    const response = await api.patch(`/employee-advances/${id}`, data)
+
+    return response.data.data
+  },
+
+  /** Record money the employee handed back against the advance. */
+  settle: async (id: number, data: SettleEmployeeAdvanceData): Promise<EmployeeAdvance> => {
+    const response = await api.post(`/employee-advances/${id}/settlements`, data)
 
     return response.data.data
   },

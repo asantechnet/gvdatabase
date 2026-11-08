@@ -35,3 +35,19 @@ export const clearPermissions = () => {
 }
 
 export const canAccess = (permission: string) => ability.can('read', permission)
+
+/** The new permission grants task actions only on the caller's own Personal board. */
+export const canManagePersonalTasks = (isPersonal?: boolean, isOwned?: boolean) =>
+  !!isPersonal && !!isOwned && canAccess('create_personal_tasks')
+
+export const canCreateTaskOnBoard = (isPersonal?: boolean, isOwned?: boolean) =>
+  canAccess('create_tasks') || canManagePersonalTasks(isPersonal, isOwned)
+
+export const canEditTaskOnBoard = (isPersonal?: boolean, isOwned?: boolean) =>
+  canAccess('edit_assigned_tasks') || canManagePersonalTasks(isPersonal, isOwned)
+
+export const canDeleteTaskOnBoard = (isPersonal?: boolean, isOwned?: boolean) =>
+  canAccess('delete_assigned_tasks') || canManagePersonalTasks(isPersonal, isOwned)
+
+export const canMoveTaskOnBoard = (isPersonal?: boolean, isOwned?: boolean) =>
+  canAccess('move_assigned_tasks') || canManagePersonalTasks(isPersonal, isOwned)

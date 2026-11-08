@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const toast = useToast()
 const { t } = useI18n()
@@ -46,10 +47,14 @@ function open(row?: CatalogRow) {
 
 async function save() {
   try {
-    if (editing.value) await MasterDataApi.update(catalog.value, editing.value.id, form.value)
-    else await MasterDataApi.create(catalog.value, form.value)
+    const wasNew = !editing.value
+    const saved = editing.value
+      ? await MasterDataApi.update(catalog.value, editing.value.id, form.value)
+      : await MasterDataApi.create(catalog.value, form.value)
     dialog.value = false
     await load()
+    if (wasNew)
+      rows.value = moveCreatedRowFirst(rows.value, saved)
     toast.success(t('educational.masterData.saved'))
   }
   catch (error: any) { toast.error(error.message ?? t('educational.masterData.saveFailed')) }

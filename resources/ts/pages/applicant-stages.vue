@@ -7,6 +7,7 @@ import type { BuiltInService } from '@/api/applicants'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { canAccess } from '@/utils/authorization'
 import { translateApplicantStage } from '@/utils/localization'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -159,17 +160,17 @@ async function save() {
       is_active: !!form.value.is_active,
     }
 
-    if (editing.value) {
+    const wasNew = !editing.value
+    const saved = editing.value
       // The service is part of the stage's identity: an existing stage is
       // edited inside its own service and never reparented.
-      await ApplicantStagesApi.update(editing.value.id, payload)
-    }
-    else {
-      await ApplicantStagesApi.create({ ...payload, service: service.value })
-    }
+      ? await ApplicantStagesApi.update(editing.value.id, payload)
+      : await ApplicantStagesApi.create({ ...payload, service: service.value })
 
     dialog.value = false
     await loadStages()
+    if (wasNew)
+      stages.value = moveCreatedRowFirst(stages.value, saved)
     toast.success(t('educational.masterData.saved'))
   }
   catch {

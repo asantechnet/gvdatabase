@@ -173,8 +173,8 @@ export default defineConfig({
   build: {
     // 5000 (kB) was high enough to hide the 1.67 MB entry chunk that used to ride
     // along with all three locales. 1500 flags that regression — the entry warned
-    // at 1630 kB — while staying quiet for the legitimately large lazy mapbox
-    // chunk (1410 kB), so a warning here means something actually grew.
+    // at 1630 kB — while staying quiet for legitimately large lazy document
+    // chunks, so a warning here means something actually grew.
     chunkSizeWarningLimit: 1500,
   },
   optimizeDeps: {

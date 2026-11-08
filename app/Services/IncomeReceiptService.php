@@ -7,8 +7,8 @@ use App\Models\ApplicantContract;
 use App\Models\Income;
 use App\Models\Setting;
 use App\Support\BuiltInService;
-use App\Support\DocumentLetterheads;
 use App\Support\PaymentStatus;
+use App\Support\ThemePalette;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
  * A receipt is the customer-facing proof of payment for **one** service of an
  * educational visa firm, so it carries the party identity, that contracted
  * service line (name, fee, discount, paid, remaining), a serial number and the
- * letterhead artwork — see RECEIPTS_AND_DOCUMENT_LETTERHEADS_PLAN.md.
+ * company's brand colours.
  */
 class IncomeReceiptService
 {
@@ -83,7 +83,6 @@ class IncomeReceiptService
                 'balance' => round(max(0, $totalFee - $paidAmount), $precision),
                 'currency' => $this->currencyPayload($currency),
             ],
-            'letterhead' => DocumentLetterheads::resolve($setting, 'receipt'),
             'signature' => [
                 'url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
                 'name' => $setting?->original_company_name ?: $setting?->short_company_name,
@@ -194,6 +193,8 @@ class IncomeReceiptService
         return [
             'name' => $setting?->original_company_name ?: $setting?->short_company_name ?: $setting?->website_title,
             'short_name' => $setting?->short_company_name,
+            'primary_color' => ThemePalette::value('primary_color', $setting?->primary_color),
+            'secondary_color' => ThemePalette::value('secondary_color', $setting?->secondary_color),
             'logo_url' => $setting?->website_logo ? Storage::disk('public')->url($setting->website_logo) : null,
             'signature_url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
             'address' => $setting?->physical_address,

@@ -48,6 +48,22 @@ class TaskAccess
             ->exists();
     }
 
+    /**
+     * The owner of a private personal board with `create_personal_tasks` may
+     * create and manage every task on that board.
+     */
+    public static function canManagePersonalBoard(User $user, Board $board): bool
+    {
+        return $board->isPersonal()
+            && (int) $board->user_id === (int) $user->id
+            && $user->hasPermission('create_personal_tasks');
+    }
+
+    public static function canManagePersonalTask(User $user, Task $task): bool
+    {
+        return self::canManagePersonalBoard($user, $task->board);
+    }
+
     public static function canViewTask(User $user, Task $task): bool
     {
         // A task is never visible outside a board the user can see. Task
@@ -55,6 +71,12 @@ class TaskAccess
         // this extra check also closes the gap if a manager later removes it.
         if (! self::canViewBoard($user, $task->board)) {
             return false;
+        }
+
+        // The personal-board permission covers every task on the owner's own
+        // board, including one reassigned away from the owner.
+        if (self::canManagePersonalTask($user, $task)) {
+            return true;
         }
 
         if ($user->hasPermission('view_all_tasks')) {

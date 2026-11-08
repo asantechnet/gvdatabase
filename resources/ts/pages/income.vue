@@ -26,6 +26,7 @@ import CurrencyApi, { type Currency } from "@/api/currency";
 import { apiErrorMessage } from "@/utils/apiErrors";
 import { formatActiveMoney } from "@/utils/localization";
 import { printDocument } from "@/utils/printDocument";
+import { moveCreatedRowFirst } from "@/utils/createdFirst";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import ErpDateRange from "@/components/erp/ErpDateRange.vue";
@@ -424,13 +425,15 @@ const addIncome = async () => {
     // A draft is a real ledger row, but it does not count as money until a
     // finance approver accepts it.
     if (saveMode.value === "draft") {
-      await createIncome({
+      const draft = await createIncome({
         ...(selectedIncome.value as IncomeCreateData),
         status: "draft",
       });
       isAddIncomeDialogVisible.value = false;
       toast.success(translate("pages.finance.income.income.draftSaved"));
-      reload();
+      page.value = 1;
+      await fetchIncomes();
+      incomes.value = moveCreatedRowFirst(incomes.value, draft).slice(0, perPage.value);
 
       return;
     }
@@ -440,7 +443,9 @@ const addIncome = async () => {
     const created = await createIncome(incomeData);
     toast.success(created.receipt_number ?? "");
     // A new receipt belongs on the first page of the current filters.
-    reload();
+    page.value = 1;
+    await fetchIncomes();
+    incomes.value = moveCreatedRowFirst(incomes.value, created).slice(0, perPage.value);
     isAddIncomeDialogVisible.value = false;
   } catch (error) {
     console.error("Error creating income:", error);

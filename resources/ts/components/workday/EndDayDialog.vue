@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import WorkdayApi, { type EndWorkdayData } from '@/api/workday'
+import WorkdayApi, { WorkdayLocationError, type EndWorkdayData } from '@/api/workday'
 import { apiFieldErrors } from '@/utils/apiErrors'
 
 interface Props {
@@ -16,6 +16,8 @@ const emit = defineEmits<Emits>()
 const { t } = useI18n()
 const loading = ref(false)
 const errors = ref<Record<string, string>>({})
+const locationError = ref('')
+const requiresCheckoutLocation = ref(false)
 
 const report = reactive<EndWorkdayData>({
   summary: '',
@@ -35,14 +37,22 @@ async function handleSubmit() {
   }
 
   loading.value = true
+  locationError.value = ''
   try {
-    await WorkdayApi.end(report)
+    await WorkdayApi.end(report, requiresCheckoutLocation.value)
     emit('update:modelValue', false)
     Object.assign(report, { summary: '', achievements: '', challenges: '', nextDayPlan: '', supportNeeded: '' })
     window.dispatchEvent(new CustomEvent('workday-status-changed'))
   }
   catch (error) {
-    errors.value = apiFieldErrors(error)
+    if (error instanceof WorkdayLocationError) {
+      locationError.value = t(error.reason === 'session_changed'
+        ? 'backend.errors.business.workday_session_changed'
+        : error.reason === 'unsupported' ? 'pages.settings.geofence.notSupported' : 'components.account.geofence.permissionRequired')
+    }
+    else {
+      errors.value = apiFieldErrors(error)
+    }
   }
   finally {
     loading.value = false
@@ -63,6 +73,7 @@ watch(() => props.modelValue, async open => {
       errors.value = {}
     }
     report.attendanceId = status.attendance?.id
+    requiresCheckoutLocation.value = status.attendance?.requiresCheckoutLocation ?? false
     sessionDate.value = status.attendance?.date ?? ''
   }
   catch { if (version === loadVersion) report.attendanceId = undefined }
@@ -93,6 +104,14 @@ onBeforeUnmount(() => { loadVersion++ })
           <p class="text-body-2 text-medium-emphasis mb-5">
             {{ t('components.account.workday.reportDescription') }}
           </p>
+          <VAlert
+            v-if="locationError"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            :text="locationError"
+          />
           <VTextarea
             v-model="report.summary"
             :label="t('components.account.workday.summary')"

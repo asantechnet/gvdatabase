@@ -6,8 +6,8 @@ use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\Setting;
 use App\Support\BuiltInService;
-use App\Support\DocumentLetterheads;
 use App\Support\PaymentStatus;
+use App\Support\ThemePalette;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
  * The slip is the academy counterpart of a receipt: it carries the firm's
  * branding, the applicant identity, the enrolled academy program details and
  * the fee/payment state of the contract's academy service line. It is a
- * receipt-like A5 document, so it reuses the receipt letterhead convention.
+ * receipt-like A5 document, coloured with the company's brand palette.
  */
 class AcademySlipService
 {
@@ -69,7 +69,6 @@ class AcademySlipService
                 'balance' => round(max(0, $payable - $paid), 2),
                 'currency' => $this->currencyPayload($currency),
             ],
-            'letterhead' => DocumentLetterheads::resolve($setting, 'receipt'),
             'signature' => [
                 'url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
                 'name' => $setting?->original_company_name ?: $setting?->short_company_name,
@@ -127,6 +126,8 @@ class AcademySlipService
         return [
             'name' => $setting?->original_company_name ?: $setting?->short_company_name ?: $setting?->website_title,
             'short_name' => $setting?->short_company_name,
+            'primary_color' => ThemePalette::value('primary_color', $setting?->primary_color),
+            'secondary_color' => ThemePalette::value('secondary_color', $setting?->secondary_color),
             'logo_url' => $setting?->website_logo ? Storage::disk('public')->url($setting->website_logo) : null,
             'signature_url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
             'address' => $setting?->physical_address,

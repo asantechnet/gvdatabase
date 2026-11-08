@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Resources\BoardResource;
 use App\Models\Board;
 use App\Models\User;
-use App\Support\EmployeeScope;
 use App\Support\ServiceBoard;
 use Illuminate\Http\Request;
 
@@ -30,8 +29,7 @@ class KanbanController extends Controller
             ->with([
                 // Load nested tasks ordered by their vertical position
                 'tasks' => fn ($query) => $query
-                    ->when(! $user->hasPermission('view_all_tasks'), fn ($tasks) => $tasks
-                        ->whereHas('users', fn ($assignees) => $assignees->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
+                    ->visibleTo($user)
                     ->orderBy('order'),
                 // Eager load all relations required by TaskResource
                 'tasks.users.employee',

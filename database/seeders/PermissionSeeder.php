@@ -200,6 +200,9 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_assigned_tasks', 'category' => 'task_management'],
         ['name' => 'view_all_tasks', 'category' => 'task_management'],
         ['name' => 'create_tasks', 'category' => 'task_management'],
+        // Private work: grants task CRUD on the caller's own Personal board
+        // without opening shared boards or another user's private board.
+        ['name' => 'create_personal_tasks', 'category' => 'task_management'],
         ['name' => 'edit_assigned_tasks', 'category' => 'task_management'],
         ['name' => 'edit_all_tasks', 'category' => 'task_management'],
         ['name' => 'delete_assigned_tasks', 'category' => 'task_management'],
@@ -210,6 +213,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'manage_task_dependencies', 'category' => 'task_management'],
         ['name' => 'manage_task_tags', 'category' => 'task_management'],
         ['name' => 'view_task_tags', 'category' => 'task_management'],
+        ['name' => 'view_task_settings', 'category' => 'task_management'],
         ['name' => 'manage_task_tags_catalog', 'category' => 'task_management'],
         ['name' => 'create_subtasks_on_assigned_tasks', 'category' => 'task_management'],
         ['name' => 'edit_own_subtasks', 'category' => 'task_management'],

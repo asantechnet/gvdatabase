@@ -99,6 +99,12 @@ class Salary extends Model
         return $this->hasMany(EmployeeAdvance::class);
     }
 
+    /** What this payslip actually withheld from the advances ledger. */
+    public function advanceSettlements(): HasMany
+    {
+        return $this->hasMany(EmployeeAdvanceSettlement::class)->orderBy('date')->orderBy('id');
+    }
+
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');

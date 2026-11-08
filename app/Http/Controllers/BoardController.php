@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\BoardResource;
 use App\Models\Board;
-use App\Support\EmployeeScope;
 use App\Support\ServiceBoard;
 use Illuminate\Http\Request;
 
@@ -29,11 +28,9 @@ class BoardController extends Controller
 
         $boards = Board::query()
             ->visibleTo($user)
-            ->with(['tasks' => function ($query) use ($user) {
-                $query->when(! $user->hasPermission('view_all_tasks'), fn ($tasks) => $tasks
-                    ->whereHas('users', fn ($assignees) => $assignees->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))))
-                    ->orderBy('order');
-            }])
+            ->with(['tasks' => fn ($query) => $query
+                ->visibleTo($user)
+                ->orderBy('order')])
             ->orderBy('order')
             ->get();
 

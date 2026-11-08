@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { printDocument } from '@/utils/printDocument'
+import { formatAmountInWords } from '@/utils/amountInWords'
+import { documentBrandStyle } from '@/utils/documentBranding'
 import { formatLocalizedDate } from '@/utils/localization'
 
 export interface AdvanceReceiptMoney {
@@ -15,7 +18,6 @@ export interface AdvanceReceiptData {
   amount: number
   currency: AdvanceReceiptMoney | null
   remarks?: string | null
-  amountInWords: string
   employee: {
     name: string
     idNumber?: string | null
@@ -31,12 +33,26 @@ export interface AdvanceReceiptData {
     email?: string
     phone?: string
     licence?: string
+    primaryColor?: string
+    secondaryColor?: string
   }
 }
 
 const props = defineProps<{ receipt: AdvanceReceiptData }>()
 
+const { locale } = useI18n()
 const rootRef = ref<HTMLElement | null>(null)
+
+const brandStyle = computed(() => documentBrandStyle(
+  props.receipt.company.primaryColor,
+  props.receipt.company.secondaryColor,
+))
+
+const amountInWords = computed(() => formatAmountInWords(
+  props.receipt.amount,
+  locale.value,
+  props.receipt.currency,
+))
 
 /** One sheet carries the employee's copy and the company's copy. */
 const copies = [
@@ -74,6 +90,7 @@ defineExpose({ print })
     class="advance-sheet"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
     :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
+    :style="brandStyle"
   >
     <article
       v-for="copy in copies"
@@ -161,7 +178,7 @@ defineExpose({ print })
           </div>
           <div class="advance-amount__words">
             <span class="advance-amount__label">{{ $t('documents.advanceReceipt.amountInWords') }}</span>
-            <span>{{ receipt.amountInWords }}</span>
+            <span>{{ amountInWords }}</span>
           </div>
         </div>
 
@@ -173,7 +190,10 @@ defineExpose({ print })
       <footer class="advance-signatures">
         <div class="advance-signature">
           <div class="advance-signature__line" />
-          <span>{{ $t('documents.advanceReceipt.receivedBy') }}</span>
+          <div class="advance-signature__receiver">
+            <span class="advance-signature__label">{{ $t('documents.advanceReceipt.receivedBy') }}</span>
+            <span class="advance-signature__name">{{ receipt.employee.name }}</span>
+          </div>
         </div>
         <div class="advance-signature">
           <img
@@ -195,7 +215,7 @@ defineExpose({ print })
   --advance-ink: #16212f;
   --advance-muted: #5b6b7c;
   --advance-line: #d6dee7;
-  --advance-accent: #0f6f92;
+  --advance-accent: var(--doc-primary);
 
   display: flex;
   flex-direction: column;
@@ -260,7 +280,7 @@ defineExpose({ print })
   margin-block: 0.4mm;
   padding: 0.2mm 1.4mm;
   border-radius: 2px;
-  background: #f4f8fb;
+  background: var(--doc-primary-soft);
   color: var(--advance-accent);
   font-size: 6pt;
   font-weight: 700;
@@ -342,10 +362,10 @@ defineExpose({ print })
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 3mm;
   padding: 2mm 3mm;
-  border: 1px solid #9ec7d8;
+  border: 1px solid var(--doc-primary-tint);
   border-inline-start: 3px solid var(--advance-accent);
   border-radius: 1.5mm;
-  background: #f2f9fc;
+  background: var(--doc-primary-soft);
 }
 
 .advance-amount__main,
@@ -356,14 +376,14 @@ defineExpose({ print })
 }
 
 .advance-amount__label {
-  color: #0b5673;
+  color: var(--advance-accent);
   font-size: 5.6pt;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .advance-amount__value {
-  color: #0b4a63;
+  color: var(--advance-accent);
   font-size: 12pt;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -414,6 +434,22 @@ defineExpose({ print })
   font-size: 6pt;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.advance-signature__receiver {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.2mm;
+}
+
+.advance-signature__name {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  color: var(--advance-ink) !important;
+  font-size: 7pt !important;
+  font-weight: 800 !important;
+  text-transform: none !important;
 }
 </style>
 

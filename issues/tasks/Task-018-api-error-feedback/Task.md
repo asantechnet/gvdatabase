@@ -55,11 +55,11 @@ A rejected API request produces exactly one user-facing message, always in the u
 - Files this task must not modify: any page under `resources/ts/pages/`, `resources/ts/components/FullDetailsButton.vue`, `app/Http/Controllers/**`.
 
 ## Exclusive file ownership
-- `resources/ts/api/axios.ts` — single event dispatch and quiet handling.
 - `resources/ts/components/ApiErrorNotifier.vue` — inline-first, one-toast fallback.
 - `resources/ts/utils/apiErrors.ts` — business-code map and message selection.
 - `resources/ts/utils/formErrors.ts` — field matching and clearing contract.
 
+Forward ownership: `resources/ts/api/axios.ts` moved to Task-035 on 2026-11-07 for audit row tagging; this task's one-event/quiet/no-double-toast behaviour remains the contract that Task-035 must preserve.
 ## Acceptance criteria
 - [ ] Given a 422 with a field that exists on the form, when the response returns, then the field shows one inline error and the notifier adds no toast.
 - [ ] Given a 422 with no matching field, when the response returns, then exactly one toast shows the server's specific message, not the page's generic fallback.

@@ -301,14 +301,9 @@ const rejectFinanceDialog = ref(false)
 const savingRejectFinance = ref(false)
 const rejectFinanceTarget = ref<DraftFinanceRow | null>(null)
 const rejectFinanceReason = ref('')
-const financeOptions = ref<{ currencies: Currency[]; incomeTypes: FinanceType[]; expenseTypes: FinanceType[] }>({ currencies: [], incomeTypes: [], expenseTypes: [] })
+const financeOptions = ref<{ currencies: Currency[]; types: FinanceType[] }>({ currencies: [], types: [] })
 const financeForm = ref({ transaction_type: 'income' as 'income' | 'expense', type: '', description: '', amount: 0, currency_id: null as number | null })
-// Must be declared after `financeForm`: the watcher getter is evaluated during
-// setup, so an earlier declaration throws a temporal-dead-zone ReferenceError.
-const financeTypeOptions = computed(() => (financeForm.value.transaction_type === 'income' ? financeOptions.value.incomeTypes : financeOptions.value.expenseTypes).map(type => ({ title: financeTypeLabel(type), value: type.value })))
-watch(() => financeForm.value.transaction_type, () => {
-  financeForm.value.type = financeTypeOptions.value[0]?.value ?? ''
-})
+const financeTypeOptions = computed(() => financeOptions.value.types.map(type => ({ title: financeTypeLabel(type), value: type.value })))
 const documentDialog = ref(false)
 const uploadingDocument = ref(false)
 const documentTaskId = ref<number | null>(null)
@@ -810,20 +805,19 @@ async function setPrimaryUniversity(universityId: number) {
   }
 }
 
-async function openFinanceDialog() {
+async function openFinanceDialog(transactionType: 'income' | 'expense') {
   if (!applicant.value)
     return
 
   try {
-    const [currencyResponse, incomeTypes, expenseTypes] = await Promise.all([
+    const [currencyResponse, types] = await Promise.all([
       CurrencyApi.getAll(),
-      getFinanceTypes('income'),
-      getFinanceTypes('expense'),
+      getFinanceTypes(transactionType),
     ])
-    financeOptions.value = { currencies: currencyResponse.data, incomeTypes, expenseTypes }
+    financeOptions.value = { currencies: currencyResponse.data, types }
     financeForm.value = {
-      transaction_type: 'income',
-      type: incomeTypes[0]?.value ?? '',
+      transaction_type: transactionType,
+      type: types[0]?.value ?? '',
       description: '',
       amount: 0,
       currency_id: currencyResponse.data.find(currency => currency.isBase)?.id ?? null,
@@ -861,7 +855,7 @@ async function createFinanceRequest() {
 
     financeDialog.value = false
     await load()
-    toast.success(translate('common.ui.financialRequestLinkedToThisVisaCase'))
+    toast.success(t('finance.drafts.draftSaved'))
   }
   catch {
     // The shared API notifier displays the server's specific validation error.
@@ -1128,11 +1122,11 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="canViewFinance" class="case-section case-section--finance">
-          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreateDraftFinance" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openFinanceDialog">{{ $t('common.ui.newFinancialRequest') }}</VBtn></div></div>
+          <div class="case-section__heading"><h3>{{ t('educational.caseUi.finance') }}</h3><div class="d-flex flex-wrap justify-end ga-1"><VBtn v-if="canCreateDraftFinance" size="small" color="success" variant="flat" prepend-icon="tabler-arrow-down-left" @click="openFinanceDialog('income')">{{ $t('pages.finance.income.income.recordIncome2') }}</VBtn><VBtn v-if="canCreateDraftFinance" size="small" color="error" variant="tonal" prepend-icon="tabler-arrow-up-right" @click="openFinanceDialog('expense')">{{ $t('pages.finance.expenses.expenses.recordExpense2') }}</VBtn></div></div>
           <VList v-if="applicant.services?.length" density="compact">
             <VListItem v-for="line in applicant.services" :key="`balance-${line.id}`" :title="line.contract_number ?? line.type ?? line.service" :subtitle="t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') })" />
           </VList>
-          <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expensePosted')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template></VListItem></VList>
+          <VList><VListItem v-for="row in applicant.incomes" :key="`in-${row.id}`" :title="t('educational.caseUi.incomeEntry')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-down-left" color="success" /></template><template #append><VChip size="x-small" variant="tonal" :color="row.status === 'draft' ? 'warning' : row.status === 'rejected' ? 'error' : 'success'">{{ translateBackendValue(row.status ?? 'approved') }}</VChip></template></VListItem><VListItem v-for="row in applicant.expenses" :key="`ex-${row.id}`" :title="t('educational.caseUi.expenseEntry')" :subtitle="t('educational.caseUi.postedSummary', { amount: money(row.amount), date: row.date ? formatDate(row.date) : t('common.messages.notAvailable'), description: row.description || t('common.messages.notAvailable') })"><template #prepend><VIcon icon="tabler-arrow-up-right" color="error" /></template><template #append><VChip size="x-small" variant="tonal" :color="row.status === 'draft' ? 'warning' : row.status === 'rejected' ? 'error' : 'success'">{{ translateBackendValue(row.status ?? 'approved') }}</VChip></template></VListItem></VList>
           <p v-if="!applicant.incomes?.length && !applicant.expenses?.length" class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.noFinance') }}</p>
         </section>
 
@@ -1230,14 +1224,14 @@ onBeforeUnmount(() => {
   <VDialog v-model="financeDialog" max-width="600" content-class="case-form-dialog">
     <VCard class="case-form-card">
       <VForm class="app-form" @submit.prevent="createFinanceRequest">
-        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ $t('common.ui.newFinancialRequest') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingFinance" @click="financeDialog = false" /></VCardTitle>
+        <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ financeForm.transaction_type === 'income' ? $t('pages.finance.income.income.recordIncome2') : $t('pages.finance.expenses.expenses.recordExpense2') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingFinance" @click="financeDialog = false" /></VCardTitle>
         <VCardText class="case-dialog-body case-form-dialog__body pa-5">
-          <ErpField v-model="financeForm.transaction_type" kind="select" :items="['income', 'expense'].map(value => ({ title: translateBackendValue(value), value }))" :label="$t('educational.transactionType')" :placeholder="$t('educational.transactionType')" class="mb-3" />
-          <ErpField v-model="financeForm.reason" kind="textarea" :label="$t('common.fields.reason')" :placeholder="$t('common.fields.reason')" rows="3" class="mb-3" />
+          <VAlert type="info" variant="tonal" density="compact" class="mb-4">{{ $t('finance.drafts.saveDraftHint') }}</VAlert>
+          <ErpField v-model="financeForm.type" kind="select" :items="financeTypeOptions" :label="financeForm.transaction_type === 'income' ? $t('common.messages.incomeType') : $t('common.messages.expenseType')" :placeholder="financeForm.transaction_type === 'income' ? $t('common.messages.incomeType') : $t('common.messages.expenseType')" class="mb-3" />
+          <ErpField v-model="financeForm.description" kind="textarea" :label="$t('common.fields.description')" :placeholder="$t('common.fields.description')" rows="3" class="mb-3" />
           <VRow><VCol cols="12" sm="6"><ErpField v-model.number="financeForm.amount" type="number" min="0.000001" :label="$t('common.fields.amount')" :placeholder="$t('common.fields.amount')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="financeForm.currency_id" kind="select" :items="financeOptions.currencies.map(row => ({ title: `${row.code} - ${row.name}`, value: row.id }))" :label="$t('serviceContracts.currency')" :placeholder="$t('serviceContracts.currency')" /></VCol></VRow>
-          <ErpField v-model="financeForm.employee_id" kind="select" :items="financeOptions.employees.map(row => ({ title: row.name, value: row.id }))" :label="$t('serviceContracts.responsibleEmployee')" :placeholder="$t('serviceContracts.responsibleEmployee')" clearable />
         </VCardText>
-        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingFinance" @click="financeDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingFinance" :disabled="!financeForm.reason.trim() || financeForm.amount <= 0 || !financeForm.currency_id">{{ t('common.actions.submit') }}</VBtn></VCardActions>
+        <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingFinance" @click="financeDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingFinance" :disabled="!financeForm.type || !financeForm.description.trim() || financeForm.amount <= 0 || !financeForm.currency_id">{{ $t('finance.drafts.saveDraft') }}</VBtn></VCardActions>
       </VForm>
     </VCard>
   </VDialog>
@@ -1504,10 +1498,10 @@ onBeforeUnmount(() => {
   background: rgb(var(--v-theme-success) / 3.5%);
 }
 
-:global(.v-theme--dark) .case-case-row,
-:global(.v-theme--dark) .case-section--universities :deep(.v-list-item),
-:global(.v-theme--dark) .case-section--finance :deep(.v-list-item),
-:global(.v-theme--dark) .case-section--documents :deep(.v-list-item) {
+:global(.v-theme--dark .case-case-row),
+:global(.v-theme--dark .case-section--universities .v-list-item),
+:global(.v-theme--dark .case-section--finance .v-list-item),
+:global(.v-theme--dark .case-section--documents .v-list-item) {
   border-color: rgb(var(--v-border-color) / 42%);
   background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, black 7%);
 }

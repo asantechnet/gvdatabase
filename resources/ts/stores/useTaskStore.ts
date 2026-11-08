@@ -16,7 +16,13 @@ import SubtaskApi from '@/api/subtask'
 import BoardApi from '@/api/board'
 import CommentApi from '@/api/comment'
 import TagApi from '@/api/tag'
-import { canAccess } from '@/utils/authorization'
+import {
+  canAccess,
+  canCreateTaskOnBoard,
+  canDeleteTaskOnBoard,
+  canEditTaskOnBoard,
+  canManagePersonalTasks,
+} from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
 import type {
   CalendarEventAdapter,
@@ -40,6 +46,7 @@ const addCalendarDays = (date: string, days: number) => {
 export const useTaskStore = defineStore('taskManager', () => {
   const userData = useCookie<{ id?: string | number } | null>('userData')
   const currentUserId = () => String(userData.value?.id ?? '')
+  const boardFor = (boardId: string | number) => boards.value.find(board => String(board.id) === String(boardId))
 
   const canUpdateSubtask = (subtask: Subtask) => canAccess('edit_all_subtasks')
     || (canAccess('edit_own_subtasks') && subtask.userId === currentUserId())
@@ -68,6 +75,8 @@ export const useTaskStore = defineStore('taskManager', () => {
         id: board.id,
         title: board.title,
         order: board.order,
+        isPersonal: board.is_personal,
+        isOwned: board.is_owned,
       }))
   })
 
@@ -209,7 +218,8 @@ export const useTaskStore = defineStore('taskManager', () => {
   }
 
   const addTask = async (taskData: Omit<CreateTaskData, 'board_id'> & { boardId: string }): Promise<Task | null> => {
-    if (!canAccess('create_tasks'))
+    const board = boardFor(taskData.boardId)
+    if (!canCreateTaskOnBoard(board?.is_personal, board?.is_owned))
       return null
     try {
       isLoading.value = true
@@ -236,7 +246,9 @@ export const useTaskStore = defineStore('taskManager', () => {
   }
 
   const updateTask = async (id: string, data: UpdateTaskData) => {
-    if (!canAccess('edit_assigned_tasks'))
+    const existing = tasks.value.find(task => task.id === id)
+    const board = existing ? boardFor(existing.boardId) : undefined
+    if (!canEditTaskOnBoard(board?.is_personal, board?.is_owned))
       return
     try {
       isLoading.value = true
@@ -326,7 +338,9 @@ export const useTaskStore = defineStore('taskManager', () => {
   }
 
   const updateTaskDates = async (id: string, startDate: string, dueDate: string) => {
-    if (!canAccess('edit_assigned_tasks'))
+    const existing = tasks.value.find(task => task.id === id)
+    const board = existing ? boardFor(existing.boardId) : undefined
+    if (!canEditTaskOnBoard(board?.is_personal, board?.is_owned))
       return false
     const index = tasks.value.findIndex(task => task.id === id)
     if (index === -1)
@@ -360,7 +374,9 @@ export const useTaskStore = defineStore('taskManager', () => {
   }
 
   const deleteTask = async (id: string) => {
-    if (!canAccess('delete_assigned_tasks'))
+    const existing = tasks.value.find(task => task.id === id)
+    const board = existing ? boardFor(existing.boardId) : undefined
+    if (!canDeleteTaskOnBoard(board?.is_personal, board?.is_owned))
       return
     try {
       isLoading.value = true
@@ -380,7 +396,14 @@ export const useTaskStore = defineStore('taskManager', () => {
   }
 
   const moveTaskBoard = async (taskId: string, boardId: string, order: number) => {
-    if (!canAccess('move_assigned_tasks'))
+    const task = tasks.value.find(candidate => candidate.id === taskId)
+    const sourceBoard = task ? boardFor(task.boardId) : undefined
+    const destinationBoard = boardFor(boardId)
+    const personalMove = canManagePersonalTasks(sourceBoard?.is_personal, sourceBoard?.is_owned)
+      && canManagePersonalTasks(destinationBoard?.is_personal, destinationBoard?.is_owned)
+      && String(sourceBoard?.id ?? '') === String(destinationBoard?.id ?? '')
+
+    if (!canAccess('move_assigned_tasks') && !personalMove)
       return
     try {
       isLoading.value = true

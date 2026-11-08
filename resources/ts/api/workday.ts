@@ -30,6 +30,7 @@ export interface WorkdayStatus {
     checkInTime: string | null
     checkOutTime: string | null
     workedMinutes: number | null
+    requiresCheckoutLocation: boolean
   }
   report: DailyReport | null
 }
@@ -41,6 +42,10 @@ export interface EndWorkdayData {
   challenges?: string | null
   nextDayPlan?: string | null
   supportNeeded?: string | null
+  latitude?: number
+  longitude?: number
+  accuracy_meters?: number
+  observed_at?: number
 }
 
 export class WorkdayLocationError extends Error {
@@ -48,6 +53,18 @@ export class WorkdayLocationError extends Error {
     super(reason)
     this.name = 'WorkdayLocationError'
   }
+}
+
+/** A fresh high-accuracy fix, requested only after an explicit user action. */
+function currentPosition(): Promise<GeolocationPosition> {
+  if (!globalThis.isSecureContext || !navigator.geolocation)
+    return Promise.reject(new WorkdayLocationError('unsupported'))
+
+  return new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve,
+      () => reject(new WorkdayLocationError('unavailable')),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
+  })
 }
 
 const WorkdayApi = {
@@ -73,13 +90,7 @@ const WorkdayApi = {
     assertSameAccount()
     let location: Record<string, number> = {}
     if (configuration.office?.enabled) {
-      if (!globalThis.isSecureContext || !navigator.geolocation)
-        throw new WorkdayLocationError('unsupported')
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve,
-          () => reject(new WorkdayLocationError('unavailable')),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
-      })
+      const position = await currentPosition()
       location = {
         latitude: position.coords.latitude, longitude: position.coords.longitude,
         accuracy_meters: position.coords.accuracy, observed_at: position.timestamp,
@@ -90,8 +101,20 @@ const WorkdayApi = {
 
     return response.data.data
   },
-  async end(data: EndWorkdayData): Promise<WorkdayStatus> {
-    const response = await api.post<{ data: WorkdayStatus }>('/workday/end', data)
+  async end(data: EndWorkdayData, requiresLocation = false): Promise<WorkdayStatus> {
+    // Checkout mirrors check-in: the fence that admitted the shift verifies
+    // the release. Location is requested only after the explicit end click.
+    let location: Record<string, number> = {}
+    if (requiresLocation) {
+      const accountToken = getAccessToken()
+      const position = await currentPosition()
+      if (getAccessToken() !== accountToken) throw new WorkdayLocationError('session_changed')
+      location = {
+        latitude: position.coords.latitude, longitude: position.coords.longitude,
+        accuracy_meters: position.coords.accuracy, observed_at: position.timestamp,
+      }
+    }
+    const response = await api.post<{ data: WorkdayStatus }>('/workday/end', { ...data, ...location })
 
     return response.data.data
   },

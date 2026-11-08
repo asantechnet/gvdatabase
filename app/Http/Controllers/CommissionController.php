@@ -12,6 +12,7 @@ use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Services\CommissionService;
+use App\Services\CommissionSlipService;
 use App\Services\CurrencyConversionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -151,6 +152,15 @@ class CommissionController extends Controller
             'employee', 'baseCurrency', 'recorder', 'approver', 'payer',
             'accruals.employee', 'accruals.contract', 'accruals.baseCurrency',
         ]));
+    }
+
+    /** The printable commission slip for one settlement (employee + office copies). */
+    public function slip(CommissionSettlement $commissionSettlement, CommissionSlipService $slips)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $slips->forSettlement($commissionSettlement),
+        ]);
     }
 
     public function storeSettlement(Request $request)

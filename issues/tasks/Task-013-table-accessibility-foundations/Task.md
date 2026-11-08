@@ -53,10 +53,11 @@ A tooltip is not an accessible name. The shared primitives must make the correct
 - Files this task must not modify: any file under `resources/ts/pages`, `resources/ts/views`, `resources/ts/api`, `resources/ts/utils/localization.ts`.
 
 ## Exclusive file ownership
-- `resources/ts/components/responsive-data-table` — shared server/client table components and their footer/card modes.
 - `resources/ts/components/TableEmptyState.vue` — shared empty state used by all lists.
 - `resources/ts/components/TableLoadingSkeleton.vue` — shared skeleton used by all lists.
 - `resources/ts/components/TableScrollAffordance.vue` — new visible overflow affordance.
+
+Forward ownership: `resources/ts/components/responsive-data-table` moved to Task-035 on 2026-11-07 for the audit-rail integration; this task retains the empty/loading/scroll primitives.
 
 ## Acceptance criteria
 - [ ] Given a table with more columns than fit at 1280 px, when it renders with sticky actions enabled, then the key identifier column and the action column remain visible while the middle columns scroll, and a visible affordance indicates more content.

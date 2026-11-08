@@ -31,7 +31,10 @@ export interface SalaryAdvanceLine {
   id: number
   advanceNumber: string | null
   date: string | null
+  /** The original advance amount. */
   amount: number
+  /** What this payslip actually withheld from that advance. */
+  deductedAmount?: number
   remarks: string | null
 }
 
@@ -234,6 +237,13 @@ const SalaryApi = {
 
   deleteDeduction: async (salaryId: number, deductionId: number) => {
     return api.delete(`/salaries/${salaryId}/deductions/${deductionId}`)
+  },
+
+  /** Opt this payslip in or out of advance recovery (unpaid payslips only). */
+  setAdvanceRecovery: async (salaryId: number, applied: boolean) => {
+    const response = await api.patch<{ data: Salary }>(`/salaries/${salaryId}/advance-recovery`, { applied })
+
+    return response.data
   },
 
   // Create salary

@@ -24,6 +24,7 @@ import { canAccess } from "@/utils/authorization";
 import { apiErrorMessage, apiFieldErrors } from "@/utils/apiErrors";
 import { formatActiveMoney } from "@/utils/localization";
 import { printDocument } from "@/utils/printDocument";
+import { moveCreatedRowFirst } from "@/utils/createdFirst";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import ErpDateRange from "@/components/erp/ErpDateRange.vue";
@@ -273,7 +274,7 @@ const saveExpense = async (
     // A draft is a real ledger row, but it does not count as money until a
     // finance approver accepts it.
     if (!isEditing && mode === "draft") {
-      await createExpense({
+      const draft = await createExpense({
         ...(selectedExpense.value as ExpenseCreateData),
         status: "draft",
       });
@@ -281,7 +282,12 @@ const saveExpense = async (
       toast.success(
         translate("pages.finance.expenses.expenses.draftSaved"),
       );
-      reload();
+      page.value = 1;
+      await fetchExpenses();
+      expenses.value = moveCreatedRowFirst(expenses.value, draft).slice(
+        0,
+        perPage.value,
+      );
 
       return;
     }
@@ -304,9 +310,14 @@ const saveExpense = async (
       );
       await fetchExpenses();
     } else {
-      await createExpense(payload as ExpenseCreateData);
+      const created = await createExpense(payload as ExpenseCreateData);
       // A new record belongs on the first page of the current filters.
-      reload();
+      page.value = 1;
+      await fetchExpenses();
+      expenses.value = moveCreatedRowFirst(expenses.value, created).slice(
+        0,
+        perPage.value,
+      );
     }
 
     isAddExpenseDialogVisible.value = false;

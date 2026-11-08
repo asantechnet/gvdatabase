@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
 use App\Models\User;
 use App\Support\EmployeeScope;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,12 @@ class TaskAssigneeController extends Controller
         $query = User::query()
             ->excludePrimaryRecord()
             ->where('acc_status', 'active')
+            // A deactivated employee keeps their login until it is retired, so
+            // the assignee picker checks the workforce state as well. Accounts
+            // without an employee record stay assignable.
+            ->where(fn ($query) => $query
+                ->whereDoesntHave('employee')
+                ->orWhereHas('employee', fn ($employee) => $employee->where('status', Employee::STATUS_ACTIVE)))
             ->with('employee:id,user_id,avatar')
             ->orderBy('name');
 

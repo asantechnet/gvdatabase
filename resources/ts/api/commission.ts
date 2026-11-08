@@ -1,4 +1,5 @@
 import api from './axios'
+import type { ReceiptCompany, ReceiptMoney } from './receipts'
 
 export interface CommissionCurrency {
   id: number
@@ -53,6 +54,52 @@ export interface CommissionSettlement {
   expense_id: number | null
 }
 
+export interface CommissionSlipAccrual {
+  id: number
+  earned_at: string | null
+  entry_type: 'earned' | 'adjustment'
+  adjustment_reason: string | null
+  contract_number: string | null
+  case_name: string | null
+  service: string | null
+  service_label: string
+  eligible_base_amount: number
+  percentage: number
+  commission_base_amount: number
+}
+
+export interface CommissionSlipEmployee {
+  id: number
+  name: string
+  father_name: string | null
+  contact: string | null
+  position: string | null
+  department: string | null
+  join_date: string | null
+}
+
+export interface CommissionSlipPayload {
+  reference: string | null
+  document: 'commission_slip'
+  date: string | null
+  company: ReceiptCompany
+  employee: CommissionSlipEmployee | null
+  settlement: {
+    period_start: string | null
+    period_end: string | null
+    status: CommissionSettlement['status']
+    payment_date: string | null
+    notes: string | null
+  }
+  accruals: CommissionSlipAccrual[]
+  totals: {
+    gross: number
+    count: number
+    currency: ReceiptMoney | null
+  }
+  signature: { url: string | null; name: string | null }
+}
+
 export interface CommissionSummary {
   base_currency_id: number
   currency: CommissionCurrency
@@ -90,6 +137,9 @@ const CommissionApi = {
   },
   async cancel(id: number): Promise<CommissionSettlement> {
     return (await api.post<{ data: CommissionSettlement }>(`/commission-settlements/${id}/cancel`)).data.data
+  },
+  async slip(id: number): Promise<CommissionSlipPayload> {
+    return (await api.get<{ data: CommissionSlipPayload }>(`/commission-settlements/${id}/slip`)).data.data
   },
 }
 

@@ -15,7 +15,7 @@ const authorizedLandingRoute = () => {
     return { name: 'applicant-portal' }
   if (canAccess('view_agency_overview'))
     return { name: 'home' }
-  if (canAccess('view_all_boards') || canAccess('view_assigned_boards'))
+  if (canAccess('view_all_boards') || canAccess('view_assigned_boards') || canAccess('create_personal_tasks'))
     return { name: 'tasks' }
 
   // Every authenticated user can still manage their own account, even when

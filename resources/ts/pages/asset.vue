@@ -14,6 +14,7 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const toast = useToast()
 
@@ -266,10 +267,11 @@ const addAsset = async () => {
 
   if (selectedAsset.value) {
     try {
-      await AssetApi.create(toPayload(selectedAsset.value))
+      const created = await AssetApi.create(toPayload(selectedAsset.value))
       // A new row belongs on the first page, and the paging counts changed.
       page.value = 1
       await fetchAssets()
+      assets.value = moveCreatedRowFirst(assets.value, created).slice(0, perPage.value)
       isAddAssetDialogVisible.value = false
       toast.success(translate('pages.finance.asset.asset.assetItemAdded'))
     }

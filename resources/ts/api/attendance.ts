@@ -61,6 +61,12 @@ export interface CreateAttendanceData {
   break_minutes?: number | null
 }
 
+export interface AttendanceOffDay {
+  is_off_day: boolean
+  reason: string | null
+  off_day_id: number | null
+}
+
 const AttendanceApi = {
   async getAll(params?: AttendanceParams): Promise<Attendance[]> {
     const response = await api.get<{ data: Attendance[] }>('/attendances', { params })
@@ -79,6 +85,11 @@ const AttendanceApi = {
   },
   async getUnmarkedStaff(date: string): Promise<UnmarkedStaff[]> {
     const response = await api.get<{ data: UnmarkedStaff[] }>('/attendances/unmarked-staff', { params: { date } })
+
+    return response.data.data
+  },
+  async getOffDay(date: string): Promise<AttendanceOffDay> {
+    const response = await api.get<{ data: AttendanceOffDay }>('/attendances/off-day', { params: { date } })
 
     return response.data.data
   },

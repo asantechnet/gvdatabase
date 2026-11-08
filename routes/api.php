@@ -140,7 +140,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     });
 
     // 1. Fetch entire Kanban state (Boards with nested tasks, assignees, tags, etc.)
-    $boardReadPermissions = 'permission:view_all_boards,view_assigned_boards,view_private_contracts,view_scholarship_contracts,view_test_offer_contracts,view_academy_contracts,view_other_contracts';
+    $boardReadPermissions = 'permission:view_all_boards,view_assigned_boards,create_personal_tasks,view_private_contracts,view_scholarship_contracts,view_test_offer_contracts,view_academy_contracts,view_other_contracts';
     Route::get('/kanban', [KanbanController::class, 'index'])->middleware($boardReadPermissions);
 
     // 2. Board reads. Boards are product-owned and cannot be created, renamed,
@@ -153,6 +153,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+    Route::get('/tasks/{task}/bonus-preview', [TaskController::class, 'bonusPreview'])->middleware('permission:edit_all_tasks');
     Route::patch('/tasks/{task}/bonus-review', [TaskController::class, 'reviewBonusInputs'])->middleware('permission:edit_all_tasks');
     Route::post('/tasks/{task}/attachments', [TaskAttachmentController::class, 'store']);
     Route::get('/tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download']);
@@ -262,7 +263,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         // Employee salary advances (an employee-level ledger, not tied to one salary).
         Route::get('employee-advances', [EmployeeAdvanceController::class, 'index'])->middleware('permission:view_salaries');
         Route::post('employee-advances', [EmployeeAdvanceController::class, 'store'])->middleware('permission:create_salaries');
+        Route::patch('employee-advances/{employeeAdvance}', [EmployeeAdvanceController::class, 'update'])->middleware('permission:edit_salaries');
+        Route::post('employee-advances/{employeeAdvance}/settlements', [EmployeeAdvanceController::class, 'settle'])->middleware('permission:create_salaries');
         Route::delete('employee-advances/{employeeAdvance}', [EmployeeAdvanceController::class, 'destroy'])->middleware('permission:delete_salaries');
+        Route::patch('salaries/{salary}/advance-recovery', [SalaryController::class, 'setAdvanceRecovery'])->middleware('permission:edit_salaries');
         Route::post('salaries/{salary}/payments', [SalaryPaymentController::class, 'store'])->middleware('permission:create_salaries');
     Route::delete('salaries/{salary}/payments/{payment}', [SalaryPaymentController::class, 'destroy'])->middleware('permission:delete_salaries');
     Route::get('salaries/{salary}/deductions', [SalaryDeductionController::class, 'index'])->middleware('permission:view_salary_deductions');
@@ -298,6 +302,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('commission-settlements', [CommissionController::class, 'settlements'])->middleware('permission:view_commissions');
     Route::post('commission-settlements', [CommissionController::class, 'storeSettlement'])->middleware('permission:manage_commission_settlements');
     Route::get('commission-settlements/{commissionSettlement}', [CommissionController::class, 'show'])->middleware('permission:view_commissions');
+    Route::get('commission-settlements/{commissionSettlement}/slip', [CommissionController::class, 'slip'])->middleware('permission:view_commissions');
     Route::post('commission-settlements/{commissionSettlement}/approve', [CommissionController::class, 'approve'])->middleware('permission:approve_commissions');
     Route::post('commission-settlements/{commissionSettlement}/pay', [CommissionController::class, 'pay'])->middleware('permission:pay_commissions');
     Route::post('commission-settlements/{commissionSettlement}/cancel', [CommissionController::class, 'cancel'])->middleware('permission:manage_commission_settlements');
@@ -434,6 +439,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         Route::post('/', [AttendanceController::class, 'store'])->middleware('permission:record_attendance');
         Route::post('/{attendance}/checkout-correction', [AttendanceController::class, 'correctCheckout'])->middleware(['permission:record_attendance', 'throttle:10,1']);
         Route::get('/unmarked-staff', [AttendanceController::class, 'unmarkedStaff'])->middleware('permission:view_unmarked_attendance_staff');
+        Route::get('/off-day', [AttendanceController::class, 'offDay'])->middleware('permission:view_attendance');
         Route::get('/{attendance}/daily-report', [AttendanceController::class, 'dailyReport'])->middleware('permission:view_attendance');
         Route::delete('/{attendance}', [AttendanceController::class, 'destroy'])->middleware('permission:delete_attendance');
     });

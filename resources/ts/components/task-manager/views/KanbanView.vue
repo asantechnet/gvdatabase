@@ -1,24 +1,31 @@
 <script setup lang="ts">
 import type Viewer from 'viewerjs'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import 'viewerjs/dist/viewer.css'
 import TaskCommentsDrawer from '../components/TaskCommentsDrawer.vue'
 import TaskDetailDrawer from '../components/TaskDetailDrawer.vue'
+import TaskViewDialog from '../components/TaskViewDialog.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import KanbanBoard from '@/pages/kanban/KanbanBoard.vue'
 import TaskApi from '@/api/task'
 import type { Task, TaskAttachment } from '@/api/kanban'
-import { confirmActionWarning } from '@/composables/useActionWarning'
 
 interface AddNewKanbanItem { boardId: string | number; itemTitle: string }
 interface EditKanbanItem { item: { id: string | number } }
-interface KanbanState { boardId: string | number; ids: Array<string | number> }
 
 const store = useTaskStore()
-const { t: translate } = useI18n()
-const isDetailDrawerOpen = ref(false)
+const isViewDialogOpen = ref(false)
+const isFullEditorOpen = ref(false)
+
+// The full editor owns the fields the quick editor does not: description,
+// priority, start date, dependencies and the completion toggle.
+const handleEditFullItem = (payload: EditKanbanItem) => {
+  store.selectTask(String(payload.item.id))
+  isFullEditorOpen.value = true
+}
 const isCommentsDrawerOpen = ref(false)
+const isDeleteDialogOpen = ref(false)
+const pendingDeleteId = ref<string | null>(null)
 const isLoading = ref(true)
 const editorItemId = ref<string | null>(null)
 const isAttachmentsDialogOpen = ref(false)
@@ -26,9 +33,6 @@ const attachmentTask = ref<Task | null>(null)
 const attachmentImageContainer = ref<HTMLElement>()
 const imagePreviewUrls = ref<Record<string, string>>({})
 let imageViewer: Viewer | null = null
-let moveWarningOpen = false
-let moveBatchTimer: number | undefined
-const pendingMoveStates = new Map<string, KanbanState>()
 
 // Load data when component mounts
 onMounted(async () => {
@@ -47,6 +51,8 @@ const vuexyKanbanData = computed(() => {
     boards: store.columns.map(col => ({
       id: col.id,
       title: col.title,
+      isPersonal: col.isPersonal,
+      isOwned: col.isOwned,
       itemsIds: store.tasks
         .filter(t => t.boardId === col.id)
         .sort((a, b) => a.order - b.order)
@@ -75,60 +81,6 @@ const vuexyKanbanData = computed(() => {
   }
 })
 
-// Handle Vuexy Drag/Drop and Event Emissions
-const commitPendingCardMove = async () => {
-  if (moveWarningOpen)
-    return
-
-  const states = [...pendingMoveStates.values()]
-
-  pendingMoveStates.clear()
-  if (!states.length)
-    return
-
-  moveWarningOpen = true
-  try {
-    const confirmed = await confirmActionWarning({
-      key: 'move-kanban-card',
-      title: translate('common.actionWarnings.moveCardTitle'),
-      message: translate('common.actionWarnings.moveCardMessage'),
-      confirmText: translate('common.actionWarnings.moveCardConfirm'),
-      cancelText: translate('common.actionWarnings.keepCard'),
-      icon: 'tabler-arrows-move',
-      tone: 'info',
-    })
-
-    if (!confirmed) {
-      await store.fetchBoardData()
-
-      return
-    }
-
-    // Cross-column drops report both affected columns. Persist the collected
-    // states sequentially so requests cannot overtake one another.
-    for (const state of states) {
-      for (const [index, itemId] of state.ids.entries())
-        await store.moveTaskBoard(String(itemId), String(state.boardId), index)
-    }
-  }
-  finally {
-    moveWarningOpen = false
-    if (pendingMoveStates.size)
-      await store.fetchBoardData()
-    pendingMoveStates.clear()
-  }
-}
-
-const handleUpdateItemsState = (payload: KanbanState) => {
-  pendingMoveStates.set(String(payload.boardId), payload)
-  if (moveBatchTimer !== undefined)
-    window.clearTimeout(moveBatchTimer)
-  moveBatchTimer = window.setTimeout(() => {
-    moveBatchTimer = undefined
-    commitPendingCardMove().catch(() => {})
-  }, 80)
-}
-
 const handleAddNewItem = async (payload: AddNewKanbanItem) => {
   const task = await store.addTask({
     title: payload.itemTitle,
@@ -149,10 +101,14 @@ const handleAddNewItem = async (payload: AddNewKanbanItem) => {
   }
 }
 
-// Opens the original Task Detail Drawer when clicking card
-const handleEditItem = (payload: EditKanbanItem) => {
-  store.selectTask(String(payload.item.id))
-  isDetailDrawerOpen.value = true
+// Cards open the read-only view. Editing is an explicit action from the card menu.
+const handleViewItem = (payload: EditKanbanItem) => {
+  const task = store.tasks.find(candidate => candidate.id === String(payload.item.id))
+  if (!task)
+    return
+
+  store.selectTask(task.id)
+  isViewDialogOpen.value = true
 }
 
 // Opens the Task Comments Drawer when clicking comment icon
@@ -231,14 +187,33 @@ watch(isAttachmentsDialogOpen, async isOpen => {
 })
 
 onBeforeUnmount(() => {
-  if (moveBatchTimer !== undefined)
-    window.clearTimeout(moveBatchTimer)
   imageViewer?.destroy()
   clearImagePreviews()
 })
 
+const pendingDeleteTitle = computed(() => {
+  const id = pendingDeleteId.value
+
+  return id ? store.tasks.find(task => task.id === id)?.title ?? '' : ''
+})
+
 const handleDeleteItem = (payload: EditKanbanItem) => {
-  store.deleteTask(String(payload.item.id))
+  pendingDeleteId.value = String(payload.item.id)
+  isDeleteDialogOpen.value = true
+}
+
+const cancelTaskDelete = () => {
+  isDeleteDialogOpen.value = false
+  pendingDeleteId.value = null
+}
+
+const confirmTaskDelete = async () => {
+  if (!pendingDeleteId.value)
+    return
+
+  await store.deleteTask(pendingDeleteId.value)
+  isViewDialogOpen.value = false
+  cancelTaskDelete()
 }
 </script>
 
@@ -276,9 +251,9 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
               :kanban-data="vuexyKanbanData"
               :open-item-id="editorItemId"
               @add-new-item="handleAddNewItem"
-              @edit-item="handleEditItem"
+              @view-item="handleViewItem"
+              @edit-full-item="handleEditFullItem"
               @delete-item="handleDeleteItem"
-              @update-items-state="handleUpdateItemsState"
               @comments-click="handleCommentsClick"
               @attachments-click="handleAttachmentsClick"
             />
@@ -287,11 +262,51 @@ const handleDeleteItem = (payload: EditKanbanItem) => {
       </VCol>
     </VRow>
 
-    <!-- Original Task Detail Editor Drawer -->
-    <TaskDetailDrawer v-model:is-open="isDetailDrawerOpen" />
+    <!-- Read-only task view opened by clicking a card -->
+    <TaskViewDialog v-model:is-open="isViewDialogOpen" />
+
+    <!-- Full task editor (description, priority, dates, dependencies, completion) -->
+    <TaskDetailDrawer v-model:is-open="isFullEditorOpen" />
 
     <!-- Dedicated Task Comments Sliding Drawer -->
     <TaskCommentsDrawer v-model:is-open="isCommentsDrawerOpen" />
+
+    <!-- Delete confirmation for the card menu -->
+    <VDialog
+      v-model="isDeleteDialogOpen"
+      max-width="440"
+    >
+      <VCard>
+        <VCardTitle class="text-h6 pa-5 pb-2">
+          {{ $t('common.messages.confirmDeletion') }}
+        </VCardTitle>
+        <VCardText class="pa-5 pt-2">
+          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone') }}
+          <div
+            v-if="pendingDeleteTitle"
+            class="mt-3 font-weight-medium"
+          >
+            “{{ pendingDeleteTitle }}”
+          </div>
+        </VCardText>
+        <VCardActions class="pa-5 pt-0">
+          <VSpacer />
+          <VBtn
+            variant="outlined"
+            color="secondary"
+            @click="cancelTaskDelete"
+          >
+            {{ $t('common.actions.cancel') }}
+          </VBtn>
+          <VBtn
+            color="error"
+            @click="confirmTaskDelete"
+          >
+            {{ $t('common.actions.delete') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <VDialog
       v-model="isAttachmentsDialogOpen"

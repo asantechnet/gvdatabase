@@ -902,14 +902,46 @@ const getStatusColor = (isGranted: boolean) => {
           >
             {{ selectedCalculation?.achievementDetails }}
           </VAlert>
+          <div class="d-flex flex-wrap ga-2 mb-3">
+            <VChip
+              color="primary"
+              variant="tonal"
+              size="small"
+            >
+              {{ $t('pages.bonuses.bonuslist.bonuslist.taskCredit') }}:
+              {{ formatLocalizedNumber(Number(selectedCalculation?.calculationInputs?.task_credit ?? 0), { maximumFractionDigits: 2 }) }}
+            </VChip>
+            <VChip
+              color="success"
+              variant="tonal"
+              size="small"
+            >
+              {{ $t('pages.bonuses.bonuslist.bonuslist.caseWins') }}:
+              {{ selectedCalculation?.calculationInputs?.case_wins?.length ?? 0 }}
+            </VChip>
+          </div>
           <VTable density="compact">
-            <thead><tr><th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th><th>{{ $t('common.ui.completedOn') }}</th><th>{{ $t('common.messages.actions') }}</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{{ $t('pages.bonuses.bonuslist.bonuslist.task') }}</th>
+                <th>{{ $t('common.ui.completedOn') }}</th>
+                <th>{{ $t('pages.bonuses.bonuslist.bonuslist.participation') }}</th>
+                <th>{{ $t('pages.bonuses.bonuslist.bonuslist.quality') }}</th>
+                <th>{{ $t('pages.bonuses.bonuslist.bonuslist.credit') }}</th>
+                <th>{{ $t('common.messages.actions') }}</th>
+              </tr>
+            </thead>
             <tbody>
               <tr
                 v-for="task in selectedCalculation?.calculationInputs?.tasks ?? []"
                 :key="String(task.task_id)"
               >
-                <td>{{ task.task_title }}</td><td>{{ task.completed_at ? formatLocalizedDate(task.completed_at) : '—' }}</td><td>
+                <td>{{ task.task_title }}</td>
+                <td>{{ task.completed_at ? formatLocalizedDate(task.completed_at) : '—' }}</td>
+                <td>{{ formatLocalizedNumber(Number(task.contribution_percent ?? 0), { maximumFractionDigits: 2 }) }}%</td>
+                <td>{{ task.quality_score ?? '—' }}</td>
+                <td>{{ formatLocalizedNumber(Number(task.credit ?? 0), { maximumFractionDigits: 2 }) }}</td>
+                <td>
                   <FullDetailsButton
                     :item="task"
                     :title="task.task_title"
@@ -918,6 +950,34 @@ const getStatusColor = (isGranted: boolean) => {
               </tr>
             </tbody>
           </VTable>
+          <template v-if="selectedCalculation?.calculationInputs?.case_wins?.length">
+            <div class="text-subtitle-2 font-weight-bold mt-4 mb-2">
+              {{ $t('pages.bonuses.bonuslist.bonuslist.caseWins') }}
+            </div>
+            <VTable density="compact">
+              <thead>
+                <tr>
+                  <th>{{ $t('pages.bonuses.bonuslist.bonuslist.stage') }}</th>
+                  <th>{{ $t('pages.bonuses.bonuslist.bonuslist.wonOn') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="win in selectedCalculation?.calculationInputs?.case_wins ?? []"
+                  :key="String(win.case_win_id)"
+                >
+                  <td>{{ win.stage_key }}</td>
+                  <td>{{ win.won_at ? formatLocalizedDate(win.won_at) : '—' }}</td>
+                </tr>
+              </tbody>
+            </VTable>
+          </template>
+          <div
+            v-else
+            class="text-caption text-medium-emphasis mt-3"
+          >
+            {{ $t('pages.bonuses.bonuslist.bonuslist.noCaseWins') }}
+          </div>
           <div class="text-caption text-medium-emphasis mt-4">
             {{ selectedCalculation?.calculationInputs?.formula }}
           </div>

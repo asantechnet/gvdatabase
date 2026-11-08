@@ -7,6 +7,7 @@ use App\Http\Resources\DailyReportResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\OffDay;
 use App\Services\AttendanceCalculationService;
 use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
@@ -111,6 +112,9 @@ class AttendanceController extends Controller
         }
         if (Carbon::parse($validated['date'])->isFriday()) {
             throw ValidationException::withMessages(['date' => ['business.friday_weekend_no_attendance']]);
+        }
+        if ($this->approvedOffDay($validated['date'])) {
+            throw ValidationException::withMessages(['date' => ['business.off_day_attendance_not_allowed']]);
         }
 
         $employee = Employee::findOrFail($validated['staff_id']);
@@ -260,11 +264,39 @@ class AttendanceController extends Controller
         return new AttendanceResource($attendance->load(['staff.position', 'office'])->loadExists('dailyReport'));
     }
 
+    /** The approved company off day covering a date, if one exists. */
+    private function approvedOffDay(string $date): ?OffDay
+    {
+        return OffDay::query()
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->first();
+    }
+
+    /** Report the company off-day state of one date for the timesheet logger. */
+    public function offDay(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['date' => ['required', 'date_format:Y-m-d']]);
+        $offDay = $this->approvedOffDay($validated['date']);
+
+        return response()->json(['data' => [
+            'is_off_day' => (bool) $offDay,
+            'reason' => $offDay?->reason,
+            'off_day_id' => $offDay?->id,
+        ]]);
+    }
+
     /**
      * Delete an attendance entry.
      */
     public function destroy(Attendance $attendance): JsonResponse
     {
+        // Off days are a ledger entry, not a deletable work record. A holiday or
+        // an approved leave day must be changed through its own workflow.
+        abort_if($attendance->status === 'off_day' || $attendance->off_day_id,
+            422, 'business.off_day_attendance_not_deletable');
+
         if ((float) $attendance->leave_days > 0) {
             // Removing the work entry keeps the approved off-day request (or
             // the over-allowance absence) intact for payroll.

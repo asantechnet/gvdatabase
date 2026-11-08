@@ -11,7 +11,9 @@ class BonusRuleService
     public const DEFAULTS = [
         'minimum_completed_tasks' => 1,
         'amount_per_completed_task' => 10,
-        'minimum_cases_won' => 1,
+        // Case wins are an additive reward, not a gate: task credit alone can
+        // earn a bonus unless a company raises this minimum explicitly.
+        'minimum_cases_won' => 0,
         'amount_per_case_won' => 100,
         'task_quality_weighting_enabled' => true,
         'maximum_monthly_bonus' => 1000,

@@ -11,6 +11,7 @@ import type { Board } from '@/api/kanban'
 import ErpField from '@/components/erp/ErpField.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
+import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -37,7 +38,7 @@ async function loadCatalogs() { if (catalogLoading.value) return; catalogLoading
 async function openCreate() { reset(); dialog.value = true; await loadCatalogs() }
 function setType(type: RecurringEventType) { form.value.event_type = type; form.value.payload = type === 'task' ? { title: '', board_id: null, priority: 'medium' } : { type: 'Other', amount: 0, quantity: 1, currency_id: null } }
 const canSave = computed(() => form.value.name.trim() && (form.value.event_type === 'task' ? Boolean(form.value.payload.title && form.value.payload.board_id) : Boolean(form.value.payload.type && Number(form.value.payload.amount) > 0 && form.value.payload.currency_id)))
-async function save() { if (!canSave.value) return; saving.value = true; try { await RecurringEventsApi.create(form.value); dialog.value = false; await load() } finally { saving.value = false } }
+async function save() { if (!canSave.value) return; saving.value = true; try { const created = await RecurringEventsApi.create(form.value); dialog.value = false; page.value = 1; await load(); events.value = moveCreatedRowFirst(events.value, created).slice(0, perPage.value) } finally { saving.value = false } }
 async function toggle(item: RecurringEvent) { item.status === 'active' ? await RecurringEventsApi.pause(item.id) : await RecurringEventsApi.resume(item.id); await load() }
 async function remove(item: RecurringEvent) { if (!await confirmActionWarning({ key: `delete-recurring-event-${item.id}`, title: `Delete ${item.name}?`, message: 'This recurring schedule will be removed. This cannot be undone.', confirmText: t('common.actions.delete'), cancelText: t('common.actions.cancel'), icon: 'tabler-trash', tone: 'error' })) return; await RecurringEventsApi.remove(item.id); await load() }
 async function execute(id: number) { await RecurringEventsApi.execute(id); if (selected.value) await openDetail(selected.value); await load() }

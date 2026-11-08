@@ -89,7 +89,9 @@ class AcademySlipTest extends TestCase
             ->assertJsonPath('data.service.name', 'Academy')
             ->assertJsonPath('data.totals.total_fee', 100)
             ->assertJsonPath('data.totals.paid_amount', 40)
-            ->assertJsonPath('data.totals.balance', 60);
+            ->assertJsonPath('data.totals.balance', 60)
+            ->assertJsonPath('data.company.primary_color', '#80027F')
+            ->assertJsonPath('data.company.secondary_color', '#F47E26');
     }
 
     public function test_academy_slip_rejects_a_non_academy_contract(): void

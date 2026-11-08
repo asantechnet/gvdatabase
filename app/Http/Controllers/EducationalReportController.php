@@ -194,6 +194,7 @@ class EducationalReportController extends Controller
     {
         $columns = ['employee', 'active_cases', 'closed_cases', 'services_sold', 'contracts_sold', 'bonus_amount'];
         $employees = Employee::query()
+            ->active()
             ->excludePrimaryRecord()
             ->when(! empty($filters['employee_id']) || ! empty($filters['responsible_employee_id']), fn ($q) => $q->whereKey($filters['employee_id'] ?? $filters['responsible_employee_id']))
             ->orderBy('name')

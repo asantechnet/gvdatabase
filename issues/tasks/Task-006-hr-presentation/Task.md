@@ -64,9 +64,10 @@ The post-review notes asked for the timesheet to keep four KPIs in one scrollabl
 ## Exclusive file ownership
 - `resources/ts/pages/payrolls.vue` — money display, subtitle and action reachability.
 - `resources/ts/pages/timesheet.vue` — four-KPI strip and attendance ledger layout.
-- `resources/ts/pages/leave_requests.vue` — hint removal, skeleton/empty state and detail trigger.
 - `resources/ts/api/salary.ts` — typed currency fields used by the display.
 - `resources/ts/api/leaveRequests.ts` — typed detail fields used by the viewer.
+
+Forward ownership: `resources/ts/pages/leave_requests.vue` was transferred to Task-032 on 2026-11-07; this task no longer edits that page.
 
 ## Acceptance criteria
 - [ ] Given the staff directory with AFN salaries, when it renders, then salary shows the base currency code and shared formatting and no `$` prefix appears.

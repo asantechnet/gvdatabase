@@ -23,6 +23,7 @@ import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import { moveRowIdFirst } from '@/utils/createdFirst'
 import { useCookie } from '@core/composable/useCookie'
 
 const route = useRoute()
@@ -677,8 +678,11 @@ async function save() {
     if (service.value === selectedService) {
       // A created contract belongs on the first page; an edited one stays where
       // it was, so the filter plus the current page decide in both cases.
-      page.value = editing.value ? page.value : 1
+      const created = !editing.value
+      page.value = created ? 1 : page.value
       await load()
+      if (created)
+        rows.value = moveRowIdFirst(rows.value, result.id)
       open.value = false
       // The password cannot be read back once the account exists, so the
       // generated pair stays on screen until the operator dismisses it.

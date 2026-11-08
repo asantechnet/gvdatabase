@@ -128,10 +128,60 @@ class OfficeGeofenceAttendanceTest extends TestCase
         $this->getJson('/api/workday/status')->assertOk()->assertJsonPath('data.state', 'active');
 
         Carbon::setTestNow(Carbon::parse('2026-08-13 12:30:00', 'UTC'));
-        $this->postJson('/api/workday/end', ['summary' => 'Completed planned work.', 'attendanceId' => $attendance->id])
+        $this->postJson('/api/workday/end', ['summary' => 'Completed planned work.', 'attendanceId' => $attendance->id] + $this->position())
             ->assertOk()->assertJsonPath('data.state', 'completed');
         $this->assertSame('end_my_day', $attendance->fresh()->check_out_source);
         $this->assertSame('2026-08-13T12:30:00.000000Z', $attendance->fresh()->checked_out_at->toISOString());
+    }
+
+    public function test_checkout_verifies_the_fence_that_admitted_the_shift(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-13 03:30:00', 'UTC'));
+        $this->officeEmployee();
+        $this->postJson('/api/workday/start', $this->position())->assertOk();
+        $attendance = Attendance::firstOrFail();
+
+        Carbon::setTestNow(Carbon::parse('2026-08-13 12:30:00', 'UTC'));
+        $report = ['summary' => 'Completed planned work.', 'attendanceId' => $attendance->id];
+
+        $this->getJson('/api/workday/status')->assertOk()
+            ->assertJsonPath('data.attendance.requiresCheckoutLocation', true);
+        $this->postJson('/api/workday/end', $report)->assertUnprocessable()->assertJsonValidationErrors('latitude');
+        $this->postJson('/api/workday/end', $report + $this->position(34.5600))->assertUnprocessable()
+            ->assertJsonPath('code', 'business.attendance_outside_office');
+        $stale = $this->position();
+        $stale['observed_at'] -= 61000;
+        $this->postJson('/api/workday/end', $report + $stale)->assertUnprocessable()
+            ->assertJsonPath('code', 'business.attendance_location_stale');
+        $this->postJson('/api/workday/end', $report + $this->position(34.5553, 250))->assertUnprocessable()
+            ->assertJsonPath('code', 'business.attendance_location_uncertain');
+        $this->assertNull($attendance->fresh()->checked_out_at);
+        $this->assertDatabaseCount('daily_reports', 0);
+
+        $this->postJson('/api/workday/end', $report + $this->position())->assertOk()
+            ->assertJsonPath('data.state', 'completed');
+        $attendance->refresh();
+        $this->assertSame('end_my_day', $attendance->check_out_source);
+        $this->assertSame(0, $attendance->check_out_distance_meters);
+        $this->assertSame(8, $attendance->check_out_accuracy_meters);
+        $this->assertSame('34.5553000', (string) $attendance->check_out_latitude);
+    }
+
+    public function test_an_unfenced_workday_still_ends_without_a_location(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-13 03:30:00', 'UTC'));
+        $employee = $this->officeEmployee();
+        $this->postJson('/api/workday/start', $this->position())->assertOk();
+        $attendance = Attendance::firstOrFail();
+
+        // Retiring the fence mid-shift must not trap an open workday.
+        $employee->office->update(['geofence_enabled' => false]);
+        Carbon::setTestNow(Carbon::parse('2026-08-13 12:30:00', 'UTC'));
+
+        $this->postJson('/api/workday/end', ['summary' => 'Ended after the fence was retired.', 'attendanceId' => $attendance->id])
+            ->assertOk()->assertJsonPath('data.state', 'completed');
+        $this->assertSame('end_my_day', $attendance->fresh()->check_out_source);
+        $this->assertNull($attendance->fresh()->check_out_latitude);
     }
 
     public function test_start_rejects_missing_stale_outside_and_uncertain_location_without_claiming_browser(): void

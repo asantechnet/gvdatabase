@@ -12,12 +12,11 @@ Coordinates and radius are stored in SI meters. The server calculates the great-
 
 ## Runtime behavior
 
-- While the authenticated application is open and visible, the browser requests a fresh high-accuracy location every 30 seconds.
-- Entering the configured radius creates the employee's existing daily attendance record and check-in, idempotently.
-- A location more than 100 meters inaccurate is ignored.
-- The GPS uncertainty band around the circle is treated as indeterminate.
-- Leaving the radius requires two accurate outside observations at least two minutes apart before checkout. Returning inside clears the pending exit.
-- After an automatic checkout, the profile menu still requests the required end-of-day report.
+- Start my day and End my day are the only actions that record punches. Background tracking does not create or close a day.
+- Each of them requests one fresh high-accuracy location after the employee clicks, while the application is open and visible.
+- The position must be inside the configured radius, the reported accuracy must be at most 100 meters, and the GPS uncertainty band is treated as indeterminate.
+- Checkout verifies the same fence that admitted the shift and stores its own coordinates and distance.
+- A workday that started without a fence (fence disabled, no office fence, or automatic attendance turned off) still ends without a location, so an open day is never trapped.
 
 Automatic browser tracking requires a secure context (HTTPS, except browser-supported localhost development). Browsers stop page-based location polling after the app is closed or suspended; continuous operating-system background tracking would require a native mobile application or managed device service.
 

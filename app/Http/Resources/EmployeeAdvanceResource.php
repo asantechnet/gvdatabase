@@ -28,6 +28,21 @@ class EmployeeAdvanceResource extends JsonResource
             'date' => $this->advance_date?->format('Y-m-d'),
             'remarks' => $this->remarks ?? '',
             'expenseId' => $this->expense_id,
+            // The balance is what matters: a payslip deduction and a cash
+            // repayment both reduce it, and reaching zero closes the row.
+            'status' => $this->status ?? 'outstanding',
+            'settledAmount' => (float) $this->settled_amount,
+            'remainingAmount' => round(max(0, (float) $this->amount - (float) $this->settled_amount), 8),
+            'salaryId' => $this->salary_id,
+            'recoveredAt' => $this->recovered_at?->toIso8601String(),
+            'settlements' => $this->whenLoaded('settlements', fn () => $this->settlements->map(fn ($settlement) => [
+                'id' => $settlement->id,
+                'kind' => $settlement->kind,
+                'amount' => (float) $settlement->amount,
+                'date' => $settlement->date?->toDateString(),
+                'salaryId' => $settlement->salary_id,
+                'remarks' => $settlement->remarks,
+            ])),
             'recordedBy' => $this->whenLoaded('recorder', fn () => $this->recorder ? [
                 'id' => $this->recorder->id,
                 'name' => $this->recorder->name,

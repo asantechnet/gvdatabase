@@ -98,3 +98,4 @@
 ## Activity log (append-only)
 - `2026-11-04` Task record created; forward ownership transferred from `docs/Tasks/Task-001`; validators passed (29 issues/tasks, 1 docs/Tasks, 0 errors).
 - `2026-11-04` Implemented the two migrations, stage-context service, model guards, scoped catalogue reads, editor and three-locale copy. New suites passed 27 tests / 202 assertions; regression passed 58 tests / 835 assertions. Typecheck, i18n, migration idempotence, PHP lint and diff check passed. Status → `Review`; viewport and native-copy review remain open.
+- `2026-11-07` Forward ownership of the paths needed for Task-046 moved to Task-046; the delivered behaviour remains historical evidence.

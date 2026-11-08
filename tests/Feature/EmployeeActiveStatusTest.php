@@ -106,6 +106,33 @@ class EmployeeActiveStatusTest extends TestCase
         $this->putJson("/api/employees/{$createdId}", ['status' => 'retired'])->assertUnprocessable();
     }
 
+    public function test_educational_performance_report_excludes_inactive_employees(): void
+    {
+        Employee::factory()->create();
+        $active = Employee::factory()->create(['status' => Employee::STATUS_ACTIVE]);
+        $inactive = Employee::factory()->create(['status' => Employee::STATUS_INACTIVE]);
+
+        $rows = collect($this->getJson('/api/educational-reports/employee-performance')->assertOk()->json('data.rows'))->pluck('employee');
+
+        $this->assertContains($active->name, $rows);
+        $this->assertNotContains($inactive->name, $rows);
+    }
+
+    public function test_task_assignee_picker_excludes_deactivated_employees(): void
+    {
+        Employee::factory()->create();
+        $activeUser = User::factory()->create(['roles' => ['staff']]);
+        Employee::factory()->create(['user_id' => $activeUser->id, 'status' => Employee::STATUS_ACTIVE]);
+        $inactiveUser = User::factory()->create(['roles' => ['staff']]);
+        Employee::factory()->create(['user_id' => $inactiveUser->id, 'status' => Employee::STATUS_INACTIVE]);
+
+        $ids = collect($this->getJson('/api/task-assignees')->assertOk()->json('data'))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $this->assertContains($activeUser->id, $ids);
+        $this->assertNotContains($inactiveUser->id, $ids);
+    }
+
     public function test_assignment_options_never_send_inactive_employees(): void
     {
         $counselorPosition = Position::firstOrCreate(['system_key' => 'counselor'], ['title' => 'Counselor', 'status' => 'active']);

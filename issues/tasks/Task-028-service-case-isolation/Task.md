@@ -77,27 +77,14 @@ Task-027 delivered the current line-stage endpoint, line identity fields and sin
 - Pipeline counts: column counts and header totals count service-case lines for the selected service and the current filters. `counts.unit` names a service case, not an unlined applicant. No header label may describe a party without a line as a case.
 - Document contract: no stage controller, service, pipeline move or case page may call `ApplicantDocumentReadiness`, `ready()`, `require()` or any `applicant_attachments` existence check. Applicant attachments remain readable and writable through their existing endpoints and permissions.
 - Permissions: no new permission is added. `view_applicants` gates case reads and the pipeline; `change_applicant_stage` plus the existing case-manage scope gates a stage write. The case page hides or disables a control the viewer cannot use instead of relying on a 403 after submission.
-- Shared files: `routes/api.php` is owned by Task-009 and the frontend locale JSON plus the PHP language catalogs are owned by Task-026. This task only adds the one read route next to the existing applicant-contract stage route and its own key subtree, adds the same keys to all three frontend locales, and does not reformat those files.
+- Shared files: the static router is owned by Task-044 for the Academy work, and the frontend locale JSON plus the PHP language catalogs are owned by Task-043. This task's historical route and locale edits remain in place; forward ownership moved on 2026-11-07. This task only adds the one read route next to the existing applicant-contract stage route and its own key subtree, adds the same keys to all three frontend locales, and does not reformat those files.
 - Stage options: when the case workspace or the unlined applicant panel loads its stage catalogue, it sends `line_id` (for a service case) or `applicant_id` (for an unlined applicant) to `GET /api/applicant-stages`. The stage-scope task owns the server-side filtering of that read; this task owns the request site and the `ApplicantApi.stages` parameters. The page must not re-derive test, country or university applicability locally, and it must not use the unfiltered `allowed_next_stages` array as its movable-option list for a test-offer case; the scoped read is authoritative.
 - Files this task must not modify: `app/Services/ContractTaskService.php`, `app/Http/Resources/ApplicantResource.php`, `resources/ts/pages/applicants.vue`, `resources/ts/pages/applicant-stages.vue`, `app/Http/Controllers/ApplicantStageController.php`, payment services and document-print utilities.
 
 ## Exclusive file ownership
-- `app/Http/Controllers/ApplicantController.php` — remove the document check from the unlined-case writer and make the pipeline line-only with line-derived counts and placement.
-- `app/Http/Controllers/ApplicantContractStageController.php` — add the single-case read action, remove the document check, keep the line-scoped stage writer and field-level errors.
-- `app/Services/ApplicantDocumentReadiness.php` — remove the document-readiness service and its call sites.
-- `app/Services/ApplicantStageTransitionGuard.php` — the replacement guard that owns only the terminal-reason rule.
-- `app/Http/Resources/ApplicantContractResource.php` — expose line-scoped history, tasks and finance for the case payload without adding sibling data.
-- `resources/ts/pages/applicant-case.vue` — remove the unified service-workflow card, per-line stage state and combined timeline; add the read-only case list.
-- `resources/ts/pages/service-case.vue` — the new single-case workspace with its stage writer, history, tasks and finance.
-- `resources/ts/pages/applicant-pipeline.vue` — line-only cards, line-only moves and service-case links.
-- `resources/ts/api/applicants.ts` — update the pipeline card type to the line-only contract.
-- `resources/ts/api/serviceCases.ts` — typed single-case read and move methods.
-- `resources/ts/plugins/1.router/routes.ts` — register `/service-cases/:line` and its page component in the static router.
-- `tests/Feature/ServiceCaseIsolationTest.php` — new coverage for case isolation, zero-document moves, terminal reasons, permissions and line-only pipeline.
-- `tests/Feature/ApplicantWorkflowGateTest.php` — replace the document-gate expectations with zero-document success while keeping the terminal-reason and lined-case-refusal assertions.
-- `tests/Feature/VisaCaseWorkspaceTest.php` — replace the service-workflow row expectations with the read-only case list and single-case workspace.
-- `tests/Feature/ApplicantPipelineTest.php` — update expectations from mixed line/unlined cards to line-only service cases.
-- `tests/Feature/ApplicantContractStageTest.php` — remove gate-only document seeding and assert that a line moves without any attachment.
+- `app/Services/ApplicantStageTransitionGuard.php` — the terminal-reason-only guard delivered by this task.
+
+Forward ownership of `ApplicantContractResource`, `service-case.vue` and `serviceCases.ts` moved to Task-047 on 2026-11-07 for the related-contract extension; this task's delivered line-isolation behaviour remains historical evidence.
 
 ## Acceptance criteria
 - [ ] Given an applicant with two contracted service lines, when `/applicants/{id}` renders, then the service-workflow card is absent: no stage select, reason field, record button or combined stage timeline is rendered for any line, and the page shows one read-only case row per line with its service, contract number, current stage, contract status and payment state plus a link to that case.

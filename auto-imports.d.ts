@@ -7,6 +7,8 @@
 export {}
 declare global {
   const COOKIE_MAX_AGE_1_YEAR: typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']
+  const DEFAULT_DOCUMENT_PRIMARY: typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_PRIMARY']
+  const DEFAULT_DOCUMENT_SECONDARY: typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_SECONDARY']
   const EffectScope: typeof import('vue')['EffectScope']
   const FORMATTING_PLACEHOLDER: typeof import('./resources/ts/utils/money')['FORMATTING_PLACEHOLDER']
   const PLACEHOLDER_SPAN_PATTERN: typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']
@@ -39,7 +41,12 @@ declare global {
   const buildWhatsappUrl: typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']
   const calendarDate: typeof import('./resources/ts/utils/calendarDate')['calendarDate']
   const canAccess: typeof import('./resources/ts/utils/authorization')['canAccess']
+  const canCreateTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canCreateTaskOnBoard']
+  const canDeleteTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canDeleteTaskOnBoard']
+  const canEditTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canEditTaskOnBoard']
   const canLoadImage: typeof import('./resources/ts/utils/printArtwork')['canLoadImage']
+  const canManagePersonalTasks: typeof import('./resources/ts/utils/authorization')['canManagePersonalTasks']
+  const canMoveTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']
   const canPrintContractHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
   const changedIncomeFields: typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']
@@ -48,6 +55,8 @@ declare global {
   const clearFormErrors: typeof import('./resources/ts/utils/formErrors')['clearFormErrors']
   const clearPermissions: typeof import('./resources/ts/utils/authorization')['clearPermissions']
   const clearStoredPermissions: typeof import('./resources/ts/utils/authStorage')['clearStoredPermissions']
+  const commissionSlipCopies: typeof import('./resources/ts/utils/printCommissionSlip')['commissionSlipCopies']
+  const commissionSlipPrintLayout: typeof import('./resources/ts/utils/printCommissionSlip')['commissionSlipPrintLayout']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -62,6 +71,7 @@ declare global {
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createAcademySlipPrintHost: typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']
   const createApp: typeof import('vue')['createApp']
+  const createCommissionSlipPrintHost: typeof import('./resources/ts/utils/printCommissionSlip')['createCommissionSlipPrintHost']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
   const createGenericProjection: typeof import('@vueuse/math')['createGenericProjection']
   const createGlobalState: typeof import('@vueuse/core')['createGlobalState']
@@ -86,6 +96,7 @@ declare global {
   const defineStore: typeof import('pinia')['defineStore']
   const displayCurrency: typeof import('./resources/ts/utils/displayCurrency')['displayCurrency']
   const displayInlineFormErrors: typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']
+  const documentBrandStyle: typeof import('./resources/ts/utils/documentBranding')['documentBrandStyle']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const emailValidator: typeof import('./resources/ts/@core/utils/validators')['emailValidator']
@@ -99,6 +110,7 @@ declare global {
   const formatActiveCount: typeof import('./resources/ts/utils/localization')['formatActiveCount']
   const formatActiveDate: typeof import('./resources/ts/utils/localization')['formatActiveDate']
   const formatActiveMoney: typeof import('./resources/ts/utils/localization')['formatActiveMoney']
+  const formatAmountInWords: typeof import('./resources/ts/utils/amountInWords')['formatAmountInWords']
   const formatCount: typeof import('./resources/ts/utils/money')['formatCount']
   const formatDate: typeof import('./resources/ts/@core/utils/formatters')['formatDate']
   const formatDateToMonthShort: typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']
@@ -153,6 +165,8 @@ declare global {
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
   const mergeFieldErrorMessages: typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']
+  const moveCreatedRowFirst: typeof import('./resources/ts/utils/createdFirst')['moveCreatedRowFirst']
+  const moveRowIdFirst: typeof import('./resources/ts/utils/createdFirst')['moveRowIdFirst']
   const nextTick: typeof import('vue')['nextTick']
   const notificationText: typeof import('./resources/ts/utils/notificationText')['notificationText']
   const officialPrintMargins: typeof import('./resources/ts/utils/officialContractPrint')['officialPrintMargins']
@@ -189,6 +203,7 @@ declare global {
   const playNotificationDing: typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
   const printAcademySlip: typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']
+  const printCommissionSlip: typeof import('./resources/ts/utils/printCommissionSlip')['printCommissionSlip']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
   const printReceipt: typeof import('./resources/ts/utils/printReceipt')['printReceipt']
   const provide: typeof import('vue')['provide']
@@ -506,6 +521,8 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly COOKIE_MAX_AGE_1_YEAR: UnwrapRef<typeof import('./resources/ts/utils/constants')['COOKIE_MAX_AGE_1_YEAR']>
+    readonly DEFAULT_DOCUMENT_PRIMARY: UnwrapRef<typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_PRIMARY']>
+    readonly DEFAULT_DOCUMENT_SECONDARY: UnwrapRef<typeof import('./resources/ts/utils/documentBranding')['DEFAULT_DOCUMENT_SECONDARY']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly FORMATTING_PLACEHOLDER: UnwrapRef<typeof import('./resources/ts/utils/money')['FORMATTING_PLACEHOLDER']>
     readonly PLACEHOLDER_SPAN_PATTERN: UnwrapRef<typeof import('./resources/ts/utils/contractPlaceholders')['PLACEHOLDER_SPAN_PATTERN']>
@@ -538,7 +555,12 @@ declare module 'vue' {
     readonly buildWhatsappUrl: UnwrapRef<typeof import('./resources/ts/utils/whatsappTemplates')['buildWhatsappUrl']>
     readonly calendarDate: UnwrapRef<typeof import('./resources/ts/utils/calendarDate')['calendarDate']>
     readonly canAccess: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canAccess']>
+    readonly canCreateTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canCreateTaskOnBoard']>
+    readonly canDeleteTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canDeleteTaskOnBoard']>
+    readonly canEditTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canEditTaskOnBoard']>
     readonly canLoadImage: UnwrapRef<typeof import('./resources/ts/utils/printArtwork')['canLoadImage']>
+    readonly canManagePersonalTasks: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canManagePersonalTasks']>
+    readonly canMoveTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']>
     readonly canPrintContractHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
     readonly changedIncomeFields: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']>
@@ -547,6 +569,8 @@ declare module 'vue' {
     readonly clearFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFormErrors']>
     readonly clearPermissions: UnwrapRef<typeof import('./resources/ts/utils/authorization')['clearPermissions']>
     readonly clearStoredPermissions: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearStoredPermissions']>
+    readonly commissionSlipCopies: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['commissionSlipCopies']>
+    readonly commissionSlipPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['commissionSlipPrintLayout']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -561,6 +585,7 @@ declare module 'vue' {
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createAcademySlipPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
+    readonly createCommissionSlipPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['createCommissionSlipPrintHost']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
@@ -585,6 +610,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly displayCurrency: UnwrapRef<typeof import('./resources/ts/utils/displayCurrency')['displayCurrency']>
     readonly displayInlineFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['displayInlineFormErrors']>
+    readonly documentBrandStyle: UnwrapRef<typeof import('./resources/ts/utils/documentBranding')['documentBrandStyle']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly emailValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['emailValidator']>
@@ -598,6 +624,7 @@ declare module 'vue' {
     readonly formatActiveCount: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveCount']>
     readonly formatActiveDate: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveDate']>
     readonly formatActiveMoney: UnwrapRef<typeof import('./resources/ts/utils/localization')['formatActiveMoney']>
+    readonly formatAmountInWords: UnwrapRef<typeof import('./resources/ts/utils/amountInWords')['formatAmountInWords']>
     readonly formatCount: UnwrapRef<typeof import('./resources/ts/utils/money')['formatCount']>
     readonly formatDate: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['formatDateToMonthShort']>
@@ -652,6 +679,8 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly mergeFieldErrorMessages: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['mergeFieldErrorMessages']>
+    readonly moveCreatedRowFirst: UnwrapRef<typeof import('./resources/ts/utils/createdFirst')['moveCreatedRowFirst']>
+    readonly moveRowIdFirst: UnwrapRef<typeof import('./resources/ts/utils/createdFirst')['moveRowIdFirst']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notificationText: UnwrapRef<typeof import('./resources/ts/utils/notificationText')['notificationText']>
     readonly officialPrintMargins: UnwrapRef<typeof import('./resources/ts/utils/officialContractPrint')['officialPrintMargins']>
@@ -688,6 +717,7 @@ declare module 'vue' {
     readonly playNotificationDing: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
     readonly printAcademySlip: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']>
+    readonly printCommissionSlip: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['printCommissionSlip']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
     readonly printReceipt: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['printReceipt']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>

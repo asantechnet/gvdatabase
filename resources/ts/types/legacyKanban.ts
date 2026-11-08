@@ -23,7 +23,7 @@ export interface KanbanItem {
   progress?: number
 }
 
-export interface KanbanBoard { id: KanbanId; title: string; itemsIds: KanbanId[] }
+export interface KanbanBoard { id: KanbanId; title: string; itemsIds: KanbanId[]; isPersonal?: boolean; isOwned?: boolean }
 export interface KanbanData { boards: KanbanBoard[]; items: KanbanItem[] }
 export interface AddNewKanbanItem { itemTitle: string; boardName: string; boardId: KanbanId }
 export interface EditKanbanItem { item: KanbanItem; boardId: KanbanId; boardName: string }
