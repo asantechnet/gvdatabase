@@ -1,4 +1,4 @@
-import { type Component, type PropType, type VNode, cloneVNode, computed, defineComponent, h, isVNode, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue'
+import { type Component, type PropType, type VNode, cloneVNode, computed, defineComponent, h, isVNode, onBeforeUnmount, onMounted, onUpdated, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   VBottomSheet,
@@ -264,6 +264,19 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     const actionSheetOpen = ref(false)
     const actionSheetState = ref<{ item: Record<string, any>; index: number; column: DataTableColumn; body: TableBodySlotProps } | null>(null)
 
+    // The action sheet is a full-width overlay with a dark scrim. Vuetify keeps
+    // the last sheet mounted, so a stale open state after a refresh, a page
+    // change or a filter that removes the row would leave the scrim covering
+    // the whole page. Reset it whenever the rows change and on unmount.
+    watch(() => attrs.items, () => {
+      actionSheetOpen.value = false
+      actionSheetState.value = null
+    })
+    onBeforeUnmount(() => {
+      actionSheetOpen.value = false
+      actionSheetState.value = null
+    })
+
     const localized = (key: string, fallback: string) => {
       const value = t(key)
 
@@ -390,7 +403,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
       const openActions = (event: Event) => {
         event.stopPropagation()
-        if (!actionColumn)
+        if (!actionColumn || !mobileActionNodes.length)
           return
         actionSheetState.value = { item, index, column: actionColumn, body }
         actionSheetOpen.value = true
@@ -607,7 +620,10 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       return localized('common.messages.actions', 'Action')
     }
 
-    const closeActionSheet = () => { actionSheetOpen.value = false }
+    const closeActionSheet = () => {
+      actionSheetOpen.value = false
+      actionSheetState.value = null
+    }
 
     const renderMobileAction = (node: VNode, index: number) => {
       const name = componentName(node)
@@ -721,11 +737,15 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
       const actions = collectActionNodes(actionContent || undefined)
 
-      const sheet = h(VBottomSheet, {
-        'modelValue': actionSheetOpen.value,
-        'inset': true,
-        'onUpdate:modelValue': (value: boolean) => { actionSheetOpen.value = value },
-      }, {
+      // Render the sheet only while it is needed. Keeping a closed sheet in
+      // the tree is what lets a stale `actionSheetOpen` paint its scrim over
+      // the page after navigation or a data refresh.
+      const sheet = actionSheetOpen.value && actionState
+        ? h(VBottomSheet, {
+          'modelValue': true,
+          'inset': true,
+          'onUpdate:modelValue': (value: boolean) => { actionSheetOpen.value = value },
+        }, {
         default: () => h(VCard, { class: 'responsive-data-table__action-sheet' }, {
           default: () => [
             h(VCardItem, {}, {
@@ -737,6 +757,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
           ],
         }),
       })
+        : null
 
       return h('div', { class: 'responsive-data-table__root', ref: tableRoot }, [
         table,

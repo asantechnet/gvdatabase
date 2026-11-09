@@ -221,6 +221,7 @@ const downloadingId = ref<number | null>(null)
 
 const universities = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
+const countries = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
 const admissionEmployees = ref<Employee[]>([])
 const uniDialog = ref(false)
@@ -947,7 +948,7 @@ async function uploadDocument() {
       // Reuse the task's input-attachment flow: documents therefore retain
       // the same access controls, audit trail, download handling, and file
       // limits as the assigned case task.
-      await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value, 'input')
+      await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value)
       await load()
       toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
     }
@@ -967,15 +968,17 @@ onMounted(async () => {
   await loadBoards()
 
   try {
-    const [universityRows, semesterRows, employeeRows, admissionRows] = await Promise.all([
+    const [universityRows, semesterRows, countryRows, employeeRows, admissionRows] = await Promise.all([
       MasterDataApi.list('universities'),
       MasterDataApi.list('semesters'),
+      MasterDataApi.list('countries'),
       EmployeeApi.getOptions(),
       canAssignAdmission.value ? EmployeeApi.getAssignmentOptions('admission') : Promise.resolve([]),
     ])
 
     universities.value = universityRows
     semesters.value = semesterRows
+    countries.value = countryRows
     employees.value = employeeRows
     admissionEmployees.value = admissionRows
   }

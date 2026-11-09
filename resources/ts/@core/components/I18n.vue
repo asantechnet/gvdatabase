@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { I18nLanguage } from "@layouts/types";
+import afFlag from "@/assets/flags/af.svg?url";
+import gbFlag from "@/assets/flags/gb.svg?url";
 import { loadLocale } from "@/plugins/i18n";
-import { Icon } from "@iconify/vue";
 
 interface Props {
   languages: I18nLanguage[];
@@ -17,8 +18,10 @@ const { locale } = useI18n({ useScope: "global" });
 const activeLanguage = computed(() =>
   props.languages.find((language) => language.i18nLang === locale.value),
 );
+// Bundle the flags with the app. `@iconify/vue` fetches remotely, which leaves
+// a blank space in the navbar whenever the Iconify API is blocked or offline.
 const languageFlag = (language: string) =>
-  language === "en" ? "flag:gb-4x3" : "flag:af-4x3";
+  language === "en" ? gbFlag : afFlag;
 
 // Locales other than the default one live in their own chunk. Load the target
 // locale before switching so the UI never renders untranslated keys.
@@ -36,13 +39,14 @@ const switchLocale = async (next: string) => {
     class="language-switcher"
     :aria-label="activeLanguage ? $t(activeLanguage.label) : locale"
   >
-    <Icon
-      :icon="languageFlag(locale)"
+    <img
+      :src="languageFlag(locale)"
       width="23"
       height="17"
       class="language-switcher__flag"
+      alt=""
       aria-hidden="true"
-    />
+    >
 
     <!-- Menu -->
     <VMenu
@@ -61,13 +65,14 @@ const switchLocale = async (next: string) => {
           @click="switchLocale(lang.i18nLang)"
         >
           <template #prepend>
-            <Icon
-              :icon="languageFlag(lang.i18nLang)"
+            <img
+              :src="languageFlag(lang.i18nLang)"
               width="22"
               height="17"
               class="me-3"
+              alt=""
               aria-hidden="true"
-            />
+            >
           </template>
           <!-- Language label -->
           <VListItemTitle>
@@ -88,5 +93,7 @@ const switchLocale = async (next: string) => {
 .language-switcher :deep(.language-switcher__flag) {
   inline-size: 23px !important;
   block-size: 17px !important;
+  object-fit: cover;
+  border-radius: 2px;
 }
 </style>

@@ -4,7 +4,7 @@ import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
 import ApplicantApi, { type Applicant, type ApplicantStage, type BuiltInService, type ApplicantPayload, type ApplicantListParams, type ConsultantReview, applicantServicePayload } from '@/api/applicants'
@@ -166,6 +166,15 @@ const setReportRows = (source: Applicant[]) => { reportRows.value = source.map(r
 const createDialog = ref(false)
 const creating = ref(false)
 const reviewDialog = ref(false)
+
+// A modal scrim must never outlive the page. Closing the dialogs before the
+// route changes prevents the dark overlay from covering the next page when the
+// user leaves via browser back/forward or a deep link.
+onBeforeRouteLeave(() => {
+  filterDialog.value = false
+  createDialog.value = false
+  reviewDialog.value = false
+})
 const reviewApplicant = ref<Applicant | null>(null)
 const consultantReview = ref<ConsultantReview | ''>('')
 const reviewOptions = computed(() => [

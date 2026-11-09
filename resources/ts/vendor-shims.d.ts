@@ -1,3 +1,8 @@
+declare module '*.svg?url' {
+  const src: string
+  export default src
+}
+
 declare module 'frappe-gantt'
 declare module 'quill'
 declare module 'vue-shepherd'
