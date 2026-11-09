@@ -14,6 +14,12 @@ import {
 } from 'vuetify/components'
 import TableScrollAffordance from '../TableScrollAffordance.vue'
 import TablePaginationFooter from './TablePaginationFooter.vue'
+import AuditTrailButton from '../audit/AuditTrailButton.vue'
+import AuditTrailCell from '../audit/AuditTrailCell.vue'
+import AuditTrailLegend from '../audit/AuditTrailLegend.vue'
+import { useAuditTrail } from '@/composables/useAuditTrail'
+import type { AuditTrailRow } from '@/api/auditTrail'
+import { auditTrailRowClass, auditTrailState, changedFieldForColumn } from '@/utils/auditTrail'
 
 interface DataTableColumn {
   key: string
@@ -183,6 +189,12 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       type: Boolean,
       default: true,
     },
+    // Audit colouring is enabled in Settings → Operations. A register that
+    // cannot accommodate the rail or row action can opt out here.
+    auditTrail: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props, { attrs, slots }) {
     const { t } = useI18n({ useScope: 'global' })
@@ -195,6 +207,60 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     })
     const stickyActions = computed(() => props.stickyActionColumn ?? lastColumnIsAction.value)
     const stickyKey = computed(() => props.stickyKeyColumn ?? stickyActions.value)
+
+    const tableItems = computed<Record<string, any>[]>(() => Array.isArray(attrs.items)
+      ? attrs.items as Record<string, any>[]
+      : [])
+    const auditTrailEnabled = computed(() => props.auditTrail)
+    const audit = useAuditTrail(() => tableItems.value, { enabled: auditTrailEnabled })
+    const auditRowId = (item: Record<string, any>) => Number(getValue(item, String(attrs.itemValue || 'id')))
+    const trailForRow = (item: Record<string, any>) => audit.trailFor(auditRowId(item))
+    const activeTrails = computed(() => tableItems.value
+      .map(item => trailForRow(item))
+      .filter((trail): trail is AuditTrailRow => Boolean(trail)))
+    const showAuditTrail = computed(() => props.auditTrail
+      && audit.enabled.value
+      && audit.allowed.value
+      && activeTrails.value.length > 0)
+    const auditLegendStates = computed(() => [...new Set(activeTrails.value.map(trail => auditTrailState(trail.event)))]
+      .filter(state => state !== 'neutral'))
+    // Append the audit action only when the current page has at least one
+    // audited row, so an unaudited register never gains an empty column.
+    const renderedHeaders = computed(() => {
+      const headers = headerColumns.value
+
+      if (!showAuditTrail.value || !headers.length || headers.some(column => column.key === 'audit_trail'))
+        return attrs.headers
+
+      const column: DataTableColumn = {
+        key: 'audit_trail',
+        title: '',
+        align: 'end',
+        width: 56,
+        sortable: false,
+        class: 'audit-trail-column',
+      }
+      const last = headers[headers.length - 1]
+
+      return last && isActionColumn(last)
+        ? [...headers.slice(0, -1), column, last]
+        : [...headers, column]
+    })
+    const auditRowProps = (data: any) => {
+      const base = typeof attrs.rowProps === 'function' ? attrs.rowProps(data) : (attrs.rowProps || {})
+      const trail = trailForRow(data?.item)
+
+      if (!trail)
+        return base
+
+      const state = auditTrailState(trail.event)
+
+      return {
+        ...base,
+        class: [base?.class, auditTrailRowClass(trail)],
+        'data-audit-state': state,
+      }
+    }
 
     const tableRoot = ref<HTMLElement | null>(null)
     const hasHorizontalOverflow = ref(false)
@@ -329,6 +395,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
       const internalItem = body.internalItems?.find(candidate => candidate.raw === item)
       const key = itemKey(item, index)
+      const trail = trailForRow(item)
 
       const titleProps: DataTableSlotProps = {
         index,
@@ -434,7 +501,12 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
 
       return h(VCard, {
         key,
-        class: ['responsive-data-table__card', isExpanded && 'responsive-data-table__card--expanded'],
+        class: [
+          'responsive-data-table__card',
+          isExpanded && 'responsive-data-table__card--expanded',
+          trail && auditTrailRowClass(trail),
+        ],
+        'data-audit-state': trail ? auditTrailState(trail.event) : undefined,
         variant: 'outlined',
         elevation: 0,
       }, {
@@ -585,7 +657,7 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       loadingText: attrs.loadingText,
       noDataText: attrs.noDataText,
       hideNoData: attrs.hideNoData,
-      rowProps: attrs.rowProps,
+      rowProps: activeTrails.value.length ? auditRowProps : attrs.rowProps,
       cellProps: attrs.cellProps,
       density: attrs.density,
       mobileBreakpoint: props.mobileBreakpoint,
@@ -667,14 +739,51 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
     }
 
     return () => {
-      const tableSlots: Record<string, any> = {
-        ...slots,
-        body: (body: TableBodySlotProps) => attrs.loading && props.skeletonRows > 0
-          ? (mobile.value ? renderMobileSkeleton(body) : renderDesktopSkeleton(body))
-          : slots.body
-            ? slots.body(body as any)
-            : mobile.value ? renderMobileBody(body) : renderDesktopBody(body),
+      const tableSlots: Record<string, any> = { ...slots }
+
+      if (showAuditTrail.value) {
+        // Only wrap columns that actually changed in the current page. Cells
+        // without a mapped change keep their original slot and formatting.
+        for (const column of headerColumns.value) {
+          if (isSpecialColumn(column) || column.key === 'audit_trail')
+            continue
+          if (!activeTrails.value.some(trail => changedFieldForColumn(trail, column.key)))
+            continue
+
+          const original = slots[`item.${column.key}`]
+
+          tableSlots[`item.${column.key}`] = (slotProps: DataTableSlotProps) => {
+            const content = original
+              ? original(slotProps as any)
+              : String(getValue(slotProps.item, column.key) ?? '—')
+            const trail = trailForRow(slotProps.item)
+            const change = changedFieldForColumn(trail, column.key)
+
+            if (!change)
+              return content
+
+            return h(AuditTrailCell as any, { change }, { default: () => content })
+          }
+        }
+
+        tableSlots['item.audit_trail'] = (slotProps: DataTableSlotProps) => {
+          const trail = trailForRow(slotProps.item)
+
+          if (!trail)
+            return null
+
+          return h(AuditTrailButton as any, {
+            trail,
+            subject: String((slotProps.item as any)?.name ?? (slotProps.item as any)?.title ?? ''),
+          })
+        }
       }
+
+      tableSlots.body = (body: TableBodySlotProps) => attrs.loading && props.skeletonRows > 0
+        ? (mobile.value ? renderMobileSkeleton(body) : renderDesktopSkeleton(body))
+        : slots.body
+          ? slots.body(body as any)
+          : mobile.value ? renderMobileBody(body) : renderDesktopBody(body)
 
       if (props.pagination) {
         tableSlots.footer = (footer: any) => {
@@ -706,7 +815,9 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       // The row-shaped loader below replaces Vuetify's default progress
       // indicator. Do not pass `loading` through in that mode, otherwise the
       // table renders both loading treatments at once.
-      const tableAttrs = { ...attrs }
+      const tableAttrs: Record<string, any> = { ...attrs, headers: renderedHeaders.value }
+      if (activeTrails.value.length)
+        tableAttrs.rowProps = auditRowProps
       if (props.skeletonRows > 0)
         delete tableAttrs.loading
 
@@ -760,6 +871,9 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
         : null
 
       return h('div', { class: 'responsive-data-table__root', ref: tableRoot }, [
+        showAuditTrail.value
+          ? h(AuditTrailLegend, { states: auditLegendStates.value })
+          : null,
         table,
         props.showScrollAffordance && hasHorizontalOverflow.value
           ? h(TableScrollAffordance, {

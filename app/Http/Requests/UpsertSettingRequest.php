@@ -110,6 +110,9 @@ class UpsertSettingRequest extends FormRequest
             'automatic_attendance_enabled' => ['sometimes', 'boolean'],
             'academy_enabled' => ['sometimes', 'boolean'],
             'missing_attendance_status' => ['sometimes', 'required', Rule::in(['present', 'absent', 'off_day'])],
+            // Optional presentation aid: historical audit rows remain readable
+            // in the Audits page whether or not the register colouring is on.
+            'audit_coloring_enabled' => ['sometimes', 'boolean'],
         ];
     }
 

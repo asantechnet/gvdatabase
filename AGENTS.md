@@ -109,6 +109,12 @@ Rules:
 - Notification producers are permission/role-scoped by the producer: task assignment notifies each assignee (`taskAssigned`), draft finance records notify `approve_draft_finance_records` holders (`financeDraftSubmitted`, key `finance.draft.submitted.{kind}.{id}`) and their approval/rejection notifies the recorder (`financeDraftStatusChanged`), and contract creation notifies the applicant's responsible and admission employees plus the seller (`contractGenerated`).
 - Audits have a parallel real-time channel. `AuditLog::created` raises `users.unread_audit_logs` in one bulk `UPDATE` scoped to active holders of `view_audit_logs` / `view_team_audit_logs` (plus super admins); `GET /api/audit-logs/heartbeat` returns rows after the user's `audit_logs_seen_id` cursor, then advances the cursor and clears the flag inside a row-locked transaction. Register it before the audit-log resource routes. The flag write is skipped until its migration has run, because earlier migrations create audited models. `resources/ts/composables/useAuditHeartbeat.ts` polls every 30s and drives `NavBarAuditLogs`; one notice per batch, never per row.
 
+## Optional audit colouring in registers
+
+- `settings.audit_coloring_enabled` (default `false`) controls the Created/Changed/Deleted rail, changed-cell emphasis and audit-history action in register tables. It is edited in Settings → Operations (`edit_settings`) and read from the public company-branding payload so every signed-in user can gate the display without the settings grant.
+- `GET /api/audit-logs/row-trails` returns the latest caller-visible audit per record for 1–100 ids under `view_audit_logs`, reusing the Audits page team scope. It is registered before `audit-logs/{auditLog}` so the literal segment is never bound as an id.
+- The shared `responsive-data-table` appends the legend, inline-start rail, changed-cell emphasis and `tabler-history` action from one bounded quiet request per page. Raw-table pages use `useAuditTrail` and the same components. Enrichment failure, missing permission, disabled audit scope or no history leaves the existing table unchanged; audit history is never affected by the display toggle.
+
 ## PWA and offline caching
 
 - Read `docs/facts/pwa.md` before changing PWA, caching, release identity or update behavior. It is the maintained behavior reference; `docs/ai` contains historical implementation records. Update facts and lifecycle regression tests with behavior changes.

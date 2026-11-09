@@ -81,6 +81,7 @@ class SettingResource extends JsonResource
             'missing_attendance_status' => in_array($this->missing_attendance_status, ['present', 'absent', 'off_day'], true)
                 ? $this->missing_attendance_status
                 : 'absent',
+            'audit_coloring_enabled' => (bool) ($this->audit_coloring_enabled ?? false),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

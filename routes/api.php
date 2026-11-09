@@ -15,6 +15,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceGeofenceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuditResourceController;
+use App\Http\Controllers\AuditTrailController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AutomationController;
 use App\Http\Controllers\BoardController;
@@ -552,6 +553,9 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // rows to their group; organisation-wide review needs view_all_audits.
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view_audit_logs,view_team_audit_logs');
     Route::get('audit-logs/pending-count', [AuditLogController::class, 'pendingCount'])->middleware('permission:view_audit_logs,view_team_audit_logs');
+    // Latest audit state for a bounded set of register rows. Registered before
+    // `audit-logs/{auditLog}` so the literal segment is not bound as an id.
+    Route::get('audit-logs/row-trails', [AuditTrailController::class, 'index'])->middleware('permission:view_audit_logs');
     // Must precede `audit-logs/{auditLog}` so the route binding cannot swallow
     // the heartbeat segment. The endpoint drains a per-user flag exactly once.
     Route::get('audit-logs/heartbeat', [AuditLogController::class, 'heartbeat'])->middleware('permission:view_audit_logs,view_team_audit_logs');

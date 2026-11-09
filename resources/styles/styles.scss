@@ -716,6 +716,85 @@ html[dir='rtl'] .driver-popover-close-btn {
   z-index: 3;
 }
 
+// Optional audit colouring (Settings → Operations). The rail is a logical
+// inline-start stripe, so RTL registers read correctly. Colour is never the
+// only cue: the legend names each state and changed cells are keyboard
+// focusable with an accessible before → after label.
+.audit-trail-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-block-end: 0.5rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.75rem;
+}
+
+.audit-trail-legend__item {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.audit-trail-legend__swatch {
+  border-radius: 999px;
+  block-size: 0.6rem;
+  inline-size: 0.6rem;
+  background: rgb(var(--v-theme-secondary));
+}
+
+.audit-trail-legend__item--created .audit-trail-legend__swatch { background: rgb(var(--v-theme-success)); }
+.audit-trail-legend__item--updated .audit-trail-legend__swatch { background: rgb(var(--v-theme-warning)); }
+.audit-trail-legend__item--deleted .audit-trail-legend__swatch { background: rgb(var(--v-theme-error)); }
+
+.audit-trail-row--created { --audit-trail-color: rgb(var(--v-theme-success)); }
+.audit-trail-row--updated { --audit-trail-color: rgb(var(--v-theme-warning)); }
+.audit-trail-row--deleted { --audit-trail-color: rgb(var(--v-theme-error)); }
+
+.responsive-data-table .v-table__wrapper > table > tbody > tr.audit-trail-row > td:first-child {
+  position: relative;
+}
+
+.responsive-data-table .v-table__wrapper > table > tbody > tr.audit-trail-row > td:first-child::before {
+  position: absolute;
+  content: '';
+  background: var(--audit-trail-color, rgb(var(--v-theme-secondary)));
+  inline-size: 3px;
+  inset-block: 0;
+  inset-inline-start: 0;
+}
+
+.responsive-data-table__card.audit-trail-row {
+  border-inline-start: 3px solid var(--audit-trail-color, rgb(var(--v-theme-secondary)));
+}
+
+.audit-trail-cell--changed {
+  border-radius: 4px;
+  background: rgb(var(--v-theme-warning) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--v-theme-warning) / 0.35);
+  padding-inline: 0.25rem;
+}
+
+.audit-trail-cell--changed:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-warning));
+  outline-offset: 2px;
+}
+
+.audit-trail-column {
+  inline-size: 56px;
+}
+
+.audit-trail-button {
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audit-trail-row,
+  .audit-trail-cell--changed {
+    transition: none;
+  }
+}
+
 .data-table-page-summary__heading {
   align-items: flex-start;
   display: flex;
