@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useDebounceFn } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import { useCookie } from "@core/composable/useCookie";
 import { useToast } from "vue-toastification";
@@ -16,7 +17,10 @@ import {
   translateApplicantStage,
 } from "@/utils/localization";
 import TableEmptyState from "@/components/TableEmptyState.vue";
-import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
+import ErpField from "@/components/erp/ErpField.vue";
+import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
+import ErpSearchField from "@/components/erp/ErpSearchField.vue";
+import DataTableFilterMenu from "@/components/responsive-data-table/DataTableFilterMenu.vue";
 import { moveRowIdFirst } from "@/utils/createdFirst";
 
 const { t } = useI18n();
@@ -28,11 +32,16 @@ const userData = useCookie<{ roles?: string[] } | null>("userData");
 const loading = ref(false);
 const activeTab = ref<"accruals" | "settlements">("accruals");
 const accruals = ref<CommissionAccrual[]>([]);
+const settlementAccruals = ref<CommissionAccrual[]>([]);
 const settlements = ref<CommissionSettlement[]>([]);
 const summary = ref<CommissionSummary[]>([]);
 const employees = ref<Employee[]>([]);
 const employeeFilter = ref<number | null>(null);
 const statusFilter = ref<string | null>(null);
+const startDateFilter = ref("");
+const endDateFilter = ref("");
+const search = ref("");
+const loadingSettlementAccruals = ref(false);
 const dialog = ref(false);
 const adjustmentDialog = ref(false);
 const paymentDialog = ref(false);
@@ -66,16 +75,10 @@ const commissionEmployees = computed(() =>
 const isSuperAdmin = computed(
   () => userData.value?.roles?.includes("super_admin") ?? false,
 );
-const filteredAccruals = computed(() =>
-  accruals.value.filter(
-    (row) => !employeeFilter.value || row.employee_id === employeeFilter.value,
-  ),
-);
-
 const pendingCurrencies = computed(() => {
   const ids = new Set<number>();
 
-  return accruals.value
+  return settlementAccruals.value
     .filter(
       (row) =>
         row.status === "pending" &&
@@ -95,7 +98,7 @@ const summaryCards = computed(() =>
 );
 
 const settlementCandidates = computed(() =>
-  accruals.value.filter(
+  settlementAccruals.value.filter(
     (row) =>
       row.status === "pending" &&
       row.employee_id === form.value.employee_id &&
@@ -126,6 +129,23 @@ const selectAllSettlementCandidates = () => {
   selectedAccrualIds.value = settlementCandidates.value.map((row) => row.id);
 };
 
+const loadSettlementAccruals = async () => {
+  if (!form.value.employee_id) {
+    settlementAccruals.value = [];
+    return;
+  }
+
+  loadingSettlementAccruals.value = true;
+  try {
+    settlementAccruals.value = await CommissionApi.accruals({
+      employee_id: form.value.employee_id,
+      status: "pending",
+    });
+  } finally {
+    loadingSettlementAccruals.value = false;
+  }
+};
+
 watch(
   [
     () => form.value.employee_id,
@@ -135,6 +155,14 @@ watch(
   ],
   selectAllSettlementCandidates,
 );
+
+watch(() => form.value.employee_id, () => {
+  if (dialog.value) loadSettlementAccruals();
+});
+
+watch(dialog, visible => {
+  if (visible) loadSettlementAccruals();
+});
 
 const ledgerCurrencies = computed(() => {
   const rows = [
@@ -165,6 +193,16 @@ const money = (
       : undefined,
   );
 
+const dockDialogCalendar = (_selectedDates: Date[], _dateString: string, instance: any) => {
+  window.setTimeout(() => {
+    const calendar = instance?.calendarContainer as HTMLElement | undefined;
+    if (!calendar) return;
+    calendar.style.transform = "translateY(0) scale(0.86)";
+    calendar.style.transformOrigin = "top left";
+    calendar.style.zIndex = "3100";
+  });
+};
+
 const statusColor = (status: string) =>
   ({
     pending: "warning",
@@ -187,12 +225,19 @@ const load = async () => {
   try {
     const [accrualRows, settlementRows, summaryRows, employeeRows] =
       await Promise.all([
-        CommissionApi.accruals(),
+        CommissionApi.accruals({
+          ...(employeeFilter.value ? { employee_id: employeeFilter.value } : {}),
+          ...(activeTab.value === "accruals" && statusFilter.value ? { status: statusFilter.value } : {}),
+          ...(startDateFilter.value ? { start_date: startDateFilter.value } : {}),
+          ...(endDateFilter.value ? { end_date: endDateFilter.value } : {}),
+          ...(search.value.trim() ? { search: search.value.trim() } : {}),
+        }),
         CommissionApi.settlements({
           ...(employeeFilter.value
             ? { employee_id: employeeFilter.value }
             : {}),
-          ...(statusFilter.value ? { status: statusFilter.value } : {}),
+          ...(activeTab.value === "settlements" && statusFilter.value ? { status: statusFilter.value } : {}),
+          ...(search.value.trim() ? { search: search.value.trim() } : {}),
         }),
         CommissionApi.summary(
           employeeFilter.value
@@ -210,6 +255,21 @@ const load = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const searchLedger = useDebounceFn(load, 300);
+watch(search, searchLedger);
+watch(activeTab, () => {
+  statusFilter.value = null;
+  load();
+});
+
+const resetFilters = () => {
+  employeeFilter.value = null;
+  statusFilter.value = null;
+  startDateFilter.value = "";
+  endDateFilter.value = "";
+  load();
 };
 
 const syncCases = async () => {
@@ -348,46 +408,7 @@ onMounted(load);
 
 <template>
   <div class="erp-workspace">
-    <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
-      <div>
-        <h1 class="text-h5 font-weight-bold">
-          {{ tr("title") }}
-        </h1>
-        <p class="text-medium-emphasis mb-0">
-          {{ tr("subtitle") }}
-        </p>
-      </div>
-      <div class="d-flex flex-wrap ga-2">
-        <VBtn
-          v-if="canAccess('manage_commission_settlements')"
-          variant="tonal"
-          prepend-icon="tabler-refresh"
-          :loading="loading"
-          @click="syncCases"
-        >
-          {{ tr("reconcile") }}
-        </VBtn>
-        <VBtn
-          v-if="canAccess('manage_commission_settlements')"
-          variant="tonal"
-          prepend-icon="tabler-adjustments"
-          @click="
-            adjustmentForm.employee_id = employeeFilter;
-            adjustmentDialog = true;
-          "
-        >
-          {{ tr("addAdjustment") }}
-        </VBtn>
-        <VBtn
-          v-if="canAccess('manage_commission_settlements')"
-          color="primary"
-          prepend-icon="tabler-plus"
-          @click="openSettlement"
-        >
-          {{ tr("newSettlement") }}
-        </VBtn>
-      </div>
-    </div>
+    <ErpPageHeader :title="tr('title')" section="finance" class="mb-5" />
 
     <VRow class="mb-3">
       <VCol
@@ -417,47 +438,21 @@ onMounted(load);
 
     <VCard>
       <VCardText>
-        <VRow align="center">
-          <VCol cols="12" md="4">
-            <VSelect
-              v-model="employeeFilter"
-              :items="commissionEmployees"
-              item-title="name"
-              item-value="id"
-              :label="tr('employee')"
-              clearable
-              hide-details
-              @update:model-value="load"
-            />
-          </VCol>
-          <VCol cols="12" md="4">
-            <VSelect
-              v-if="activeTab === 'settlements'"
-              v-model="statusFilter"
-              :items="
-                ['draft', 'approved', 'paid', 'cancelled'].map((value) => ({
-                  title: statusLabel(value),
-                  value,
-                }))
-              "
-              :label="tr('settlementStatus')"
-              clearable
-              hide-details
-              @update:model-value="load"
-            />
-          </VCol>
-          <VCol cols="12" md="4" class="text-md-end">
-            <VBtn
-              variant="text"
-              prepend-icon="tabler-refresh"
-              :loading="loading"
-              @click="load"
-            >
-              {{ tr("refresh") }}
-            </VBtn>
+        <VRow align="center" class="ga-y-3">
+          <VCol cols="12" md="5"><ErpSearchField v-model="search" :placeholder="$t('common.actions.search')" :disabled="loading" /></VCol>
+          <VCol cols="12" md="7" class="d-flex flex-wrap align-center justify-md-end ga-2">
+            <DataTableFilterMenu :active="Boolean(employeeFilter || statusFilter || startDateFilter || endDateFilter)" @reset="resetFilters">
+              <ErpField v-model="employeeFilter" kind="select" :items="commissionEmployees" item-title="name" item-value="id" :label="tr('employee')" :placeholder="tr('employee')" clearable />
+              <ErpField v-model="statusFilter" kind="select" :items="(activeTab === 'accruals' ? ['pending', 'approved', 'paid', 'void'] : ['draft', 'approved', 'paid', 'cancelled']).map(value => ({ title: statusLabel(value), value }))" :label="tr('settlementStatus')" :placeholder="tr('settlementStatus')" clearable />
+              <template v-if="activeTab === 'accruals'"><ErpField v-model="startDateFilter" kind="date" :label="tr('periodStart')" :placeholder="tr('periodStart')" :config="{ dateFormat: 'Y-m-d' }" /><ErpField v-model="endDateFilter" kind="date" :label="tr('periodEnd')" :placeholder="tr('periodEnd')" :config="{ dateFormat: 'Y-m-d' }" /></template>
+              <template #actions><VBtn variant="tonal" color="secondary" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="load">{{ $t('educational.apply') }}</VBtn></template>
+            </DataTableFilterMenu>
+            <VBtn v-if="canAccess('manage_commission_settlements')" size="small" variant="tonal" prepend-icon="tabler-refresh" :loading="loading" @click="syncCases">{{ tr('reconcile') }}</VBtn>
+            <VBtn v-if="canAccess('manage_commission_settlements')" size="small" variant="tonal" prepend-icon="tabler-adjustments" @click="adjustmentForm.employee_id = employeeFilter; adjustmentDialog = true">{{ tr('addAdjustment') }}</VBtn>
+            <VBtn v-if="canAccess('manage_commission_settlements')" size="small" color="primary" prepend-icon="tabler-plus" @click="openSettlement">{{ tr('newSettlement') }}</VBtn>
           </VCol>
         </VRow>
-        <VTabs v-model="activeTab" class="mt-4">
+        <VTabs v-model="activeTab" class="mt-4 commission-tabs">
           <VTab value="accruals">{{ tr("accruals") }}</VTab>
           <VTab value="settlements">{{ tr("settlements") }}</VTab>
         </VTabs>
@@ -467,9 +462,15 @@ onMounted(load);
         <VWindowItem value="accruals">
           <ResponsiveDataTable
             :loading="loading"
-            :items="filteredAccruals"
+            :items="accruals"
             pagination
+            :skeleton-rows="5"
+            class="commission-table"
             mobile-cards
+            mobile-title-key="employee"
+            :sticky-first-column="false"
+            :sticky-last-column="false"
+            :sticky-key-column="false"
             :mobile-fields="[
               'earned_at',
               'entry_type',
@@ -520,15 +521,10 @@ onMounted(load);
               },
             ]"
           >
-            <template #loading>
-              <TableLoadingSkeleton
-                :columns="10"
-                :label="$t('common.messages.loading')"
-              />
-            </template>
             <template #no-data>
               <TableEmptyState
                 icon="tabler-receipt-off"
+                :title="$t('common.messages.noRecordsFound')"
                 :description="$t('common.messages.noMatchingRecords')"
               />
             </template>
@@ -604,7 +600,16 @@ onMounted(load);
             :loading="loading"
             :items="settlements"
             pagination
+            :skeleton-rows="5"
+            class="commission-table"
             mobile-cards
+            mobile-title-key="settlement_number"
+            mobile-action-key="actions"
+            mobile-actions-as-menu
+            :sticky-first-column="false"
+            :sticky-last-column="false"
+            :sticky-key-column="false"
+            :sticky-action-column="false"
             :mobile-fields="['employee', 'period', 'gross_base_amount', 'status']"
             :headers="[
               {
@@ -642,15 +647,10 @@ onMounted(load);
               },
             ]"
           >
-            <template #loading>
-              <TableLoadingSkeleton
-                :columns="8"
-                :label="$t('common.messages.loading')"
-              />
-            </template>
             <template #no-data>
               <TableEmptyState
                 icon="tabler-receipt-off"
+                :title="$t('common.messages.noRecordsFound')"
                 :description="$t('common.messages.noMatchingRecords')"
               />
             </template>
@@ -674,93 +674,71 @@ onMounted(load);
               item.payment_date ?? "—"
             }}</template>
             <template #item.actions="{ item }">
-              <div class="d-flex ga-1">
-                <VBtn
-                  size="small"
-                  variant="text"
-                  prepend-icon="tabler-printer"
-                  @click="openSlip(item)"
-                  >{{ tr("printSlip") }}</VBtn
-                >
-                <VBtn
-                  v-if="
-                    item.status === 'draft' && canAccess('approve_commissions')
-                  "
-                  size="small"
-                  variant="tonal"
-                  @click="approve(item)"
-                  >{{ tr("approve") }}</VBtn
-                >
-                <VBtn
-                  v-if="
-                    (item.status === 'approved' ||
-                      (isSuperAdmin && item.status === 'draft')) &&
-                    canAccess('pay_commissions')
-                  "
-                  size="small"
-                  color="success"
-                  variant="tonal"
-                  @click="openPayment(item)"
-                  >{{ tr("pay") }}</VBtn
-                >
-                <VBtn
-                  v-if="
-                    ['draft', 'approved'].includes(item.status) &&
-                    canAccess('manage_commission_settlements')
-                  "
-                  size="small"
-                  color="error"
-                  variant="text"
-                  @click="cancel(item)"
-                  >{{ tr("cancel") }}</VBtn
-                >
-              </div>
+              <VMenu location="bottom end" content-class="commission-actions-menu">
+                <template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="text" size="small" class="commission-action-trigger" :aria-label="$t('common.messages.actions')"><VIcon icon="tabler-dots-vertical" /></VBtn></template>
+                <VList density="compact" min-width="190" class="commission-actions-menu__list">
+                  <VListItem prepend-icon="tabler-printer" @click="openSlip(item)">{{ tr("printSlip") }}</VListItem>
+                  <VListItem v-if="item.status === 'draft' && canAccess('approve_commissions')" color="primary" prepend-icon="tabler-check" @click="approve(item)">{{ tr("approve") }}</VListItem>
+                  <VListItem v-if="(item.status === 'approved' || (isSuperAdmin && item.status === 'draft')) && canAccess('pay_commissions')" color="success" prepend-icon="tabler-cash" @click="openPayment(item)">{{ tr("pay") }}</VListItem>
+                  <VListItem v-if="['draft', 'approved'].includes(item.status) && canAccess('manage_commission_settlements')" color="error" prepend-icon="tabler-x" @click="cancel(item)">{{ tr("cancel") }}</VListItem>
+                </VList>
+              </VMenu>
             </template>
           </ResponsiveDataTable>
         </VWindowItem>
       </VWindow>
     </VCard>
 
-    <VDialog v-model="dialog" max-width="900">
-      <VCard :title="tr('createSettlement')">
-        <VCardText>
-          <VRow>
+    <VDialog v-model="dialog" max-width="900" class="commission-form-overlay" content-class="commission-form-dialog">
+      <VCard class="commission-dialog app-form-dialog">
+        <VCardTitle class="commission-dialog__header"><div class="d-flex align-center ga-3"><VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-file-invoice" /></VAvatar><span class="text-h5 font-weight-bold">{{ tr('createSettlement') }}</span></div><VBtn icon size="small" data-confirm-form-cancel class="commission-dialog__close" :aria-label="$t('common.actions.close')" @click="dialog = false"><VIcon icon="tabler-x" /></VBtn></VCardTitle>
+        <VForm class="app-form" @submit.prevent="createSettlement"><VCardText class="pt-5"><VRow>
             <VCol cols="12" md="6">
-              <VSelect
+              <ErpField
                 v-model="form.employee_id"
+                kind="select"
                 :items="commissionEmployees"
                 item-title="name"
                 item-value="id"
                 :label="tr('commissionEmployee')"
+                :placeholder="tr('commissionEmployee')"
+                required
               />
             </VCol>
             <VCol cols="12" md="6">
-              <VSelect
+              <ErpField
                 v-model="form.base_currency_id"
+                kind="select"
                 :items="pendingCurrencies"
                 item-title="title"
                 item-value="id"
                 :label="tr('accrualCurrency')"
+                :placeholder="tr('accrualCurrency')"
+                required
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <AppDateTimePicker
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model="form.period_start"
+                kind="date"
                 :label="tr('periodStart')"
-                :config="{ dateFormat: 'Y-m-d' }"
-                class="w-100"
+                :placeholder="tr('periodStart')"
+                :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
+                required
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <AppDateTimePicker
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model="form.period_end"
+                kind="date"
                 :label="tr('periodEnd')"
-                :config="{ dateFormat: 'Y-m-d' }"
-                class="w-100"
+                :placeholder="tr('periodEnd')"
+                :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
+                required
               />
             </VCol>
             <VCol cols="12">
-              <VTextarea v-model="form.notes" :label="tr('notes')" rows="2" />
+              <ErpField v-model="form.notes" kind="textarea" :label="tr('notes')" :placeholder="tr('notes')" rows="2" />
             </VCol>
             <VCol cols="12">
               <VAlert
@@ -796,6 +774,9 @@ onMounted(load);
               <ResponsiveDataTable
                 v-model="selectedAccrualIds"
                 :items="settlementCandidates"
+                :loading="loadingSettlementAccruals"
+                :skeleton-rows="4"
+                class="commission-selection-table"
                 :headers="[
                   {
                     title: t('common.crmUi.commissionHeaders.date'),
@@ -816,11 +797,16 @@ onMounted(load);
                 ]"
                 item-value="id"
                 show-select
+                mobile-cards
+                mobile-title-key="contract_number"
+                :mobile-fields="['earned_at', 'service', 'commission_base_amount']"
                 density="compact"
               >
+                <template #loading><span /></template>
                 <template #no-data
                   ><TableEmptyState
                     icon="tabler-receipt-off"
+                    :title="$t('common.messages.noRecordsFound')"
                     :description="tr('noMatchingAccruals')"
                     min-height="180"
                 /></template>
@@ -832,21 +818,22 @@ onMounted(load);
                 }}</template>
               </ResponsiveDataTable>
             </VCol>
-          </VRow>
-        </VCardText>
-        <VCardActions>
+          </VRow></VCardText>
+        <VCardActions class="commission-dialog__footer">
           <VSpacer />
-          <VBtn variant="text" @click="dialog = false">{{ tr("cancel") }}</VBtn>
+          <VBtn data-confirm-form-cancel class="commission-dialog__cancel" @click="dialog = false">{{ tr("cancel") }}</VBtn>
           <VBtn
+            color="primary"
+            variant="flat"
+            type="submit"
             :loading="loading"
             :disabled="
               !selectedSettlementAccruals.length || settlementTotal <= 0
             "
-            @click="createSettlement"
           >
             {{ isSuperAdmin ? tr("createSettlement") : tr("createDraft") }}
           </VBtn>
-        </VCardActions>
+        </VCardActions></VForm>
       </VCard>
     </VDialog>
 
@@ -873,68 +860,81 @@ onMounted(load);
       </VCard>
     </VDialog>
 
-    <VDialog v-model="adjustmentDialog" max-width="600">
-      <VCard :title="tr('addAdjustment')">
-        <VCardText>
+    <VDialog v-model="adjustmentDialog" max-width="600" class="commission-form-overlay" content-class="commission-form-dialog">
+      <VCard class="commission-dialog app-form-dialog">
+        <VCardTitle class="commission-dialog__header"><div class="d-flex align-center ga-3"><VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-adjustments" /></VAvatar><span class="text-h5 font-weight-bold">{{ tr('addAdjustment') }}</span></div><VBtn icon size="small" data-confirm-form-cancel class="commission-dialog__close" :aria-label="$t('common.actions.close')" @click="adjustmentDialog = false"><VIcon icon="tabler-x" /></VBtn></VCardTitle>
+        <VForm class="app-form" @submit.prevent="createAdjustment"><VCardText class="pt-5">
           <VAlert type="warning" variant="tonal" class="mb-4">{{
             tr("adjustmentWarning")
           }}</VAlert>
           <VRow>
-            <VCol cols="12">
-              <VSelect
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model="adjustmentForm.employee_id"
+                kind="select"
                 :items="commissionEmployees"
                 item-title="name"
                 item-value="id"
                 :label="tr('commissionEmployee')"
+                :placeholder="tr('commissionEmployee')"
+                required
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <VLabel class="mb-1">{{ tr("currency") }}</VLabel>
-              <VSelect
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model="adjustmentForm.base_currency_id"
+                kind="select"
                 :items="ledgerCurrencies"
                 item-title="title"
                 item-value="id"
-                hide-details
+                :label="tr('currency')"
+                :placeholder="tr('currency')"
+                required
               />
             </VCol>
-            <VCol cols="12" sm="6">
-              <AppDateTimePicker
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model="adjustmentForm.effective_date"
+                kind="date"
                 :label="tr('effectiveDate')"
-                :config="{ dateFormat: 'Y-m-d' }"
-                class="w-100"
+                :placeholder="tr('effectiveDate')"
+                :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
+                required
               />
             </VCol>
-            <VCol cols="12">
-              <VTextField
+            <VCol cols="12" md="6">
+              <ErpField
                 v-model.number="adjustmentForm.amount"
                 type="number"
                 step="0.01"
                 :label="tr('signedAmount')"
+                :placeholder="tr('signedAmount')"
                 :hint="tr('signedAmountHint')"
                 persistent-hint
+                required
               />
             </VCol>
             <VCol cols="12">
-              <VTextarea
+              <ErpField
                 v-model="adjustmentForm.reason"
+                kind="textarea"
                 :label="tr('reason')"
+                :placeholder="tr('reason')"
                 rows="3"
+                required
               />
             </VCol>
           </VRow>
         </VCardText>
-        <VCardActions>
+        <VCardActions class="commission-dialog__footer">
           <VSpacer />
-          <VBtn variant="text" @click="adjustmentDialog = false">{{
+          <VBtn data-confirm-form-cancel class="commission-dialog__cancel" @click="adjustmentDialog = false">{{
             tr("cancel")
           }}</VBtn>
-          <VBtn :loading="loading" @click="createAdjustment">{{
+          <VBtn color="primary" variant="flat" type="submit" :loading="loading">{{
             tr("addToLedger")
           }}</VBtn>
-        </VCardActions>
+        </VCardActions></VForm>
       </VCard>
     </VDialog>
 
@@ -944,3 +944,35 @@ onMounted(load);
     />
   </div>
 </template>
+
+<style scoped>
+.commission-tabs :deep(.v-slide-group__content) { flex-wrap: wrap; }
+.commission-table :deep(thead th),
+.commission-selection-table :deep(thead th) {
+  height: 48px !important;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important;
+  color: rgb(var(--v-theme-on-surface) / .58) !important;
+  font-size: .68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.commission-table :deep(tbody td) { min-block-size: 66px; }
+.commission-table :deep(tbody td:last-child) { background: rgba(var(--v-theme-on-surface), .035); }
+.commission-dialog { overflow: hidden; }
+.commission-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-block-end: 1px solid rgba(var(--v-theme-on-surface), .07); }
+.commission-dialog__footer { padding: 1rem 1.5rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); border-block-start: 1px solid rgba(var(--v-theme-on-surface), .07); }
+.commission-dialog__close { min-inline-size: 2.25rem !important; block-size: 2.25rem !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .14) !important; color: rgb(var(--v-theme-error)) !important; }
+.commission-dialog__close :deep(.v-btn__overlay) { opacity: 0 !important; }
+.commission-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .35) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; box-shadow: none !important; }
+.commission-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.commission-form-overlay .v-overlay__scrim),
+:global(.v-overlay:has(.commission-form-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+:global(.commission-actions-menu .commission-actions-menu__list) { display: flex; flex-direction: column; padding-block: .35rem; }
+:global(.commission-actions-menu .v-list-item) { min-block-size: 2.65rem; }
+:global(.commission-action-trigger) { background: rgba(var(--v-theme-on-surface), .07) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
+:global(.commission-action-trigger:hover) { background: rgba(var(--v-theme-on-surface), .13) !important; }
+@media (max-width: 600px) {
+  .commission-dialog__header, .commission-dialog__footer { padding-inline: 1rem; }
+}
+</style>

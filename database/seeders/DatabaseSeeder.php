@@ -63,6 +63,7 @@ class DatabaseSeeder extends Seeder
             AttendanceSeeder::class,
             LeaveRequestSeeder::class,
             SalarySeeder::class,
+            CommissionDemoSeeder::class,
             WorthyEmployeeSeeder::class,
             VisitorSeeder::class,
             // Starter message templates for the WhatsApp quick-contact menus.
