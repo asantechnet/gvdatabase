@@ -98,6 +98,9 @@ class ApplicantContractResource extends JsonResource
             'notes' => $this->notes,
             'status' => $this->contract?->status,
             'contract_number' => $this->contract?->contract_number,
+            // The owning agreement, needed by the service-case workspace. It
+            // must not recursively load every applicant line.
+            'contract' => $this->whenLoaded('contract', fn () => new \App\Http\Resources\ContractResource($this->contract)),
             'contract_role' => $this->contract?->contract_role,
             'parent_contract_number' => $this->contract?->parentContract?->contract_number,
             'is_extension' => (bool) $this->contract?->isExtension(),

@@ -120,8 +120,12 @@
       "amount": "0.00",
       "currency": "اسعار وټاکئ",
       "rate": "لکه 71.25",
-      "admissionNotes": "لکه اسناد بشپړ دي"
-    }
+      "admissionNotes": "لکه اسناد بشپړ دي",
+      "responsibleEmployees": "مسئول کارکوونکي"
+    },
+    "responsibleEmployees": "مسئول کارکوونکي",
+    "responsibleEmployeesOptional": "اختیاري. د دې قضیې مسئول کارکوونکي وټاکئ.",
+    "responsibleEmployeesHint": "د سپارلو دنده او د قضیې خبرتیاوې دې کارکوونکو ته ورکول کیږي."
   },
   "$vuetify": {
     "dataIterator": {
@@ -654,7 +658,8 @@
       "service": "خدمت",
       "position": "دنده",
       "actions": "کړنې",
-      "details": "جزئیات"
+      "details": "جزئیات",
+      "responsibleEmployees": "مسئول کارکوونکي"
     },
     "statuses": {
       "cancelled": "لغوه شوی",
@@ -5038,7 +5043,8 @@
       "rejected": "رد شوی",
       "withdrawn": "بېرته اخیستل شوی"
     },
-    "contractType": "د قرارداد ډول"
+    "contractType": "د قرارداد ډول",
+    "responsibleEmployees": "مسئول کارکوونکي"
   },
   "finance": {
     "servicePayments": {
@@ -5134,7 +5140,8 @@
     "contractVersion": "د قرارداد نسخه",
     "templateNotReady": "د قرارداد قالب نه دی تنظیم شوی",
     "noMatchingVersion": "مناسبه نسخه نشته",
-    "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
+    "currentPageReport": "د اوسنۍ پاڼې غوښتونکي",
+    "responsibleEmployees": "مسئول کارکوونکي"
   },
   "agencyDashboard": {
     "title": "د ډشبورډ لنډیز",

@@ -11,13 +11,18 @@ class Country extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['name', 'code', 'phone', 'email', 'portal_url', 'is_active'];
+    protected $fillable = ['name', 'code', 'phone', 'email', 'portal_url', 'notes', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 
     public function universities()
     {
         return $this->hasMany(University::class);
+    }
+
+    public function interactions(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(CrmInteraction::class, 'contactable')->latest('contacted_at');
     }
 
     public function applicants()

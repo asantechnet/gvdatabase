@@ -120,8 +120,12 @@
       "teachers": "Choose teachers",
       "duration": "Choose duration",
       "program": "Choose program",
-      "class": "Choose class"
-    }
+      "class": "Choose class",
+      "responsibleEmployees": "Responsible employees"
+    },
+    "responsibleEmployees": "Responsible employees",
+    "responsibleEmployeesOptional": "Optional. Assign the employees responsible for this case.",
+    "responsibleEmployeesHint": "They receive the delivery task and case notices."
   },
   "common": {
     "attachments": {
@@ -256,7 +260,8 @@
       "service": "Service",
       "position": "Position",
       "actions": "Actions",
-      "details": "Details"
+      "details": "Details",
+      "responsibleEmployees": "Responsible employees"
     },
     "statuses": {
       "cancelled": "Cancelled",
@@ -6069,7 +6074,8 @@
       "rejected": "Rejected",
       "withdrawn": "Withdrawn"
     },
-    "contractType": "Contract type"
+    "contractType": "Contract type",
+    "responsibleEmployees": "Responsible employees"
   },
   "finance": {
     "servicePayments": {
@@ -6165,7 +6171,8 @@
     "contractVersion": "Contract version",
     "templateNotReady": "Contract template is not configured",
     "noMatchingVersion": "No matching version",
-    "currentPageReport": "Applicants on the current page"
+    "currentPageReport": "Applicants on the current page",
+    "responsibleEmployees": "Responsible employees"
   },
   "agencyDashboard": {
     "title": "Dashboard overview",

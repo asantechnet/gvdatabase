@@ -120,8 +120,12 @@
       "amount": "0.00",
       "currency": "واحد پول را انتخاب کنید",
       "rate": "مثلاً 71.25",
-      "admissionNotes": "مثلاً مدارک کامل است"
-    }
+      "admissionNotes": "مثلاً مدارک کامل است",
+      "responsibleEmployees": "کارمندان مسئول"
+    },
+    "responsibleEmployees": "کارمندان مسئول",
+    "responsibleEmployeesOptional": "اختیاری. کارمندان مسئول این پرونده را انتخاب کنید.",
+    "responsibleEmployeesHint": "وظیفه تحویل و اطلاعیه‌های پرونده به این کارمندان ارسال می‌شود."
   },
   "common": {
     "attachments": {
@@ -256,7 +260,8 @@
       "service": "خدمت",
       "position": "سمت",
       "actions": "عملیات",
-      "details": "جزئیات"
+      "details": "جزئیات",
+      "responsibleEmployees": "کارمندان مسئول"
     },
     "statuses": {
       "cancelled": "لغوشده",
@@ -6036,7 +6041,8 @@
       "rejected": "رد شده",
       "withdrawn": "انصراف داده"
     },
-    "contractType": "نوع قرارداد"
+    "contractType": "نوع قرارداد",
+    "responsibleEmployees": "کارمندان مسئول"
   },
   "finance": {
     "servicePayments": {
@@ -6132,7 +6138,8 @@
     "contractVersion": "نسخه قرارداد",
     "templateNotReady": "قالب قرارداد تنظیم نشده است",
     "noMatchingVersion": "نسخه مطابق موجود نیست",
-    "currentPageReport": "متقاضیان صفحه فعلی"
+    "currentPageReport": "متقاضیان صفحه فعلی",
+    "responsibleEmployees": "کارمندان مسئول"
   },
   "agencyDashboard": {
     "title": "نمای کلی داشبورد",

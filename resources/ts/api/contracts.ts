@@ -284,7 +284,7 @@ export default ContractApi
 
 export interface ServiceContractOptions {
   template: import('./contractTemplate').ContractTemplate | null
-  admission_employees: Array<{ id: number; name: string }>
+  responsible_employees: Array<{ id: number; name: string }>
   counselor_employees: Array<{ id: number; name: string }>
 
   currencies: Array<{ id: number; code: string; rate: number | string }>
@@ -303,7 +303,7 @@ export interface ServiceContractCreateData {
   email?: string | null
   address?: string | null
   tax_number?: string | null
-  admission_employee_id?: number | null
+  responsible_employee_ids?: number[]
   responsible_employee_id?: number | null
   application_fee?: number
   application_fee_min?: number
@@ -345,7 +345,7 @@ export interface ServiceContractCreateData {
   teacher_ids?: number[]
 }
 
-export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload, canAssignAdmission = false): Partial<ServiceContractCreateData> {
+export function serviceContractApplicantFields(service: BuiltInService, applicant: ApplicantPayload, canAssignResponsible = false): Partial<ServiceContractCreateData> {
   const { service: omitted, ...details } = applicantServicePayload({ ...applicant, service })
   const identity: Partial<ServiceContractCreateData> = {}
   const fields: Array<keyof ApplicantPayload> = service === 'private'
@@ -360,8 +360,8 @@ export function serviceContractApplicantFields(service: BuiltInService, applican
     if (value !== undefined)
       Object.assign(identity, { [field]: value === '' ? null : value })
   }
-  if (canAssignAdmission && ['private', 'scholarship'].includes(service) && applicant.admission_employee_id !== undefined)
-    identity.admission_employee_id = applicant.admission_employee_id
+  if (canAssignResponsible && ['private', 'scholarship'].includes(service) && applicant.responsible_employee_ids !== undefined)
+    identity.responsible_employee_ids = applicant.responsible_employee_ids
 
   return { ...identity, ...details }
 }

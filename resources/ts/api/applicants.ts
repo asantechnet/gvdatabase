@@ -79,8 +79,12 @@ export interface Applicant {
   address?: string | null
   tax_number?: string | null
   attachments_count?: number
+  /** @deprecated The singular admission field is retired. */
   admission_employee_id?: number | null
+  /** @deprecated The singular admission field is retired. */
   admission_employee?: { id: number; name: string } | null
+  responsible_employee_ids?: number[]
+  responsible_employees?: Array<{ id: number; name: string }>
   responsible_employee_id?: number | null
   current_stage_id?: number | null
   status: string

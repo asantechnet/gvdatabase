@@ -30,7 +30,7 @@ class ApplicantStageContext
     {
         $service ??= $applicant->service;
 
-        if (! BuiltInService::isValid($service)) {
+        if (! BuiltInService::isValid($service) || BuiltInService::isCaseFree($service)) {
             return false;
         }
 
@@ -64,7 +64,7 @@ class ApplicantStageContext
     {
         $query = ApplicantStage::query()->where('is_active', true);
 
-        if (! BuiltInService::isValid($service)) {
+        if (! BuiltInService::isValid($service) || BuiltInService::isCaseFree($service)) {
             return $query->whereRaw('1 = 0');
         }
 

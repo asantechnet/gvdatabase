@@ -32,8 +32,8 @@ class ApplicantResource extends JsonResource
             'email' => $this->email,
             'address' => $this->address,
             'tax_number' => $this->tax_number,
-            'admission_employee_id' => $this->admission_employee_id,
-            'admission_employee' => $this->whenLoaded('admissionEmployee', fn () => $this->admissionEmployee ? $this->admissionEmployee->only(['id', 'name']) : null),
+            'responsible_employee_ids' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->pluck('id')->all()),
+            'responsible_employees' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->map(fn ($employee) => $employee->only(['id', 'name']))),
             'notes' => $this->notes,
             'consultant_review' => $this->consultant_review,
             // Which built-in service this applicant belongs to, and that

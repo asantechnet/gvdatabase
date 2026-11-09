@@ -37,6 +37,7 @@ class ContractController extends Controller
         'contractCountry', 'contractLanguage',        'contractType', 'parentContract:id,contract_number', 'applicantContracts.currency',
         'employee.position', 'employee.office', 'employee.user',
         'applicant.scholarshipDetail.educationLevel', 'applicant.scholarshipDetail.semester',
+        'applicant.responsibleEmployees:id,name',
         'applicant.scholarshipDetail.country', 'applicant.scholarshipDetail.scholarship',
         'applicant.privateDetail.country', 'applicant.privateDetail.university', 'applicant.privateDetail.educationLevel', 'applicant.privateDetail.semester', 'applicant.privateDetail.contractType',
         'applicant.testDetail.test', 'applicant.academyDetail.program', 'applicant.academyDetail.time', 'applicant.academyDetail.duration', 'applicant.academyDetail.academyClass',
@@ -239,7 +240,7 @@ class ContractController extends Controller
             'currencies' => Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'rate']),
             'languages' => Language::query()->where('is_active', true)->get(['id', 'name']),
             'employees' => $employees->get(['id', 'name']),
-            'admission_employees' => $request->user()->hasPermission('assign_admission_employee')
+            'responsible_employees' => $request->user()->hasPermission('assign_responsible_employees')
                 ? AgencyStaffAssignment::query('admission')->get(['id', 'name'])
                 : [],
             'counselor_employees' => AgencyStaffAssignment::query('counselor')->get(['id', 'name']),

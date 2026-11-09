@@ -121,7 +121,10 @@ class PlaceholderResolver
                 'applicant.subjects' => $applicant->favoriteSubjects->pluck('name')->join(', '),
                 'applicant.skills' => $applicant->skills->pluck('name')->join(', '),
                 'applicant.teachers' => $applicant->teachers->pluck('name')->join(', '),
-                'applicant.admission_employee' => $applicant->admissionEmployee?->name,
+                'applicant.responsible_employees' => $applicant->responsibleEmployees->pluck('name')->filter()->join(', '),
+                // Legacy templates keep rendering; the plural key is canonical.
+                'applicant.admission_employee' => $applicant->responsibleEmployees->pluck('name')->filter()->join(', ')
+                    ?: $applicant->admissionEmployee?->name,
             ];
             $values += [
                 'customer.name' => $applicant->name,

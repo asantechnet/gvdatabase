@@ -46,6 +46,7 @@ class ContractGenerationService
         abort_unless(BuiltInService::isValid($service), 404);
         abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
+        $this->authorizeResponsibleAssignment($request, $data);
 
         return DB::transaction(function () use ($service, $request, $data): Contract {
             $primary = null;
@@ -62,6 +63,7 @@ class ContractGenerationService
                 // the new course. The new enrollment carries its own term.
                 if ($service === BuiltInService::ACADEMY) {
                     $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
+
                     $applicant->refresh();
                 }
             } else {
@@ -110,7 +112,9 @@ class ContractGenerationService
                 'counterparty' => $applicant->name, 'counterparty_email' => $applicant->email,
                 'counterparty_contact' => $applicant->contact, 'counterparty_address' => $applicant->address,
             ]);
-            $newStage = $this->newStage($service, $countryId, $applicant->detail()?->university_id);
+            $newStage = BuiltInService::isCaseBearing($service)
+                ? $this->newStage($service, $countryId, $applicant->detail()?->university_id)
+                : null;
             $lineFees = Arr::only($data, ['application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']);
             // A private application fee is a range; the legacy single column
             // keeps the range maximum so older readers see a price.
@@ -174,8 +178,8 @@ class ContractGenerationService
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],
             ]);
-            // Each service line starts its own workflow at the service's `new`
-            // stage. Test offers and Academy are case-free and have no stage.
+            // Case-bearing lines start their own workflow; a test-offer or
+            // academy agreement is a direct service, not a case.
             if ($newStage) {
                 ApplicantStageHistory::create([
                     'applicant_id' => $applicant->id, 'applicant_contract_id' => $line->id,
@@ -197,7 +201,7 @@ class ContractGenerationService
             }
             $this->notifications->contractGenerated($contract, $request->user()->id);
 
-            return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
+            return $contract->load(['template.contractType', 'contractType', 'applicant.responsibleEmployees:id,name', 'applicantContracts.currency']);
         });
     }
 
@@ -241,6 +245,7 @@ class ContractGenerationService
         abort_unless(BuiltInService::isValid($service), 404);
         abort_unless(ContractAccess::canAccessService($request->user(), $service), 403, 'auth.forbidden');
         $data = $request->validated();
+        $this->authorizeResponsibleAssignment($request, $data);
 
         return DB::transaction(function () use ($service, $id, $request, $data): Contract {
             $contract = Contract::query()->lockForUpdate()->findOrFail($id);
@@ -254,6 +259,7 @@ class ContractGenerationService
             $applicant = Applicant::query()->lockForUpdate()->findOrFail($contract->applicant_id);
             $this->authorizeApplicantAssignment($request, $data, $applicant);
             $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
+
             $this->details->sync($applicant, [...$data, 'service' => $service]);
             $this->syncResponsibleEmployees($applicant, $data);
             $applicant->refresh();
@@ -284,7 +290,7 @@ class ContractGenerationService
                 'counterparty_address' => $applicant->address,
             ]);
 
-            return $contract->load(['template.contractType', 'contractType', 'applicant', 'applicantContracts.currency']);
+            return $contract->load(['template.contractType', 'contractType', 'applicant.responsibleEmployees:id,name', 'applicantContracts.currency']);
         });
     }
 
@@ -297,11 +303,16 @@ class ContractGenerationService
             abort_unless(app(EmployeeScope::class)->canManageOwnedBy($request->user(), (int) $selected), 403, 'auth.forbidden');
             $data['responsible_employee_id'] = $selected;
         }
-        $stage = $this->newStage($service, $data['country_id'] ?? null, null);
+        $stage = BuiltInService::isCaseBearing($service)
+            ? $this->newStage($service, $data['country_id'] ?? null, null)
+            : null;
         $applicant = Applicant::create([
             ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']),
             'service' => $service, 'current_stage_id' => $stage?->id, 'status' => 'active',
         ]);
+        if (array_key_exists('responsible_employee_ids', $data)) {
+            $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
+        }
         $this->details->sync($applicant, [...$data, 'service' => $service]);
         $applicant->{$applicant->detailRelationName()}()->firstOrCreate([]);
         if ($stage) {
@@ -330,6 +341,15 @@ class ContractGenerationService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+    }
+
+    /** Only a holder of the plural assignment grant may submit the list. */
+    private function authorizeResponsibleAssignment(StoreServiceContractRequest $request, array $data): void
+    {
+        if (array_key_exists('responsible_employee_ids', $data)
+            && ! $request->user()->hasPermission('assign_responsible_employees')) {
+            abort(403, 'auth.forbidden');
         }
     }
 

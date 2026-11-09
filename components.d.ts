@@ -51,6 +51,7 @@ declare module 'vue' {
     CardStatisticsHorizontal: typeof import('./resources/ts/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./resources/ts/@core/components/cards/CardStatisticsVertical.vue')['default']
     CardStatisticsVerticalSimple: typeof import('./resources/ts/@core/components/CardStatisticsVerticalSimple.vue')['default']
+    CaseRelationshipRecords: typeof import('./resources/ts/components/crm/CaseRelationshipRecords.vue')['default']
     CommissionSlipPrinter: typeof import('./resources/ts/components/commission/CommissionSlipPrinter.vue')['default']
     ConfirmDialog: typeof import('./resources/ts/components/dialogs/ConfirmDialog.vue')['default']
     ContactActionMenu: typeof import('./resources/ts/components/ContactActionMenu.vue')['default']
