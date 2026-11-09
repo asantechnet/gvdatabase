@@ -4,6 +4,7 @@ import { canNavigate } from '@layouts/plugins/casl'
 import { applyPermissions, canAccess } from '@/utils/authorization'
 import { useCookie } from '@core/composable/useCookie'
 import AuthApi from '@/api/auth'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 let sessionPermissionRequest: Promise<void> | null = null
 let sessionPermissionRequestAttempted = false
@@ -15,6 +16,8 @@ const authorizedLandingRoute = () => {
     return { name: 'applicant-portal' }
   if (canAccess('view_agency_overview'))
     return { name: 'home' }
+  if (canAccess('view_academy_attendance') && !canAccess('view_academy_contracts'))
+    return { name: 'academy-attendance' }
   if (canAccess('view_all_boards') || canAccess('view_assigned_boards') || canAccess('create_personal_tasks'))
     return { name: 'tasks' }
 
@@ -87,6 +90,19 @@ export const setupGuards = (router: Router) => {
 
     if (to.name === 'applicant-portal' && !isApplicantPortalUser())
       return authorizedLandingRoute()
+
+    // Academy routes are company-feature routes. Resolve the setting before
+    // authorization so a stale deep link cannot render an Academy page when
+    // the feature is off.
+    if (to.meta.feature === 'academy') {
+      const { enabled, load } = useAcademyEnabled()
+      await load()
+      if (!enabled.value) {
+        const fallback = authorizedLandingRoute()
+
+        return to.name === fallback.name ? false : fallback
+      }
+    }
 
     if (!canNavigate(to)) {
       const fallback = authorizedLandingRoute()

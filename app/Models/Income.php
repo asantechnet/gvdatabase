@@ -22,6 +22,7 @@ class Income extends Model
     protected $fillable = [
         'receipt_number',
         'applicant_id',
+        'student_id',
         'applicant_contract_id',
         'visitor_id',
         'employee_id',
@@ -51,6 +52,7 @@ class Income extends Model
         'base_amount' => 'decimal:6',
         'date' => 'date',
         'applicant_id' => 'integer',
+        'student_id' => 'integer',
         'applicant_contract_id' => 'integer',
         'visitor_id' => 'integer',
         'employee_id' => 'integer',
@@ -69,6 +71,12 @@ class Income extends Model
     public function applicant(): BelongsTo
     {
         return $this->belongsTo(Applicant::class);
+    }
+
+    /** A direct Academy student payer; null for applicant/contract receipts. */
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(Student::class);
     }
 
     public function visitor(): BelongsTo

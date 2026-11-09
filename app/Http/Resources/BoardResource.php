@@ -19,6 +19,8 @@ class BoardResource extends JsonResource
             'user_id' => $this->user_id === null ? null : (string) $this->user_id,
             'is_personal' => $this->user_id !== null,
             'is_owned' => $this->user_id !== null && (int) $this->user_id === (int) $userId,
+            'department_id' => $this->department_id,
+            'is_department' => $this->department_id !== null,
             'members' => UserResource::collection($this->whenLoaded('users')),
             'tasks' => TaskResource::collection($this->whenLoaded('tasks')),
         ];

@@ -20,7 +20,9 @@ import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { useCookie } from '@core/composable/useCookie'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
+const { enabled: academyEnabled } = useAcademyEnabled()
 const visitors = ref<Visitor[]>([])
 // Both lists ask the server for one page at a time.
 const page = ref(1)
@@ -70,10 +72,12 @@ const hasActiveFilters = computed(() => Boolean(
   || dateFrom.value
   || dateTo.value,
 ))
-const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
-  title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
-  value: service,
-})))
+const serviceOptions = computed(() => BUILT_IN_SERVICES
+  .filter(service => academyEnabled.value || service !== 'academy')
+  .map(service => ({
+    title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
+    value: service,
+  })))
 const activeCountries = computed(() => (catalogs.value.countries ?? [])
   .filter(country => country.is_active)
   .map(country => ({ title: country.name, value: country.id })))
@@ -861,7 +865,7 @@ onMounted(async () => {
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
-                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-contracts', query: { visitor: item.id } }" />
+                  <VListItem v-if="academyEnabled" prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-students', query: { visitor: item.id } }" />
                 </VList>
               </VMenu>
             </template>

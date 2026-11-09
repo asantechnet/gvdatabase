@@ -24,16 +24,12 @@ export interface ApplicantServiceDetails {
   student_id?: string | null
   test_id?: number | null
   program_id?: number | null
-  time_id?: number | null
-  duration_id?: number | null
   country?: { id: number; name: string } | null
   university?: { id: number; name: string } | null
   education_level?: { id: number; name: string } | null
   semester?: { id: number; name: string } | null
   test?: { id: number; name: string } | null
   program?: { id: number; name: string } | null
-  time?: { id: number; name: string } | null
-  duration?: { id: number; name: string } | null
 }
 
 /**
@@ -79,8 +75,12 @@ export interface Applicant {
   address?: string | null
   tax_number?: string | null
   attachments_count?: number
+  /** @deprecated The singular admission field is retired. */
   admission_employee_id?: number | null
+  /** @deprecated The singular admission field is retired. */
   admission_employee?: { id: number; name: string } | null
+  responsible_employee_ids?: number[]
+  responsible_employees?: Array<{ id: number; name: string }>
   responsible_employee_id?: number | null
   current_stage_id?: number | null
   status: string
@@ -132,7 +132,7 @@ export function applicantServicePayload(form: ApplicantPayload): ApplicantPayloa
   // Strict per-service sets: a field that belongs to another service is never
   // sent, so switching service cannot carry stale data across.
   const fields = form.service === 'academy'
-    ? ['student_id', 'program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id']
+    ? ['student_id', 'program_id', 'teacher_ids', 'class_id']
     : form.service === 'test_offer'
       ? ['test_id', 'skill_ids']
       : form.service === 'private'

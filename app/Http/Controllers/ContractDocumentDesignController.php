@@ -22,7 +22,7 @@ class ContractDocumentDesignController extends Controller
 
     public function index(Request $request)
     {
-        $request->validate(['contract_type_id' => ['nullable', 'exists:contract_types,id'], 'service' => ['nullable', Rule::in(BuiltInService::ALL)], 'service_id' => ['prohibited']]);
+        $request->validate(['contract_type_id' => ['nullable', 'exists:contract_types,id'], 'service' => ['nullable', Rule::in(BuiltInService::enabled())], 'service_id' => ['prohibited']]);
 
         $designs = ContractDocumentDesign::query()->with(['contractType'])
             ->when($request->filled('contract_type_id'), fn ($q) => $q->where('contract_type_id', $request->integer('contract_type_id')))
@@ -67,7 +67,7 @@ class ContractDocumentDesignController extends Controller
     {
         $validator = validator($request->all(), [
             'contract_type_id' => [($design ? 'sometimes' : 'required'), 'integer', 'exists:contract_types,id'],
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'service_id' => ['prohibited'],
             'letterhead' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'cover_design' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],

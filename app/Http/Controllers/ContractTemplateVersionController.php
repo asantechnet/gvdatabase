@@ -17,11 +17,17 @@ class ContractTemplateVersionController extends Controller
 
     public function index(ContractTemplate $template)
     {
-        return response()->json(['success' => true, 'data' => $template->versions()->with(['language', 'country', 'test', 'creator', 'activator', 'archiver'])->withCount('contracts')->orderByDesc('version_number')->get()]);
+        // Other agreements are not versioned; never surface legacy drafts.
+        $versions = $template->usesVersioning()
+            ? $template->versions()->with(['language', 'country', 'test', 'creator', 'activator', 'archiver'])->withCount('contracts')->orderByDesc('version_number')->get()
+            : collect();
+
+        return response()->json(['success' => true, 'data' => $versions]);
     }
 
     public function store(Request $request, ContractTemplate $template)
     {
+        abort_unless($template->usesVersioning(), 422, 'business.contract_template_versioning_not_supported');
         $data = $request->validate([
             'country_id' => ['nullable', 'exists:countries,id'],
             'test_id' => ['nullable', 'exists:tests,id'],
@@ -51,8 +57,8 @@ class ContractTemplateVersionController extends Controller
 
     /**
      * An employment version is identified by its name only. A test-offer
-     * version is scoped by its Test; every other service is scoped by its
-     * destination Country and language. Reject an ambiguous or missing scope
+     * version is scoped by its Test; a customer service version is scoped by
+     * its destination Country and language. Reject an ambiguous or missing scope
      * instead of silently issuing a version that can never be matched.
      */
     private function normalizeScope(ContractTemplate $template, array $data): array

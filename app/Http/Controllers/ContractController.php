@@ -37,9 +37,10 @@ class ContractController extends Controller
         'contractCountry', 'contractLanguage',        'contractType', 'parentContract:id,contract_number', 'applicantContracts.currency',
         'employee.position', 'employee.office', 'employee.user',
         'applicant.scholarshipDetail.educationLevel', 'applicant.scholarshipDetail.semester',
+        'applicant.responsibleEmployees:id,name',
         'applicant.scholarshipDetail.country', 'applicant.scholarshipDetail.scholarship',
         'applicant.privateDetail.country', 'applicant.privateDetail.university', 'applicant.privateDetail.educationLevel', 'applicant.privateDetail.semester', 'applicant.privateDetail.contractType',
-        'applicant.testDetail.test', 'applicant.academyDetail.program', 'applicant.academyDetail.time', 'applicant.academyDetail.duration', 'applicant.academyDetail.academyClass',
+        'applicant.testDetail.test', 'applicant.academyDetail.program', 'applicant.academyDetail.academyClass',
         'applicant.favoriteSubjects', 'applicant.skills', 'applicant.teachers',
     ];
 
@@ -53,7 +54,7 @@ class ContractController extends Controller
     {
         $data = $request->validate([
             'audience' => ['nullable', Rule::in(['customers', 'employees', 'other'])],
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'applicant_id' => ['nullable', 'integer', Rule::exists('applicants', 'id')->whereNull('deleted_at')],
             'type_slug' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', Rule::in(Contract::STATUSES)],
@@ -82,7 +83,7 @@ class ContractController extends Controller
         } elseif (($data['audience'] ?? null) === 'employees') {
             $query->whereHas('contractType', fn ($type) => $type->where('slug', 'employment'));
         } elseif (($data['audience'] ?? null) === 'customers') {
-            $query->whereIn('service', BuiltInService::ALL);
+            $query->whereIn('service', BuiltInService::enabled());
         } elseif (($data['audience'] ?? null) === 'other') {
             $query->whereHas('contractType', fn ($type) => $type
                 ->where('slug', 'other')->orWhere('is_system', false));
@@ -239,7 +240,7 @@ class ContractController extends Controller
             'currencies' => Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'rate']),
             'languages' => Language::query()->where('is_active', true)->get(['id', 'name']),
             'employees' => $employees->get(['id', 'name']),
-            'admission_employees' => $request->user()->hasPermission('assign_admission_employee')
+            'responsible_employees' => $request->user()->hasPermission('assign_responsible_employees')
                 ? AgencyStaffAssignment::query('admission')->get(['id', 'name'])
                 : [],
             'counselor_employees' => AgencyStaffAssignment::query('counselor')->get(['id', 'name']),
@@ -448,9 +449,14 @@ class ContractController extends Controller
             $countryId = null;
             $languageId = null;
         }
-        $versionId = array_key_exists('contract_template_version_id', $data)
-            ? $data['contract_template_version_id']
-            : ($template->id === $contract->template_id ? $contract->contract_template_version_id : null);
+        // Other agreements are not versioned: ignore any legacy version link
+        // and render the current document stored on the template itself.
+        $versioned = $template->usesVersioning();
+        $versionId = $versioned
+            ? (array_key_exists('contract_template_version_id', $data)
+                ? $data['contract_template_version_id']
+                : ($template->id === $contract->template_id ? $contract->contract_template_version_id : null))
+            : null;
         $version = $versionId ? ContractTemplateVersion::findOrFail($versionId) : null;
         // Language is an optional operator choice. When a concrete version is
         // selected, its fixed locale is the contract locale instead of making
@@ -459,15 +465,15 @@ class ContractController extends Controller
             $countryId ??= $version->country_id;
             $languageId ??= $version->language_id;
         }
-        if (! $version && $isEmployment) {
+        if (! $version && $versioned && $isEmployment) {
             $version = $template->versions()->where('is_current', true)->where('status', 'active')->first();
         }
-        if (! $version && $languageId && ! $isEmployment) {
+        if (! $version && $versioned && $languageId && ! $isEmployment) {
             $version = $template->versions()->where('country_id', $countryId)->where('language_id', $languageId)
                 ->where('is_current', true)->where('status', 'active')->first();
         }
-        abort_if($template->versions()->exists() && (! $version || (! $isEmployment && ! $languageId)), 422, 'business.contract_template_version_unavailable');
-        abort_if($version && ($version->contract_template_id !== $template->id
+        abort_if($versioned && $template->versions()->exists() && (! $version || (! $isEmployment && ! $languageId)), 422, 'business.contract_template_version_unavailable');
+        abort_if($versioned && $version && ($version->contract_template_id !== $template->id
             || ! $version->is_current || $version->status !== 'active'
             || (! $isEmployment && ((int) $version->country_id !== (int) $countryId || (int) $version->language_id !== (int) $languageId))), 422, 'business.contract_template_version_unavailable');
         $start = $data['start_date'] ?? $contract->start_date?->toDateString() ?? now()->toDateString();

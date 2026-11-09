@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Shepherd from "shepherd.js";
 import { useRouter } from "vue-router";
+import { useAcademyEnabled } from "@/composables/useAcademyEnabled";
 import type { RouteLocationRaw } from "vue-router";
 
 interface Suggestion {
@@ -28,8 +29,9 @@ const searchQuery = ref("");
 const searchResult = ref<SearchResultGroup[]>([]);
 const recentSuggestions = ref<Suggestion[]>([]);
 const recentStorageKey = "erp-recent-destinations";
+const { enabled: academyEnabled, load: loadAcademyEnabled } = useAcademyEnabled();
 
-const suggestionGroups: SuggestionGroup[] = [
+const baseSuggestionGroups: SuggestionGroup[] = [
   {
     title: translate("components.navigation.navsearchbar.overview"),
     content: [
@@ -109,11 +111,6 @@ const suggestionGroups: SuggestionGroup[] = [
         url: { name: "test-offer-contracts" },
       },
       {
-        icon: "tabler-book",
-        title: translate("educational.builtInServices.academy"),
-        url: { name: "academy-contracts" },
-      },
-      {
         icon: "tabler-users-group",
         title: translate("common.navigation.applicants"),
         url: { name: "all-customers" },
@@ -179,6 +176,10 @@ const suggestionGroups: SuggestionGroup[] = [
   },
 ];
 
+const suggestionGroups = computed<SuggestionGroup[]>(() => baseSuggestionGroups);
+
+const visibleRecentSuggestions = computed(() => recentSuggestions.value);
+
 const noDataSuggestions: Suggestion[] = [
   {
     title: translate("common.messages.staffList"),
@@ -209,7 +210,7 @@ const routeName = (suggestion: Suggestion) => {
 // display value, so always replace an older stored translation with the
 // current locale's catalogue entry before rendering it.
 const localizedSuggestion = (suggestion: Suggestion): Suggestion => {
-  const matchingSuggestion = suggestionGroups
+  const matchingSuggestion = suggestionGroups.value
     .flatMap((group) => group.content)
     .find((candidate) => routeName(candidate) === routeName(suggestion));
 
@@ -261,7 +262,7 @@ const fetchResults = () => {
   const query = searchQuery.value.trim().toLowerCase();
 
   searchResult.value = query
-    ? suggestionGroups
+    ? suggestionGroups.value
         .map((group) => ({
           title: group.title,
           children: group.content.filter((item) =>
@@ -290,7 +291,10 @@ const openSearch = () => {
   Shepherd.activeTour?.cancel();
 };
 
-onMounted(loadRecentSuggestions);
+onMounted(async () => {
+  await loadAcademyEnabled();
+  loadRecentSuggestions();
+});
 
 const LazyAppBarSearch = defineAsyncComponent(
   () => import("@core/components/AppBarSearch.vue"),
@@ -328,7 +332,7 @@ const LazyAppBarSearch = defineAsyncComponent(
             </p>
             <VList class="card-list d-flex flex-wrap">
               <VListItem
-                v-for="item in recentSuggestions"
+                v-for="item in visibleRecentSuggestions"
                 :key="`recent-${routeName(item)}`"
                 class="app-bar-search-suggestion mx-4 mt-2"
                 @click="redirectToSuggestedPage(item)"

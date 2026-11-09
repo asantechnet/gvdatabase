@@ -19,11 +19,13 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ApplicantPipeline from '@/pages/applicant-pipeline.vue'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const { enabled: academyEnabled } = useAcademyEnabled()
 
 const rows = ref<Applicant[]>([])
 // Keep the table in its loading state through catalogue bootstrapping so the
@@ -59,7 +61,7 @@ const service = ref<BuiltInService | ''>(['scholarship', 'private', 'test_offer'
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 // The stage tab strip drives this same filter, so deep links such as
@@ -182,7 +184,7 @@ const reviewOptions = computed(() => [
   { title: t('common.statuses.bad'), value: 'bad' },
   { title: t('common.statuses.great'), value: 'great' },
 ])
-const createForm = ref({ name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', admission_employee_id: null as number | null, responsible_employee_id: null as number | null, notes: '' })
+const createForm = ref({ name: '', father_name: '', father_phone: '', backup_phone: '', contact: '', email: '', responsible_employee_ids: [] as number[], responsible_employee_id: null as number | null, notes: '' })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 // The list is driven by the workflow stages themselves: every stage is a tab,
 // and the pipeline keeps its order while the terminal (closing) stages are
@@ -413,15 +415,12 @@ async function create() {
       backup_phone: createForm.value.backup_phone || null,
       contact: createForm.value.contact || null,
       email: createForm.value.email || null,
-      admission_employee_id: createForm.value.admission_employee_id,
     }
 
     Object.assign(payload, applicantServicePayload(serviceForm.value))
-    // Academy enrolment has no admission officer, so no employee is attached.
-    if (serviceForm.value.service !== 'academy')
-      payload.admission_employee_id = createForm.value.admission_employee_id
-    else
-      delete payload.admission_employee_id
+    // Responsibility is plural and only case-bearing services accept it.
+    if (['scholarship', 'private'].includes(serviceForm.value.service ?? ''))
+      payload.responsible_employee_ids = createForm.value.responsible_employee_ids
     if (createForm.value.responsible_employee_id)
       payload.responsible_employee_id = createForm.value.responsible_employee_id
 
@@ -770,7 +769,7 @@ onMounted(async () => {
           <VCol cols="12" sm="6" md="4"><ErpField v-model="createForm.email" :label="$t('common.fields.email')" type="email" /></VCol>
           <VCol v-if="['scholarship', 'private'].includes(serviceForm.service || '')" cols="12" sm="6" md="4"><ErpField v-model="createForm.father_name" :label="$t('educational.fatherName')" /></VCol>
           <VCol v-if="['scholarship', 'private'].includes(serviceForm.service || '')" cols="12" sm="6" md="4"><ErpField v-model="createForm.father_phone" :label="$t('educational.fatherPhone')" /></VCol>
-          <VCol v-if="serviceForm.service !== 'academy'" cols="12" sm="6" md="4"><ErpField kind="select" v-model="createForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="$t('agencyStaff.admission')" clearable /></VCol>
+          <VCol v-if="['scholarship', 'private'].includes(serviceForm.service || '')" cols="12" sm="6" md="4"><ErpField kind="select" v-model="createForm.responsible_employee_ids" multiple chips closable-chips :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="$t('educational.responsibleEmployees')" clearable /></VCol>
           <VCol v-if="serviceForm.service === 'test_offer'" cols="12" sm="6" md="4"><ErpField v-model="createForm.backup_phone" :label="$t('erp.backupPhone')" /></VCol>
           <VCol cols="12"><ApplicantServiceFields v-model="serviceForm" /></VCol>
           <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="createForm.notes" :label="$t('educational.notes')" /></VCol>

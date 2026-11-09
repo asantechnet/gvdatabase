@@ -7,7 +7,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AcademyCertificateDialog: typeof import('./resources/ts/components/academy/AcademyCertificateDialog.vue')['default']
+    AcademyCertificatePrinter: typeof import('./resources/ts/components/academy/AcademyCertificatePrinter.vue')['default']
+    AcademyClassDialog: typeof import('./resources/ts/components/academy/AcademyClassDialog.vue')['default']
+    AcademyEnrollmentDialog: typeof import('./resources/ts/components/academy/AcademyEnrollmentDialog.vue')['default']
     AcademySlipPrinter: typeof import('./resources/ts/components/academy/AcademySlipPrinter.vue')['default']
+    AcademyStudentCard: typeof import('./resources/ts/components/academy/AcademyStudentCard.vue')['default']
+    AcademyStudentDialog: typeof import('./resources/ts/components/academy/AcademyStudentDialog.vue')['default']
     ActionWarningDialog: typeof import('./resources/ts/components/ActionWarningDialog.vue')['default']
     AddAuthenticatorAppDialog: typeof import('./resources/ts/components/dialogs/AddAuthenticatorAppDialog.vue')['default']
     AddEditAddressDialog: typeof import('./resources/ts/components/dialogs/AddEditAddressDialog.vue')['default']
@@ -46,6 +52,7 @@ declare module 'vue' {
     CardStatisticsHorizontal: typeof import('./resources/ts/@core/components/cards/CardStatisticsHorizontal.vue')['default']
     CardStatisticsVertical: typeof import('./resources/ts/@core/components/cards/CardStatisticsVertical.vue')['default']
     CardStatisticsVerticalSimple: typeof import('./resources/ts/@core/components/CardStatisticsVerticalSimple.vue')['default']
+    CaseRelationshipRecords: typeof import('./resources/ts/components/crm/CaseRelationshipRecords.vue')['default']
     CommissionSlipPrinter: typeof import('./resources/ts/components/commission/CommissionSlipPrinter.vue')['default']
     ConfirmDialog: typeof import('./resources/ts/components/dialogs/ConfirmDialog.vue')['default']
     ContactActionMenu: typeof import('./resources/ts/components/ContactActionMenu.vue')['default']
@@ -121,6 +128,7 @@ declare module 'vue' {
     ServicePaymentsDialog: typeof import('./resources/ts/components/income/ServicePaymentsDialog.vue')['default']
     ShareProjectDialog: typeof import('./resources/ts/components/dialogs/ShareProjectDialog.vue')['default']
     Shortcuts: typeof import('./resources/ts/@core/components/Shortcuts.vue')['default']
+    SlipPrintDialog: typeof import('./resources/ts/components/documents/SlipPrintDialog.vue')['default']
     StaffCommissionFields: typeof import('./resources/ts/components/StaffCommissionFields.vue')['default']
     StaffFormFields: typeof import('./resources/ts/components/hr/StaffFormFields.vue')['default']
     StaffSupervisorDisclosureDialog: typeof import('./resources/ts/components/StaffSupervisorDisclosureDialog.vue')['default']

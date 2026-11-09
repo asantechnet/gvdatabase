@@ -8,9 +8,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class ApplicantStageCatalogTest extends TestCase
+class ApplicantStageCatalogTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

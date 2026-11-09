@@ -7,7 +7,9 @@ use App\Models\ApplicantAttachment;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Models\CaseWin;
+use App\Models\Comment;
 use App\Models\Contract;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Income;
@@ -37,15 +39,15 @@ class EducationalWorkflowNotificationService
     }
 
     /**
-     * A contract was generated automatically from a service assignment.
-     * The admission employee assigned to the applicant receives exactly one
-     * contract notification. Assignment notifications intentionally include
-     * the actor when they assigned the contract to themselves.
+     * A contract was generated automatically from a service assignment. Every
+     * responsible employee receives exactly one contract notification.
+     * Assignment notifications intentionally include the actor when they
+     * assigned the contract to themselves.
      */
     public function contractGenerated(Contract $contract, ?int $actorId = null): void
     {
-        $contract->loadMissing(['applicant.admissionEmployee', 'parentContract']);
-        $recipientIds = collect([$contract->applicant?->admissionEmployee?->user_id])->filter()->unique();
+        $contract->loadMissing(['applicant.responsibleEmployees', 'parentContract']);
+        $recipientIds = $contract->applicant?->responsibleEmployees->pluck('user_id')->filter()->unique() ?? collect();
 
         $serviceName = BuiltInService::label($contract->service);
         $isExtension = $contract->contract_role === Contract::ROLE_EXTENSION;
@@ -70,30 +72,32 @@ class EducationalWorkflowNotificationService
         );
     }
 
-    /** Notify the newly assigned admission employee after a case edit. */
-    public function admissionAssigned(Applicant $applicant): void
+    /** Notify every responsible employee after a case responsibility edit. */
+    public function responsibilityAssigned(Applicant $applicant): void
     {
-        $applicant->loadMissing('admissionEmployee');
-        $employee = $applicant->admissionEmployee;
-        if (! $employee?->user_id) {
-            return;
-        }
-
+        $applicant->loadMissing('responsibleEmployees');
         $assignmentStamp = $applicant->updated_at?->format('YmdHisv') ?? now()->format('YmdHisv');
-        $this->notifyOnce(
-            "applicant.admission.assigned.{$applicant->id}.{$employee->id}.{$assignmentStamp}",
-            'task',
-            'Admission case assigned',
-            "Applicant case #{$applicant->id} was assigned to you for admission.",
-            [
-                'translation_key' => 'applicant.admissionAssigned',
-                'applicant_id' => $applicant->id,
-                'applicant' => $this->applicantLabel($applicant),
-                'admission_employee_id' => $employee->id,
-            ],
-            "/applicants/{$applicant->id}",
-            collect([$employee->user_id]),
-        );
+
+        foreach ($applicant->responsibleEmployees as $employee) {
+            if (! $employee->user_id) {
+                continue;
+            }
+
+            $this->notifyOnce(
+                "applicant.responsibility.assigned.{$applicant->id}.{$employee->id}.{$assignmentStamp}",
+                'task',
+                'Applicant responsibility assigned',
+                "Applicant case #{$applicant->id} was assigned to you.",
+                [
+                    'translation_key' => 'applicant.admissionAssigned',
+                    'applicant_id' => $applicant->id,
+                    'applicant' => $this->applicantLabel($applicant),
+                    'responsible_employee_id' => $employee->id,
+                ],
+                "/applicants/{$applicant->id}",
+                collect([$employee->user_id]),
+            );
+        }
     }
 
     public function applicantAssigned(Applicant $applicant, ?int $actorId = null): void
@@ -107,7 +111,7 @@ class EducationalWorkflowNotificationService
         // read-only supervisor is aware of the workload without being able to
         // change it.
         $recipients = collect([$userId])
-            ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+            ->merge($this->managerUserIds($applicant->responsibleEmployee))
             ->filter(fn ($id) => (int) $id !== (int) $actorId)
             ->unique();
 
@@ -195,6 +199,59 @@ class EducationalWorkflowNotificationService
         }
     }
 
+    public function taskCommented(Task $task, Comment $comment, array $mentionIds, ?int $actorId = null, bool $notifyAllAssignees = true): void
+    {
+        $task->loadMissing('users');
+        $mentionIds = collect($mentionIds)
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn (int $id) => $id === (int) $actorId)
+            ->unique()
+            ->values();
+        $mentioned = $mentionIds->flip();
+
+        if ($notifyAllAssignees) {
+            foreach ($task->users->pluck('id')->map(fn ($id) => (int) $id)->unique() as $userId) {
+                if ($userId === (int) $actorId || $mentioned->has($userId)) {
+                    continue;
+                }
+
+                $this->notifyOnce(
+                    "task.comment.{$comment->id}.{$userId}",
+                    'task',
+                    'New task comment',
+                    "A new comment was added to \"{$task->title}\".",
+                    [
+                        'translation_key' => 'task.commented',
+                        'task_id' => $task->id,
+                        'task' => $task->title,
+                        'comment_id' => $comment->id,
+                        'comment' => str($comment->content)->limit(120)->toString(),
+                    ],
+                    "/tasks?view=todos&task={$task->id}",
+                    collect([$userId]),
+                );
+            }
+        }
+
+        foreach ($mentionIds as $userId) {
+            $this->notifyOnce(
+                "task.mention.{$comment->id}.{$userId}",
+                'task',
+                'You were mentioned in a task',
+                "You were mentioned in \"{$task->title}\".",
+                [
+                    'translation_key' => 'task.mentioned',
+                    'task_id' => $task->id,
+                    'task' => $task->title,
+                    'comment_id' => $comment->id,
+                    'comment' => str($comment->content)->limit(120)->toString(),
+                ],
+                "/tasks?view=todos&task={$task->id}",
+                collect([$userId]),
+            );
+        }
+    }
+
     public function applicantStageChanged(Applicant $applicant, ApplicantStage $stage, ApplicantStageHistory $history, ?int $actorId = null): void
     {
         $history->loadMissing(['oldStage:id,name', 'newStage:id,name', 'changer:id,name']);
@@ -206,7 +263,7 @@ class EducationalWorkflowNotificationService
         $label = $this->applicantLabel($applicant);
 
         $staffIds = collect([$applicant->responsibleEmployee?->user_id])
-            ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+            ->merge($this->managerUserIds($applicant->responsibleEmployee))
             ->filter(fn ($id) => $id && (int) $id !== $actorId)
             ->unique();
         $this->notifyOnce(
@@ -308,7 +365,7 @@ class EducationalWorkflowNotificationService
                 }
 
                 $recipientIds = collect([$applicant->responsibleEmployee?->user_id])
-                    ->merge($this->supervisorUserIds($applicant->responsibleEmployee))
+                    ->merge($this->managerUserIds($applicant->responsibleEmployee))
                     ->filter()
                     ->unique();
                 if ($recipientIds->isEmpty()) {
@@ -359,28 +416,39 @@ class EducationalWorkflowNotificationService
     }
 
     /**
-     * Team seniors and department managers who may read (but not necessarily
-     * manage) the employee's records. Only users actually holding the view
-     * scope are returned, so a notification never links to a forbidden page.
+     * Department managers who may read (but not necessarily manage) the
+     * employee's records. Only users actually holding the view scope are
+     * returned, so a notification never links to a forbidden page.
      *
      * @return Collection<int, int>
      */
-    private function supervisorUserIds(?Employee $employee): Collection
+    private function managerUserIds(?Employee $employee): Collection
     {
         if (! $employee) {
             return collect();
         }
 
-        $candidateIds = collect([$employee->supervisor?->user_id]);
+        $departmentIds = $employee->departments()->pluck('departments.id');
+        if ($departmentIds->isEmpty()) {
+            return collect();
+        }
 
-        $managerUserId = $employee->department_id
-            ? $employee->departmentRecord?->manager?->user_id
-            : null;
-        $candidateIds->push($managerUserId);
+        $candidateIds = Department::query()
+            ->whereIn('id', $departmentIds)
+            ->with(['managers:id,user_id', 'manager:id,user_id'])
+            ->get()
+            ->flatMap(function (Department $department): array {
+                return [
+                    ...$department->managers->pluck('user_id')->all(),
+                    $department->manager?->user_id,
+                ];
+            })
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
 
-        $candidateIds = $candidateIds->filter()->map(fn ($id) => (int) $id)->unique();
         if ($candidateIds->isEmpty()) {
-            return $candidateIds->values();
+            return collect();
         }
 
         return User::query()

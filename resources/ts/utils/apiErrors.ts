@@ -113,7 +113,7 @@ const errorMessages: Record<string, string> = {
   'business.workday_not_started': 'Start your workday before ending it.',
   'business.daily_report_already_submitted': 'Your report for this workday has already been submitted.',
   'business.office_geofence_unavailable': 'Automatic attendance is unavailable because your office geofence is not configured.',
-  'business.leave_request_date_exists': 'An off-day request already exists for one or more selected dates.',
+  'business.leave_request_date_exists': 'A leave request already exists for one or more selected dates.',
   'business.task_label_exists': 'A task label with this name already exists.',
   'business.task_bonus_review_requires_completion': 'Only completed tasks can receive bonus review inputs.',
   'business.task_contributions_must_total_100': 'Contribution percentages must total 100%.',

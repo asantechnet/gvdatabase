@@ -34,9 +34,9 @@ class VisaFirmComplianceTest extends TestCase
             $this->assertContains('create_contracts', $permissions);
             $this->assertNotContains('override_contract_payments', $permissions);
             $this->assertNotContains('manage_contract_templates', $permissions);
-            $this->assertNotContains('assign_admission_employee', $permissions);
+            $this->assertNotContains('assign_responsible_employees', $permissions);
         }
-        $this->assertContains('assign_admission_employee', Role::where('name', 'manager')->firstOrFail()->permissions()->pluck('name'));
+        $this->assertContains('assign_responsible_employees', Role::where('name', 'manager')->firstOrFail()->permissions()->pluck('name'));
         $finance = Role::where('name', 'finance_officer')->firstOrFail()->permissions()->pluck('name');
         foreach (['view_incomes', 'create_incomes', 'edit_incomes', 'override_contract_payments'] as $name) {
             $this->assertContains($name, $finance);
@@ -100,9 +100,9 @@ class VisaFirmComplianceTest extends TestCase
                 'currency_id' => $currency->id,
                 'discount' => 10,
             ];
-            // Admission assignment is valid only for scholarship/private.
+            // Responsible employees are valid only for scholarship/private.
             if ($config['admission']) {
-                $payload['admission_employee_id'] = $admission->id;
+                $payload['responsible_employee_ids'] = [$admission->id];
             }
             $created = $this->createBuiltInContract($service, $payload);
             $contract = Contract::findOrFail($created['id']);

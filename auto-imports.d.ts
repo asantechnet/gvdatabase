@@ -49,7 +49,9 @@ declare global {
   const canMoveTaskOnBoard: typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']
   const canPrintContractHeader: typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']
   const canPrintPartyDetails: typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']
+  const cardPrintLayout: typeof import('./resources/ts/utils/printDocument')['cardPrintLayout']
   const changedIncomeFields: typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']
+  const clampCardCopies: typeof import('./resources/ts/utils/printDocument')['clampCardCopies']
   const clearAuthTokens: typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']
   const clearFieldError: typeof import('./resources/ts/utils/formErrors')['clearFieldError']
   const clearFormErrors: typeof import('./resources/ts/utils/formErrors')['clearFormErrors']
@@ -71,6 +73,7 @@ declare global {
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createAcademySlipPrintHost: typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']
   const createApp: typeof import('vue')['createApp']
+  const createCardPrintHost: typeof import('./resources/ts/utils/printDocument')['createCardPrintHost']
   const createCommissionSlipPrintHost: typeof import('./resources/ts/utils/printCommissionSlip')['createCommissionSlipPrintHost']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
   const createGenericProjection: typeof import('@vueuse/math')['createGenericProjection']
@@ -203,6 +206,7 @@ declare global {
   const playNotificationDing: typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']
   const prefixWithPlus: typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']
   const printAcademySlip: typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']
+  const printCardSheet: typeof import('./resources/ts/utils/printDocument')['printCardSheet']
   const printCommissionSlip: typeof import('./resources/ts/utils/printCommissionSlip')['printCommissionSlip']
   const printDocument: typeof import('./resources/ts/utils/printDocument')['printDocument']
   const printReceipt: typeof import('./resources/ts/utils/printReceipt')['printReceipt']
@@ -291,6 +295,7 @@ declare global {
   const urlValidator: typeof import('./resources/ts/@core/utils/validators')['urlValidator']
   const useAbility: typeof import('./resources/ts/plugins/casl/composables/useAbility')['useAbility']
   const useAbs: typeof import('@vueuse/math')['useAbs']
+  const useAcademyEnabled: typeof import('./resources/ts/composables/useAcademyEnabled')['useAcademyEnabled']
   const useActiveElement: typeof import('@vueuse/core')['useActiveElement']
   const useAnimate: typeof import('@vueuse/core')['useAnimate']
   const useApi: typeof import('./resources/ts/composables/useApi')['useApi']
@@ -563,7 +568,9 @@ declare module 'vue' {
     readonly canMoveTaskOnBoard: UnwrapRef<typeof import('./resources/ts/utils/authorization')['canMoveTaskOnBoard']>
     readonly canPrintContractHeader: UnwrapRef<typeof import('./resources/ts/composables/useContractPrintHeader')['canPrintContractHeader']>
     readonly canPrintPartyDetails: UnwrapRef<typeof import('./resources/ts/utils/contractPartyDetails')['canPrintPartyDetails']>
+    readonly cardPrintLayout: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['cardPrintLayout']>
     readonly changedIncomeFields: UnwrapRef<typeof import('./resources/ts/utils/incomePaymentBalance')['changedIncomeFields']>
+    readonly clampCardCopies: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['clampCardCopies']>
     readonly clearAuthTokens: UnwrapRef<typeof import('./resources/ts/utils/authStorage')['clearAuthTokens']>
     readonly clearFieldError: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFieldError']>
     readonly clearFormErrors: UnwrapRef<typeof import('./resources/ts/utils/formErrors')['clearFormErrors']>
@@ -585,6 +592,7 @@ declare module 'vue' {
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createAcademySlipPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['createAcademySlipPrintHost']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
+    readonly createCardPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['createCardPrintHost']>
     readonly createCommissionSlipPrintHost: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['createCommissionSlipPrintHost']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
@@ -717,6 +725,7 @@ declare module 'vue' {
     readonly playNotificationDing: UnwrapRef<typeof import('./resources/ts/composables/useNotificationHeartbeat')['playNotificationDing']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./resources/ts/@core/utils/formatters')['prefixWithPlus']>
     readonly printAcademySlip: UnwrapRef<typeof import('./resources/ts/utils/printAcademySlip')['printAcademySlip']>
+    readonly printCardSheet: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printCardSheet']>
     readonly printCommissionSlip: UnwrapRef<typeof import('./resources/ts/utils/printCommissionSlip')['printCommissionSlip']>
     readonly printDocument: UnwrapRef<typeof import('./resources/ts/utils/printDocument')['printDocument']>
     readonly printReceipt: UnwrapRef<typeof import('./resources/ts/utils/printReceipt')['printReceipt']>
@@ -805,6 +814,7 @@ declare module 'vue' {
     readonly urlValidator: UnwrapRef<typeof import('./resources/ts/@core/utils/validators')['urlValidator']>
     readonly useAbility: UnwrapRef<typeof import('./resources/ts/plugins/casl/composables/useAbility')['useAbility']>
     readonly useAbs: UnwrapRef<typeof import('@vueuse/math')['useAbs']>
+    readonly useAcademyEnabled: UnwrapRef<typeof import('./resources/ts/composables/useAcademyEnabled')['useAcademyEnabled']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
     readonly useApi: UnwrapRef<typeof import('./resources/ts/composables/useApi')['useApi']>

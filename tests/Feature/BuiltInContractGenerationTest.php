@@ -29,9 +29,9 @@ use App\Support\BuiltInService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class BuiltInContractGenerationTest extends TestCase
+class BuiltInContractGenerationTest extends AcademyTestCase
 {
     use RefreshDatabase;
 
@@ -85,7 +85,7 @@ class BuiltInContractGenerationTest extends TestCase
         $skill = Skill::firstOrCreate(['name' => 'Writing'], ['is_active' => true]);
         $program = Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true]);
         $time = TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true]);
-        $duration = Duration::firstOrCreate(['name' => '6 months'], ['is_active' => true]);
+        $duration = Duration::firstOrCreate(['name' => '6 months'], ['months' => 6, 'is_active' => true]);
         $class = AcademyClass::firstOrCreate(['name' => 'Class A'], ['is_active' => true]);
         $teacher = Teacher::firstOrCreate(['name' => 'Jane Doe'], ['is_active' => true]);
         $contractType = ContractType::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
@@ -245,42 +245,47 @@ class BuiltInContractGenerationTest extends TestCase
         }
     }
 
-    public function test_missing_draft_archived_and_wrong_language_versions_cannot_be_issued(): void
+    public function test_missing_draft_archived_and_wrong_language_versions_cannot_be_issued_for_versioned_services(): void
     {
-        $this->postJson('/api/contracts/academy', $this->data())->assertUnprocessable();
-        $version = $this->activate('academy');
+        // Academy no longer selects a version; the strict scope checks live on
+        // the services that still issue a template-driven contract.
+        $service = BuiltInService::TEST_OFFER;
+        $this->postJson("/api/contracts/{$service}", $this->data([], $service))->assertUnprocessable();
+        $version = $this->activate($service);
         foreach (['draft', 'archived'] as $status) {
             $version->update(['status' => $status]);
-            $this->postJson('/api/contracts/academy', $this->data())->assertUnprocessable();
+            $this->postJson("/api/contracts/{$service}", $this->data([], $service))->assertUnprocessable();
         }
         $version->update(['status' => 'active']);
         $other = Language::create(['name' => 'Persian', 'code' => 'fa']);
-        $this->postJson('/api/contracts/academy', $this->data(['language_id' => $other->id]))->assertUnprocessable();
+        $this->postJson("/api/contracts/{$service}", $this->data(['language_id' => $other->id], $service))->assertUnprocessable();
         $this->assertDatabaseCount('applicants', 0);
         $this->assertDatabaseCount('contracts', 0);
         $this->assertDatabaseCount('tasks', 0);
         $this->assertEquals(1, $this->currency->fresh()->rate);
     }
 
-    public function test_an_active_historical_version_can_be_selected_explicitly(): void
+    public function test_an_active_historical_version_can_be_selected_explicitly_for_versioned_services(): void
     {
-        $historical = $this->activate('academy');
+        $service = BuiltInService::TEST_OFFER;
+        $historical = $this->activate($service);
         $historical->update(['is_current' => false, 'current_scope_key' => null]);
         $template = $historical->template;
         $template->versions()->create([
             'language_id' => $this->language->id,
             'country_id' => null,
+            'test_id' => $this->defaultTest->id,
             'version_number' => 2,
             'name' => 'Current terms',
             'status' => 'active',
             'is_current' => true,
-            'current_scope_key' => "{$template->id}:0:{$this->language->id}",
+            'current_scope_key' => "{$template->id}:0:{$this->defaultTest->id}:{$this->language->id}",
             'content' => '<p>{{contract.number}} {{customer.name}}</p>',
         ]);
 
-        $this->postJson('/api/contracts/academy', $this->data([
+        $this->postJson("/api/contracts/{$service}", $this->data([
             'contract_template_version_id' => $historical->id,
-        ]))->assertCreated()->assertJsonPath('data.contract_template_version_id', $historical->id);
+        ], $service))->assertCreated()->assertJsonPath('data.contract_template_version_id', $historical->id);
     }
 
     public function test_catalogue_and_cross_service_fields_are_rejected(): void

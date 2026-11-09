@@ -71,6 +71,12 @@ const formatDate = (value: string | null | undefined) => value
   : '—'
 
 const lines = computed<ReceiptLine[]>(() => props.receipt.services ?? [])
+const party = computed(() => props.receipt.student ?? props.receipt.applicant)
+const partyIdLabel = computed(() => props.receipt.student
+  ? t('documents.receipt.studentId')
+  : t('documents.receipt.applicantId'))
+const partyReference = computed(() => props.receipt.student?.student_number
+  || (party.value ? `#${party.value.id}` : '—'))
 
 const paperSizeCss = computed(() => props.paperSize ?? 'A5')
 const twoUp = computed(() => twoUpModes[paperSizeCss.value] ?? null)
@@ -163,11 +169,11 @@ defineExpose({ print })
           <section class="receipt-block">
             <h4>{{ labels.receivedFrom }}</h4>
             <dl>
-              <div><dt>{{ t('common.fields.name') }}</dt><dd>{{ receipt.applicant?.name || '—' }}</dd></div>
-              <div><dt>{{ t('documents.receipt.applicantId') }}</dt><dd>#{{ receipt.applicant?.id ?? '—' }}</dd></div>
-              <div v-if="receipt.applicant?.father_name"><dt>{{ t('documents.receipt.fatherName') }}</dt><dd>{{ receipt.applicant.father_name }}</dd></div>
-              <div><dt>{{ t('documents.receipt.phone') }}</dt><dd>{{ receipt.applicant?.contact || '—' }}</dd></div>
-              <div v-if="receipt.applicant?.email"><dt>{{ t('documents.receipt.email') }}</dt><dd>{{ receipt.applicant.email }}</dd></div>
+              <div><dt>{{ t('common.fields.name') }}</dt><dd>{{ party?.name || '—' }}</dd></div>
+              <div><dt>{{ partyIdLabel }}</dt><dd>{{ partyReference }}</dd></div>
+              <div v-if="party?.father_name"><dt>{{ t('documents.receipt.fatherName') }}</dt><dd>{{ party.father_name }}</dd></div>
+              <div><dt>{{ t('documents.receipt.phone') }}</dt><dd>{{ party?.contact || '—' }}</dd></div>
+              <div v-if="party?.email"><dt>{{ t('documents.receipt.email') }}</dt><dd>{{ party.email }}</dd></div>
               <div v-if="receipt.applicant?.country"><dt>{{ t('documents.receipt.country') }}</dt><dd>{{ receipt.applicant.country }}</dd></div>
               <div v-if="receipt.applicant?.education_level"><dt>{{ t('documents.receipt.educationLevel') }}</dt><dd>{{ receipt.applicant.education_level }}</dd></div>
             </dl>

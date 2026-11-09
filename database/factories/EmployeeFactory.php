@@ -21,7 +21,6 @@ class EmployeeFactory extends Factory
             'status' => Employee::STATUS_ACTIVE,
             'salary' => fake()->numberBetween(20000, 100000),
             'addr' => fake()->address(),
-            'department' => 'Operations',
             'join_date' => fake()->date(),
             'contract_duration' => '12 months',
         ];

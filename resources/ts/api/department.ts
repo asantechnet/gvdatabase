@@ -6,10 +6,12 @@ export interface DepartmentMember {
   position: string | null
   role: string | null
   status: 'active' | 'inactive'
-  supervisor_id: number | null
-  supervisor_name: string | null
-  is_primary: boolean
   is_manager: boolean
+}
+
+export interface DepartmentManager {
+  id: number
+  name: string
 }
 
 export interface Department {
@@ -19,6 +21,10 @@ export interface Department {
   is_active: boolean
   manager_employee_id: number | null
   manager_name: string | null
+  manager_employee_ids: number[]
+  managers: DepartmentManager[]
+  board_id: number | null
+  board_title: string | null
   employees_count: number
   members?: DepartmentMember[]
 }
@@ -27,7 +33,7 @@ export interface DepartmentManagerOption {
   id: number
   name: string
   employeeId: number
-  rank: number
+  isSenior: boolean
   departmentId: number | null
   departmentName?: string | null
 }
@@ -42,6 +48,8 @@ export interface DepartmentPayload {
   name: string
   description?: string | null
   manager_employee_id?: number | null
+  manager_employee_ids?: number[]
+  create_task_board?: boolean
   is_active: boolean
   employee_ids?: number[]
 }

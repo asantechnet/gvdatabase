@@ -13,16 +13,15 @@ const { t } = useI18n()
 const toast = useToast()
 // Each built-in service owns its own stage list; the selector scopes the page.
 const service = ref<BuiltInService>('scholarship')
+// Academy is the only case-free service, so it is never offered here.
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const stages = ref<ApplicantStage[]>([])
 const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
-const tests = ref<MasterDataRecord[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
 const dialog = ref(false)
@@ -40,42 +39,25 @@ const blankForm = () => ({
 })
 const form = ref(blankForm())
 const formService = computed<BuiltInService>(() => editing.value?.service ?? service.value)
-// Destination scope belongs to the admission workflows only.
-const usesAdmissionScope = computed(() => formService.value === 'scholarship' || formService.value === 'private')
-const usesTestScope = computed(() => formService.value === 'test_offer')
+// Destination scope belongs to the admission workflows only. Test-offer
+// stages are service-wide; the API normalizes their scope to null.
+const usesAdmissionScope = computed(() => ['scholarship', 'private'].includes(formService.value))
 const serviceTitle = (value?: BuiltInService | null) => serviceOptions.value.find(option => option.value === value)?.title ?? '—'
 const stageNameByKey = computed(() => Object.fromEntries(stages.value.map(stage => [stage.key, translateApplicantStage(stage)])))
 const nextStagesLabel = (stage: ApplicantStage) => (stage.allowed_next_keys ?? [])
   .map(key => stageNameByKey.value[key])
   .filter(Boolean)
   .join(', ') || '—'
-const testNameById = computed(() => Object.fromEntries(tests.value.map(row => [row.id, row.name])))
-const testOptions = computed(() => [
-  { title: t('educational.masterData.allTests'), value: null },
-  ...tests.value.filter(row => row.is_active).map(row => ({ title: row.name, value: row.id })),
-])
 const countryOptions = computed(() => countries.value.filter(row => row.is_active).map(row => ({ title: row.name, value: row.id })))
 const universityOptions = computed(() => universities.value
   .filter(row => row.is_active && (!form.value.country_id || row.country_id === form.value.country_id))
   .map(row => ({ title: row.name, value: row.id })))
 // The table shows one dependency column only where the service has one.
-const dependencyHeader = computed(() => {
-  if (formService.value === 'academy')
-    return null
-  if (usesTestScope.value)
-    return t('educational.masterData.testScope')
-
-  return `${t('educational.country')} / ${t('educational.university')}`
-})
+const dependencyHeader = computed(() => usesAdmissionScope.value
+  ? `${t('educational.country')} / ${t('educational.university')}`
+  : '')
 const columnCount = computed(() => 6 + (dependencyHeader.value ? 1 : 0))
 const scopeLabel = (stage: ApplicantStage) => {
-  if (stage.service === 'academy')
-    return t('educational.masterData.noDependency')
-  if (stage.service === 'test_offer') {
-    return stage.test_id
-      ? testNameById.value[stage.test_id] ?? '—'
-      : t('educational.masterData.allTests')
-  }
   const country = countries.value.find(row => row.id === stage.country_id)?.name
   const university = universities.value.find(row => row.id === stage.university_id)?.name
 
@@ -104,10 +86,9 @@ async function loadStages() {
 }
 
 async function loadCatalogs() {
-  const [countryRows, universityRows, testRows] = await Promise.allSettled([
+  const [countryRows, universityRows] = await Promise.allSettled([
     MasterDataApi.list('countries'),
     MasterDataApi.list('universities'),
-    MasterDataApi.list('tests'),
   ])
 
   if (countryRows.status === 'fulfilled')
@@ -116,8 +97,6 @@ async function loadCatalogs() {
   if (universityRows.status === 'fulfilled')
     universities.value = universityRows.value
 
-  if (testRows.status === 'fulfilled')
-    tests.value = testRows.value
 }
 
 const load = async () => {
@@ -154,7 +133,6 @@ async function save() {
       name: form.value.name,
       country_id: usesAdmissionScope.value ? form.value.country_id : null,
       university_id: usesAdmissionScope.value ? form.value.university_id : null,
-      test_id: usesTestScope.value ? form.value.test_id : null,
       sort_order: form.value.sort_order ?? 0,
       allowed_next_keys: form.value.allowed_next_keys ?? [],
       is_active: !!form.value.is_active,
@@ -259,16 +237,6 @@ onMounted(load)
                   <VChip v-if="stage.is_terminal" class="ms-2" size="small" color="warning">
                     {{ $t('educational.masterData.terminalStage') }}
                   </VChip>
-                  <VChip
-                    v-if="stage.is_locked"
-                    class="ms-2"
-                    size="small"
-                    color="secondary"
-                    prepend-icon="tabler-lock"
-                    :title="$t('educational.masterData.lockedStageHint')"
-                  >
-                    {{ $t('educational.masterData.lockedStage') }}
-                  </VChip>
                 </td>
                 <td class="text-no-wrap">
                   <template v-if="canManage && !stage.is_locked">
@@ -305,14 +273,7 @@ onMounted(load)
             <VCol v-if="usesAdmissionScope" cols="12" sm="6">
               <VSelect v-model="form.university_id" :items="universityOptions" :label="$t('educational.university')" :hint="$t('educational.masterData.universityScopeHint')" clearable class="mb-4" />
             </VCol>
-            <VCol v-if="usesTestScope" cols="12" sm="6">
-              <VSelect v-model="form.test_id" :items="testOptions" :label="$t('educational.masterData.testScope')" :hint="$t('educational.masterData.testScopeHint')" clearable class="mb-4" />
-            </VCol>
-            <VCol v-if="formService === 'academy'" cols="12">
-              <VAlert type="info" variant="tonal" density="compact" class="mb-4">
-                {{ $t('educational.masterData.noDependency') }}
-              </VAlert>
-            </VCol>
+
             <VCol cols="12">
               <!-- A multi-select, not a combobox: Vuetify's combobox returns the item object,
                    and the API stores stage keys as a string array. -->

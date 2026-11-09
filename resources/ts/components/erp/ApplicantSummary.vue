@@ -3,8 +3,10 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Applicant } from '@/api/applicants'
 import type { ApplicantContractLine } from '@/api/contracts'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 const props = defineProps<{ applicant: Applicant; lines?: ApplicantContractLine[] }>()
 const { t } = useI18n()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const open = ref(false)
 const entries = computed(() => {
   const a = props.applicant
@@ -32,11 +34,9 @@ const entries = computed(() => {
     add('educational.masterData.tests', d?.test?.name)
     add('educational.masterData.skills', a.skills?.map(row => row.name).join(', '))
   }
-  if (a.service === 'academy') {
+  if (a.service === 'academy' && academyEnabled.value) {
     add('serviceContracts.studentId', d?.student_id)
-    add('educational.masterData.times', d?.time?.name)
     add('educational.masterData.teachers', a.teachers?.map(row => row.name).join(', '))
-    add('educational.masterData.durations', d?.duration?.name)
     add('educational.masterData.programs', d?.program?.name)
     add('erp.class', d?.academy_class?.name)
   }
@@ -56,7 +56,8 @@ const entries = computed(() => {
 })
 const brief = computed(() => {
   const d = props.applicant.details
-  if (props.applicant.service === 'academy') return [d?.program?.name, d?.academy_class?.name].filter(Boolean).join(' · ')
+  if (props.applicant.service === 'academy' && academyEnabled.value)
+    return [d?.program?.name, d?.academy_class?.name].filter(Boolean).join(' · ')
   if (props.applicant.service === 'test_offer') return [d?.test?.name, props.applicant.skills?.map(row => row.name).join(', ')].filter(Boolean).join(' · ')
   return [d?.education_level?.name, d?.scholarship?.name].filter(Boolean).join(' · ')
 })

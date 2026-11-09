@@ -23,6 +23,7 @@ class PositionSeeder extends Seeder
             ['title' => 'Case Officer', 'system_key' => 'case_officer', 'salary' => 50000, 'description' => 'Tracks case progress and follow-ups'],
             ['title' => 'Finance Officer', 'system_key' => 'finance_officer', 'salary' => 70000, 'description' => 'Handles receipts, salaries and financial records'],
             ['title' => 'Document Officer', 'system_key' => 'document_officer', 'salary' => 45000, 'description' => 'Collects and verifies applicant documents'],
+            ['title' => 'Teacher', 'system_key' => 'teacher', 'salary' => 50000, 'description' => 'Teaches Academy classes and records attendance'],
         ];
 
         foreach ($positions as $position) {

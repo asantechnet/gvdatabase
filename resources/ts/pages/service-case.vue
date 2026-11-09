@@ -63,6 +63,41 @@ const money = (value: number | string | null | undefined) => n(Number(value || 0
 const formatDate = (value?: string | null) => value ? formatLocalizedDate(value, 'short') : ''
 const formatDateTime = (value?: string | null) => value ? formatLocalizedDate(value, 'long') : t('common.messages.notAvailable')
 
+const available = (value: unknown) => value === null || value === undefined || value === ''
+  ? t('common.messages.notAvailable')
+  : String(value)
+const contractFields = computed(() => {
+  const contract = line.value?.contract
+  if (!contract)
+    return []
+
+  return [
+    { label: t('serviceContracts.number'), value: available(contract.contract_number) },
+    { label: t('common.messages.contract'), value: available(contract.contract ?? contract.type) },
+    { label: t('educational.service'), value: available(serviceLabel.value) },
+    { label: t('educational.contractType'), value: available(contract.type) },
+    { label: t('common.fields.contractTemplate'), value: available(contract.contract_template?.name) },
+    { label: t('serviceContracts.currentVersion'), value: available(contract.contract_template_version?.version_number ?? contract.contract_template_version?.name) },
+    { label: t('serviceContracts.contractRole'), value: available(contract.contract_role ? translateBackendValue(contract.contract_role) : null) },
+    { label: t('serviceContracts.parentContract'), value: available(contract.parent_contract_number) },
+    { label: t('serviceContracts.status'), value: available(translateBackendValue(contract.display_status ?? contract.status)) },
+    { label: t('common.fields.startDate'), value: available(contract.start_date ? formatDate(contract.start_date) : null) },
+    { label: t('common.fields.endDate'), value: available(contract.end_date ? formatDate(contract.end_date) : null) },
+    { label: t('serviceContracts.companySignatory'), value: available(contract.company_signatory_name) },
+    { label: t('serviceContracts.applicant'), value: available(contract.counterparty) },
+    { label: t('serviceContracts.email'), value: available(contract.counterparty_email) },
+    { label: t('serviceContracts.contact'), value: available(contract.counterparty_contact) },
+    { label: t('serviceContracts.address'), value: available(contract.counterparty_address) },
+    { label: t('common.fields.country'), value: available(contract.contract_country?.name ?? contract.contract_country_id) },
+    { label: t('common.fields.language'), value: available(contract.contract_language?.name ?? contract.contract_language_id) },
+    { label: t('serviceContracts.isCancelled'), value: contract.is_cancelled ? t('serviceContracts.cancelled') : t('serviceContracts.active') },
+    { label: t('serviceContracts.cancelledAt'), value: available(contract.cancelled_at ? formatDateTime(contract.cancelled_at) : null) },
+    { label: t('educational.caseUi.finance'), value: contract.payment?.applicable ? `${translateBackendValue(contract.payment.status ?? '')} · ${money(contract.payment.outstanding)} ${contract.payment.currency?.code ?? ''}` : t('common.messages.notAvailable') },
+    { label: t('serviceContracts.createdAt'), value: available(contract.created_at ? formatDateTime(contract.created_at) : null) },
+    { label: t('serviceContracts.updatedAt'), value: available(contract.updated_at ? formatDateTime(contract.updated_at) : null) },
+  ]
+})
+
 const historySubtitle = (row: ServiceCaseHistory) => [
   formatDateTime(row.changed_at),
   row.changer?.name ?? '',
@@ -161,6 +196,12 @@ onMounted(load)
         <section class="service-case-hero">
           <div class="d-flex align-center flex-wrap ga-3"><VAvatar color="primary" variant="tonal" size="60"><VIcon icon="tabler-briefcase" size="30" /></VAvatar><div><VBtn size="small" variant="text" class="pa-0 mb-1" prepend-icon="tabler-arrow-left" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ t('educational.caseUi.caseWorkspaceBack') }}</VBtn><RouterLink class="case-party-link d-block" :to="{ name: 'applicant-case', params: { id: line.applicant_id } }">{{ line.applicant?.name ?? `#${line.applicant_id}` }}</RouterLink><div class="d-flex flex-wrap ga-2 mt-1"><VChip size="x-small" variant="tonal">{{ serviceLabel }}</VChip><VChip v-if="line.contract_number" size="x-small" variant="tonal">{{ line.contract_number }}</VChip><VChip v-if="line.is_extension" size="x-small" variant="tonal" color="info">{{ t('serviceContracts.extension') }}</VChip></div></div></div>
           <div class="d-flex flex-wrap ga-2"><VChip size="small" :color="line.payment_status === 'paid' ? 'success' : line.payment_status === 'partially_paid' ? 'warning' : 'secondary'">{{ translateBackendValue(line.payment_status) }}</VChip><VChip size="small" :color="line.current_stage?.is_terminal ? 'secondary' : 'primary'">{{ movingStage }}</VChip></div>
+        </section>
+        <section class="case-section service-case-contract mt-5">
+          <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('serviceContracts.contract') }}</p><h3>{{ line.contract?.contract_number ?? line.contract_number ?? t('common.messages.notAvailable') }}</h3></div><VChip size="small" variant="tonal">{{ translateBackendValue(line.contract?.status ?? line.status ?? '') }}</VChip></div>
+          <div class="service-case-contract__grid">
+            <div v-for="field in contractFields" :key="field.label"><span>{{ field.label }}</span><strong>{{ field.value }}</strong></div>
+          </div>
         </section>
         <div class="service-case-grid mt-5">
         <section class="case-section service-case-stage">
@@ -271,6 +312,27 @@ onMounted(load)
 
 .service-case-stage {
   background: rgba(var(--v-theme-primary), .045);
+}
+
+.service-case-contract { background: rgba(var(--v-theme-primary), .035); }
+
+.service-case-contract__grid {
+  display: grid;
+  gap: .75rem 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.service-case-contract__grid span {
+  color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity));
+  display: block;
+  font-size: .75rem;
+  text-transform: uppercase;
+}
+
+.service-case-contract__grid strong {
+  display: block;
+  font-weight: 600;
+  margin-block-start: .2rem;
 }
 
 .case-section--history { background: rgba(var(--v-theme-info), .045); }

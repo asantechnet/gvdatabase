@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Applicant;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\DepartmentMembership;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -25,15 +27,17 @@ class RoleHierarchyScopeTest extends TestCase
         $this->seed([PermissionSeeder::class, RoleSeeder::class, RolePermissionSeeder::class]);
     }
 
-    public function test_senior_counselor_can_read_but_not_change_a_direct_reports_case(): void
+    public function test_senior_counselor_can_read_but_not_change_a_department_members_case(): void
     {
         $senior = $this->user('senior_counselor');
         $counselor = $this->user('counselor');
         $seniorEmployee = Employee::factory()->create(['user_id' => $senior->id]);
-        $counselorEmployee = Employee::factory()->create([
-            'user_id' => $counselor->id,
-            'supervisor_id' => $seniorEmployee->id,
-        ]);
+        $counselorEmployee = Employee::factory()->create(['user_id' => $counselor->id]);
+
+        $department = Department::create(['name' => 'Counseling', 'is_active' => true]);
+        app(DepartmentMembership::class)->syncManagers($department, [$seniorEmployee->id]);
+        $counselorEmployee->syncDepartments([$department->id]);
+
         $case = Applicant::factory()->create(['responsible_employee_id' => $counselorEmployee->id]);
 
         Sanctum::actingAs($senior, ['access']);
@@ -47,7 +51,7 @@ class RoleHierarchyScopeTest extends TestCase
             ->assertJsonPath('code', 'auth.forbidden');
     }
 
-    public function test_notification_senders_are_limited_to_their_team_unless_they_have_the_broadcast_grant(): void
+    public function test_notification_senders_are_limited_to_their_department_unless_they_have_the_broadcast_grant(): void
     {
         Role::where('name', 'manager')->firstOrFail()->permissions()
             ->detach(Permission::where('name', 'send_all_notifications')->value('id'));
@@ -55,8 +59,15 @@ class RoleHierarchyScopeTest extends TestCase
         $staff = $this->user('staff');
         $outsider = $this->user('staff');
         $managerEmployee = Employee::factory()->create(['user_id' => $manager->id]);
-        Employee::factory()->create(['user_id' => $staff->id, 'supervisor_id' => $managerEmployee->id]);
-        Employee::factory()->create(['user_id' => $outsider->id]);
+        $staffEmployee = Employee::factory()->create(['user_id' => $staff->id]);
+        $outsiderEmployee = Employee::factory()->create(['user_id' => $outsider->id]);
+
+        $department = Department::create(['name' => 'Operations', 'is_active' => true]);
+        app(DepartmentMembership::class)->syncManagers($department, [$managerEmployee->id]);
+        $staffEmployee->syncDepartments([$department->id]);
+
+        $outsideDepartment = Department::create(['name' => 'Outside', 'is_active' => true]);
+        $outsiderEmployee->syncDepartments([$outsideDepartment->id]);
 
         Sanctum::actingAs($manager, ['access']);
 
@@ -72,15 +83,17 @@ class RoleHierarchyScopeTest extends TestCase
             ->assertJsonPath('code', 'auth.forbidden');
     }
 
-    public function test_senior_counselor_cannot_edit_a_subordinates_service_sale(): void
+    public function test_senior_counselor_cannot_edit_a_department_members_service_sale(): void
     {
         $senior = $this->user('senior_counselor');
         $counselor = $this->user('counselor');
         $seniorEmployee = Employee::factory()->create(['user_id' => $senior->id]);
-        $counselorEmployee = Employee::factory()->create([
-            'user_id' => $counselor->id,
-            'supervisor_id' => $seniorEmployee->id,
-        ]);
+        $counselorEmployee = Employee::factory()->create(['user_id' => $counselor->id]);
+
+        $department = Department::create(['name' => 'Counseling', 'is_active' => true]);
+        app(DepartmentMembership::class)->syncManagers($department, [$seniorEmployee->id]);
+        $counselorEmployee->syncDepartments([$department->id]);
+
         Sanctum::actingAs($counselor, ['access']);
         $sale = $this->createBuiltInContract('test_offer', ['fee' => 500]);
 

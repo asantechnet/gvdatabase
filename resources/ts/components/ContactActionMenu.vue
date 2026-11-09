@@ -12,8 +12,10 @@ import ErpField from '@/components/erp/ErpField.vue'
 const props = defineProps<{
   kind: 'phone' | 'email'
   value: string | null | undefined
-  contactableType?: 'visitor' | 'applicant'
+  contactableType?: 'visitor' | 'applicant' | 'university' | 'country'
   contactableId?: number
+  /** Scope a university/country interaction to this visa case. */
+  caseApplicantId?: number
   /** Open the menu automatically, e.g. when deep-linked from another page. */
   autoOpen?: boolean
   /**
@@ -112,7 +114,7 @@ const saveConversation = async () => {
       title: form.value.title.trim(),
       notes: form.value.notes.trim(),
       follow_up_at: form.value.follow_up_at,
-    })
+    }, props.caseApplicantId)
     dialog.value = false
     pendingAction.value = null
   }

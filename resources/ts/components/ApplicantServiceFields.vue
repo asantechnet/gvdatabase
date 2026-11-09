@@ -5,13 +5,17 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import type { ApplicantPayload } from '@/api/applicants'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
+import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const model = defineModel<ApplicantPayload>({ required: true })
 const languageId = defineModel<number | null>('languageId')
 const props = defineProps<{
   fixedService?: boolean
   showLanguage?: boolean
+  /** The academy contract creates its student record and number automatically. */
+  showStudentId?: boolean
   /** Lets the contract form place its fee and staff fields in the same grid. */
   contractLayout?: boolean
   /** Renders only the fields that belong to a contract-wizard step. */
@@ -20,13 +24,15 @@ const props = defineProps<{
 }>()
 const { t } = useI18n()
 const toast = useToast()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const loading = ref(false)
 const catalogs = ref<Partial<Record<EducationalCatalog, MasterDataRecord[]>>>({})
 const contractTypes = ref<ContractType[]>([])
+const teachers = ref<AcademyTeacher[]>([])
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 // One row per service; nothing from another service is ever rendered.
@@ -39,9 +45,6 @@ const selectedFields: Partial<Record<EducationalCatalog, keyof ApplicantPayload>
   skills: 'skill_ids',
   classes: 'class_id',
   programs: 'program_id',
-  times: 'time_id',
-  durations: 'duration_id',
-  teachers: 'teacher_ids',
 }
 const options = (catalog: EducationalCatalog) => {
   const field = selectedFields[catalog]
@@ -57,9 +60,10 @@ const visibleOnStep = (...steps: Array<1 | 2 | 3>) => !props.contractStep || ste
 
 onMounted(async () => {
   loading.value = true
-  const names: EducationalCatalog[] = ['countries', 'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'times', 'durations', 'teachers', 'classes']
+  const names: EducationalCatalog[] = ['countries', 'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'classes']
   const results = await Promise.allSettled([
     ...names.map(async name => { catalogs.value[name] = await MasterDataApi.list(name) }),
+    AcademyTeachersApi.list().then(rows => { teachers.value = rows }),
     ContractTypeApi.getAll().then(rows => { contractTypes.value = rows }),
   ])
   loading.value = false
@@ -101,14 +105,11 @@ onMounted(async () => {
     <template v-else-if="model.service === 'academy'">
       <template v-if="visibleOnStep(1)">
         <slot v-if="props.contractLayout" name="academy-student-basics" />
-        <slot v-if="props.contractLayout" name="academy-version" />
-        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" :placeholder="t('serviceContracts.placeholders.studentId')" maxlength="64" required /></VCol>
+        <VCol v-if="props.showStudentId !== false" cols="12" sm="6" md="6"><ErpField v-model="model.student_id" :label="t('serviceContracts.studentId')" :placeholder="t('serviceContracts.placeholders.studentId')" maxlength="64" required /></VCol>
         <VCol v-if="props.showLanguage" cols="12" sm="6" md="6"><ErpField v-model="languageId" kind="select" :items="props.languages ?? []" item-title="name" item-value="id" :label="t('serviceContracts.language')" :placeholder="t('serviceContracts.placeholders.language')" clearable /></VCol>
       </template>
       <template v-if="visibleOnStep(2)">
-        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.time_id" kind="select" :items="options('times')" :label="t('educational.masterData.times')" :placeholder="t('serviceContracts.placeholders.classTime')" required clearable /></VCol>
-        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.teacher_ids" class="requested-subjects" kind="select" :items="options('teachers')" :label="t('educational.masterData.teachers')" :placeholder="t('serviceContracts.placeholders.teachers')" required multiple chips closable-chips clearable /></VCol>
-        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.duration_id" kind="select" :items="options('durations')" :label="t('educational.masterData.durations')" :placeholder="t('serviceContracts.placeholders.duration')" required clearable /></VCol>
+        <VCol cols="12" sm="6" md="6"><ErpField v-model="model.teacher_ids" class="requested-subjects" kind="select" :items="teachers" item-title="name" item-value="id" :label="t('educational.masterData.teachers')" :placeholder="t('serviceContracts.placeholders.teachers')" required multiple chips closable-chips clearable /></VCol>
         <VCol cols="12" sm="6" md="6"><ErpField v-model="model.program_id" kind="select" :items="options('programs')" :label="t('educational.masterData.programs')" :placeholder="t('serviceContracts.placeholders.program')" required clearable /></VCol>
         <VCol cols="12" class="contract-wizard-full-row"><ErpField v-model="model.class_id" kind="select" :items="options('classes')" :label="t('erp.class')" :placeholder="t('serviceContracts.placeholders.class')" required clearable /></VCol>
       </template>

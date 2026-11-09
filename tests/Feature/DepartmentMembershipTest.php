@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\DepartmentMembership;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -25,35 +26,30 @@ class DepartmentMembershipTest extends TestCase
         Sanctum::actingAs($actor, ['access']);
     }
 
-    public function test_the_member_list_reports_primary_manager_and_count(): void
+    public function test_the_member_list_reports_managers_and_count_without_a_primary_member(): void
     {
         $operations = $this->department('Operations');
         $finance = $this->department('Finance');
         $manager = $this->employeeWithRole('manager', ['name' => 'Head Person']);
-        $operations->update(['manager_employee_id' => $manager->id]);
-        $manager->syncDepartments([$operations->id], $operations->id);
+        app(DepartmentMembership::class)->syncManagers($operations, [$manager->id]);
 
-        $primary = Employee::factory()->create(['name' => 'Primary Person', 'department_id' => $operations->id]);
-        $secondary = Employee::factory()->create(['name' => 'Secondary Person', 'department_id' => $finance->id]);
-        $secondary->syncDepartments([$finance->id, $operations->id], $finance->id);
+        $member = Employee::factory()->create(['name' => 'Member Person']);
+        $member->syncDepartments([$finance->id, $operations->id]);
 
         $row = collect($this->getJson('/api/departments?with_members=1')->assertOk()->json('data'))
             ->firstWhere('id', $operations->id);
 
-        $this->assertSame(3, $row['employees_count']);
-        $this->assertCount(3, $row['members']);
+        $this->assertSame(2, $row['employees_count']);
+        $this->assertCount(2, $row['members']);
 
-        $secondaryRow = collect($row['members'])->firstWhere('id', $secondary->id);
-        $this->assertFalse($secondaryRow['is_primary']);
-        $this->assertFalse($secondaryRow['is_manager']);
-        $this->assertArrayHasKey('supervisor_name', $secondaryRow);
+        $memberRow = collect($row['members'])->firstWhere('id', $member->id);
+        $this->assertFalse($memberRow['is_manager']);
+        $this->assertArrayNotHasKey('is_primary', $memberRow);
+        $this->assertArrayNotHasKey('supervisor_name', $memberRow);
 
         $managerRow = collect($row['members'])->firstWhere('id', $manager->id);
         $this->assertTrue($managerRow['is_manager']);
         $this->assertSame('manager', $managerRow['role']);
-        $this->assertTrue($managerRow['is_primary']);
-
-        $this->assertTrue(collect($row['members'])->firstWhere('id', $primary->id)['is_primary']);
     }
 
     public function test_the_default_list_has_no_members_and_an_empty_department_lists_none(): void
@@ -72,7 +68,8 @@ class DepartmentMembershipTest extends TestCase
     {
         $operations = $this->department('Operations');
         $finance = $this->department('Finance');
-        $employee = Employee::factory()->create(['department_id' => $finance->id]);
+        $employee = Employee::factory()->create();
+        $employee->syncDepartments([$finance->id]);
 
         $this->putJson("/api/departments/{$operations->id}", [
             'employee_ids' => [$employee->id],
@@ -84,15 +81,14 @@ class DepartmentMembershipTest extends TestCase
             [$operations->id, $finance->id],
             $this->membershipIds($employee),
         );
-        $this->assertSame($finance->id, (int) $employee->fresh()->department_id);
     }
 
-    public function test_removing_a_primary_member_promotes_their_oldest_other_department(): void
+    public function test_removing_a_member_keeps_their_other_departments(): void
     {
         $operations = $this->department('Operations');
         $finance = $this->department('Finance');
-        $employee = Employee::factory()->create(['department_id' => $operations->id]);
-        $employee->syncDepartments([$operations->id, $finance->id], $operations->id);
+        $employee = Employee::factory()->create();
+        $employee->syncDepartments([$operations->id, $finance->id]);
 
         $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => []])
             ->assertOk()
@@ -100,55 +96,25 @@ class DepartmentMembershipTest extends TestCase
             ->assertJsonPath('data.members', []);
 
         $this->assertSame([$finance->id], $this->membershipIds($employee));
-        $this->assertSame($finance->id, (int) $employee->fresh()->department_id);
-        $this->assertSame(
-            1,
-            DB::table('department_employee')->where('employee_id', $employee->id)->where('is_primary', true)->count(),
-        );
-    }
-
-    public function test_removing_the_last_membership_clears_the_primary_projection(): void
-    {
-        $operations = $this->department('Operations');
-        $employee = Employee::factory()->create(['department_id' => $operations->id]);
-
-        $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => []])->assertOk();
-
-        $this->assertSame([], $this->membershipIds($employee));
-        $this->assertNull($employee->fresh()->department_id);
-        $this->assertNull($employee->fresh()->department);
     }
 
     public function test_the_current_manager_cannot_be_removed_from_the_member_set(): void
     {
         $operations = $this->department('Operations');
         $manager = $this->employeeWithRole('manager', ['name' => 'Head Person']);
-        $operations->update(['manager_employee_id' => $manager->id]);
+        app(DepartmentMembership::class)->syncManagers($operations, [$manager->id]);
 
         $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => [$manager->id]])->assertOk();
 
-        $refused = $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => []])
-            ->assertStatus(422);
-        $this->assertBusinessError($refused, 'employee_ids', 'business.department_manager_cannot_be_removed');
+        // The controller re-adds every current manager before syncing the set,
+        // so the manager can never be detached by an employee_ids payload.
+        $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => []])
+            ->assertOk();
 
         $this->assertDatabaseHas('department_employee', [
             'department_id' => $operations->id,
             'employee_id' => $manager->id,
         ]);
-    }
-
-    public function test_an_added_employee_must_rank_below_the_manager(): void
-    {
-        $operations = $this->department('Operations');
-        $manager = $this->employeeWithRole('manager');
-        $operations->update(['manager_employee_id' => $manager->id]);
-        $senior = $this->employeeWithRole('admin');
-
-        $refused = $this->putJson("/api/departments/{$operations->id}", ['employee_ids' => [$senior->id]])
-            ->assertStatus(422);
-        $this->assertBusinessError($refused, 'employee_ids.0', 'business.department_member_rank_invalid');
-
-        $this->assertSame(0, DB::table('department_employee')->where('department_id', $operations->id)->count());
     }
 
     public function test_an_inactive_employee_cannot_be_added_but_can_be_removed(): void
@@ -165,7 +131,6 @@ class DepartmentMembershipTest extends TestCase
         DB::table('department_employee')->insert([
             'employee_id' => $inactive->id,
             'department_id' => $operations->id,
-            'is_primary' => false,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -178,7 +143,8 @@ class DepartmentMembershipTest extends TestCase
     public function test_omitting_the_member_set_leaves_members_untouched(): void
     {
         $operations = $this->department('Operations');
-        $member = Employee::factory()->create(['department_id' => $operations->id]);
+        $member = Employee::factory()->create();
+        $member->syncDepartments([$operations->id]);
 
         $this->putJson("/api/departments/{$operations->id}", ['name' => 'Renamed'])
             ->assertOk()
@@ -207,17 +173,16 @@ class DepartmentMembershipTest extends TestCase
         $this->assertSame(0, DB::table('department_employee')->where('department_id', $operations->id)->count());
     }
 
-    /**
-     * Validation messages for a dotted field are keyed literally in the JSON
-     * payload (`errors."employee_ids.0"`), so assert the bag entry directly.
-     */
-    private function assertBusinessError(\Illuminate\Testing\TestResponse $response, string $field, string $code): void
+    /** @return array<int, int> */
+    private function membershipIds(Employee $employee): array
     {
-        $errors = $response->json('errors');
-
-        $this->assertIsArray($errors);
-        $this->assertArrayHasKey($field, $errors);
-        $this->assertSame([$code], $errors[$field]);
+        return DB::table('department_employee')
+            ->where('employee_id', $employee->id)
+            ->pluck('department_id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
     }
 
     private function department(string $name): Department
@@ -234,13 +199,12 @@ class DepartmentMembershipTest extends TestCase
         return Employee::factory()->create([...$attributes, 'user_id' => $user->id]);
     }
 
-    /** @return array<int, int> */
-    private function membershipIds(Employee $employee): array
+    private function assertBusinessError(\Illuminate\Testing\TestResponse $response, string $field, string $code): void
     {
-        return DB::table('department_employee')
-            ->where('employee_id', $employee->id)
-            ->pluck('department_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        $errors = $response->json('errors');
+
+        $this->assertIsArray($errors);
+        $this->assertArrayHasKey($field, $errors);
+        $this->assertSame([$code], $errors[$field]);
     }
 }

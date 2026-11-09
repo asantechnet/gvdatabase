@@ -49,6 +49,8 @@ const t = key => key.split('.').reduce((value, part) => value?.[part], messages)
 const component = load(script.content, {
   'vue-i18n': { useI18n: () => ({ t, locale: ref(locale) }) },
   '@/utils/localization': { formatLocalizedDate: value => value.slice(0, 10) },
+  '@/utils/documentBranding': load(await read('resources/ts/utils/documentBranding.ts'), {}),
+  '@/utils/amountInWords': load(await read('resources/ts/utils/amountInWords.ts'), {}),
   '@/utils/printReceipt': printing,
 }).default
 component.__scopeId = scopeId

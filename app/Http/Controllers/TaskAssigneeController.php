@@ -19,7 +19,8 @@ class TaskAssigneeController extends Controller
         // A role grant may assign anyone; a department head may only choose the
         // members of the department they manage.
         $unrestricted = $user->hasDirectPermission('assign_task_members');
-        abort_unless($unrestricted || $scope->isDepartmentManager($user), 403, 'auth.forbidden');
+        $departmentManager = $user->hasPermission('manage_department_tasks') && $scope->isDepartmentManager($user);
+        abort_unless($unrestricted || $departmentManager, 403, 'auth.forbidden');
 
         $query = User::query()
             ->excludePrimaryRecord()

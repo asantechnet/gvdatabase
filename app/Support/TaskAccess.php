@@ -9,25 +9,36 @@ use App\Models\User;
 /**
  * Centralizes the relationship checks behind task-management policies.
  *
- * Viewing a board/task follows the user's employee scope (`view_subordinate_records`
- * reaches the team's work). Changing someone else's work additionally needs
- * `manage_subordinate_records`, which is what keeps a senior counselor's
- * supervision read-only.
+ * Personal boards are private. Department boards are readable by their
+ * members and writable by a manager holding `manage_department_tasks`.
+ * Service boards keep their contract-category permission.
  */
 class TaskAccess
 {
     public static function canViewBoard(User $user, Board $board): bool
     {
-        // A personal board is private to its owner. Membership and even the
-        // blanket `view_all_boards` grant never widens it, including for
-        // super-admins.
         if ($board->isPersonal()) {
             return (int) $board->user_id === (int) $user->id;
         }
 
-        // A built-in service board is readable by anyone who may access that
-        // service's contracts. `view_all_boards` never widens a category the
-        // user cannot access.
+        if ($board->department_id !== null) {
+            if ($user->hasPermission('view_all_boards')) {
+                return true;
+            }
+
+            $employeeId = app(EmployeeScope::class)->ownEmployeeId($user);
+            if ($employeeId === null) {
+                return false;
+            }
+
+            return $board->department()
+                ->where(function ($query) use ($employeeId): void {
+                    $query->whereHas('employees', fn ($members) => $members->whereKey($employeeId))
+                        ->orWhereHas('managers', fn ($managers) => $managers->whereKey($employeeId));
+                })
+                ->exists();
+        }
+
         $service = ServiceBoard::serviceForTitle($board->title);
         if ($service !== null) {
             return $user->hasPermission(BuiltInService::contractPermission($service));
@@ -41,17 +52,30 @@ class TaskAccess
             return false;
         }
 
-        // visibleUserIds always contains the actor, so this also matches the
-        // classic "member of the board" case for staff and viewers.
         return $board->users()
             ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user))
             ->exists();
     }
 
-    /**
-     * The owner of a private personal board with `create_personal_tasks` may
-     * create and manage every task on that board.
-     */
+    public static function canManageDepartmentBoard(User $user, ?Board $board): bool
+    {
+        if (! $board || $board->department_id === null || ! $user->hasPermission('manage_department_tasks')) {
+            return false;
+        }
+
+        $employeeId = app(EmployeeScope::class)->ownEmployeeId($user);
+        if ($employeeId === null) {
+            return false;
+        }
+
+        return $board->department()
+            ->where(function ($query) use ($employeeId): void {
+                $query->where('manager_employee_id', $employeeId)
+                    ->orWhereHas('managers', fn ($managers) => $managers->whereKey($employeeId));
+            })
+            ->exists();
+    }
+
     public static function canManagePersonalBoard(User $user, Board $board): bool
     {
         return $board->isPersonal()
@@ -66,16 +90,15 @@ class TaskAccess
 
     public static function canViewTask(User $user, Task $task): bool
     {
-        // A task is never visible outside a board the user can see. Task
-        // assignment normally creates this board membership automatically;
-        // this extra check also closes the gap if a manager later removes it.
         if (! self::canViewBoard($user, $task->board)) {
             return false;
         }
 
-        // The personal-board permission covers every task on the owner's own
-        // board, including one reassigned away from the owner.
         if (self::canManagePersonalTask($user, $task)) {
+            return true;
+        }
+
+        if (self::canManageDepartmentBoard($user, $task->board)) {
             return true;
         }
 
@@ -99,7 +122,6 @@ class TaskAccess
         return $task->users()->whereKey($user->id)->exists();
     }
 
-    /** A supervisor with the manage scope over someone assigned to the board. */
     public static function isTeamBoardMember(User $user, Board $board): bool
     {
         if (! $user->hasPermission('manage_subordinate_records')) {
@@ -111,7 +133,6 @@ class TaskAccess
         return $teamUserIds !== [] && $board->users()->whereIn('users.id', $teamUserIds)->exists();
     }
 
-    /** A supervisor with the manage scope over someone assigned to the task. */
     public static function isTeamTaskAssignee(User $user, Task $task): bool
     {
         if (! $user->hasPermission('manage_subordinate_records')) {
@@ -123,15 +144,8 @@ class TaskAccess
         return $teamUserIds !== [] && $task->users()->whereIn('users.id', $teamUserIds)->exists();
     }
 
-    /**
-     * A task that already involves a member of a department the user heads.
-     * This is how a department manager reaches the work they are expected to
-     * coordinate, without a supervisor-chain relationship.
-     */
     public static function isDepartmentTask(User $user, Task $task): bool
     {
-        $departmentUserIds = app(EmployeeScope::class)->managedDepartmentUserIds($user);
-
-        return $departmentUserIds !== [] && $task->users()->whereIn('users.id', $departmentUserIds)->exists();
+        return self::canManageDepartmentBoard($user, $task->board);
     }
 }

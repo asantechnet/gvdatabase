@@ -87,6 +87,9 @@ const policies = computed(() => allPolicies.value.filter(policy =>
 const selectedType = computed(() => contractTypes.value.find(type => type.id === contractTypeId.value) ?? null)
 const isEmployment = computed(() => selectedType.value?.slug === 'employment')
 const isServiceType = computed(() => selectedType.value?.slug === 'customer')
+// Only customer (built-in service) and employment templates are versioned.
+// Other agreements keep one document that is edited directly on the template.
+const usesVersioning = computed(() => isEmployment.value || isServiceType.value)
 // Test-offer versions are keyed by the test, every other service by country.
 const isTestOffer = computed(() => builtInService.value === 'test_offer')
 const serviceBindingLocked = computed(() => !!templateId.value && !!savedBuiltInService.value)
@@ -222,6 +225,8 @@ const openVersionDialog = () => {
 }
 
 const createVersion = async () => {
+  if (!usesVersioning.value)
+    return
   if (!templateId.value || !versionForm.value.name.trim()) {
     toast.warning(tr('validation.versionNameRequired'))
     return
@@ -360,10 +365,17 @@ const loadTemplate = async (id: number) => {
     coverText.value = template.cover_text ?? ''
     templateId.value = template.id
     await loadPlaceholders()
-    await loadVersions(template.id)
-    const editable = versions.value.find(version => version.status === 'draft') ?? versions.value.find(version => version.is_current)
-    contentHtml.value = hydratePlaceholders(legacyContentToHtml(editable?.content ?? template.content), placeholderGroups.value, knownKeys.value)
-    editingVersionId.value = editable?.status === 'draft' ? editable.id : null
+    if (usesVersioning.value) {
+      await loadVersions(template.id)
+      const editable = versions.value.find(version => version.status === 'draft') ?? versions.value.find(version => version.is_current)
+      contentHtml.value = hydratePlaceholders(legacyContentToHtml(editable?.content ?? template.content), placeholderGroups.value, knownKeys.value)
+      editingVersionId.value = editable?.status === 'draft' ? editable.id : null
+    }
+    else {
+      versions.value = []
+      contentHtml.value = hydratePlaceholders(legacyContentToHtml(template.content), placeholderGroups.value, knownKeys.value)
+      editingVersionId.value = null
+    }
     markTemplatePristine()
   }
   catch (error) { toast.error(tr('messages.loadTemplateDetailsError')); console.error(error) }
@@ -415,10 +427,12 @@ const saveContract = async () => {
     return
   }
   const isNewTemplate = !templateId.value
-  const initialScopeMissing = isEmployment.value
-    ? false
-    : (isTestOffer.value ? !initialVersion.value.test_id : !initialVersion.value.country_id) || !initialVersion.value.language_id
-  if (isNewTemplate && (!initialVersion.value.name.trim() || initialScopeMissing)) {
+  const initialScopeMissing = usesVersioning.value
+    ? (isEmployment.value
+        ? false
+        : (isTestOffer.value ? !initialVersion.value.test_id : !initialVersion.value.country_id) || !initialVersion.value.language_id)
+    : false
+  if (isNewTemplate && usesVersioning.value && (!initialVersion.value.name.trim() || initialScopeMissing)) {
     toast.warning(tr('messages.selectInitialVersion'))
 
     return
@@ -430,7 +444,7 @@ const saveContract = async () => {
     isLoading.value = true
 
     const saved = templateId.value ? await ContractTemplateApi.update(templateId.value, payload) : await ContractTemplateApi.create(payload)
-    if (isNewTemplate) {
+    if (isNewTemplate && usesVersioning.value) {
       await ContractTemplateApi.createVersion(saved.id, {
         name: initialVersion.value.name.trim(),
         country_id: isEmployment.value ? null : initialVersion.value.country_id,
@@ -549,7 +563,7 @@ watch(locale, async () => {
       @submit.prevent="saveContract"
     >
       <VCard
-        v-if="templateId"
+        v-if="templateId && usesVersioning"
         class="template-workspace__card"
       >
         <VCardItem>
@@ -666,7 +680,7 @@ watch(locale, async () => {
                 prepend-inner-icon="tabler-briefcase"
               />
             </VCol>
-            <template v-if="!templateId">
+            <template v-if="!templateId && usesVersioning">
               <VCol cols="12">
                 <VTextField v-model="initialVersion.name" :label="tr('versions.versionName')" :rules="[value => !!String(value || '').trim() || tr('validation.versionNameRequired')]" />
               </VCol>
@@ -755,7 +769,7 @@ watch(locale, async () => {
           </template><VCardTitle>{{ tr('documentContent') }}</VCardTitle><VCardSubtitle>{{ tr('documentContentSubtitle') }}</VCardSubtitle>
         </VCardItem>
         <VCardText class="pt-4">
-          <VAlert v-if="templateId && !editingVersion" color="info" variant="tonal" density="compact" class="mb-4">
+          <VAlert v-if="templateId && usesVersioning && !editingVersion" color="info" variant="tonal" density="compact" class="mb-4">
             {{ tr('versions.selectDraftToEdit') }}
           </VAlert>
           <VTextField
@@ -806,7 +820,7 @@ watch(locale, async () => {
             ref="editorRef"
             v-model="contentHtml"
             :placeholder-groups="placeholderGroups"
-            :disabled="!!templateId && !editingVersion"
+            :disabled="usesVersioning && !!templateId && !editingVersion"
             variant="policy"
             min-height="520px"
           />

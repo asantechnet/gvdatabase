@@ -12,6 +12,10 @@ class EmployeeResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        $departmentNames = $this->relationLoaded('departments')
+            ? $this->departments->pluck('name')->filter()->values()
+            : $this->departments()->pluck('departments.name');
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
@@ -35,26 +39,17 @@ class EmployeeResource extends JsonResource
             'status' => $this->status,
             'office_id' => $this->office_id,
             'office' => $this->office ? ['id' => $this->office->id, 'name' => $this->office->name, 'code' => $this->office->code] : null,
-            'department' => $this->department,
-            'department_id' => $this->department_id,
-            'department_name' => $this->departmentRecord?->name ?? $this->department,
+            'department' => $departmentNames->join(', ') ?: null,
+            'department_name' => $departmentNames->join(', ') ?: null,
             'departments' => $this->whenLoaded('departments', fn () => $this->departments
                 ->map(fn ($department) => [
                     'id' => $department->id,
                     'name' => $department->name,
-                    'is_primary' => (bool) $department->pivot->is_primary,
                 ])
                 ->values()),
-            // Fall back to the legacy primary so an endpoint that did not
-            // eager-load memberships never emits an empty list for a member.
             'department_ids' => $this->relationLoaded('departments')
                 ? $this->departments->pluck('id')->map(fn ($id) => (int) $id)->values()
-                : array_values(array_filter([$this->department_id])),
-            'primary_department_id' => $this->relationLoaded('departments')
-                ? $this->departments->first(fn ($department) => (bool) $department->pivot->is_primary)?->id
-                : $this->department_id,
-            'supervisor_id' => $this->supervisor_id,
-            'supervisor_name' => $this->supervisor?->name,
+                : $this->departments()->pluck('departments.id')->map(fn ($id) => (int) $id)->values(),
             'salary' => $this->salary !== null ? (float) $this->salary : null,
             'is_commission_based' => (bool) $this->is_commission_based,
             'service_commissions' => $this->whenLoaded('serviceCommissions', fn () => $this->serviceCommissions

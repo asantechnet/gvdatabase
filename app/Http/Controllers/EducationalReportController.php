@@ -98,7 +98,7 @@ class EducationalReportController extends Controller
             'contract_type_id' => ['nullable', 'integer', 'exists:contract_types,id'],
             'package_id' => ['prohibited'],
             'package_type_id' => ['prohibited'],
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'stage' => ['nullable', 'string', 'max:60'],
             'status' => ['nullable', 'in:active,closed'],
             'date_from' => ['nullable', 'date'],
@@ -124,6 +124,9 @@ class EducationalReportController extends Controller
     private function applicantScope(array $filters)
     {
         $query = Applicant::query()->with(['responsibleEmployee:id,name', 'privateDetail.country:id,name', 'privateDetail.university:id,name', 'privateDetail.educationLevel:id,name', 'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name', 'scholarshipDetail.educationLevel:id,name', 'currentStage:id,name,key']);
+        if (! BuiltInService::isEnabled(BuiltInService::ACADEMY)) {
+            $query->where('service', '!=', BuiltInService::ACADEMY);
+        }
         foreach (['country_id', 'university_id', 'education_level_id'] as $field) {
             if (! empty($filters[$field])) {
                 $query->whereScholarshipField($field, $filters[$field]);
@@ -204,7 +207,7 @@ class EducationalReportController extends Controller
         $rows = $employees->map(function (Employee $employee) {
             $cases = Applicant::query()->where('responsible_employee_id', $employee->id);
             $bonuses = EducationalBonusSource::query()->where('employee_id', $employee->id);
-            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::ALL)->where('sold_by_employee_id', $employee->id);
+            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::enabled())->where('sold_by_employee_id', $employee->id);
             $contracts = Contract::query()->where(fn ($q) => $q->where('employee_id', $employee->id)->orWhere('sold_by_employee_id', $employee->id))->whereNotIn('status', ['cancelled']);
 
             return [
@@ -265,7 +268,9 @@ class EducationalReportController extends Controller
         if (! $paginate) {
             $rows = $collect($this->serviceQuery('scholarship', $filters)->limit(2500)->get(), 'scholarship')
                 ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test_offer'))
-                ->merge($collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy'))
+                ->merge(BuiltInService::isEnabled(BuiltInService::ACADEMY)
+                    ? $collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy')
+                    : collect())
                 ->merge($collect($this->serviceQuery('private', $filters)->limit(2500)->get(), 'private'))
                 ->sortByDesc('date')->values()->all();
 
@@ -275,7 +280,9 @@ class EducationalReportController extends Controller
         $perPage = $request->integer('per_page', 100);
         $merged = $collect($this->serviceQuery('scholarship', $filters)->limit(2500)->get(), 'scholarship')
             ->merge($collect($this->serviceQuery('test_offer', $filters)->limit(2500)->get(), 'test_offer'))
-            ->merge($collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy'))
+            ->merge(BuiltInService::isEnabled(BuiltInService::ACADEMY)
+                ? $collect($this->serviceQuery('academy', $filters)->limit(2500)->get(), 'academy')
+                : collect())
             ->merge($collect($this->serviceQuery('private', $filters)->limit(2500)->get(), 'private'))
             ->sortByDesc('date')->values();
         $page = max(1, $request->integer('page', 1));

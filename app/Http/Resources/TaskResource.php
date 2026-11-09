@@ -15,6 +15,13 @@ class TaskResource extends JsonResource
             'id' => (string) $this->id,
             'can_view' => TaskAccess::canViewTask($request->user(), $this->resource),
             'boardId' => (string) $this->board_id,
+            'creatorId' => $this->created_by !== null ? (string) $this->created_by : null,
+            'creator' => $this->whenLoaded('creator', fn () => $this->creator ? [
+                'id' => (string) $this->creator->id,
+                'name' => $this->creator->name,
+                'email' => $this->creator->email,
+                'avatar' => $this->creator->employee?->avatar,
+            ] : null),
             'applicantId' => $this->applicant_id,
             'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? ['id' => $this->applicant->id, 'status' => $this->applicant->status] : null),
             'title' => $this->title,

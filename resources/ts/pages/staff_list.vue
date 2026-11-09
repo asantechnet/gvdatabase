@@ -4,7 +4,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
 import EmployeeApi, { type CreateEmployeeData, type Employee, type EmployeeAccount, type EmployeeParams, type UpdateEmployeeData } from '@/api/employee'
-import StaffSupervisorDisclosureDialog from '@/components/StaffSupervisorDisclosureDialog.vue'
 import PositionApi, { type Position } from '@/api/position'
 import CurrencyApi, { type Currency } from '@/api/currency'
 import OfficeApi, { type Office } from '@/api/office'
@@ -24,6 +23,7 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import StaffFormFields from '@/components/hr/StaffFormFields.vue'
 import EmployeePaidTimeOffDialog from '@/components/paid-time-off/EmployeePaidTimeOffDialog.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 interface Staff {
   id: number
@@ -46,13 +46,8 @@ interface Staff {
   email: string
   office_id: number | null
   office: Employee['office']
-  department_id: number | null
-  department_name: string | null
-  departments?: Array<{ id: number; name: string; is_primary?: boolean }>
+  departments?: Array<{ id: number; name: string }>
   department_ids?: number[]
-  primary_department_id?: number | null
-  supervisor_id: number | null
-  supervisor_name: string | null
   salary: number | null
   total_worked_hours: number
   addr: string
@@ -97,6 +92,7 @@ const selfProfileForm = ref({
 });
 const selfProfileId = ref<number | null>(null);
 const selectedStaff = ref<Staff | null>(null);
+const staffForm = computed<Staff>(() => selectedStaff.value as Staff);
 const searchQuery = ref("");
 const filterPosition = ref<string | null>(null);
 // Server-side status filter. The backend returns active employees only unless
@@ -141,10 +137,6 @@ const pendingPositionSalary = computed(() =>
 
 const offices = ref<Office[]>([])
 const departments = ref<Department[]>([])
-const supervisorOptions = ref<Employee[]>([])
-const supervisorDialogOpen = ref(false)
-const pendingSupervisorId = ref<number | null>(null)
-const supervisorDialogName = ref<string | null>(null)
 const userAccounts = ref<EmployeeAccount[]>([])
 const isUserAccountsLoading = ref(false)
 const formSubmissionError = ref('')
@@ -220,9 +212,7 @@ const staffDetailFields = computed(() => [
   { key: 'education_lvl', label: translate('common.messages.educationLevel') },
   { key: 'position', label: translate('common.messages.position') },
   { key: 'office.name', label: translate('common.fields.office') },
-  { key: 'department_name', label: translate('common.fields.department') },
   { key: 'departments', label: translate('common.fields.departments') },
-  { key: 'supervisor_name', label: translate('common.fields.supervisor') },
   { key: 'join_date', label: translate('common.messages.joinDate') },
   { key: 'salary', label: translate('common.messages.salary') },
   { key: 'bank_account_number', label: translate('common.ui.bankAccountNumber') },
@@ -237,8 +227,6 @@ const staffDetailFields = computed(() => [
 
 const formErrors = ref({
   department_ids: '',
-  primary_department_id: '',
-  supervisor_id: '',
   name: '',
   father_name: '',
   contact: '',
@@ -254,8 +242,6 @@ const formErrors = ref({
 const resetFormErrors = () => {
   formErrors.value = {
     department_ids: '',
-    primary_department_id: '',
-    supervisor_id: '',
     name: '',
     father_name: '',
     contact: '',
@@ -311,6 +297,7 @@ const validateStaffForm = (throughStep: 1 | 2 | 3 = 3) => {
 
 // Commission rates are edited per built-in service. The rates live on the
 // selected employee so both the create and edit dialogs share one binding.
+const { enabled: academyEnabled } = useAcademyEnabled();
 const commissionServiceOptions = computed(() => [
   {
     value: "scholarship",
@@ -320,7 +307,9 @@ const commissionServiceOptions = computed(() => [
     value: "test_offer",
     title: translate("educational.builtInServices.testOffer"),
   },
-  { value: "academy", title: translate("educational.builtInServices.academy") },
+  ...(academyEnabled.value
+    ? [{ value: "academy", title: translate("educational.builtInServices.academy") }]
+    : []),
   { value: "private", title: translate("educational.builtInServices.private") },
 ]);
 
@@ -448,13 +437,8 @@ const openAddStaffDialog = () => {
     status: "active",
     office_id: null,
     office: null,
-    department_id: null,
-    department_name: null,
     departments: [],
     department_ids: [],
-    primary_department_id: null,
-    supervisor_id: null,
-    supervisor_name: null,
     salary: 0,
     total_worked_hours: 0,
     join_date: new Date().toISOString().split("T")[0],
@@ -472,91 +456,25 @@ const openAddStaffDialog = () => {
 };
 
 const canManageEmployees = computed(() => canAccess('edit_employees'))
-const canAssignSupervisor = computed(() => canAccess('assign_employee_supervisor'))
+const canAssignDepartments = computed(() => canAccess('manage_departments'))
 
 const departmentSelectOptions = computed(() => departments.value.map(department => ({
   title: department.name,
   value: department.id,
 })))
 
-const primaryDepartmentOptions = computed(() => {
-  const selected = selectedStaff.value?.department_ids ?? []
-
-  return departmentSelectOptions.value.filter(option => selected.includes(option.value as number))
-})
-
-const supervisorSelectOptions = computed(() => supervisorOptions.value
-  .filter(employee => employee.status === 'active' && employee.id !== selectedStaff.value?.id)
-  .map(employee => ({
-    title: [employee.name, employee.position, employee.department_name].filter(Boolean).join(' · '),
-    value: employee.id,
-  })))
-
 function staffDepartments(staff: Staff) {
-  if (staff.departments?.length)
-    return staff.departments
-
-  if (staff.department_id)
-    return [{ id: staff.department_id, name: staff.department_name ?? '', is_primary: true }]
-
-  return []
-}
-
-function syncPrimaryDepartment(ids: number[] | null) {
-  if (!selectedStaff.value)
-    return
-
-  const list = ids ?? []
-  selectedStaff.value.department_ids = list
-
-  if (!list.length) {
-    selectedStaff.value.primary_department_id = null
-
-    return
-  }
-
-  if (!selectedStaff.value.primary_department_id || !list.includes(selectedStaff.value.primary_department_id))
-    selectedStaff.value.primary_department_id = list[0]
-}
-
-function requestSupervisorChange(value: number | null) {
-  if (!selectedStaff.value || !canAssignSupervisor.value)
-    return
-
-  const next = value ?? null
-  if (next === selectedStaff.value.supervisor_id)
-    return
-
-  pendingSupervisorId.value = next
-  supervisorDialogName.value = next === null
-    ? null
-    : supervisorOptions.value.find(employee => employee.id === next)?.name ?? null
-  supervisorDialogOpen.value = true
-}
-
-function cancelSupervisorChange() {
-  pendingSupervisorId.value = null
-  supervisorDialogName.value = null
-}
-
-function confirmSupervisorChange() {
-  if (!selectedStaff.value)
-    return
-
-  selectedStaff.value.supervisor_id = pendingSupervisorId.value
-  cancelSupervisorChange()
+  return staff.departments ?? []
 }
 
 // Hierarchy fields are only sent by a caller who may set them. The server
 // ignores them otherwise; omitting them keeps the intent explicit.
-function hierarchyPayload(): Pick<UpdateEmployeeData, 'department_ids' | 'primary_department_id' | 'supervisor_id'> | Record<string, never> {
-  if (!canAssignSupervisor.value)
+function hierarchyPayload(): Pick<UpdateEmployeeData, 'department_ids'> | Record<string, never> {
+  if (!canAssignDepartments.value)
     return {}
 
   return {
     department_ids: selectedStaff.value?.department_ids ?? [],
-    primary_department_id: selectedStaff.value?.primary_department_id ?? null,
-    supervisor_id: selectedStaff.value?.supervisor_id ?? null,
   }
 }
 const canEditOwnProfile = computed(() => canAccess('edit_own_employee_profile'))
@@ -592,8 +510,7 @@ const openEditStaffDialog = (staff: Staff) => {
   // Keep edits local until Save.
   selectedStaff.value = {
     ...staff,
-    department_ids: staff.department_ids?.length ? staff.department_ids : (staff.department_id ? [staff.department_id] : []),
-    primary_department_id: staff.primary_department_id ?? staff.department_id ?? null,
+    department_ids: staff.department_ids ?? [],
     is_commission_based: staff.is_commission_based ?? false,
     service_commissions: staff.service_commissions ?? [],
   };
@@ -733,8 +650,7 @@ const openStaffDetails = async (staff: Staff) => {
   isStaffDetailsLoading.value = true
   try {
     // Fetch the full resource when the profile is opened so departments,
-    // supervisor, commissions and the current document never come from a
-    // stale list row.
+    // commissions and the current document never come from a stale list row.
     const response = await EmployeeApi.getById(staff.id)
     if (response.data?.data)
       staffDetails.value = asStaffRow(response.data.data)
@@ -759,7 +675,6 @@ const staffDetailTiles = computed(() => {
     { key: 'position', label: translate('common.messages.position'), value: staff.position, icon: 'tabler-briefcase' },
     { key: 'office', label: translate('common.fields.office'), value: staff.office?.name, icon: 'tabler-building' },
     { key: 'departments', label: translate('common.fields.departments'), value: staffDepartments(staff).map(row => row.name).join(', '), icon: 'tabler-sitemap' },
-    { key: 'supervisor', label: translate('common.fields.supervisor'), value: staff.supervisor_name, icon: 'tabler-user-star' },
     { key: 'join-date', label: translate('common.messages.joinDate'), value: staff.join_date, icon: 'tabler-calendar-event' },
     { key: 'salary', label: translate('common.messages.salary'), value: formatSalary(staff), icon: 'tabler-cash' },
     { key: 'education', label: translate('common.messages.educationLevel'), value: staff.education_lvl, icon: 'tabler-school' },
@@ -1170,11 +1085,10 @@ const printTable = async () => {
 };
 
 onMounted(async () => {
-  const [, officeRows, departmentRows, supervisorRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), EmployeeApi.getOptions(), fetchUserAccounts(), fetchBaseCurrency()])
+  const [, officeRows, departmentRows] = await Promise.all([fetchPositions(), OfficeApi.getAll(), DepartmentApi.getAll(), fetchUserAccounts(), fetchBaseCurrency()])
 
   offices.value = officeRows.filter(office => office.status === 'active')
   departments.value = departmentRows
-  supervisorOptions.value = Array.isArray(supervisorRows) ? supervisorRows : []
   await fetchEmployees()
 })
 </script>
@@ -1275,7 +1189,6 @@ onMounted(async () => {
                 variant="tonal"
               >
                 {{ department.name }}
-                <span v-if="department.is_primary" class="ms-1">· {{ $t('common.ui.departmentMembersPrimary') }}</span>
               </VChip>
               <span v-if="!staffDepartments(item).length">—</span>
             </div>
@@ -1366,17 +1279,14 @@ onMounted(async () => {
                 :position-options="positionOptions"
                 :offices="offices"
                 :departments="departments"
-                :supervisors="supervisorOptions"
                 :accounts="userAccounts"
                 :is-positions-loading="isPositionsLoading"
                 :is-accounts-loading="isUserAccountsLoading"
-                :can-assign-supervisor="canAssignSupervisor"
+                :can-assign-departments="canAssignDepartments"
                 :commission-options="commissionServiceOptions"
                 :commission-rate="commissionRate"
                 @position-change="applyPositionSalary"
                 @account-change="updateSelectedAccountEmail"
-                @departments-change="syncPrimaryDepartment"
-                @supervisor-change="requestSupervisorChange"
                 @commission-enabled="setCommissionEnabled"
                 @commission-rate-change="(service, value) => setCommissionRate(service, value)"
               />
@@ -1426,17 +1336,14 @@ onMounted(async () => {
                 :position-options="positionOptions"
                 :offices="offices"
                 :departments="departments"
-                :supervisors="supervisorOptions"
                 :accounts="userAccounts"
                 :is-positions-loading="isPositionsLoading"
                 :is-accounts-loading="isUserAccountsLoading"
-                :can-assign-supervisor="canAssignSupervisor"
+                :can-assign-departments="canAssignDepartments"
                 :commission-options="commissionServiceOptions"
                 :commission-rate="commissionRate"
                 @position-change="applyPositionSalary"
                 @account-change="updateSelectedAccountEmail"
-                @departments-change="syncPrimaryDepartment"
-                @supervisor-change="requestSupervisorChange"
                 @commission-enabled="setCommissionEnabled"
                 @commission-rate-change="(service, value) => setCommissionRate(service, value)"
               />
@@ -1502,7 +1409,7 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.name"
+                  v-model="staffForm.name"
                   :label="$t('common.messages.fullName')"
                   :error-messages="formErrors.name"
                   required
@@ -1510,7 +1417,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.father_name"
+                  v-model="staffForm.father_name"
                   :label="$t('common.messages.fatherName')"
                   :error-messages="formErrors.father_name"
                   required
@@ -1518,7 +1425,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.contact"
+                  v-model="staffForm.contact"
                   :label="$t('common.fields.phone')"
                   :error-messages="formErrors.contact"
                   required
@@ -1526,7 +1433,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.emergency_contact_name"
+                  v-model="staffForm.emergency_contact_name"
                   :label="
                     $t(
                       'pages.settings.staffList.staffList.emergencyContactName',
@@ -1537,7 +1444,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.emergency_contact_phone"
+                  v-model="staffForm.emergency_contact_phone"
                   :label="
                     $t(
                       'pages.settings.staffList.staffList.emergencyContactPhone',
@@ -1548,7 +1455,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.user_id"
+                  v-model="staffForm.user_id"
                   class="employee-account-select"
                   :items="userAccountOptions"
                   :label="$t('common.accountPicker.label')"
@@ -1584,8 +1491,8 @@ onMounted(async () => {
                             ><VIcon icon="tabler-id-badge-2" size="14" />
                             {{
                               $t("common.accountPicker.linkedEmployee", {
-                                name: item.raw.employee.name,
-                                id: item.raw.employee.id,
+                                name: item.raw.employee!.name,
+                                id: item.raw.employee!.id,
                               })
                             }}</span
                           ><span v-if="!item.raw.employee">{{
@@ -1603,7 +1510,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.id_number"
+                  v-model="staffForm.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
                   :error-messages="formErrors.id_number"
                   required
@@ -1611,16 +1518,16 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.email"
+                  v-model="staffForm.email"
                   :label="$t('common.fields.email')"
                   type="email"
                   :error-messages="formErrors.email"
-                  :required="!selectedStaff.user_id"
+                  :required="!staffForm.user_id"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.education_lvl"
+                  v-model="staffForm.education_lvl"
                   :items="educationOptions"
                   :label="$t('common.messages.educationLevel')"
                   :error-messages="formErrors.education_lvl"
@@ -1634,7 +1541,7 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.position"
+                  v-model="staffForm.position"
                   :items="positionOptions"
                   :label="$t('common.messages.position')"
                   :error-messages="formErrors.position"
@@ -1645,7 +1552,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <AppDateTimePicker
-                  v-model="selectedStaff.join_date"
+                  v-model="staffForm.join_date"
                   :label="$t('common.messages.joinDate')"
                   :error-messages="formErrors.join_date"
                   required
@@ -1654,7 +1561,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.off_day_allowance_days"
+                  v-model="staffForm.off_day_allowance_days"
                   type="number"
                   min="0"
                   step="0.5"
@@ -1671,7 +1578,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.office_id"
+                  v-model="staffForm.office_id"
                   :items="offices"
                   item-title="name"
                   item-value="id"
@@ -1684,52 +1591,22 @@ onMounted(async () => {
                 md="4"
               >
                 <VAutocomplete
-                  v-model="selectedStaff.department_ids"
+                  v-model="staffForm.department_ids"
                   :items="departmentSelectOptions"
                   item-title="title"
                   item-value="value"
                   :label="$t('common.fields.departments')"
-                  :disabled="!canAssignSupervisor"
+                  :disabled="!canAssignDepartments"
                   :error-messages="formErrors.department_ids"
                   multiple
                   chips
                   closable-chips
                   clearable
-                  @update:model-value="syncPrimaryDepartment"
-                />
-                <VSelect
-                  v-model="selectedStaff.primary_department_id"
-                  :items="primaryDepartmentOptions"
-                  item-title="title"
-                  item-value="value"
-                  :label="$t('common.fields.primaryDepartment')"
-                  :disabled="!canAssignSupervisor || !(selectedStaff.department_ids && selectedStaff.department_ids.length)"
-                  :error-messages="formErrors.primary_department_id"
-                  :hint="canAssignSupervisor ? $t('common.ui.selectPrimaryDepartmentFirst') : $t('common.ui.supervisorDisclosurePermissionNote')"
-                  persistent-hint
-                  clearable
-                  class="mt-3"
-                />
-              </VCol>
-              <VCol cols="12" md="4">
-                <VSelect
-                  :model-value="selectedStaff.supervisor_id"
-                  :items="supervisorSelectOptions"
-                  item-title="title"
-                  item-value="value"
-                  :label="$t('common.fields.supervisor')"
-                  :disabled="!canAssignSupervisor"
-                  :error-messages="formErrors.supervisor_id"
-                  :hint="canAssignSupervisor ? $t('common.ui.supervisorRankHint') : $t('common.ui.supervisorDisclosurePermissionNote')"
-                  :no-data-text="$t('common.ui.supervisorOptionsEmpty')"
-                  persistent-hint
-                  clearable
-                  @update:model-value="requestSupervisorChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model.number="selectedStaff.salary"
+                  v-model.number="staffForm.salary"
                   :label="$t('common.messages.salary')"
                   type="number"
                   min="0"
@@ -1738,14 +1615,14 @@ onMounted(async () => {
                 />
               </VCol>
               <StaffCommissionFields
-                v-model:enabled="selectedStaff.is_commission_based"
+                v-model:enabled="staffForm.is_commission_based"
                 :options="commissionServiceOptions"
                 :rate="commissionRate"
                 @update:rate="setCommissionRate"
               />
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.bank_account_number"
+                  v-model="staffForm.bank_account_number"
                   :label="$t('common.ui.bankAccountNumber')"
                 />
               </VCol>
@@ -1756,31 +1633,31 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_name"
+                  v-model="staffForm.guarantor_name"
                   :label="$t('common.messages.guarantorName')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_id_number"
+                  v-model="staffForm.guarantor_id_number"
                   :label="$t('common.messages.guarantorGovernmentID')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_phone"
+                  v-model="staffForm.guarantor_phone"
                   :label="$t('common.messages.guarantorPhone')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_licence"
+                  v-model="staffForm.guarantor_licence"
                   :label="$t('common.messages.guarantorLicence')"
                 />
               </VCol>
               <VCol cols="12">
                 <VTextarea
-                  v-model="selectedStaff.guarantor_address"
+                  v-model="staffForm.guarantor_address"
                   :label="$t('common.messages.guarantorAddress')"
                   rows="2"
                   auto-grow
@@ -1788,7 +1665,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.addr"
+                  v-model="staffForm.addr"
                   :label="$t('common.fields.address')"
                   :error-messages="formErrors.addr"
                   required
@@ -1796,7 +1673,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.status"
+                  v-model="staffForm.status"
                   :items="
                     statusFilterOptions.filter(
                       (option) => option.value !== 'all',
@@ -1852,7 +1729,7 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.name"
+                  v-model="staffForm.name"
                   :label="$t('common.messages.fullName')"
                   :error-messages="formErrors.name"
                   required
@@ -1860,7 +1737,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.father_name"
+                  v-model="staffForm.father_name"
                   :label="$t('common.messages.fatherName')"
                   :error-messages="formErrors.father_name"
                   required
@@ -1868,7 +1745,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.contact"
+                  v-model="staffForm.contact"
                   :label="$t('common.fields.phone')"
                   :error-messages="formErrors.contact"
                   required
@@ -1876,7 +1753,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.emergency_contact_name"
+                  v-model="staffForm.emergency_contact_name"
                   :label="
                     $t(
                       'pages.settings.staffList.staffList.emergencyContactName',
@@ -1887,7 +1764,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.emergency_contact_phone"
+                  v-model="staffForm.emergency_contact_phone"
                   :label="
                     $t(
                       'pages.settings.staffList.staffList.emergencyContactPhone',
@@ -1898,7 +1775,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.user_id"
+                  v-model="staffForm.user_id"
                   class="employee-account-select"
                   :items="userAccountOptions"
                   :label="$t('common.accountPicker.label')"
@@ -1934,8 +1811,8 @@ onMounted(async () => {
                             ><VIcon icon="tabler-id-badge-2" size="14" />
                             {{
                               $t("common.accountPicker.linkedEmployee", {
-                                name: item.raw.employee.name,
-                                id: item.raw.employee.id,
+                                name: item.raw.employee!.name,
+                                id: item.raw.employee!.id,
                               })
                             }}</span
                           ><span v-if="!item.raw.employee">{{
@@ -1953,7 +1830,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.id_number"
+                  v-model="staffForm.id_number"
                   :label="$t('common.messages.governmentIDNumber')"
                   :error-messages="formErrors.id_number"
                   required
@@ -1961,16 +1838,16 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.email"
+                  v-model="staffForm.email"
                   :label="$t('common.fields.email')"
                   type="email"
                   :error-messages="formErrors.email"
-                  :required="!selectedStaff.user_id"
+                  :required="!staffForm.user_id"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.education_lvl"
+                  v-model="staffForm.education_lvl"
                   :items="educationOptions"
                   :label="$t('common.messages.educationLevel')"
                   :error-messages="formErrors.education_lvl"
@@ -1979,7 +1856,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.position"
+                  v-model="staffForm.position"
                   :items="positionOptions"
                   :label="$t('common.messages.position')"
                   :error-messages="formErrors.position"
@@ -1995,7 +1872,7 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <AppDateTimePicker
-                  v-model="selectedStaff.join_date"
+                  v-model="staffForm.join_date"
                   :label="$t('common.messages.joinDate')"
                   :error-messages="formErrors.join_date"
                   required
@@ -2004,7 +1881,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.off_day_allowance_days"
+                  v-model="staffForm.off_day_allowance_days"
                   type="number"
                   min="0"
                   step="0.5"
@@ -2021,7 +1898,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.office_id"
+                  v-model="staffForm.office_id"
                   :items="offices"
                   item-title="name"
                   item-value="id"
@@ -2034,52 +1911,22 @@ onMounted(async () => {
                 md="4"
               >
                 <VAutocomplete
-                  v-model="selectedStaff.department_ids"
+                  v-model="staffForm.department_ids"
                   :items="departmentSelectOptions"
                   item-title="title"
                   item-value="value"
                   :label="$t('common.fields.departments')"
-                  :disabled="!canAssignSupervisor"
+                  :disabled="!canAssignDepartments"
                   :error-messages="formErrors.department_ids"
                   multiple
                   chips
                   closable-chips
                   clearable
-                  @update:model-value="syncPrimaryDepartment"
-                />
-                <VSelect
-                  v-model="selectedStaff.primary_department_id"
-                  :items="primaryDepartmentOptions"
-                  item-title="title"
-                  item-value="value"
-                  :label="$t('common.fields.primaryDepartment')"
-                  :disabled="!canAssignSupervisor || !(selectedStaff.department_ids && selectedStaff.department_ids.length)"
-                  :error-messages="formErrors.primary_department_id"
-                  :hint="canAssignSupervisor ? $t('common.ui.selectPrimaryDepartmentFirst') : $t('common.ui.supervisorDisclosurePermissionNote')"
-                  persistent-hint
-                  clearable
-                  class="mt-3"
-                />
-              </VCol>
-              <VCol cols="12" md="4">
-                <VSelect
-                  :model-value="selectedStaff.supervisor_id"
-                  :items="supervisorSelectOptions"
-                  item-title="title"
-                  item-value="value"
-                  :label="$t('common.fields.supervisor')"
-                  :disabled="!canAssignSupervisor"
-                  :error-messages="formErrors.supervisor_id"
-                  :hint="canAssignSupervisor ? $t('common.ui.supervisorRankHint') : $t('common.ui.supervisorDisclosurePermissionNote')"
-                  :no-data-text="$t('common.ui.supervisorOptionsEmpty')"
-                  persistent-hint
-                  clearable
-                  @update:model-value="requestSupervisorChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model.number="selectedStaff.salary"
+                  v-model.number="staffForm.salary"
                   :label="$t('common.messages.salary')"
                   type="number"
                   min="0"
@@ -2088,7 +1935,7 @@ onMounted(async () => {
                 />
               </VCol>
               <StaffCommissionFields
-                v-model:enabled="selectedStaff.is_commission_based"
+                v-model:enabled="staffForm.is_commission_based"
                 :options="commissionServiceOptions"
                 :rate="commissionRate"
                 @update:rate="setCommissionRate"
@@ -2100,37 +1947,37 @@ onMounted(async () => {
               />
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.bank_account_number"
+                  v-model="staffForm.bank_account_number"
                   :label="$t('common.ui.bankAccountNumber')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_name"
+                  v-model="staffForm.guarantor_name"
                   :label="$t('common.messages.guarantorName')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_id_number"
+                  v-model="staffForm.guarantor_id_number"
                   :label="$t('common.messages.guarantorGovernmentID')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_phone"
+                  v-model="staffForm.guarantor_phone"
                   :label="$t('common.messages.guarantorPhone')"
                 />
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.guarantor_licence"
+                  v-model="staffForm.guarantor_licence"
                   :label="$t('common.messages.guarantorLicence')"
                 />
               </VCol>
               <VCol cols="12">
                 <VTextarea
-                  v-model="selectedStaff.guarantor_address"
+                  v-model="staffForm.guarantor_address"
                   :label="$t('common.messages.guarantorAddress')"
                   rows="2"
                   auto-grow
@@ -2138,7 +1985,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VTextField
-                  v-model="selectedStaff.addr"
+                  v-model="staffForm.addr"
                   :label="$t('common.fields.address')"
                   :error-messages="formErrors.addr"
                   required
@@ -2146,7 +1993,7 @@ onMounted(async () => {
               </VCol>
               <VCol cols="12" md="4">
                 <VSelect
-                  v-model="selectedStaff.status"
+                  v-model="staffForm.status"
                   :items="[
                     { title: $t('common.statuses.active'), value: 'active' },
                     {
@@ -2536,13 +2383,6 @@ onMounted(async () => {
       :title="attachmentTarget?.name || $t('common.attachments.title')"
     />
   </div>
-  <StaffSupervisorDisclosureDialog
-    v-model="supervisorDialogOpen"
-    :supervisor-name="supervisorDialogName"
-    :employee-name="selectedStaff?.name ?? ''"
-    @confirm="confirmSupervisorChange"
-    @cancel="cancelSupervisorChange"
-  />
 </template>
 
 <style scoped>

@@ -20,6 +20,9 @@ class RoleSeeder extends Seeder
             if ((int) $role->level === 0) {
                 $role->update(['level' => $level]);
             }
+            if ($role->is_senior === false && $level >= 220) {
+                $role->update(['is_senior' => true]);
+            }
         }
     }
 }

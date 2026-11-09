@@ -25,76 +25,6 @@ class Employee extends Model
 
     public const STATUS_INACTIVE = 'inactive';
 
-    protected static function booted(): void
-    {
-        // Keep the legacy free-text column in sync so contract placeholders
-        // and older readers continue to resolve a department name.
-        static::saving(function (Employee $employee): void {
-            if (! $employee->department_id || ! $employee->isDirty('department_id')) {
-                return;
-            }
-
-            $name = Department::query()->whereKey($employee->department_id)->value('name');
-            if ($name !== null) {
-                $employee->department = $name;
-            }
-        });
-
-        // A legacy write (the single department select) still works: it
-        // attaches or promotes that membership without detaching the others.
-        static::saved(function (Employee $employee): void {
-            // Eloquent does not populate `changes` for an insert, so the create
-            // path needs its own check; otherwise a factory or importer that
-            // sets `department_id` would leave the pivot out of step.
-            if (! $employee->wasRecentlyCreated && ! $employee->wasChanged('department_id')) {
-                return;
-            }
-
-            if ($employee->department_id) {
-                $now = now();
-                DB::table('department_employee')->insertOrIgnore([
-                    'employee_id' => $employee->id,
-                    'department_id' => $employee->department_id,
-                    'is_primary' => false,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('department_employee')
-                    ->where('employee_id', $employee->id)
-                    ->update(['is_primary' => false, 'updated_at' => $now]);
-                DB::table('department_employee')
-                    ->where('employee_id', $employee->id)
-                    ->where('department_id', $employee->department_id)
-                    ->update(['is_primary' => true, 'updated_at' => $now]);
-
-                return;
-            }
-
-            // Clearing the legacy column promotes the oldest remaining
-            // membership, so the pivot and the projection cannot disagree.
-            $promoted = DB::table('department_employee')
-                ->where('employee_id', $employee->id)
-                ->orderBy('created_at')
-                ->orderBy('department_id')
-                ->value('department_id');
-
-            if ($promoted !== null) {
-                $now = now();
-                DB::table('department_employee')->where('employee_id', $employee->id)
-                    ->update(['is_primary' => false, 'updated_at' => $now]);
-                DB::table('department_employee')
-                    ->where('employee_id', $employee->id)
-                    ->where('department_id', $promoted)
-                    ->update(['is_primary' => true, 'updated_at' => $now]);
-
-                $employee->forceFill([
-                    'department_id' => $promoted,
-                    'department' => Department::query()->whereKey($promoted)->value('name'),
-                ])->saveQuietly();
-            }
-        });
-    }
-
     protected $fillable = [
         'name',
         'father_name',
@@ -115,9 +45,6 @@ class Employee extends Model
         'salary',
         'bank_account_number',
         'total_worked_hours',
-        'department',
-        'department_id',
-        'supervisor_id',
         'join_date',
         'contract_duration',
         'off_day_allowance_days',
@@ -180,38 +107,22 @@ class Employee extends Model
         return $this->belongsTo(Position::class);
     }
 
-    /**
-     * The department record. Named `departmentRecord` because the legacy
-     * `department` column already occupies the obvious attribute name.
-     */
-    public function departmentRecord(): BelongsTo
-    {
-        return $this->belongsTo(Department::class, 'department_id');
-    }
-
-    /**
-     * Every department this employee belongs to. The primary membership is
-     * projected onto `department_id`, so the first row is the one legacy
-     * readers see.
-     */
+    /** Every department this employee belongs to; memberships are equal. */
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'department_employee')
-            ->withPivot('is_primary')
             ->withTimestamps()
-            ->orderByDesc('department_employee.is_primary')
             ->orderBy('departments.name');
     }
 
     /**
-     * The only writer for the membership set. It validates the departments,
-     * writes the exact set, marks exactly one primary and keeps the legacy
-     * `department_id` / `department` columns aligned in the same transaction.
+     * The only writer for the membership set. It validates the departments and
+     * writes the exact set; no membership is treated as primary.
      *
      * @param  array<int, int|string>  $departmentIds
      * @return Collection<int, Department>
      */
-    public function syncDepartments(array $departmentIds, ?int $primaryDepartmentId = null): Collection
+    public function syncDepartments(array $departmentIds): Collection
     {
         $ids = collect($departmentIds)
             ->map(fn ($id) => (int) $id)
@@ -230,31 +141,7 @@ class Employee extends Model
             throw ValidationException::withMessages(['department_ids' => ['validation.exists']]);
         }
 
-        if ($primaryDepartmentId !== null && ! in_array($primaryDepartmentId, $ids, true)) {
-            throw ValidationException::withMessages(['primary_department_id' => ['validation.in']]);
-        }
-
-        return DB::transaction(function () use ($ids, $primaryDepartmentId): Collection {
-            $currentPrimary = DB::table('department_employee')
-                ->where('employee_id', $this->id)
-                ->where('is_primary', true)
-                ->value('department_id');
-            $currentPrimary = $currentPrimary !== null ? (int) $currentPrimary : null;
-
-            $primary = $primaryDepartmentId;
-            if ($primary === null && $currentPrimary !== null && in_array($currentPrimary, $ids, true)) {
-                $primary = $currentPrimary;
-            }
-            if ($primary === null && $ids !== []) {
-                $primary = (int) (DB::table('department_employee')
-                    ->where('employee_id', $this->id)
-                    ->whereIn('department_id', $ids)
-                    ->orderBy('created_at')
-                    ->orderBy('department_id')
-                    ->value('department_id') ?? $ids[0]);
-            }
-
-            $now = now();
+        return DB::transaction(function () use ($ids): Collection {
             $remove = DB::table('department_employee')->where('employee_id', $this->id);
             if ($ids === []) {
                 $remove->delete();
@@ -262,31 +149,15 @@ class Employee extends Model
                 $remove->whereNotIn('department_id', $ids)->delete();
             }
 
+            $now = now();
             foreach ($ids as $id) {
                 DB::table('department_employee')->insertOrIgnore([
                     'employee_id' => $this->id,
                     'department_id' => $id,
-                    'is_primary' => false,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
             }
-
-            DB::table('department_employee')->where('employee_id', $this->id)
-                ->update(['is_primary' => false, 'updated_at' => $now]);
-            if ($primary !== null) {
-                DB::table('department_employee')
-                    ->where('employee_id', $this->id)
-                    ->where('department_id', $primary)
-                    ->update(['is_primary' => true, 'updated_at' => $now]);
-            }
-
-            $this->forceFill([
-                'department_id' => $primary,
-                'department' => $primary !== null
-                    ? Department::query()->whereKey($primary)->value('name')
-                    : null,
-            ])->saveQuietly();
 
             $this->unsetRelation('departments');
 
@@ -294,16 +165,18 @@ class Employee extends Model
         });
     }
 
-    /** The team senior/manager this employee reports to. */
-    public function supervisor(): BelongsTo
+    /** Contract/print readers still resolve the employee's department label. */
+    protected function department(): Attribute
     {
-        return $this->belongsTo(self::class, 'supervisor_id');
-    }
+        return Attribute::make(
+            get: function (): ?string {
+                $names = $this->relationLoaded('departments')
+                    ? $this->departments->pluck('name')
+                    : $this->departments()->pluck('departments.name');
 
-    /** Employees reporting directly to this employee. */
-    public function subordinates(): HasMany
-    {
-        return $this->hasMany(self::class, 'supervisor_id');
+                return $names->filter()->join(', ') ?: null;
+            },
+        );
     }
 
     public function office(): BelongsTo

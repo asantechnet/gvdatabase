@@ -81,6 +81,7 @@ export interface Setting {
   office_close_time: string | null
   default_break_minutes: number
   automatic_attendance_enabled: boolean
+  academy_enabled: boolean
   missing_attendance_status: MissingAttendanceStatus
   created_at?: string
   updated_at?: string
@@ -165,6 +166,7 @@ export interface SettingForm {
   office_close_time: string
   default_break_minutes: number
   automatic_attendance_enabled: boolean
+  academy_enabled: boolean
   missing_attendance_status: MissingAttendanceStatus
 }
 

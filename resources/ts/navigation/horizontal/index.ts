@@ -1,4 +1,5 @@
 import type { HorizontalNavItems } from "@layouts/types";
+import academy from "./academy";
 import applicantPortal from "./applicant-portal";
 import applications from "./applications";
 import contracts from "./contracts";
@@ -16,6 +17,7 @@ export default [
   ...applicantPortal,
   ...contracts,
   ...applications,
+  ...academy,
   ...hr,
   ...tasks,
   ...finance,

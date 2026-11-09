@@ -1,6 +1,8 @@
 {
   "serviceContracts": {
     "extension": "Extension",
+    "contract": "Contract",
+    "parentContract": "Parent contract",
     "responsibleEmployee": "Counselor",
     "number": "Contract number",
     "applicant": "Applicant name",
@@ -40,6 +42,7 @@
     "cancelled": "Cancelled",
     "studentId": "Student ID",
     "studentFullName": "Student full name",
+    "studentIdAuto": "The academy student record and student ID are created automatically when the contract is saved.",
     "consultant": "Consultant",
     "applicationFeeRange": "Application fee range",
     "applicationFeeMinimum": "Application fee from",
@@ -120,8 +123,12 @@
       "teachers": "Choose teachers",
       "duration": "Choose duration",
       "program": "Choose program",
-      "class": "Choose class"
-    }
+      "class": "Choose class",
+      "responsibleEmployees": "Responsible employees"
+    },
+    "responsibleEmployees": "Responsible employees",
+    "responsibleEmployeesOptional": "Optional. Assign the employees responsible for this case.",
+    "responsibleEmployeesHint": "They receive the delivery task and case notices."
   },
   "common": {
     "attachments": {
@@ -170,7 +177,8 @@
       "adding": "adding",
       "editing": "editing",
       "viewFullDetails": "View full details",
-      "editFullDetails": "Edit full details"
+      "editFullDetails": "Edit full details",
+      "previous": "Previous"
     },
     "values": {
       "yes": "Yes",
@@ -251,9 +259,14 @@
       "country": "Country",
       "language": "Language",
       "applicant": "Applicant",
+      "student": "Student",
+      "applicantOrStudent": "Applicant or student",
       "taxNumber": "Tax number",
       "service": "Service",
-      "position": "Position"
+      "position": "Position",
+      "actions": "Actions",
+      "details": "Details",
+      "responsibleEmployees": "Responsible employees"
     },
     "statuses": {
       "cancelled": "Cancelled",
@@ -578,7 +591,15 @@
       "announcements": "Announcements",
       "incomeTypes": "Income Types",
       "expenseTypes": "Expense Types",
-      "payrolls": "Payrolls"
+      "payrolls": "Payrolls",
+      "academy": "Academy",
+      "academyOverview": "Academy overview",
+      "academyClasses": "Classes",
+      "academyStudents": "Students",
+      "academyCatalog": "Catalogue",
+      "academyAttendance": "Attendance",
+      "academyCertificates": "Certificates",
+      "academyContracts": "Academy contracts"
     },
     "languages": {
       "english": "English",
@@ -872,7 +893,11 @@
       "departmentName": "Department name",
       "codeOptional": "Code (optional)",
       "departmentManager": "Department manager",
-      "noEligibleDepartmentManagers": "No eligible managers. A manager needs an active account with supervisory access.",
+      "departmentManagers": "Department managers",
+      "seniorManagersHint": "Only senior roles are eligible. You can assign more than one senior manager to a department.",
+      "createTaskBoard": "Create a task board for this department",
+      "createTaskBoardHint": "A shared board is created and named after the department. Department managers can manage its tasks.",
+      "noEligibleDepartmentManagers": "No eligible managers. A manager needs an active account with a senior role.",
       "currentManagerNoLongerEligible": "Current manager — no longer eligible",
       "descriptionOptional": "Description (optional)",
       "activeDepartment": "Active department",
@@ -1710,6 +1735,7 @@
                   "subjects": "Requested Subjects",
                   "skills": "Skills",
                   "teachers": "Teachers",
+                  "responsible_employees": "Responsible Employees",
                   "admission_employee": "Admission Employee"
                 }
               },
@@ -1912,6 +1938,8 @@
         "defaultBreakMinutes": "Default Break Minutes",
         "automaticAttendanceEnabled": "Enable automatic attendance",
         "automaticAttendanceEnabledHint": "Enable Start my day / End my day and automatic marking of missing past workdays. Geofencing verifies location at check-in. Existing workdays can still be ended when this is off.",
+        "academyEnabled": "Enable Academy",
+        "academyEnabledHint": "Turn on Academy classes, students, attendance, certificates and academy contracts. When off, Academy is hidden everywhere and its API is unavailable.",
         "layoutColors": "Layout Colors",
         "companyPage": "Company",
         "operationsPage": "Operations",
@@ -2098,7 +2126,7 @@
           "salary": "Salary",
           "workedHours": "Worked Hours",
           "joinDate": "Join Date",
-          "managePaidOffDays": "Manage off-day requests",
+          "managePaidOffDays": "Manage leave requests",
           "editStaffRecord": "Edit staff record",
           "deleteStaffRecord": "Delete staff record",
           "activateStaffRecord": "Activate employee",
@@ -2106,7 +2134,7 @@
           "staffStatusUpdated": "Employee status updated.",
           "addNewStaff": "Add New Staff",
           "editStaff": "Edit Staff",
-          "paidOffDays": "Off-day requests",
+          "paidOffDays": "Leave requests",
           "salaryCannotBeNegative": "Salary cannot be negative.",
           "service": "Service",
           "statusUpdateFailed": "Unable to update the employee status.",
@@ -2181,7 +2209,10 @@
           "roleNameRequired": "Role name is required.",
           "superAdminLocked": "Super admin permissions cannot be modified",
           "seniorityLevel": "Seniority level",
-          "seniorityHint": "Higher outranks lower. The level decides supervision, department-manager eligibility and assignment ceilings; it does not grant permissions.",
+          "roleSeniority": "Role seniority",
+          "seniorRole": "Senior",
+          "juniorRole": "Junior",
+          "seniorityHint": "Senior roles outrank junior roles. Seniority decides department-manager eligibility and assignment ceilings; it does not grant permissions.",
           "seniorityProtected": "System roles keep a fixed seniority level.",
           "seniorityPermissionRequired": "You need the manage role hierarchy permission to change seniority.",
           "seniorityInvalid": "Enter a whole number between 0 and 100000.",
@@ -2811,6 +2842,7 @@
           "statusRequired": "Choose a status",
           "startDate": "Start date",
           "startRequired": "Choose a start date",
+          "startDateRequired": "Choose a start date",
           "endDate": "End date",
           "endDateHint": "Optional. Used to compute the contract duration in the printed header.",
           "duration": "Fixed duration (months)",
@@ -3292,7 +3324,7 @@
         "tasks": "Tasks & delivery",
         "asset_assets": "Asset & assets",
         "employee_roster": "Employee roster",
-        "leave_requests": "Off-day requests",
+        "leave_requests": "Leave requests",
         "daily_reports": "Daily work reports",
         "applicants": "Applicants",
         "applicant_contracts": "Contract service lines"
@@ -3802,19 +3834,19 @@
       "noRecords": "Try a different year or clear the current filters."
     },
     "leaveRequests": {
-      "title": "Off Day Requests",
-      "myTitle": "My off days",
-      "reportTitle": "Off Day Requests Report",
+      "title": "Leave Requests",
+      "myTitle": "My leave requests",
+      "reportTitle": "Leave Requests Report",
       "calendarYear": "Calendar year {year}",
       "classification": "Classification",
       "generated": "Generated {date}",
       "grantSelected": "Approve selected ({count})",
       "requestsGranted": "{count} request(s) approved.",
       "allowanceExceeded": "{count} day(s) exceeded the allowance and were recorded as absences.",
-      "unableToLoad": "Unable to load off-day requests.",
+      "unableToLoad": "Unable to load leave requests.",
       "unableToGrant": "Unable to approve the selected requests.",
       "unableToRequest": "Unable to submit the request.",
-      "requestSubmitted": "Off-day request submitted.",
+      "requestSubmitted": "Leave request submitted.",
       "limit": "Allowance: {count}",
       "grantedPaid": "Paid days granted: {count}",
       "pending": "Pending: {count}",
@@ -3835,15 +3867,15 @@
       "halfDay": "Half day",
       "historyTitle": "My requests",
       "historySubtitle": "Approved days inside your allowance are off days; the rest are recorded as absent.",
-      "perEmployeeAllowanceHint": "Allowances follow each employee's office base unless a personal override is set.",
-      "description": "Requests are approved as off days until each employee's allowance is used; any remaining portion becomes an absence.",
+      "perEmployeeAllowanceHint": "Each employee follows their own annual off-day allowance.",
+      "description": "Employee leave requests. Approved days inside the allowance are off days; the days beyond it are absences.",
       "treatment": "Treatment",
-      "noRequests": "No off-day requests match these filters.",
+      "noRequests": "No leave requests match these filters.",
       "noRequestsTitle": "No off-day requests found",
       "searchRequests": "Search off-day requests",
       "partial": "Partially covered",
       "partialWithAbsence": "{off} off day · {absent} absent",
-      "subtitle": "Request company off days in advance and track the allowance."
+      "subtitle": "Request leave in advance and track the allowance."
     },
     "payrolls": {
       "title": "Payrolls",
@@ -4160,7 +4192,9 @@
         "taskComments": "Task Comments",
         "noCommentsYet": "No comments yet.",
         "beTheFirstToStartTheDiscussion": "Be the first to start the discussion!",
-        "addAComment": "Add a comment..."
+        "addAComment": "Add a comment...",
+        "mentionHint": "Type {'@'} to mention an assignee or the task creator.",
+        "noMatchingPeople": "No matching people."
       },
       "comments": {
         "editComment": "Edit comment"
@@ -4237,7 +4271,7 @@
       },
       "taskappshell": {
         "kanbanBoard": "Kanban Board",
-        "todoMatrix": "Todo Matrix"
+        "todoMatrix": "Tasks"
       },
       "calendarview": {
         "scheduleTimelineView": "Schedule Timeline View",
@@ -4289,7 +4323,9 @@
         "labelCreated": "Task label created."
       },
       "todomatrixview": {
-        "megaTasks": "Mega Tasks",
+        "megaTasks": "Tasks",
+        "newTask": "New task",
+        "newTaskHint": "The task is saved to your Personal board.",
         "completedProgress": "{completed} / {total} completed",
         "taskContent": "Task content",
         "noTaskContent": "No task content has been provided.",
@@ -4655,6 +4691,7 @@
       "paymentDate": "Payment Date",
       "receivedFrom": "Received From",
       "applicantId": "Applicant ID",
+      "studentId": "Student ID",
       "fatherName": "Father Name",
       "phone": "Phone",
       "email": "Email",
@@ -4706,6 +4743,7 @@
       "reference": "Reference",
       "date": "Issue Date",
       "applicant": "Applicant",
+      "student": "Student",
       "name": "Full Name",
       "fatherName": "Father Name",
       "contact": "Contact",
@@ -4733,7 +4771,11 @@
       "loadFailed": "Unable to load this academy slip.",
       "printFailed": "Unable to print this academy slip.",
       "artworkFailed": "Slip artwork or fonts could not load. Printing was cancelled.",
-      "paperTooSmall": "This academy slip does not fit the selected paper. Choose a larger paper size."
+      "paperTooSmall": "This academy slip does not fit the selected paper. Choose a larger paper size.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "Commission Slip",
@@ -4784,6 +4826,8 @@
       "telephone": "Tel: {phone}"
     },
     "payslip": {
+      "title": "Payslip",
+      "printFailed": "Unable to print this payslip.",
       "amountInWords": "Amount in words",
       "amountInWordsFallback": "{amount} {currency} only",
       "workedDays": "{worked} / {total} days",
@@ -4868,7 +4912,23 @@
       "employeeSignature": "Employee signature",
       "note": "This advance is recovered from future payroll.",
       "employeeCopy": "Employee copy",
-      "companyCopy": "Company copy"
+      "companyCopy": "Company copy",
+      "printFailed": "Unable to print this advance receipt."
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -4943,6 +5003,12 @@
         "contract_payment_exceeds_balance": "The payment exceeds the remaining balance of this service.",
         "contract_payment_currency_mismatch": "Record the payment in the contracted service currency.",
         "contract_paid_line_immutable": "A service line with financial history cannot be removed or assigned to another applicant or currency.",
+        "academy_term_undefined": "This class has no end date and the selected duration has no month count. Set one of them before selling the course.",
+        "academy_class_ended": "This class has already ended. Choose a class that is still running.",
+        "academy_class_full": "This class is full. Choose another class.",
+        "academy_enrollment_duplicate": "This student is already enrolled in this class.",
+        "student_applicant_mismatch": "The selected student does not belong to the selected applicant.",
+        "builtin_contract_template_not_ready": "The academy document is not configured. Run the reference seeders and try again.",
         "currency_rate_invalid": "Select a currency with a positive exchange rate.",
         "service_currency_rate_invalid": "One or more selected services have an invalid currency rate.",
         "employee_not_selectable": "This employee is not eligible for this action.",
@@ -5627,7 +5693,7 @@
       "newTask": "New case task",
       "personalBoardOnly": "Case tasks are created on your personal board.",
       "personalBoardMissing": "Your personal board is not available yet. Reload and try again.",
-      "openInTaskMatrix": "Open in Task Matrix",
+      "openInTaskMatrix": "Open in Tasks",
       "taskPermission": "Task creation requires permission. Automatically generated stage tasks still appear here.",
       "taskSummary": "{progress}% complete · {priority} · due {date}",
       "complete": "Complete",
@@ -5671,6 +5737,7 @@
       "dueDate": "Due date",
       "addUniversityApplication": "Add university application",
       "outcome": "Outcome",
+      "intake": "Intake",
       "intakeExample": "Intake (for example, Fall 2027)",
       "inviteTitle": "Applicant portal account",
       "inviteSubtitle": "Set an email and password to create a ready-to-use account, or leave the password empty to send a verification invitation.",
@@ -6068,7 +6135,8 @@
       "rejected": "Rejected",
       "withdrawn": "Withdrawn"
     },
-    "contractType": "Contract type"
+    "contractType": "Contract type",
+    "responsibleEmployees": "Responsible employees"
   },
   "finance": {
     "servicePayments": {
@@ -6164,7 +6232,8 @@
     "contractVersion": "Contract version",
     "templateNotReady": "Contract template is not configured",
     "noMatchingVersion": "No matching version",
-    "currentPageReport": "Applicants on the current page"
+    "currentPageReport": "Applicants on the current page",
+    "responsibleEmployees": "Responsible employees"
   },
   "agencyDashboard": {
     "title": "Dashboard overview",
@@ -6219,5 +6288,194 @@
     "safeWidth": "{field}: horizontal offset plus width cannot exceed 100%. Reduce the offset or width.",
     "safeHeight": "{field}: vertical offset plus height cannot exceed 100%. Reduce the offset or height.",
     "saveFailed": "Could not save settings. Correct the highlighted fields and try again."
+  },
+  "academy": {
+    "overview": {
+      "title": "Academy overview",
+      "description": "Classes, students and current term health.",
+      "loadFailed": "Could not load the academy overview.",
+      "todayClasses": "Today’s classes",
+      "noTodayClasses": "No classes meet today.",
+      "terms": "Term status",
+      "termHint": "{count} active enrollments",
+      "kpis": {
+        "activeStudents": "Active students",
+        "activeClasses": "Active classes",
+        "seats": "Seats filled",
+        "endingSoon": "Ending soon",
+        "outstanding": "Outstanding balance",
+        "completed": "Completed this month"
+      }
+    },
+    "classes": {
+      "title": "Classes",
+      "description": "Rolling classes, schedules and capacity.",
+      "createTitle": "Create class",
+      "editTitle": "Edit class",
+      "create": "Create class",
+      "saved": "Class saved.",
+      "removed": "Class removed.",
+      "removeConfirm": "Remove this class? Existing enrollments are preserved.",
+      "emptyTitle": "No classes yet",
+      "emptyDescription": "Create the first class to open enrolment.",
+      "loadFailed": "Could not load classes.",
+      "roster": "Roster",
+      "rosterTitle": "Class roster",
+      "emptyRoster": "No students are enrolled in this class.",
+      "complete": "Complete class",
+      "completeConfirm": "Mark {name} completed and release teacher commission?",
+      "completed": "Class completed."
+    },
+    "students": {
+      "title": "Students",
+      "description": "Students, their enrolled courses and printable slips.",
+      "add": "Add student",
+      "addTitle": "Add student",
+      "cardTitle": "Student courses",
+      "detailTitle": "Enrollment details",
+      "endingSoon": "Ending soon",
+      "emptyCourses": "No courses enrolled.",
+      "emptyTitle": "No students yet",
+      "emptyDescription": "Add a student to enroll them in an Academy class.",
+      "loadFailed": "Could not load students.",
+      "financeTitle": "Finance",
+      "financeTotalReceived": "Total received",
+      "financeEmpty": "No payments recorded for this student.",
+      "financeLoadFailed": "Could not load student finance.",
+      "saved": "Enrollment updated.",
+      "terminalHint": "This enrollment is closed and read-only."
+    },
+    "catalog": {
+      "title": "Catalogue",
+      "description": "Programs used by Academy classes.",
+      "add": "Add",
+      "programs": "Programs",
+      "times": "Class times",
+      "durations": "Durations",
+      "teachers": "Teachers",
+      "saved": "Catalogue updated.",
+      "removed": "Entry removed.",
+      "removeConfirm": "Remove this catalogue entry?",
+      "editMonths": "Duration in months",
+      "emptyTitle": "Catalogue is empty",
+      "emptyDescription": "Add the programmes taught by the academy.",
+      "loadFailed": "Could not load the catalogue."
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "Monthly student attendance and teacher timesheets, separate from HR attendance.",
+      "studentsTab": "Students",
+      "teachersTab": "Teachers",
+      "print": "Print sheet",
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record",
+      "saved": "Attendance saved.",
+      "empty": "No attendance rows for this selection.",
+      "emptyCell": "Not recorded",
+      "loadFailed": "Could not load Academy attendance.",
+      "addTeacherRow": "Add teacher row",
+      "completeClass": "Complete class",
+      "classCompleted": "Class completed.",
+      "legend": "Status key",
+      "legendHint": "Click a day to cycle its status.",
+      "totalRecorded": "Recorded",
+      "status": {
+        "present": "Present",
+        "absent": "Absent",
+        "late": "Late",
+        "excused": "Excused"
+      }
+    },
+    "certificates": {
+      "title": "Certificates",
+      "description": "Issue and reprint certificates for completed enrollments.",
+      "issue": "Issue certificate",
+      "bulkIssue": "Bulk issue",
+      "preview": "Certificate preview",
+      "print": "Print certificate",
+      "issued": "Issued",
+      "revoked": "Revoked",
+      "issuedDone": "Certificate issued.",
+      "revokedDone": "Certificate revoked.",
+      "revokedCannotPrint": "Revoked certificates cannot be printed.",
+      "revoke": "Revoke",
+      "revokeReason": "Revocation reason",
+      "bulkHint": "One certificate is created per completed enrollment. Existing certificates are skipped.",
+      "bulkSaved": "Bulk issue complete.",
+      "completedEnrollment": "Completed enrollment",
+      "completedEnrollments": "Completed enrollments",
+      "issueHint": "Only completed enrollments are eligible. The certificate uses an immutable snapshot.",
+      "editTemplate": "Edit template",
+      "templateSaved": "Certificate template saved.",
+      "templateTitle": "Certificate title",
+      "templateBody": "Certificate copy",
+      "tokens": "Available fields: {tokens}",
+      "signatoryTitle": "Signatory title",
+      "search": "Search certificates",
+      "number": "Certificate number",
+      "emptyTitle": "No certificates yet",
+      "emptyDescription": "Issue a certificate for a completed enrollment.",
+      "loadFailed": "Could not load certificates."
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "withdrawn": "Withdrawn",
+      "cancelled": "Cancelled"
+    },
+    "fields": {
+      "active": "Active",
+      "balance": "Balance",
+      "capacity": "Capacity",
+      "class": "Class",
+      "completedOn": "Completed on",
+      "contact": "Contact",
+      "contract": "Contract",
+      "date": "Date",
+      "description": "Description",
+      "duration": "Duration",
+      "endsAt": "Ends at",
+      "endsOn": "Ends on",
+      "fee": "Fee",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "month": "Month",
+      "months": "Months",
+      "name": "Name",
+      "note": "Note",
+      "notes": "Notes",
+      "program": "Programme",
+      "schedule": "Schedule",
+      "seats": "Seats",
+      "sortOrder": "Order",
+      "startsAt": "Starts at",
+      "startsOn": "Starts on",
+      "status": "Status",
+      "student": "Student",
+      "teacher": "Teacher",
+      "teachers": "Teachers",
+      "term": "Term",
+      "time": "Time",
+      "total": "Total",
+      "weekdays": "Weekdays",
+      "weekdaysShort": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      }
+    },
+    "navigation": {
+      "overview": "Overview",
+      "classes": "Classes",
+      "students": "Students",
+      "catalog": "Catalogue",
+      "attendance": "Attendance",
+      "certificates": "Certificates",
+      "contracts": "Academy contracts"
+    }
   }
 }

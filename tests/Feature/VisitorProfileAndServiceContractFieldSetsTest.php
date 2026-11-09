@@ -15,9 +15,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesBuiltInContracts;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class VisitorProfileAndServiceContractFieldSetsTest extends TestCase
+class VisitorProfileAndServiceContractFieldSetsTest extends AcademyTestCase
 {
     use CreatesBuiltInContracts, RefreshDatabase;
 

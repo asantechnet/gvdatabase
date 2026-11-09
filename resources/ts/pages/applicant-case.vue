@@ -3,6 +3,7 @@ import { translateApplicantStage, translate } from '@/utils/localization'
 import ErpField from '@/components/erp/ErpField.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
+import CaseRelationshipRecords from '@/components/crm/CaseRelationshipRecords.vue'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -49,7 +50,10 @@ const canCreateTask = computed(() => canAccess('create_tasks') && !!personalBoar
 const canEditCase = computed(() => canAccess('edit_applicants'))
 const canInvitePortal = computed(() => canAccess('invite_applicant_portal'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
-const canAssignAdmission = computed(() => canAccess('assign_admission_employee'))
+const canAssignResponsible = computed(() => canAccess('assign_responsible_employees'))
+// Test offer, scholarship and private own a case stage and responsibility
+// list. Academy is the only direct service agreement without a case workflow.
+const caseBearing = computed(() => ['scholarship', 'test_offer', 'private'].includes(applicant.value?.service ?? ''))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreateDraftFinance = computed(() => canAccess('create_draft_finance_records'))
 const canApproveDrafts = computed(() => canAccess('approve_draft_finance_records'))
@@ -76,7 +80,7 @@ const guardianSummary = computed(() => {
     rows.push({ key: 'grade-score', label: t('educational.serviceFields.gradeScore'), value: `${n(Number(current.details?.grade_score))}` })
   if (current.details?.passport_id)
     rows.push({ key: 'passport', label: t('educational.serviceFields.passportId'), value: current.details.passport_id })
-  for (const [key, catalog] of [['scholarship', 'scholarships'], ['academy_class', 'classes'], ['test', 'tests'], ['program', 'programs'], ['time', 'times'], ['duration', 'durations']] as const) {
+  for (const [key, catalog] of [['scholarship', 'scholarships'], ['academy_class', 'classes'], ['test', 'tests'], ['program', 'programs']] as const) {
     const name = current.details?.[key]?.name
     if (name)
       rows.push({ key, label: t(catalog === 'scholarships' ? 'erp.scholarship' : catalog === 'classes' ? 'erp.class' : `educational.masterData.${catalog}`), value: name })
@@ -219,11 +223,11 @@ const notesDraft = ref('')
 const savingNotes = ref(false)
 const downloadingId = ref<number | null>(null)
 
+const countries = ref<MasterDataRecord[]>([])
 const universities = ref<MasterDataRecord[]>([])
 const semesters = ref<MasterDataRecord[]>([])
-const countries = ref<MasterDataRecord[]>([])
 const employees = ref<Employee[]>([])
-const admissionEmployees = ref<Employee[]>([])
+const responsibleEmployees = ref<Employee[]>([])
 const uniDialog = ref(false)
 const savingUni = ref(false)
 const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '', notes: '' })
@@ -274,7 +278,7 @@ async function saveUniNotes() {
 const editDialog = ref(false)
 const savingCase = ref(false)
 const editStep = ref<1 | 2>(1)
-const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null, admission_employee_id: null as number | null })
+const editForm = ref({ father_name: '', father_phone: '', backup_phone: '', responsible_employee_id: null as number | null, responsible_employee_ids: [] as number[] })
 const serviceForm = ref<ApplicantPayload>({ service: 'scholarship' })
 const portalDialog = ref(false)
 const sendingPortalInvite = ref(false)
@@ -337,9 +341,10 @@ async function load() {
   caseLoading.value = true
   try {
     applicant.value = await ApplicantApi.get(Number(route.params.id))
-    // Stages are service-scoped: an academy or test-offer case must only be
-    // offered its own service's pipeline.
-    stages.value = await ApplicantApi.stages({ service: applicant.value.service, country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
+    // Only case-bearing services have a workflow.
+    stages.value = caseBearing.value
+      ? await ApplicantApi.stages({ service: applicant.value.service, country_id: applicant.value.details?.country_id, university_id: applicant.value.details?.university_id })
+      : []
     selected.value = null
     notesDraft.value = applicant.value.notes ?? ''
     applicantAttachments.value = await ApplicantAttachmentApi.list(applicant.value.id)
@@ -619,7 +624,7 @@ function openEditCase() {
     father_phone: applicant.value.father_phone ?? '',
     backup_phone: applicant.value.backup_phone ?? '',
     responsible_employee_id: applicant.value.responsible_employee_id ?? null,
-    admission_employee_id: applicant.value.admission_employee_id ?? null,
+    responsible_employee_ids: [...(applicant.value.responsible_employee_ids ?? [])],
   }
   serviceForm.value = { service: applicant.value.service, ...applicant.value.details, favorite_subject_ids: [...(applicant.value.favorite_subject_ids ?? [])], skill_ids: [...(applicant.value.skill_ids ?? [])], teacher_ids: [...(applicant.value.teacher_ids ?? [])] }
   editStep.value = 1
@@ -711,8 +716,8 @@ async function saveCase() {
     const payload: ApplicantPayload = { ...applicantServicePayload(serviceForm.value), father_name: editForm.value.father_name || null, father_phone: editForm.value.father_phone || null, backup_phone: editForm.value.backup_phone || null }
     if (canAssignEmployee.value)
       payload.responsible_employee_id = editForm.value.responsible_employee_id
-    if (canAssignAdmission.value)
-      payload.admission_employee_id = editForm.value.admission_employee_id
+    if (canAssignResponsible.value && caseBearing.value)
+      payload.responsible_employee_ids = editForm.value.responsible_employee_ids
 
     applicant.value = await ApplicantApi.update(applicant.value.id, payload)
     editDialog.value = false
@@ -973,14 +978,14 @@ onMounted(async () => {
       MasterDataApi.list('semesters'),
       MasterDataApi.list('countries'),
       EmployeeApi.getOptions(),
-      canAssignAdmission.value ? EmployeeApi.getAssignmentOptions('admission') : Promise.resolve([]),
+      canAssignResponsible.value ? EmployeeApi.getAssignmentOptions('admission') : Promise.resolve([]),
     ])
 
     universities.value = universityRows
     semesters.value = semesterRows
     countries.value = countryRows
     employees.value = employeeRows
-    admissionEmployees.value = admissionRows
+    responsibleEmployees.value = admissionRows
   }
   catch {
     toast.error(t('educational.caseUi.loadUniversitiesFailed'))
@@ -1014,8 +1019,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="case-profile-body">
-      <div class="visa-case-stage-panel">
-      <VChip color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
+      <div v-if="caseBearing" class="visa-case-stage-panel">
+      <VChip v-if="caseBearing" color="primary">{{ translateApplicantStage(applicant.current_stage) }}</VChip>
       <VChip v-if="openTasks.length" color="warning" size="small" class="ms-2">{{ t('educational.caseUi.openTasks', { count: n(openTasks.length) }) }}</VChip>
       <!-- A lined applicant is a party profile: every contracted service is a
            separate case with its own page. The case-level writer stays only
@@ -1051,7 +1056,7 @@ onBeforeUnmount(() => {
               <p class="text-caption text-medium-emphasis mb-0 mt-1">
                 {{ t('educational.caseUi.serviceBalance', { fee: money(line.payable_total ?? 0), paid: money(line.amount_paid ?? 0), remaining: money(line.remaining_total ?? 0), status: translateBackendValue(line.payment_status ?? 'unpaid') }) }}
               </p>
-              <VBtn size="small" variant="tonal" color="primary" class="mt-3" :to="{ name: 'service-case', params: { line: line.id } }" :aria-label="`${t('educational.caseUi.openServiceCase')}: ${line.contract_number ?? line.type ?? line.service}`">{{ t('educational.caseUi.openServiceCase') }}</VBtn>
+              <VBtn v-if="['scholarship', 'private'].includes(line.service ?? '')" size="small" variant="tonal" color="primary" class="mt-3" :to="{ name: 'service-case', params: { line: line.id } }" :aria-label="`${t('educational.caseUi.openServiceCase')}: ${line.contract_number ?? line.type ?? line.service}`">{{ t('educational.caseUi.openServiceCase') }}</VBtn>
             </div>
             <div class="case-case-row__meta">
               <VChip size="small" color="primary">{{ translateApplicantStage(line.current_stage) }}</VChip>
@@ -1067,7 +1072,9 @@ onBeforeUnmount(() => {
         </div>
       </section>
 
-      <section v-if="!applicant.services?.length" class="case-section case-section--timeline mt-5">
+      <CaseRelationshipRecords :applicant-id="applicant.id" class="mt-5" />
+
+      <section v-if="caseBearing && !applicant.services?.length" class="case-section case-section--timeline mt-5">
         <div class="case-section__heading"><div><p class="case-section__eyebrow">{{ t('educational.stage') }}</p><h3>{{ t('educational.caseUi.timeline') }}</h3></div></div>
         <VList><VListItem v-for="item in stageHistory" :key="item.id" :title="t('educational.caseUi.stageTransition', { from: item.old_stage ? translateApplicantStage(item.old_stage) : t('educational.caseUi.started'), to: translateApplicantStage(item.new_stage) })" :subtitle="stageSubtitle(item)" /></VList>
       </section>
@@ -1083,7 +1090,19 @@ onBeforeUnmount(() => {
         <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section case-section--universities">
           <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
           <p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.primaryChoiceHint') }}</p>
-          <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
+          <div v-if="caseCountry" class="university-quick-contact my-2">
+            <span class="font-weight-medium">{{ caseCountry.name }}</span>
+            <ContactActionMenu v-if="caseCountry.phone" kind="phone" :value="caseCountry.phone" :contactable-type="canEditCase ? 'country' : undefined" :contactable-id="caseCountry.id" :case-applicant-id="applicant.id" />
+            <ContactActionMenu v-if="caseCountry.email" kind="email" :value="caseCountry.email" :contactable-type="canEditCase ? 'country' : undefined" :contactable-id="caseCountry.id" :case-applicant-id="applicant.id" />
+            <CrmRelationshipDetails type="country" :id="caseCountry.id" :title="caseCountry.name" :case-applicant-id="applicant.id" :readonly="!canEditCase" />
+          </div>
+          <div v-if="applicant.details?.university" class="university-quick-contact my-2">
+            <span class="font-weight-medium">{{ t('educational.caseUi.primaryChoice', { university: applicant.details.university.name }) }}</span>
+            <ContactActionMenu v-if="universityContactFor(applicant.details.university_id ?? 0)?.phone" kind="phone" :value="universityContactFor(applicant.details.university_id ?? 0)?.phone" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="applicant.details.university_id ?? undefined" :case-applicant-id="applicant.id" />
+            <ContactActionMenu v-if="universityContactFor(applicant.details.university_id ?? 0)?.email" kind="email" :value="universityContactFor(applicant.details.university_id ?? 0)?.email" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="applicant.details.university_id ?? undefined" :case-applicant-id="applicant.id" />
+            <CrmRelationshipDetails v-if="applicant.details.university_id" type="university" :id="applicant.details.university_id" :title="applicant.details.university.name" :case-applicant-id="applicant.id" :readonly="!canEditCase" />
+            <a v-if="portalHref(universityContactFor(applicant.details.university_id ?? 0)?.portal_url)" :href="portalHref(universityContactFor(applicant.details.university_id ?? 0)?.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">{{ t('educational.caseUi.openPortal') }}</a>
+          </div>
           <h4 class="mt-2">{{ t('educational.caseUi.trackedApplications') }}</h4>
           <VList>
             <VListItem
@@ -1098,15 +1117,17 @@ onBeforeUnmount(() => {
               <template #subtitle>
                 <span>{{ t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') }) }}</span>
                 <div v-if="universityContactFor(app.university_id)" class="university-quick-contact">
-                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.phone" kind="phone" :value="universityContactFor(app.university_id)?.phone" />
-                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.email" kind="email" :value="universityContactFor(app.university_id)?.email" />
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.phone" kind="phone" :value="universityContactFor(app.university_id)?.phone" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="app.university_id" :case-applicant-id="applicant.id" />
+                  <ContactActionMenu v-if="universityContactFor(app.university_id)?.email" kind="email" :value="universityContactFor(app.university_id)?.email" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="app.university_id" :case-applicant-id="applicant.id" />
+                  <CrmRelationshipDetails type="university" :id="app.university_id" :title="universityContactFor(app.university_id)?.name" :case-applicant-id="applicant.id" :readonly="!canEditCase" />
                   <a v-if="portalHref(universityContactFor(app.university_id)?.portal_url)" :href="portalHref(universityContactFor(app.university_id)?.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">
                     <VIcon icon="tabler-external-link" size="16" />
                     <span>{{ t('educational.caseUi.openPortal') }}</span>
                   </a>
                 </div>
               </template>
-              <template v-if="canEditCase" #append>
+              <template #append>
+                <template v-if="canEditCase">
                 <VBtn size="small" variant="text" prepend-icon="tabler-notes" @click="openUniNotes(app)">{{ t('educational.caseUi.universityNotes') }}</VBtn>
                 <VMenu>
                   <template #activator="{ props }">
@@ -1118,6 +1139,7 @@ onBeforeUnmount(() => {
                 </VMenu>
                 <VBtn v-if="app.university_id !== applicant.details?.university_id" size="small" variant="text" @click="setPrimaryUniversity(app.university_id)">{{ t('educational.caseUi.primary') }}</VBtn>
                 <VBtn size="small" variant="text" color="error" @click="removeUni(app.id)">{{ t('common.actions.remove') }}</VBtn>
+                </template>
               </template>
             </VListItem>
           </VList>
@@ -1178,7 +1200,7 @@ onBeforeUnmount(() => {
       <VForm class="app-form" @submit.prevent="saveUni">
         <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.addUniversityApplication') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingUni" @click="uniDialog = false" /></VCardTitle>
         <VCardText class="case-dialog-body case-form-dialog__body pa-5">
-          <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" label="Intake" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
+          <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" :label="t('educational.caseUi.intake')" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
           <ErpField v-model="uniForm.notes" kind="textarea" :label="t('common.fields.notes')" :placeholder="t('common.fields.notes')" rows="3" />
         </VCardText>
         <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingUni" @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingUni" :disabled="!uniForm.university_id">{{ t('common.actions.add') }}</VBtn></VCardActions>
@@ -1191,7 +1213,7 @@ onBeforeUnmount(() => {
       <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.editCase') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingCase" @click="editDialog = false" /></VCardTitle>
       <div class="case-edit-wizard" role="list"><button type="button" class="case-edit-wizard__step" :class="{ 'case-edit-wizard__step--active': editStep === 1, 'case-edit-wizard__step--complete': editStep > 1 }" :disabled="savingCase" @click="editStep = 1"><span class="case-edit-wizard__indicator"><VIcon v-if="editStep > 1" icon="tabler-check" size="15" /><span v-else>1</span></span><span>{{ t('common.crmDetails.profileTitle') }}</span></button><button type="button" class="case-edit-wizard__step" :class="{ 'case-edit-wizard__step--active': editStep === 2 }" :disabled="savingCase || editStep < 2" @click="editStep = 2"><span class="case-edit-wizard__indicator">2</span><span>{{ t('educational.service') }}</span></button></div>
       <VCardText class="case-dialog-body case-form-dialog__body pa-5">
-        <Transition name="case-edit-step" mode="out-in"><div :key="editStep"><template v-if="editStep === 1"><ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" :placeholder="t('educational.responsibleEmployee')" clearable class="mb-3" /><ErpField kind="select" v-if="canAssignAdmission && applicant?.service !== 'academy'" v-model="editForm.admission_employee_id" :items="admissionEmployees.map(e => ({ title: e.name, value: e.id }))" :label="t('agencyStaff.admission')" :placeholder="t('agencyStaff.admission')" clearable class="mb-3" /><VRow dense><VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" :placeholder="t('educational.fatherName')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" :placeholder="t('educational.fatherPhone')" clearable /></VCol></VRow><ErpField v-if="applicant?.service === 'test_offer'" v-model="editForm.backup_phone" :label="t('erp.backupPhone')" :placeholder="t('erp.backupPhone')" class="mt-3" /></template><ApplicantServiceFields v-else v-model="serviceForm" /></div></Transition>
+        <Transition name="case-edit-step" mode="out-in"><div :key="editStep"><template v-if="editStep === 1"><ErpField kind="select" v-if="canAssignEmployee && applicant?.service !== 'academy'" v-model="editForm.responsible_employee_id" :items="employees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployee')" :placeholder="t('educational.responsibleEmployee')" clearable class="mb-3" /><ErpField kind="select" v-if="canAssignResponsible && caseBearing" v-model="editForm.responsible_employee_ids" multiple chips closable-chips :items="responsibleEmployees.map(e => ({ title: e.name, value: e.id }))" :label="t('educational.responsibleEmployees')" :placeholder="t('educational.responsibleEmployees')" clearable class="mb-3" /><VRow dense><VCol cols="12" sm="6"><ErpField v-model="editForm.father_name" :label="t('educational.fatherName')" :placeholder="t('educational.fatherName')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="editForm.father_phone" :label="t('educational.fatherPhone')" :placeholder="t('educational.fatherPhone')" clearable /></VCol></VRow><ErpField v-if="applicant?.service === 'test_offer'" v-model="editForm.backup_phone" :label="t('erp.backupPhone')" :placeholder="t('erp.backupPhone')" class="mt-3" /></template><ApplicantServiceFields v-else v-model="serviceForm" /></div></Transition>
       </VCardText>
       <VCardActions class="case-form-dialog__actions px-5 py-4">
         <VBtn v-if="editStep === 1" class="case-form-dialog__cancel" color="error" variant="flat" :disabled="savingCase" @click="editDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn v-else color="secondary" variant="tonal" prepend-icon="tabler-arrow-left" :disabled="savingCase" @click="editStep = 1">{{ t('serviceContracts.wizard.back') }}</VBtn><VSpacer /><VBtn v-if="editStep === 1" class="case-form-dialog__submit" color="primary" variant="flat" append-icon="tabler-arrow-right" :disabled="savingCase" @click="editStep = 2">{{ t('serviceContracts.wizard.next') }}</VBtn><VBtn v-else class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingCase">{{ t('common.actions.save') }}</VBtn>

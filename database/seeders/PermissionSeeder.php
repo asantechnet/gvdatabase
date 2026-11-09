@@ -48,8 +48,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'revert_audit_changes', 'category' => 'core'],
         ['name' => 'manage_audit_scope', 'category' => 'core'],
         // Org-hierarchy scope. "subordinate" covers the user's group: the
-        // employees beneath them in the supervisor chain plus the members of
-        // any department they manage. View is read-only; manage permits
+        // members of any department they manage. View is read-only; manage permits
         // edits, mirroring how a senior counselor observes but cannot change
         // a counselor's records.
         ['name' => 'view_subordinate_records', 'category' => 'core'],
@@ -90,7 +89,6 @@ class PermissionSeeder extends Seeder
         ['name' => 'delete_employees', 'category' => 'human_resources'],
         ['name' => 'view_departments', 'category' => 'human_resources'],
         ['name' => 'manage_departments', 'category' => 'human_resources'],
-        ['name' => 'assign_employee_supervisor', 'category' => 'human_resources'],
         ['name' => 'view_leave_requests', 'category' => 'human_resources'],
         ['name' => 'create_leave_requests', 'category' => 'human_resources'],
         ['name' => 'edit_leave_requests', 'category' => 'human_resources'],
@@ -193,8 +191,12 @@ class PermissionSeeder extends Seeder
         // Task management. Assigned scope is based on the task/board member
         // relationship; all scope is supervisory. These scopes are enforced
         // by backend policies, never by the frontend alone.
-        // Boards are product-owned and read-only. Service board access is
+        // The Kanban tab and its board endpoint need view_kanban; shared-board
+        // writes additionally need update_kanban. Service board access is
         // derived from the contract-category permissions above.
+        ['name' => 'view_kanban', 'category' => 'task_management'],
+        ['name' => 'update_kanban', 'category' => 'task_management'],
+        ['name' => 'manage_department_tasks', 'category' => 'task_management'],
         ['name' => 'view_assigned_boards', 'category' => 'task_management'],
         ['name' => 'view_all_boards', 'category' => 'task_management'],
         ['name' => 'view_assigned_tasks', 'category' => 'task_management'],
@@ -261,7 +263,7 @@ class PermissionSeeder extends Seeder
         ['name' => 'edit_semester', 'category' => 'educational_visa'],
         ['name' => 'delete_semester', 'category' => 'educational_visa'],
         // Catalogues the built-in services consume: scholarship subjects,
-        // test-offer tests and skills, academy programs/times/durations/teachers.
+        // test-offer tests and skills, and academy programs.
         ['name' => 'view_subject', 'category' => 'educational_visa'],
         ['name' => 'create_subject', 'category' => 'educational_visa'],
         ['name' => 'edit_subject', 'category' => 'educational_visa'],
@@ -278,18 +280,6 @@ class PermissionSeeder extends Seeder
         ['name' => 'create_program', 'category' => 'educational_visa'],
         ['name' => 'edit_program', 'category' => 'educational_visa'],
         ['name' => 'delete_program', 'category' => 'educational_visa'],
-        ['name' => 'view_time', 'category' => 'educational_visa'],
-        ['name' => 'create_time', 'category' => 'educational_visa'],
-        ['name' => 'edit_time', 'category' => 'educational_visa'],
-        ['name' => 'delete_time', 'category' => 'educational_visa'],
-        ['name' => 'view_duration', 'category' => 'educational_visa'],
-        ['name' => 'create_duration', 'category' => 'educational_visa'],
-        ['name' => 'edit_duration', 'category' => 'educational_visa'],
-        ['name' => 'delete_duration', 'category' => 'educational_visa'],
-        ['name' => 'view_teacher', 'category' => 'educational_visa'],
-        ['name' => 'create_teacher', 'category' => 'educational_visa'],
-        ['name' => 'edit_teacher', 'category' => 'educational_visa'],
-        ['name' => 'delete_teacher', 'category' => 'educational_visa'],
         ['name' => 'view_applicants', 'category' => 'educational_visa'],
         ['name' => 'view_all_applicants', 'category' => 'educational_visa'],
         ['name' => 'create_applicants', 'category' => 'educational_visa'],
@@ -299,7 +289,11 @@ class PermissionSeeder extends Seeder
         ['name' => 'view_applicant_stages', 'category' => 'educational_visa'],
         ['name' => 'manage_applicant_stages', 'category' => 'educational_visa'],
         ['name' => 'assign_applicant_employee', 'category' => 'educational_visa'],
-        ['name' => 'assign_admission_employee', 'category' => 'educational_visa'],
+        ['name' => 'assign_responsible_employees', 'category' => 'educational_visa'],
+        ['name' => 'view_academy_attendance', 'category' => 'educational_visa'],
+        ['name' => 'manage_academy_classes', 'category' => 'educational_visa'],
+        ['name' => 'manage_academy_attendance', 'category' => 'educational_visa'],
+        ['name' => 'issue_academy_certificates', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_financials', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_contracts', 'category' => 'educational_visa'],
         ['name' => 'invite_applicant_portal', 'category' => 'educational_visa'],

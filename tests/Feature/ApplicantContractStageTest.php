@@ -59,7 +59,7 @@ class ApplicantContractStageTest extends TestCase
             'student_id' => 'STU-100', 'service_fee' => 120,
             'program_id' => Program::create(['name' => 'Foundation', 'is_active' => true])->id,
             'time_id' => TimeSlot::create(['name' => 'Morning', 'is_active' => true])->id,
-            'duration_id' => Duration::create(['name' => '6 months', 'is_active' => true])->id,
+            'duration_id' => Duration::create(['name' => '6 months', 'months' => 6, 'is_active' => true])->id,
             'teacher_ids' => [Teacher::create(['name' => 'Jane Doe', 'is_active' => true])->id],
             'class_id' => AcademyClass::create(['name' => 'Class A', 'is_active' => true])->id,
         ])->assertCreated()->json('data.id');

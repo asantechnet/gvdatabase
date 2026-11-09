@@ -122,6 +122,13 @@ class Applicant extends Model
         return $this->belongsTo(Employee::class, 'admission_employee_id');
     }
 
+    /** Every responsible employee on the case. The singular column is legacy. */
+    public function responsibleEmployees(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'applicant_responsible_employees')
+            ->withTimestamps();
+    }
+
     public function currentStage(): BelongsTo
     {
         return $this->belongsTo(ApplicantStage::class, 'current_stage_id');
@@ -289,10 +296,10 @@ class Applicant extends Model
             ->withTimestamps();
     }
 
-    /** An academy applicant's assigned teachers. */
+    /** An academy applicant's assigned teachers (employee records). */
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'academy_applicant_teacher')
+        return $this->belongsToMany(Employee::class, 'academy_applicant_teacher', 'applicant_id', 'teacher_id')
             ->withTimestamps();
     }
 

@@ -549,7 +549,7 @@ onMounted(load);
               </div>
             </template>
             <template #item.contract_number="{ item }">{{
-              item.contract_number ?? "—"
+              item.contract_number ?? item.class_name ?? "—"
             }}</template>
             <template #item.case_name="{ item }">
               <div v-if="item.case_id" class="d-flex align-center ga-2">
@@ -559,7 +559,7 @@ onMounted(load);
                   class="text-decoration-none"
                   >{{ item.case_name }}</RouterLink
                 >
-                <span v-else>{{ item.case_name }}</span>
+                <span v-else>{{ item.case_name ?? item.class_name ?? '—' }}</span>
                 <VChip
                   v-if="item.case_stage_name"
                   size="x-small"

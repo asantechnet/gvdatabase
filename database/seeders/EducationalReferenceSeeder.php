@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\AcademyClass;
 use App\Models\Country;
-use App\Models\Duration;
 use App\Models\EnglishLevel;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
@@ -14,9 +13,7 @@ use App\Models\Province;
 use App\Models\Semester;
 use App\Models\Skill;
 use App\Models\Subject;
-use App\Models\Teacher;
 use App\Models\Test;
-use App\Models\TimeSlot;
 use App\Models\University;
 use Illuminate\Database\Seeder;
 
@@ -26,8 +23,8 @@ class EducationalReferenceSeeder extends Seeder
      * Reference data for every built-in service, in one place, idempotently.
      *
      * Scholarship/private need countries, universities, levels and semesters;
-     * test offer needs the test catalogue; academy needs programs, times,
-     * durations, classes and teachers. Subjects and skills back the
+     * test offer needs the test catalogue; academy needs programs and classes.
+     * Subjects and skills back the
      * multi-select fields on scholarship and test-offer applicants.
      */
     public function run(): void
@@ -46,15 +43,6 @@ class EducationalReferenceSeeder extends Seeder
         AcademyClass::withTrashed()->updateOrCreate(['name' => 'IELTS Intensive'], ['sort_order' => 20, 'is_active' => true, 'deleted_at' => null]);
         foreach (['English Language' => 10, 'IELTS Preparation' => 20] as $name => $order) {
             Program::withTrashed()->updateOrCreate(['name' => $name], ['sort_order' => $order, 'is_active' => true, 'deleted_at' => null]);
-        }
-        foreach (['Morning' => 10, 'Evening' => 20] as $name => $order) {
-            TimeSlot::withTrashed()->updateOrCreate(['name' => $name], ['sort_order' => $order, 'is_active' => true, 'deleted_at' => null]);
-        }
-        foreach (['3 Months' => 10, '6 Months' => 20] as $name => $order) {
-            Duration::withTrashed()->updateOrCreate(['name' => $name], ['sort_order' => $order, 'is_active' => true, 'deleted_at' => null]);
-        }
-        foreach ([['Layla Hashimi', 'layla.hashimi@example.test'], ['Omar Nazari', 'omar.nazari@example.test']] as $index => [$name, $email]) {
-            Teacher::withTrashed()->updateOrCreate(['name' => $name], ['email' => $email, 'sort_order' => 10 + $index * 10, 'is_active' => true, 'deleted_at' => null]);
         }
 
         // Test-offer catalogue. Test-offer contracts are versioned per test, so

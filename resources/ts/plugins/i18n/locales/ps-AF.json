@@ -1,6 +1,8 @@
 {
   "serviceContracts": {
     "extension": "غځونه",
+    "contract": "قرارداد",
+    "parentContract": "اصلي قرارداد",
     "responsibleEmployee": "مشاور",
     "number": "د قرارداد شمېره",
     "applicant": "د غوښتونکي نوم",
@@ -40,6 +42,7 @@
     "cancelled": "لغوه شوی",
     "studentId": "د زده کوونکي پېژندنه",
     "studentFullName": "د زده کوونکي بشپړ نوم",
+    "studentIdAuto": "د اکاډمۍ د زده کوونکي ریکارډ او د زده کوونکي شمېره د قرارداد د خوندي کولو پر مهال په اتوماتيک ډول جوړېږي.",
     "consultant": "سلاکار",
     "applicationFeeRange": "د غوښتنلیک فیس حد",
     "applicationFeeMinimum": "د غوښتنلیک فیس له",
@@ -120,8 +123,12 @@
       "amount": "0.00",
       "currency": "اسعار وټاکئ",
       "rate": "لکه 71.25",
-      "admissionNotes": "لکه اسناد بشپړ دي"
-    }
+      "admissionNotes": "لکه اسناد بشپړ دي",
+      "responsibleEmployees": "مسئول کارکوونکي"
+    },
+    "responsibleEmployees": "مسئول کارکوونکي",
+    "responsibleEmployeesOptional": "اختیاري. د دې قضیې مسئول کارکوونکي وټاکئ.",
+    "responsibleEmployeesHint": "د سپارلو دنده او د قضیې خبرتیاوې دې کارکوونکو ته ورکول کیږي."
   },
   "$vuetify": {
     "dataIterator": {
@@ -499,6 +506,9 @@
         "downloadAttachment": "نښلونکی فایل ښکته کړئ"
       },
       "todomatrixview": {
+        "megaTasks": "دندې",
+        "newTask": "نوې دنده",
+        "newTaskHint": "دا دنده ستاسو په شخصي بورډ کې خوندي کیږي.",
         "taskContent": "د دندې منځپانګه",
         "noTaskContent": "د دې دندې لپاره منځپانګه نه ده ثبت شوې.",
         "attachTaskFile": "د دندې فایل ونښلوئ",
@@ -568,7 +578,8 @@
       "adding": "په اضافه کېدو دی",
       "editing": "په بدلېدو دی",
       "viewFullDetails": "بشپړ جزئیات وګورئ",
-      "editFullDetails": "بشپړ جزئیات بدل کړئ"
+      "editFullDetails": "بشپړ جزئیات بدل کړئ",
+      "previous": "پخوانی"
     },
     "values": {
       "yes": "هو",
@@ -587,6 +598,8 @@
       "status": "حالت",
       "name": "نوم",
       "applicant": "غوښتونکی",
+      "student": "زده‌کوونکی",
+      "applicantOrStudent": "غوښتونکی یا زده‌کوونکی",
       "company": "شرکت",
       "type": "ډول",
       "currency": "پولي واحد (اسعار)",
@@ -651,7 +664,10 @@
       "language": "ژبه",
       "taxNumber": "د مالیې شمېره",
       "service": "خدمت",
-      "position": "دنده"
+      "position": "دنده",
+      "actions": "کړنې",
+      "details": "جزئیات",
+      "responsibleEmployees": "مسئول کارکوونکي"
     },
     "statuses": {
       "cancelled": "لغوه شوی",
@@ -972,7 +988,15 @@
       "announcements": "اعلانیې",
       "incomeTypes": "د عاید ډولونه",
       "expenseTypes": "د لګښت ډولونه",
-      "payrolls": "معاشونه"
+      "payrolls": "معاشونه",
+      "academy": "اکاډمي",
+      "academyOverview": "د اکاډمۍ کتنه",
+      "academyClasses": "ټولګي",
+      "academyStudents": "زده‌کوونکي",
+      "academyCatalog": "کتلاګ",
+      "academyAttendance": "حاضری",
+      "academyCertificates": "سندونه",
+      "academyContracts": "د اکاډمۍ قراردادونه"
     },
     "languages": {
       "english": "English",
@@ -1266,7 +1290,11 @@
       "departmentName": "د څانګې نوم",
       "codeOptional": "کوډ (اختیاري)",
       "departmentManager": "د څانګې مدیر",
-      "noEligibleDepartmentManagers": "وړ مدیر نشته. مدیر باید فعال حساب او نظارتي لاسرسی ولري.",
+      "departmentManagers": "د څانګې مدیران",
+      "seniorManagersHint": "یوازې لوړپوړي رولونه وړ دي. تاسو کولای شئ یوې څانګې ته له یو څخه ډېر لوړپوړي مدیران وټاکئ.",
+      "createTaskBoard": "د دې څانګې لپاره د دندو بورډ جوړ کړئ",
+      "createTaskBoardHint": "د څانګې په نوم ګډ بورډ جوړیږي. د څانګې مدیران کولای شي د هغې دندې مدیریت کړي.",
+      "noEligibleDepartmentManagers": "وړ مدیر نشته. مدیر باید فعال حساب او لوړپوړی رول ولري.",
       "currentManagerNoLongerEligible": "اوسنی مدیر — نور وړ نه دی",
       "descriptionOptional": "تشریح (اختیاري)",
       "activeDepartment": "فعاله څانګه",
@@ -2151,6 +2179,7 @@
                   "subjects": "غوښتل شوي مضمونونه",
                   "skills": "مهارتونه",
                   "teachers": "ښوونکي",
+                  "responsible_employees": "مسئول کارکوونکي",
                   "admission_employee": "د داخلې کارکوونکی"
                 }
               },
@@ -2262,6 +2291,8 @@
         "defaultBreakMinutes": "د دمې (تفرېح) دقیقې",
         "automaticAttendanceEnabled": "اتومات حاضري فعاله کړئ",
         "automaticAttendanceEnabledHint": "د ورځې پیل او پای او د تېرو ناثبت کاري ورځو اتومات ثبت فعال کړئ. موقعیت د راتګ پر وخت کتل کېږي. پرانیستې ورځې له بندولو وروسته هم پای ته رسېدای شي.",
+        "academyEnabled": "اکاډمي فعاله کړئ",
+        "academyEnabledHint": "د اکاډمۍ ټولګي، زده کوونکي، حاضري، تصدیقنامې او اکاډمۍ قراردادونه فعال کړئ. کله چې بنده وي، اکاډمي هر چېرې پټه وي او API یې شتون نه لري.",
         "layoutColors": "د ډیزاین رنګونه",
         "companyPage": "شرکت",
         "operationsPage": "عملیات",
@@ -2557,7 +2588,10 @@
           "roleNameRequired": "د رول نوم اړین دی.",
           "superAdminLocked": "د لوړ مدیر صلاحیتونه نه شي بدلېدلی",
           "seniorityLevel": "د رتبې کچه",
-          "seniorityHint": "لوړه کچه له ټیټې لوړه ده. کچه نظارت، د څانګې د مدیر وړتیا او د ټاکلو حد ټاکي؛ اجازه نه ورکوي.",
+          "roleSeniority": "د رول رتبه",
+          "seniorRole": "لوړپوړی",
+          "juniorRole": "کشر",
+          "seniorityHint": "لوړپوړي رولونه کشرانو ته لوړ دي. رتبه د څانګې د مدیر وړتیا او د ټاکلو حد ټاکي؛ اجازه نه ورکوي.",
           "seniorityProtected": "سیستمي رولونه ثابته د رتبې کچه لري.",
           "seniorityPermissionRequired": "د رتبې کچې بدلولو لپاره د رولونو د سلسلې مدیریت اجازه ته اړتیا ده.",
           "seniorityInvalid": "د ۰ او ۱۰۰۰۰۰ ترمنځ بشپړ عدد ولیکئ.",
@@ -3186,6 +3220,7 @@
           "statusRequired": "حالت وټاکئ",
           "startDate": "د پیل نېټه",
           "startRequired": "د پیل نېټه وټاکئ",
+          "startDateRequired": "د پیل نېټه وټاکئ",
           "endDate": "د پای نېټه",
           "endDateHint": "اختیاري. د چاپ سرلیک کې د قرارداد د مودې محاسبه لپاره کارول کیږي.",
           "duration": "ثابت موده (میاشتې)",
@@ -3941,6 +3976,7 @@
       "paymentDate": "د تادیې نېټه",
       "receivedFrom": "ترلاسه شوی له",
       "applicantId": "د غوښتونکي پېژند",
+      "studentId": "د زده‌کوونکي پېژند",
       "fatherName": "د پلار نوم",
       "phone": "تلیفون",
       "email": "بریښنالیک",
@@ -3992,6 +4028,7 @@
       "reference": "حواله",
       "date": "د صادرولو نېټه",
       "applicant": "غوښتونکی",
+      "student": "زده کوونکی",
       "name": "بشپړ نوم",
       "fatherName": "د پلار نوم",
       "contact": "اړیکه",
@@ -4019,7 +4056,11 @@
       "loadFailed": "د دې اکادمۍ پاڼې بارول ناشوني وو.",
       "printFailed": "د دې اکادمۍ پاڼې چاپ ناشونی و.",
       "artworkFailed": "د پاڼې انځورونه یا فونټونه پورته نه شول. چاپ لغوه شو.",
-      "paperTooSmall": "دا د ثبت‌نام پاڼه په ټاکل شوي کاغذ کې نه ځایېږي. د کاغذ لویه اندازه وټاکئ."
+      "paperTooSmall": "دا د ثبت‌نام پاڼه په ټاکل شوي کاغذ کې نه ځایېږي. د کاغذ لویه اندازه وټاکئ.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "د کمیشن پاڼه",
@@ -4119,9 +4160,12 @@
       "employeeSignature": "د کارکوونکي لاسلیک",
       "note": "دا پیشکه د راتلونکي معاش څخه بېرته اخیستل کېږي.",
       "employeeCopy": "د کارکوونکي نسخه",
-      "companyCopy": "د شرکت نسخه"
+      "companyCopy": "د شرکت نسخه",
+      "printFailed": "د دې پیشکې رسید چاپ ناشونی و."
     },
     "payslip": {
+      "title": "د معاش پاڼه",
+      "printFailed": "د دې معاش پاڼې چاپ ناشونی و.",
       "amountInWords": "مقدار په تورو",
       "amountInWordsFallback": "{amount} {currency} یوازې",
       "totalNetPayable": "ټول خالص واجب الادا ({currency})",
@@ -4155,6 +4199,21 @@
         "thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist": "دا سند د افغانستان د کار قانون او د وزارت مقرراتو سره سم جوړ شوی دی.",
         "pleaseAllowPopupsInYourBrowserToPrintThePayslip": "د معاش پاڼې چاپ لپاره مهرباني وکړئ په خپل براوزر کې پاپ اپونه اجازه کړئ"
       }
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -4232,6 +4291,12 @@
         "contract_payment_exceeds_balance": "تادیه د دې خدمت له پاتې پیسو زیاته ده.",
         "contract_payment_currency_mismatch": "تادیه د خدمت د تړون په اسعارو ثبت کړئ.",
         "contract_paid_line_immutable": "د مالي سابقې لرونکی خدمت نه شي حذف کېدای او غوښتونکی یا اسعار یې نه شي بدلېدای.",
+        "academy_term_undefined": "دا صنف د پای نېټه نه لري او ټاکل شوې موده هم د میاشتو شمېره نه لري. د کورس له پلورلو مخکې یو یې وټاکئ.",
+        "academy_class_ended": "دا صنف دمخه پای ته رسېدلی دی. بل صنف وټاکئ.",
+        "academy_class_full": "دا صنف ډک دی. بل صنف وټاکئ.",
+        "academy_enrollment_duplicate": "دا زده‌کوونکی دمخه په دې ټولګي کې ثبت شوی دی.",
+        "student_applicant_mismatch": "ټاکل شوی زده‌کوونکی ټاکل شوي غوښتونکي پورې اړه نه لري.",
+        "builtin_contract_template_not_ready": "د اکاډمۍ سند نه دی تنظیم شوی. د مرجع معلوماتو بیجونه چل کړئ او بیا هڅه وکړئ.",
         "support_recipient_not_configured": "د ملاتړ برېښنالیک لا نه دی تنظیم شوی. له مدیر څخه وغواړئ چې SUPPORT_TICKET_RECIPIENT تنظیم کړي.",
         "support_email_delivery_failed": "ستاسو د ملاتړ غوښتنه ونه لېږل شوه. هېڅ شی ثبت نه شو؛ لږ وروسته بیا هڅه وکړئ.",
         "support_attachment_total_exceeded": "د ټولو ضمیمو اندازه باید له ۱۰ MB زیاته نه وي.",
@@ -4591,7 +4656,7 @@
       "newTask": "د دوسیې نوې دنده",
       "personalBoardOnly": "د دوسیې دندې ستاسو په شخصي بورډ کې جوړیږي.",
       "personalBoardMissing": "ستاسو شخصي بورډ لا نه دی چمتو شوی. بیا پاڼه تازه کړئ.",
-      "openInTaskMatrix": "په دندو میټریکس کې پرانیستل",
+      "openInTaskMatrix": "په دندو کې پرانیستل",
       "taskPermission": "د دندې جوړول اجازې ته اړتیا لري. د پړاو اتومات دندې بیا هم دلته ښکاري.",
       "taskSummary": "{progress}٪ بشپړ · {priority} · وروستۍ نېټه {date}",
       "complete": "بشپړول",
@@ -4635,6 +4700,7 @@
       "dueDate": "وروستۍ نېټه",
       "addUniversityApplication": "د پوهنتون غوښتنلیک زیاتول",
       "outcome": "پایله",
+      "intake": "داخلې دوره",
       "intakeExample": "د داخلې دوره (لکه د ۲۰۲۷ منی)",
       "inviteTitle": "د غوښتونکي پورټل حساب",
       "inviteSubtitle": "د چمتو حساب لپاره برېښنالیک او پټنوم ولیکئ، یا پټنوم خالي پرېږدئ ترڅو د تایید بلنه ولېږل شي.",
@@ -5032,7 +5098,8 @@
       "rejected": "رد شوی",
       "withdrawn": "بېرته اخیستل شوی"
     },
-    "contractType": "د قرارداد ډول"
+    "contractType": "د قرارداد ډول",
+    "responsibleEmployees": "مسئول کارکوونکي"
   },
   "finance": {
     "servicePayments": {
@@ -5128,7 +5195,8 @@
     "contractVersion": "د قرارداد نسخه",
     "templateNotReady": "د قرارداد قالب نه دی تنظیم شوی",
     "noMatchingVersion": "مناسبه نسخه نشته",
-    "currentPageReport": "د اوسنۍ پاڼې غوښتونکي"
+    "currentPageReport": "د اوسنۍ پاڼې غوښتونکي",
+    "responsibleEmployees": "مسئول کارکوونکي"
   },
   "agencyDashboard": {
     "title": "د ډشبورډ لنډیز",
@@ -5183,5 +5251,187 @@
     "safeWidth": "{field}: افقي واټن او پلنوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا پلنوالی کم کړئ.",
     "safeHeight": "{field}: عمودي واټن او لوړوالی یوځای له ۱۰۰٪ څخه زیاتېدای نه شي. واټن یا لوړوالی کم کړئ.",
     "saveFailed": "تنظیمات خوندي نه شول. نښه شوې خانې سمې او بیا هڅه وکړئ."
+  },
+  "academy": {
+    "overview": {
+      "title": "د اکاډمۍ کتنه",
+      "description": "ټولګي، زده‌کوونکي او د مودې حالت.",
+      "loadFailed": "د اکاډمۍ کتنه پورته نه شوه.",
+      "todayClasses": "د نن ټولګي",
+      "noTodayClasses": "نن ټولګی نه دی.",
+      "terms": "د مودې حالت",
+      "termHint": "{count} فعال ثبت‌نام",
+      "kpis": {
+        "activeStudents": "فعال زده‌کوونکي",
+        "activeClasses": "فعال ټولګي",
+        "seats": "ډکې شوې څوکۍ",
+        "endingSoon": "ژر پای ته رسېږي",
+        "outstanding": "پاتې",
+        "completed": "دا میاشت بشپړ شوي"
+      }
+    },
+    "classes": {
+      "title": "ټولګي",
+      "description": "روان ټولګي، مهالوېش او ظرفیت.",
+      "createTitle": "ټولګی جوړول",
+      "editTitle": "ټولګی سمول",
+      "create": "ټولګی جوړول",
+      "saved": "ټولګی خوندي شو.",
+      "removed": "ټولګی لرې شو.",
+      "removeConfirm": "دا ټولګی لرې شي؟ شته ثبت‌نامونه ساتل کیږي.",
+      "emptyTitle": "لا ټولګی نشته",
+      "emptyDescription": "لومړی ټولګی جوړ کړئ.",
+      "loadFailed": "ټولګي پورته نه شول.",
+      "roster": "نوملړ",
+      "rosterTitle": "د ټولګي نوملړ",
+      "emptyRoster": "په دې ټولګي کې زده‌کوونکي نشته."
+    },
+    "students": {
+      "title": "زده‌کوونکي",
+      "description": "زده‌کوونکي او د هغوی کورسونه.",
+      "cardTitle": "د زده‌کوونکي کورسونه",
+      "detailTitle": "د ثبت‌نام جزئیات",
+      "endingSoon": "پای ته نږدې",
+      "emptyCourses": "هیڅ کورس ثبت نه دی شوی.",
+      "emptyTitle": "لا زده‌کوونکی نشته",
+      "emptyDescription": "د اکاډمۍ قراردادونه ثبت‌نام جوړوي.",
+      "loadFailed": "زده‌کوونکي پورته نه شول.",
+      "financeTitle": "مالي",
+      "financeTotalReceived": "ټول ترلاسه شوی",
+      "financeEmpty": "د دې زده‌کوونکي لپاره تادیه نه ده ثبت شوې.",
+      "financeLoadFailed": "د زده‌کوونکي مالي معلومات پورته نه شول.",
+      "saved": "ثبت‌نام نوی شو.",
+      "terminalHint": "دا ثبت‌نام بند او یوازې لوستل کیږي."
+    },
+    "catalog": {
+      "title": "کټلاګ",
+      "description": "پروګرامونه، وختونه، مودې او استادان.",
+      "add": "زیاتول",
+      "programs": "پروګرامونه",
+      "times": "د ټولګي وختونه",
+      "durations": "مودې",
+      "teachers": "استادان",
+      "saved": "کټلاګ نوی شو.",
+      "removed": "ثبتونه لرې شوه.",
+      "removeConfirm": "دا د کتلاګ ثبتونه لرې شي؟",
+      "editMonths": "میاشتې",
+      "emptyTitle": "کټلاګ خالي دی",
+      "emptyDescription": "د اکاډمۍ پروګرامونه او مودې زیاتې کړئ.",
+      "loadFailed": "کټلاګ پورته نه شو."
+    },
+    "attendance": {
+      "title": "حاضري",
+      "description": "د زده‌کوونکو او استادانو میاشتنی حاضري، له HR جدا.",
+      "studentsTab": "زده‌کوونکي",
+      "teachersTab": "استادان",
+      "print": "پاڼه چاپول",
+      "printSubtitle": "د اکاډمۍ میاشتنی حاضری",
+      "printFooter": "د اکاډمۍ د حاضری سند",
+      "saved": "حاضري خوندي شوه.",
+      "empty": "د دې انتخاب لپاره حاضري نشته.",
+      "emptyCell": "نه ثبت شوی",
+      "loadFailed": "د اکاډمۍ حاضري پورته نه شوه.",
+      "addTeacherRow": "د استاد ساعت زیاتول",
+      "legend": "د حالت کیلي",
+      "legendHint": "د حالت د بدلولو لپاره پر یوه ورځ کلیک وکړئ.",
+      "totalRecorded": "ثبت شوی",
+      "status": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "late": "ناوخته",
+        "excused": "رخصتي"
+      }
+    },
+    "certificates": {
+      "title": "تصدیقنامې",
+      "description": "د بشپړو ثبت‌نامونو لپاره تصدیقنامه صادرول او چاپول.",
+      "issue": "تصدیقنامه صادرول",
+      "bulkIssue": "ډله‌ای صادرول",
+      "preview": "مخکتنه",
+      "print": "چاپ",
+      "issued": "صادرشوې",
+      "revoked": "لغوه شوې",
+      "issuedDone": "سند صادر شو.",
+      "revokedDone": "سند لغو شو.",
+      "revokedCannotPrint": "لغو شوي سندونه چاپ نشي.",
+      "revoke": "لغوه کول",
+      "revokeReason": "د لغوه کولو دلیل",
+      "bulkHint": "د هر بشپړ ثبت‌نام لپاره یو سند جوړیږي. موجود سندونه تېریږي.",
+      "bulkSaved": "ډله‌ییز صادرول بشپړ شول.",
+      "completedEnrollment": "بشپړ ثبت‌نام",
+      "completedEnrollments": "بشپړ ثبت‌نامونه",
+      "issueHint": "یوازې بشپړ ثبت‌نامونه وړ دي. سند ثابته نسخه کاروي.",
+      "editTemplate": "قالب سمول",
+      "templateSaved": "قالب خوندي شو.",
+      "templateTitle": "د سند عنوان",
+      "templateBody": "د سند متن",
+      "tokens": "شته ساحې: {tokens}",
+      "signatoryTitle": "د لاسلیک کوونکي عنوان",
+      "search": "تصدیقنامې لټول",
+      "number": "د تصدیقنامې شمېره",
+      "emptyTitle": "لا تصدیقنامه نشته",
+      "emptyDescription": "د بشپړ ثبت‌نام لپاره سند صادر کړئ.",
+      "loadFailed": "تصدیقنامې پورته نه شوې."
+    },
+    "status": {
+      "active": "فعال",
+      "completed": "بشپړ",
+      "withdrawn": "وتلی",
+      "cancelled": "لغوه"
+    },
+    "fields": {
+      "active": "فعال",
+      "balance": "پاتې",
+      "capacity": "ظرفیت",
+      "class": "ټولګی",
+      "completedOn": "د بشپړېدو نېټه",
+      "contact": "اړیکه",
+      "contract": "قرارداد",
+      "date": "نېټه",
+      "description": "تشریح",
+      "duration": "موده",
+      "endsAt": "پای",
+      "endsOn": "تر نېټې",
+      "fee": "فېس",
+      "hours": "ساعتونه",
+      "minutes": "دقیقې",
+      "month": "میاشت",
+      "months": "میاشتې",
+      "name": "نوم",
+      "note": "یادښت",
+      "notes": "یادښتونه",
+      "program": "پروګرام",
+      "schedule": "مهالوېش",
+      "seats": "څوکۍ",
+      "sortOrder": "ترتیب",
+      "startsAt": "پیل",
+      "startsOn": "له نېټې",
+      "status": "حالت",
+      "student": "زده‌کوونکی",
+      "teacher": "استاد",
+      "teachers": "استادان",
+      "term": "موده",
+      "time": "وخت",
+      "total": "ټول",
+      "weekdays": "ورځې",
+      "weekdaysShort": {
+        "mon": "دوشنبه",
+        "tue": "سه‌شنبه",
+        "wed": "چهارشنبه",
+        "thu": "پنجشنبه",
+        "fri": "جمعه",
+        "sat": "شنبه",
+        "sun": "یکشنبه"
+      }
+    },
+    "navigation": {
+      "overview": "کتنه",
+      "classes": "ټولګي",
+      "students": "زده‌کوونکي",
+      "catalog": "کټلاګ",
+      "attendance": "حاضري",
+      "certificates": "تصدیقنامې",
+      "contracts": "د اکاډمۍ قراردادونه"
+    }
   }
 }

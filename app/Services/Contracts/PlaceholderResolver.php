@@ -16,7 +16,7 @@ use Illuminate\Support\Collection;
 class PlaceholderResolver
 {
     /**
-     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, contract_number?: ?string, start_date?: ?string, status?: ?string}  $context
+     * @param  array{employee?: ?Employee, applicant?: ?Applicant, customer?: ?Applicant, contract_number?: ?string, start_date?: ?string, end_date?: ?string, status?: ?string}  $context
      * @return array{content: string, unresolved: list<string>, missing: list<string>}
      */
     public function resolve(string $content, array $context, ?string $typeSlug = null, bool $preserveMissing = false): array
@@ -116,12 +116,13 @@ class PlaceholderResolver
                 'applicant.test' => $applicant->service === 'test_offer' ? $detail?->test?->name : null,
                 'applicant.program' => $applicant->service === 'academy' ? $detail?->program?->name : null,
                 'applicant.class' => $applicant->service === 'academy' ? $detail?->academyClass?->name : null,
-                'applicant.time' => $applicant->service === 'academy' ? $detail?->time?->name : null,
-                'applicant.duration' => $applicant->service === 'academy' ? $detail?->duration?->name : null,
                 'applicant.subjects' => $applicant->favoriteSubjects->pluck('name')->join(', '),
                 'applicant.skills' => $applicant->skills->pluck('name')->join(', '),
                 'applicant.teachers' => $applicant->teachers->pluck('name')->join(', '),
-                'applicant.admission_employee' => $applicant->admissionEmployee?->name,
+                'applicant.responsible_employees' => $applicant->responsibleEmployees->pluck('name')->filter()->join(', '),
+                // Legacy templates keep rendering; the plural key is canonical.
+                'applicant.admission_employee' => $applicant->responsibleEmployees->pluck('name')->filter()->join(', ')
+                    ?: $applicant->admissionEmployee?->name,
             ];
             $values += [
                 'customer.name' => $applicant->name,
@@ -155,6 +156,7 @@ class PlaceholderResolver
         $values += [
             'contract.number' => $context['contract_number'] ?? null,
             'contract.start_date' => $context['start_date'] ?? null,
+            'contract.end_date' => $context['end_date'] ?? ($context['built_in_line'] ?? null)?->contract?->end_date?->format('Y-m-d'),
             'contract.status' => $context['status'] ?? null,
         ];
 

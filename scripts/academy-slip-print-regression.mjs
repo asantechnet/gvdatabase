@@ -46,6 +46,7 @@ const t = key => key.split('.').reduce((value, part) => value?.[part], messages)
 const component = load(script.content, {
   'vue-i18n': { useI18n: () => ({ t, locale: ref(locale) }) },
   '@/utils/localization': { formatLocalizedDate: value => value.slice(0, 10) },
+  '@/utils/documentBranding': load(await read('resources/ts/utils/documentBranding.ts'), {}),
   '@/utils/printAcademySlip': printing,
 }).default
 component.__scopeId = scopeId
@@ -63,7 +64,7 @@ const slip = {
   company: { name: 'Academy Firm', phone: '0700000000', address: 'Kabul' },
   applicant: { id: 12, name: 'Applicant Name', father_name: 'Father Name', contact: '0701234567', email: null, address: null },
   contract: { id: 1, contract_number: 'CON-00042' },
-  academy: { program: 'Web Development', time: 'Morning', duration: '6 months', class: 'Class A', teachers: ['Jane Doe'] },
+  academy: { student_id: 'STU-100', program: 'Web Development', time: 'Morning', duration: '6 months', class: 'Class A', teachers: ['Jane Doe'], started_on: '2026-10-08', ends_on: '2027-04-08' },
   service: { id: 1, name: 'Academy', service_label: 'Academy', fee: 120, discount: 20, payment_status: 'partially_paid', payment_status_label: 'Partially Paid', currency },
   totals: { total_fee: 100, paid_amount: 40, balance: 60, currency },
   letterhead: { source: 'none', url: null, raw: null, safe: { x: 5, y: 5, width: 90, height: 90 } },

@@ -76,7 +76,9 @@ const print = async () => {
     return
   await printDocument({
     bodyClass: 'printing-advance-receipt',
-    pageStyle: 'size: A4 portrait; margin: 10mm;',
+    // Fixed A5 with no page margin: the card padding owns the safe area, so
+    // the browser's margin setting cannot shrink the two-copy layout.
+    pageStyle: 'size: A5; margin: 0;',
     element: rootRef.value,
   })
 }
@@ -219,7 +221,7 @@ defineExpose({ print })
 
   display: flex;
   flex-direction: column;
-  gap: 5mm;
+  gap: 3mm;
   width: 100%;
   color: var(--advance-ink);
   font-size: 8pt;
@@ -231,8 +233,8 @@ defineExpose({ print })
   flex-direction: column;
   gap: 2.5mm;
   box-sizing: border-box;
-  min-block-size: 125mm;
-  padding: 6mm;
+  min-block-size: 97mm;
+  padding: 4.5mm;
   border: 1px solid var(--advance-line);
   border-radius: 1.5mm;
   background: #fff;

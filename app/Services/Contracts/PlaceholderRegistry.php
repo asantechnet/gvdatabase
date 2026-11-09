@@ -80,12 +80,11 @@ class PlaceholderRegistry
                     ['key' => 'applicant.test', 'label' => 'Test'],
                     ['key' => 'applicant.program', 'label' => 'Academy Program'],
                     ['key' => 'applicant.class', 'label' => 'Academy Class'],
-                    ['key' => 'applicant.time', 'label' => 'Class Time'],
-                    ['key' => 'applicant.duration', 'label' => 'Course Duration'],
                     ['key' => 'applicant.subjects', 'label' => 'Requested Subjects'],
                     ['key' => 'applicant.skills', 'label' => 'Skills'],
                     ['key' => 'applicant.teachers', 'label' => 'Teachers'],
-                    ['key' => 'applicant.admission_employee', 'label' => 'Admission Employee'],
+                    ['key' => 'applicant.responsible_employees', 'label' => 'Responsible Employees'],
+                    ['key' => 'applicant.admission_employee', 'label' => 'Responsible Employee (legacy)'],
                 ],
             ],
             [
@@ -154,6 +153,7 @@ class PlaceholderRegistry
                 'fields' => [
                     ['key' => 'contract.number', 'label' => 'Contract Number'],
                     ['key' => 'contract.start_date', 'label' => 'Start Date'],
+                    ['key' => 'contract.end_date', 'label' => 'End Date'],
                     ['key' => 'contract.status', 'label' => 'Status'],
                 ],
             ],

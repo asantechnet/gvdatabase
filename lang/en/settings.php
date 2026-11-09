@@ -27,6 +27,7 @@ return [
         'office_close_time' => 'Office Closes',
         'default_break_minutes' => 'Default Break Minutes',
         'automatic_attendance_enabled' => 'Enable automatic attendance',
+        'academy_enabled' => 'Enable Academy',
         'missing_attendance_status' => 'Missing attendance days',
         'primary_color' => 'Primary',
         'secondary_color' => 'Secondary',

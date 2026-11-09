@@ -15,7 +15,8 @@ export interface AppUser {
 export interface AppRole {
   id: number
   name: string
-  level: number
+  level?: number
+  is_senior: boolean
   is_protected?: boolean
   users_count?: number
   permissions: any[]
@@ -35,8 +36,8 @@ const loading = ref(false)
 const roleDialog = ref(false)
 const editingRole = ref<AppRole | null>(null)
 const savingRole = ref(false)
-const roleForm = ref<{ name: string; level: number | null }>({ name: '', level: 0 })
-const levelError = ref('')
+const roleForm = ref<{ name: string; is_senior: boolean }>({ name: '', is_senior: false })
+const seniorityError = ref('')
 const selectedPermissions = ref<string[]>([])
 const deleteRoleDialog = ref(false)
 const deletingRole = ref<AppRole | null>(null)
@@ -188,12 +189,11 @@ const clearSearch = () => {
 const isIdentityProtected = computed(() => isIdentityProtectedRoleName(editingRole.value?.name))
 const isPermissionProtected = computed(() => isPermissionProtectedRoleName(editingRole.value?.name))
 
-// The level is a hierarchy decision, not a permission toggle. A caller without
-// the hierarchy grant may rename a role but cannot change its rank, and a
-// protected system role keeps its fixed level.
+// Seniority is a hierarchy decision, not a permission toggle. A caller
+// without the hierarchy grant may rename a role but cannot change its level.
 const canManageHierarchy = computed(() => canAccess('manage_role_hierarchy'))
-const levelDisabled = computed(() => !canManageHierarchy.value || isIdentityProtected.value || Boolean(editingRole.value?.is_protected))
-const levelDisabledReason = computed(() => {
+const seniorityDisabled = computed(() => !canManageHierarchy.value || isIdentityProtected.value || Boolean(editingRole.value?.is_protected))
+const seniorityDisabledReason = computed(() => {
   if (isIdentityProtected.value || editingRole.value?.is_protected)
     return tr('seniorityProtected')
   if (!canManageHierarchy.value)
@@ -223,8 +223,8 @@ const loadAll = async () => {
 // --- Role CRUD ---
 const openCreateRole = () => {
   editingRole.value = null
-  roleForm.value = { name: '', level: 0 }
-  levelError.value = ''
+  roleForm.value = { name: '', is_senior: false }
+  seniorityError.value = ''
   selectedPermissions.value = []
   permissionSearch.value = ''
   roleDialog.value = true
@@ -232,8 +232,8 @@ const openCreateRole = () => {
 
 const openEditRole = (role: AppRole) => {
   editingRole.value = role
-  roleForm.value = { name: role.name, level: role.level ?? 0 }
-  levelError.value = ''
+  roleForm.value = { name: role.name, is_senior: Boolean(role.is_senior) }
+  seniorityError.value = ''
   selectedPermissions.value = role.permissions?.map((p: any) => p.name || p) || []
   permissionSearch.value = ''
   roleDialog.value = true
@@ -246,18 +246,10 @@ const saveRole = async () => {
     return
   }
 
-  levelError.value = ''
-  const level = roleForm.value.level
-
-  if (!levelDisabled.value && (level === null || !Number.isInteger(level) || level < 0 || level > 100000)) {
-    levelError.value = tr('seniorityInvalid')
-
-    return
-  }
-
-  const payload: { name: string; level?: number } = { name: roleForm.value.name }
-  if (!levelDisabled.value && level !== null)
-    payload.level = level
+  seniorityError.value = ''
+  const payload: { name: string; is_senior?: boolean } = { name: roleForm.value.name }
+  if (!seniorityDisabled.value)
+    payload.is_senior = roleForm.value.is_senior
 
   savingRole.value = true
   try {
@@ -291,8 +283,8 @@ const saveRole = async () => {
   }
   catch (error) {
     const fields = apiFieldErrors(error)
-    if (fields.level)
-      levelError.value = fields.level
+    if (fields.is_senior)
+      seniorityError.value = fields.is_senior
     // The shared notifier owns the API failure toast; the dialog stays open
     // with the field-level reason so the user can correct it in place.
   }
@@ -404,10 +396,10 @@ onMounted(loadAll)
               </VChip>
               <VChip
                 size="small"
-                color="info"
+                :color="role.is_senior ? 'success' : 'secondary'"
                 variant="tonal"
               >
-                {{ tr('seniorityLevel') }}: {{ role.level ?? 0 }}
+                {{ role.is_senior ? tr('seniorRole') : tr('juniorRole') }}
               </VChip>
             </div>
             <div class="d-flex align-center">
@@ -553,17 +545,14 @@ onMounted(loadAll)
                 cols="12"
                 class="mb-1"
               >
-                <VTextField
-                  v-model.number="roleForm.level"
-                  type="number"
-                  min="0"
-                  max="100000"
-                  step="1"
-                  :label="tr('seniorityLevel')"
-                  :hint="levelDisabled ? levelDisabledReason : tr('seniorityHint')"
+                <VSelect
+                  v-model="roleForm.is_senior"
+                  :items="[{ title: tr('seniorRole'), value: true }, { title: tr('juniorRole'), value: false }]"
+                  :label="tr('roleSeniority')"
+                  :hint="seniorityDisabled ? seniorityDisabledReason : tr('seniorityHint')"
                   persistent-hint
-                  :disabled="levelDisabled"
-                  :error-messages="levelError"
+                  :disabled="seniorityDisabled"
+                  :error-messages="seniorityError"
                   density="comfortable"
                   variant="outlined"
                 />

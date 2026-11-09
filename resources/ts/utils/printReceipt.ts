@@ -1,5 +1,4 @@
-import { nextTick } from 'vue'
-import { printDocument } from './printDocument'
+import { createCardPrintHost, printCardSheet } from './printDocument'
 
 export type ReceiptPaperSize = 'A3 landscape' | 'A4' | 'A4 landscape' | 'A5' | 'letter' | 'A4 2x A5' | 'A5 2x'
 
@@ -26,74 +25,25 @@ export function receiptCopies(value: number): number {
 }
 
 export function createReceiptPrintHost(root: HTMLElement, paper: ReceiptPaperSize): HTMLElement {
-  const layout = receiptPrintLayout(paper)
-  const cards = Array.from(root.querySelectorAll<HTMLElement>(':scope > .receipt-card'))
-  if (!cards.length)
-    throw new Error('documents.receipt.printFailed')
-  const host = document.createElement('div')
-  host.className = 'income-receipt-print-host'
-  host.dir = root.dir
-  host.style.fontFamily = getComputedStyle(root).fontFamily
-  host.dataset.measuring = ''
-  for (let index = 0; index < cards.length; index += layout.perPage) {
-    const page = root.cloneNode(false) as HTMLElement
-    page.classList.add('income-receipt-print-page')
-    page.style.width = `${layout.width}mm`
-    page.style.height = `${layout.height}mm`
-    for (const card of cards.slice(index, index + layout.perPage)) {
-      const copy = card.cloneNode(true) as HTMLElement
-      copy.style.height = `${layout.cardHeight}mm`
-      page.appendChild(copy)
-    }
-    host.appendChild(page)
-  }
-
-  return host
-}
-
-async function waitForArtwork(host: HTMLElement): Promise<void> {
-  const loaded = Promise.all(Array.from(host.querySelectorAll('img')).map(image => {
-    if (image.complete)
-      return image.naturalWidth > 0 ? Promise.resolve() : Promise.reject(new Error('documents.receipt.artworkFailed'))
-
-    return new Promise<void>((resolve, reject) => {
-      image.addEventListener('load', () => resolve(), { once: true })
-      image.addEventListener('error', () => reject(new Error('documents.receipt.artworkFailed')), { once: true })
-    })
-  }))
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    await Promise.race([
-      Promise.all([loaded, document.fonts?.ready]),
-      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('documents.receipt.artworkFailed')), 10_000) }),
-    ])
-  }
-  finally {
-    clearTimeout(timer)
-  }
+  return createCardPrintHost({
+    root,
+    paper: papers[paper] ?? papers.A5,
+    cardSelector: ':scope > .receipt-card',
+    hostClass: 'income-receipt-print-host',
+    pageClass: 'income-receipt-print-page',
+    errorPrefix: 'documents.receipt',
+  })
 }
 
 export async function printReceipt(root: HTMLElement, paper: ReceiptPaperSize): Promise<void> {
-  await nextTick()
-  const host = createReceiptPrintHost(root, paper)
-  try {
-    await printDocument({
-      bodyClass: 'income-receipt-print-mode',
-      pageStyle: `size: ${receiptPrintLayout(paper).size}; margin: 0;`,
-      beforePrint: async () => {
-        document.body.appendChild(host)
-        await waitForArtwork(host)
-        for (const content of host.querySelectorAll<HTMLElement>('.receipt-card__content')) {
-          if (content.scrollHeight > content.clientHeight + 1 || content.scrollWidth > content.clientWidth + 1)
-            throw new Error('documents.receipt.paperTooSmall')
-        }
-        delete host.dataset.measuring
-      },
-      afterPrint: () => host.remove(),
-    })
-  }
-  catch (error) {
-    host.remove()
-    throw error
-  }
+  await printCardSheet({
+    root,
+    paper: papers[paper] ?? papers.A5,
+    cardSelector: ':scope > .receipt-card',
+    contentSelector: '.receipt-card__content',
+    bodyClass: 'income-receipt-print-mode',
+    hostClass: 'income-receipt-print-host',
+    pageClass: 'income-receipt-print-page',
+    errorPrefix: 'documents.receipt',
+  })
 }

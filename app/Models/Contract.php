@@ -24,12 +24,13 @@ class Contract extends Model
 
     protected static function booted(): void
     {
-        // Commission is earned by the *case*, not by this agreement: a service
-        // line pays out once its applicant reaches the terminal `completed`
-        // stage (see `CommissionService`). The hooks live on the model so every
-        // path — the service-contract flow, extension contracts, a manual
-        // status change — re-checks the case and either accrues the new line or
-        // voids what no longer earns. `syncForContract` is idempotent.
+        // Commission is normally earned by the *case*: a service line pays out
+        // once its applicant reaches the terminal `completed` stage. Academy is
+        // the exception and accrues from its live agreement (see
+        // `CommissionService`). The hooks live on the model so every path — the
+        // service-contract flow, extension contracts, a manual status change —
+        // re-checks the case and either accrues the new line or voids what no
+        // longer earns. `syncForContract` is idempotent.
         $sync = fn (Contract $contract) => app(CommissionService::class)->syncForContract($contract);
 
         static::created(function (Contract $contract) use ($sync): void {

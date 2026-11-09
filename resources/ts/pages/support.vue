@@ -22,11 +22,13 @@ const attachments = ref<File[]>([])
 const attachmentPicker = ref<File[]>([])
 
 const supportAddress = computed(() => ({
+  'en': 'Kabul, Shar-e-Naw, Faryab Market',
   'fa-AF': 'کابل، شهرنو، فاریاب مارکیت',
   'ps-AF': 'کابل، شهرنو، فاریاب مارکېټ',
 }[currentLocale()] ?? 'Kabul, Shar-e-Naw, Faryab Market'))
 const whatsappHref = computed(() => {
   const message = {
+    'en': 'Hello Asantech Support, I need help with the system.',
     'fa-AF': 'سلام تیم پشتیبانی آسان‌تک، برای استفاده از سیستم به کمک نیاز دارم.',
     'ps-AF': 'سلام د آسان‌ټېک د ملاتړ ټیم، زه د سیسټم لپاره مرستې ته اړتیا لرم.',
   }[currentLocale()] ?? 'Hello Asantech Support, I need help with the system.'

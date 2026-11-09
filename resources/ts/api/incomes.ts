@@ -17,6 +17,22 @@ export const getIncomeApplicants = async (search = ''): Promise<IncomeApplicantO
   return Array.isArray(response.data.data) ? response.data.data : []
 }
 
+/** An applicant or a direct Academy student acting as the receipt payer. */
+export interface IncomePayerOption {
+  key: string
+  type: 'applicant' | 'student'
+  id: number
+  name: string
+  contact: string | null
+  reference: string | null
+}
+
+export const getIncomePayers = async (search = ''): Promise<IncomePayerOption[]> => {
+  const response = await api.get('/incomes/payers', { params: { search } })
+
+  return Array.isArray(response.data.data) ? response.data.data : []
+}
+
 /** The contracted service line a receipt pays for. */
 export interface IncomeContractService {
   id: number
@@ -79,6 +95,8 @@ export interface Income {
   receipt_number: string
   attachments?: Attachment[]
   applicant_id: number | null
+  student_id: number | null
+  student?: { id: number; student_number: string | null; name: string; contact: string | null; email: string | null } | null
   applicant_contract_id: number | null
   contract_service?: IncomeContractService | null
   currency_id: number
@@ -110,6 +128,7 @@ export interface Income {
 
 export interface IncomeCreateData {
   applicant_id?: number | null
+  student_id?: number | null
   applicant_contract_id?: number | null
   currency_id: number
   type: string
@@ -124,6 +143,7 @@ export interface IncomeCreateData {
 
 export interface IncomeUpdateData {
   applicant_id?: number | null
+  student_id?: number | null
   applicant_contract_id?: number | null
   currency_id?: number
   type?: string
@@ -142,6 +162,7 @@ export interface IncomeParams {
   status?: FinanceRecordStatus
   currency_id?: number
   applicant_id?: number
+  student_id?: number
   applicant_contract_id?: number
   date_from?: string
   date_to?: string

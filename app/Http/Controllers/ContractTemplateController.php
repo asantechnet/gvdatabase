@@ -23,7 +23,7 @@ class ContractTemplateController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
+            'service' => ['sometimes', Rule::in(BuiltInService::enabled())],
             'service_ids' => ['prohibited'],
             'contract_type_id' => ['sometimes', 'integer', 'exists:contract_types,id'],
             'include_generic' => ['sometimes', 'boolean'],
@@ -70,7 +70,8 @@ class ContractTemplateController extends Controller
         $data = $this->validated($request, partial: true, existing: $contractTemplate);
 
         // Versioned terms cannot be overwritten through template metadata edits.
-        if ($contractTemplate->versions()->exists()) {
+        // Other agreements are not versioned, so their document stays editable.
+        if ($contractTemplate->usesVersioning() && $contractTemplate->versions()->exists()) {
             unset($data['content']);
         }
 
@@ -126,7 +127,7 @@ class ContractTemplateController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => [...$presenceRules, 'string', 'max:255'],
             'contract_type_id' => [...$presenceRules, 'integer', 'exists:contract_types,id'],
-            'service' => ['nullable', Rule::in(BuiltInService::ALL), Rule::unique('contract_templates', 'service')->ignore($existing?->id)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled()), Rule::unique('contract_templates', 'service')->ignore($existing?->id)],
             'service_id' => ['prohibited'],
             'service_ids' => ['prohibited'],
             'service_scopes' => ['prohibited'],

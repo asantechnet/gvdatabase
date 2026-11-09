@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import CommissionApi, { type CommissionSlipPayload } from '@/api/commission'
 import CommissionSlipTemplate, { type CommissionSlipPaperSize } from '@/pages/templates/commission_slip_template.vue'
+import SlipPrintDialog from '@/components/documents/SlipPrintDialog.vue'
 
 const props = defineProps<{ modelValue: boolean; settlementId: number | null }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -12,7 +13,6 @@ const { t } = useI18n()
 const toast = useToast()
 const slip = ref<CommissionSlipPayload | null>(null)
 const loading = ref(false)
-const printing = ref(false)
 const templateRef = ref<InstanceType<typeof CommissionSlipTemplate> | null>(null)
 
 const paperSize = ref<CommissionSlipPaperSize>('A4 2x A5')
@@ -26,8 +26,6 @@ const paperSizes = computed<Array<{ title: string; value: CommissionSlipPaperSiz
   { title: t('documents.commissionSlip.paperA4'), value: 'A4' },
   { title: t('documents.commissionSlip.paperA5'), value: 'A5' },
 ])
-
-const previewScale = computed(() => (paperSize.value === 'A5' || paperSize.value === 'A5 2x' ? 0.85 : paperSize.value === 'A4 2x A5' ? 0.9 : 1))
 
 watch(() => [props.modelValue, props.settlementId] as const, async ([open, settlementId]) => {
   const generation = ++requestGeneration
@@ -53,110 +51,34 @@ watch(() => [props.modelValue, props.settlementId] as const, async ([open, settl
 }, { immediate: true })
 
 const print = async () => {
-  if (!templateRef.value || printing.value || loading.value)
-    return
-  printing.value = true
-  try {
-    await templateRef.value.print()
-  }
-  catch {
-    toast.error(t('documents.commissionSlip.printFailed'))
-  }
-  finally {
-    printing.value = false
-  }
+  if (!templateRef.value)
+    throw new Error('documents.commissionSlip.printFailed')
+  await templateRef.value.print()
 }
 </script>
 
 <template>
-  <VDialog
+  <SlipPrintDialog
     :model-value="modelValue"
-    width="92vw"
-    max-width="1100"
-    :persistent="printing"
+    :title="t('documents.commissionSlip.title')"
+    :subtitle="slip?.reference"
+    icon="tabler-receipt"
+    :paper-size="paperSize"
+    :paper-sizes="paperSizes"
+    :loading="loading"
+    :ready="!!slip"
+    :print-action="print"
+    :print-label="t('documents.commissionSlip.print')"
+    error-fallback="documents.commissionSlip.printFailed"
     @update:model-value="emit('update:modelValue', $event)"
+    @update:paper-size="paperSize = $event as CommissionSlipPaperSize"
   >
-    <VCard flat>
-      <VCardTitle class="d-flex flex-wrap align-center ga-3">
-        <VAvatar
-          color="primary"
-          variant="tonal"
-          size="38"
-        >
-          <VIcon icon="tabler-receipt" />
-        </VAvatar>
-        <div>
-          <div class="text-h6 font-weight-bold">
-            {{ t('documents.commissionSlip.title') }}
-          </div>
-          <div class="text-caption text-medium-emphasis">
-            {{ slip?.reference || '—' }}
-          </div>
-        </div>
-        <VSpacer />
-        <VSelect
-          v-model="paperSize"
-          :items="paperSizes"
-          :label="t('documents.commissionSlip.paperSize')"
-          density="compact"
-          hide-details
-          :disabled="printing"
-          style="min-width: 200px;"
-        />
-        <VBtn
-          variant="tonal"
-          color="secondary"
-          :disabled="printing"
-          @click="emit('update:modelValue', false)"
-        >
-          {{ t('common.actions.close') }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          prepend-icon="tabler-printer"
-          :disabled="!slip || loading || printing"
-          :loading="printing"
-          @click="print"
-        >
-          {{ t('documents.commissionSlip.print') }}
-        </VBtn>
-      </VCardTitle>
-
-      <VCardText class="commission-slip-preview">
-        <VProgressCircular
-          v-if="loading"
-          indeterminate
-          color="primary"
-        />
-        <div
-          v-else-if="slip"
-          class="commission-slip-preview__paper"
-          :style="{ transform: `scale(${previewScale})` }"
-        >
-          <CommissionSlipTemplate
-            ref="templateRef"
-            :slip="slip"
-            :copies="copies"
-            :paper-size="paperSize"
-          />
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
+    <CommissionSlipTemplate
+      v-if="slip"
+      ref="templateRef"
+      :slip="slip"
+      :copies="copies"
+      :paper-size="paperSize"
+    />
+  </SlipPrintDialog>
 </template>
-
-<style scoped>
-.commission-slip-preview {
-  display: grid;
-  place-items: start center;
-  padding: 1.5rem;
-  max-block-size: 74vh;
-  overflow: auto;
-  background: #edf2f7;
-}
-
-.commission-slip-preview__paper {
-  width: 100%;
-  transform-origin: top center;
-}
-</style>

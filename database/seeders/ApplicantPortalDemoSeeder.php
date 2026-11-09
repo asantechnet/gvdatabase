@@ -39,6 +39,7 @@ class ApplicantPortalDemoSeeder extends Seeder
         $user->roles()->syncWithoutDetaching([$applicantRole->id]);
 
         $applicant = Applicant::withTrashed()->firstOrNew(['user_id' => $user->id]);
+        $admissionId = Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'admission'))->value('id');
         $applicant->fill([
             'service' => BuiltInService::SCHOLARSHIP,
             'name' => $user->name,
@@ -49,7 +50,6 @@ class ApplicantPortalDemoSeeder extends Seeder
             'father_phone' => '+93 700 000 002',
             'responsible_employee_id' => Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'counselor'))->value('id')
                 ?? Employee::query()->orderBy('id')->value('id'),
-            'admission_employee_id' => Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'admission'))->value('id'),
             'current_stage_id' => ApplicantStage::query()->where('key', 'consultation')->value('id'),
             'status' => 'active',
             'notes' => 'Demo applicant portal case.',
@@ -62,6 +62,9 @@ class ApplicantPortalDemoSeeder extends Seeder
         ]);
         $applicant->deleted_at = null;
         $applicant->save();
+        if ($admissionId) {
+            $applicant->responsibleEmployees()->sync([$admissionId]);
+        }
 
         $detail = $applicant->scholarshipDetail()->withTrashed()->firstOrCreate([]);
         if ($detail->trashed()) {
