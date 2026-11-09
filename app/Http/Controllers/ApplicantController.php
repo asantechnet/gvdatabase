@@ -31,6 +31,9 @@ class ApplicantController extends Controller
         $canSeeFinancials = $request->user()->hasPermission('view_applicant_financials');
         $service = $this->requestedService($request);
         $query = Applicant::with($this->relations())->withCount('attachments');
+        if (! BuiltInService::isEnabled(BuiltInService::ACADEMY)) {
+            $query->where('service', '!=', BuiltInService::ACADEMY);
+        }
         if ($canSeeFinancials) {
             $query->with('applicantContracts.currency', 'applicantContracts.contract', 'applicantContracts.currentStage');
         }
@@ -392,7 +395,7 @@ class ApplicantController extends Controller
             'consultant_review' => ['sometimes', 'nullable', 'string', Rule::in(ConsultantReview::ALL)],
             // The built-in service this applicant belongs to. It decides which
             // detail field set applies. Defaults to scholarship on creation.
-            'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
+            'service' => ['sometimes', Rule::in(BuiltInService::enabled())],
             // Scholarship detail fields.
             'passport_id' => ['nullable', 'string', 'max:64'],
             'grade_score' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -409,10 +412,8 @@ class ApplicantController extends Controller
             // Academy detail fields.
             'student_id' => ['nullable', 'string', 'max:64'],
             'program_id' => ['nullable', 'integer', 'exists:programs,id'],
-            'time_id' => ['nullable', 'integer', 'exists:times,id'],
-            'duration_id' => ['nullable', 'integer', 'exists:durations,id'],
             'teacher_ids' => ['nullable', 'array'],
-            'teacher_ids.*' => ['integer', 'exists:teachers,id'],
+            'teacher_ids.*' => ['integer', 'exists:employees,id'],
         ]);
 
         if (array_key_exists('consultant_review', $data) && ! $request->user()->hasPermission('review_visitors')) {
@@ -483,8 +484,8 @@ class ApplicantController extends Controller
                 $details->sync($applicant, $data);
             } elseif (array_intersect(array_keys($data), [
                 'service', 'passport_id', 'grade_score', 'contract_type_id', 'university_fee',
-                'favorite_subject_ids', 'test_id', 'skill_ids', 'student_id', 'program_id', 'time_id',
-                'duration_id', 'teacher_ids', 'scholarship_id', 'class_id',
+                'favorite_subject_ids', 'test_id', 'skill_ids', 'student_id', 'program_id',
+                'teacher_ids', 'scholarship_id', 'class_id',
                 'country_id', 'university_id', 'education_level_id', 'semester_id',
             ]) !== []) {
                 $details->sync($applicant, $data);
@@ -570,7 +571,7 @@ class ApplicantController extends Controller
             // The per-service half of the record and its multi-valued fields.
             // All four detail relations are loaded; the resource picks the one
             // matching the applicant's service.
-            'privateDetail.country', 'privateDetail.university', 'privateDetail.educationLevel', 'privateDetail.semester', 'scholarshipDetail.scholarship', 'academyDetail.academyClass', 'scholarshipDetail.country', 'scholarshipDetail.university', 'scholarshipDetail.educationLevel', 'scholarshipDetail.semester', 'testDetail.test', 'academyDetail.program', 'academyDetail.time', 'academyDetail.duration',
+            'privateDetail.country', 'privateDetail.university', 'privateDetail.educationLevel', 'privateDetail.semester', 'scholarshipDetail.scholarship', 'academyDetail.academyClass', 'scholarshipDetail.country', 'scholarshipDetail.university', 'scholarshipDetail.educationLevel', 'scholarshipDetail.semester', 'testDetail.test', 'academyDetail.program',
             'favoriteSubjects', 'skills', 'teachers',
         ];
     }

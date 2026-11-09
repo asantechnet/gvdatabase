@@ -2,9 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Duration;
 use App\Models\Program;
-use App\Models\TimeSlot;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AcademyClassFactory extends Factory
@@ -19,8 +17,6 @@ class AcademyClassFactory extends Factory
             'sort_order' => 0,
             'is_active' => true,
             'program_id' => Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true])->id,
-            'time_id' => TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true])->id,
-            'duration_id' => Duration::firstOrCreate(['name' => '6 months'], ['months' => 6, 'is_active' => true])->id,
             'starts_on' => $starts->format('Y-m-d'),
             'ends_on' => (clone $starts)->modify('+6 months')->format('Y-m-d'),
             'weekdays' => [1, 3, 5],

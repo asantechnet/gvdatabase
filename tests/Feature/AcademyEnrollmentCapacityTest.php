@@ -16,9 +16,9 @@ use App\Models\User;
 use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyEnrollmentCapacityTest extends TestCase
+class AcademyEnrollmentCapacityTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

@@ -1,5 +1,5 @@
 import api from './axios'
-import type { AcademyClassRecord, AcademyDurationOption } from './academyClasses'
+import type { AcademyClassRecord } from './academyClasses'
 
 export type AcademyEnrollmentStatus = 'active' | 'completed' | 'withdrawn' | 'cancelled'
 
@@ -28,7 +28,6 @@ export interface AcademyEnrollmentRecord {
     currency: { code: string; symbol: string | null; decimal_places: number } | null
   } | null
   class: AcademyClassRecord | null
-  duration: AcademyDurationOption | null
   started_on: string | null
   ends_on: string | null
   status: AcademyEnrollmentStatus

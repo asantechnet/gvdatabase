@@ -13,9 +13,10 @@ const { t } = useI18n()
 const toast = useToast()
 // Each built-in service owns its own stage list; the selector scopes the page.
 const service = ref<BuiltInService>('scholarship')
-// Retired case-free services are never offered here.
+// Academy is the only case-free service, so it is never offered here.
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
+  { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const stages = ref<ApplicantStage[]>([])
@@ -38,8 +39,9 @@ const blankForm = () => ({
 })
 const form = ref(blankForm())
 const formService = computed<BuiltInService>(() => editing.value?.service ?? service.value)
-// Destination scope belongs to the admission workflows only.
-const usesAdmissionScope = computed(() => true)
+// Destination scope belongs to the admission workflows only. Test-offer
+// stages are service-wide; the API normalizes their scope to null.
+const usesAdmissionScope = computed(() => ['scholarship', 'private'].includes(formService.value))
 const serviceTitle = (value?: BuiltInService | null) => serviceOptions.value.find(option => option.value === value)?.title ?? '—'
 const stageNameByKey = computed(() => Object.fromEntries(stages.value.map(stage => [stage.key, translateApplicantStage(stage)])))
 const nextStagesLabel = (stage: ApplicantStage) => (stage.allowed_next_keys ?? [])
@@ -51,7 +53,9 @@ const universityOptions = computed(() => universities.value
   .filter(row => row.is_active && (!form.value.country_id || row.country_id === form.value.country_id))
   .map(row => ({ title: row.name, value: row.id })))
 // The table shows one dependency column only where the service has one.
-const dependencyHeader = computed(() => `${t('educational.country')} / ${t('educational.university')}`)
+const dependencyHeader = computed(() => usesAdmissionScope.value
+  ? `${t('educational.country')} / ${t('educational.university')}`
+  : '')
 const columnCount = computed(() => 6 + (dependencyHeader.value ? 1 : 0))
 const scopeLabel = (stage: ApplicantStage) => {
   const country = countries.value.find(row => row.id === stage.country_id)?.name
@@ -232,16 +236,6 @@ onMounted(load)
                   </VChip>
                   <VChip v-if="stage.is_terminal" class="ms-2" size="small" color="warning">
                     {{ $t('educational.masterData.terminalStage') }}
-                  </VChip>
-                  <VChip
-                    v-if="stage.is_locked"
-                    class="ms-2"
-                    size="small"
-                    color="secondary"
-                    prepend-icon="tabler-lock"
-                    :title="$t('educational.masterData.lockedStageHint')"
-                  >
-                    {{ $t('educational.masterData.lockedStage') }}
                   </VChip>
                 </td>
                 <td class="text-no-wrap">

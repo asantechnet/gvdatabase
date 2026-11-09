@@ -2,15 +2,13 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
-import { AcademyClassesApi, type AcademyClassPayload, type AcademyClassRecord, type AcademyDurationRecord, type AcademyOption } from '@/api/academyClasses'
+import { AcademyClassesApi, type AcademyClassPayload, type AcademyClassRecord, type AcademyOption } from '@/api/academyClasses'
 import { apiFieldErrors } from '@/utils/apiErrors'
 
 const props = defineProps<{
   modelValue: boolean
   record: AcademyClassRecord | null
   programs: AcademyOption[]
-  times: AcademyOption[]
-  durations: AcademyDurationRecord[]
   teachers: AcademyOption[]
 }>()
 
@@ -23,21 +21,19 @@ const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
 const errors = ref<Record<string, string>>({})
-const weekdays = [
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-  { value: 7, label: 'Sun' },
-]
+const weekdays = computed(() => [
+  { value: 1, label: t('academy.fields.weekdaysShort.mon') },
+  { value: 2, label: t('academy.fields.weekdaysShort.tue') },
+  { value: 3, label: t('academy.fields.weekdaysShort.wed') },
+  { value: 4, label: t('academy.fields.weekdaysShort.thu') },
+  { value: 5, label: t('academy.fields.weekdaysShort.fri') },
+  { value: 6, label: t('academy.fields.weekdaysShort.sat') },
+  { value: 7, label: t('academy.fields.weekdaysShort.sun') },
+])
 const form = reactive<AcademyClassPayload>({
   name: '',
   description: '',
   program_id: null,
-  time_id: null,
-  duration_id: null,
   teacher_ids: [],
   weekdays: [],
   starts_on: null,
@@ -61,8 +57,6 @@ function reset() {
   form.name = record?.name ?? ''
   form.description = record?.description ?? ''
   form.program_id = record?.program?.id ?? null
-  form.time_id = record?.time?.id ?? null
-  form.duration_id = record?.duration?.id ?? null
   form.teacher_ids = record?.teachers.map(teacher => teacher.id) ?? []
   form.weekdays = [...(record?.weekdays ?? [])]
   form.starts_on = record?.starts_on ?? null
@@ -111,72 +105,21 @@ async function save() {
       <VCardText>
         <VRow>
           <VCol cols="12" md="8">
-            <VTextField
-              v-model="form.name"
-              :label="t('academy.fields.name')"
-              :error-messages="errors.name"
-              required
-            />
+            <VTextField v-model="form.name" :label="t('academy.fields.name')" :error-messages="errors.name" required />
           </VCol>
           <VCol cols="12" md="4">
             <VTextField v-model.number="form.sort_order" type="number" min="0" :label="t('academy.fields.sortOrder')" />
           </VCol>
-          <VCol cols="12" md="4">
-            <VSelect
-              v-model="form.program_id"
-              :items="programs"
-              item-title="name"
-              item-value="id"
-              :label="t('academy.fields.program')"
-              clearable
-              :error-messages="errors.program_id"
-            />
+          <VCol cols="12" md="6">
+            <VSelect v-model="form.program_id" :items="programs" item-title="name" item-value="id" :label="t('academy.fields.program')" clearable :error-messages="errors.program_id" />
           </VCol>
-          <VCol cols="12" md="4">
-            <VSelect
-              v-model="form.time_id"
-              :items="times"
-              item-title="name"
-              item-value="id"
-              :label="t('academy.fields.time')"
-              clearable
-              :error-messages="errors.time_id"
-            />
-          </VCol>
-          <VCol cols="12" md="4">
-            <VSelect
-              v-model="form.duration_id"
-              :items="durations"
-              item-title="name"
-              item-value="id"
-              :label="t('academy.fields.duration')"
-              clearable
-              :error-messages="errors.duration_id"
-            />
-          </VCol>
-          <VCol cols="12">
-            <VSelect
-              v-model="form.teacher_ids"
-              :items="teachers"
-              item-title="name"
-              item-value="id"
-              :label="t('academy.fields.teachers')"
-              multiple
-              chips
-              :error-messages="errors.teacher_ids"
-            />
+          <VCol cols="12" md="6">
+            <VSelect v-model="form.teacher_ids" :items="teachers" item-title="name" item-value="id" :label="t('academy.fields.teachers')" multiple chips :error-messages="errors.teacher_ids" />
           </VCol>
           <VCol cols="12">
             <div class="text-subtitle-2 mb-1">{{ t('academy.fields.weekdays') }}</div>
             <div class="weekday-options">
-              <VCheckbox
-                v-for="day in weekdays"
-                :key="day.value"
-                v-model="form.weekdays"
-                :label="day.label"
-                :value="day.value"
-                hide-details
-              />
+              <VCheckbox v-for="day in weekdays" :key="day.value" v-model="form.weekdays" :label="day.label" :value="day.value" hide-details />
             </div>
             <div v-if="errors.weekdays" class="text-error text-caption mt-1">{{ errors.weekdays }}</div>
           </VCol>

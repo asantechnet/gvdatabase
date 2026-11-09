@@ -22,6 +22,7 @@ import PayslipTemplate, {
 import AdvanceReceiptTemplate, {
   type AdvanceReceiptData,
 } from "./templates/advance_receipt_template.vue";
+import SlipPrintDialog from "@/components/documents/SlipPrintDialog.vue";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import {
@@ -549,8 +550,8 @@ async function openPayslip(row: PayrollRow) {
   await nextTick();
 }
 
-function printPayslip() {
-  payslipRef.value?.print();
+async function printPayslip() {
+  await payslipRef.value?.print();
 }
 
 // Print is global: the report is filled from every register row first.
@@ -766,7 +767,12 @@ function openAdvanceReceipt(advance: EmployeeAdvance) {
     company: companyProfile.value,
   };
   advanceReceiptDialog.value = true;
-  void nextTick(() => advanceReceiptRef.value?.print());
+}
+
+// The browser print engine opens only after the operator presses Print in the
+// shared slip popup, never while the preview is opening.
+async function printAdvanceReceipt() {
+  await advanceReceiptRef.value?.print();
 }
 
 function statusLabel(status: PayrollRow["status"]) {
@@ -1522,54 +1528,40 @@ onMounted(load);
     </VDialog>
 
     <!-- Payslip preview -->
-    <VDialog v-model="payslipDialog" max-width="1100" scrollable>
-      <VCard class="document-preview-dialog">
-        <VCardText class="pa-0">
-          <PayslipTemplate
-            v-if="payslipProps"
-            ref="payslipRef"
-            v-bind="payslipProps"
-          />
-        </VCardText>
-        <VCardActions class="justify-end pa-4">
-          <VBtn variant="text" @click="payslipDialog = false">
-            {{ $t("common.actions.close") }}
-          </VBtn>
-          <VBtn
-            prepend-icon="tabler-printer"
-            color="primary"
-            @click="printPayslip"
-          >
-            {{ $t("common.actions.print") }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <SlipPrintDialog
+      v-model="payslipDialog"
+      :title="$t('documents.payslip.title')"
+      :subtitle="payslipProps?.documentNumber"
+      icon="tabler-file-invoice"
+      :ready="!!payslipProps"
+      :print-action="printPayslip"
+      :print-label="$t('common.actions.print')"
+      error-fallback="documents.payslip.printFailed"
+    >
+      <PayslipTemplate
+        v-if="payslipProps"
+        ref="payslipRef"
+        v-bind="payslipProps"
+      />
+    </SlipPrintDialog>
 
     <!-- Advance receipt preview -->
-    <VDialog v-model="advanceReceiptDialog" max-width="900" scrollable>
-      <VCard class="document-preview-dialog">
-        <VCardText class="pa-0">
-          <AdvanceReceiptTemplate
-            v-if="advanceReceipt"
-            ref="advanceReceiptRef"
-            :receipt="advanceReceipt"
-          />
-        </VCardText>
-        <VCardActions class="justify-end pa-4">
-          <VBtn variant="text" @click="advanceReceiptDialog = false">
-            {{ $t("common.actions.close") }}
-          </VBtn>
-          <VBtn
-            prepend-icon="tabler-printer"
-            color="primary"
-            @click="advanceReceiptRef?.print()"
-          >
-            {{ $t("common.actions.print") }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <SlipPrintDialog
+      v-model="advanceReceiptDialog"
+      :title="$t('documents.advanceReceipt.title')"
+      :subtitle="advanceReceipt?.advanceNumber"
+      icon="tabler-receipt"
+      :ready="!!advanceReceipt"
+      :print-action="printAdvanceReceipt"
+      :print-label="$t('common.actions.print')"
+      error-fallback="documents.advanceReceipt.printFailed"
+    >
+      <AdvanceReceiptTemplate
+        v-if="advanceReceipt"
+        ref="advanceReceiptRef"
+        :receipt="advanceReceipt"
+      />
+    </SlipPrintDialog>
   </div>
 </template>
 

@@ -154,7 +154,6 @@ class NotificationDemoSeeder extends Seeder
             'status' => Employee::STATUS_ACTIVE,
             'office_id' => Office::query()->where('code', 'HQ')->value('id'),
             'salary' => 60000,
-            'department' => 'Counseling',
             'join_date' => now()->toDateString(),
             'contract_duration' => 'Permanent',
         ]);

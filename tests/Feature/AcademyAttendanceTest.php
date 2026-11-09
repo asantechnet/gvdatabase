@@ -17,9 +17,9 @@ use App\Models\TimeSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyAttendanceTest extends TestCase
+class AcademyAttendanceTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

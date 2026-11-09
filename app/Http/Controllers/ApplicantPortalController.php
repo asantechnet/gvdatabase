@@ -203,7 +203,7 @@ class ApplicantPortalController extends Controller
     public function credentials(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'service' => ['required', Rule::in(BuiltInService::ALL)],
+            'service' => ['required', Rule::in(BuiltInService::enabled())],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'education_level_id' => ['nullable', 'integer', 'exists:education_levels,id'],
@@ -267,7 +267,7 @@ class ApplicantPortalController extends Controller
                 'responsibleEmployee.user:id,email,phone',
                 'privateDetail.country:id,name', 'privateDetail.university:id,name', 'privateDetail.educationLevel:id,name',
                 'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name', 'scholarshipDetail.educationLevel:id,name',
-                'testDetail.test:id,name', 'academyDetail.program:id,name', 'academyDetail.time:id,name', 'academyDetail.duration:id,name',
+                'testDetail.test:id,name', 'academyDetail.program:id,name',
                 'currentStage:id,key,name,sort_order,is_terminal',
                 'stageHistory' => fn ($history) => $history->select('id', 'applicant_id', 'new_stage_id', 'changed_at')->with('newStage:id,key,name,sort_order'),
                 'universities' => fn ($applications) => $applications->select('id', 'applicant_id', 'university_id', 'status', 'intake')->with('university:id,name'),

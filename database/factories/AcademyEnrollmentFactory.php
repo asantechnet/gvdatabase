@@ -19,8 +19,6 @@ class AcademyEnrollmentFactory extends Factory
             'applicant_contract_id' => null,
             'class_id' => AcademyClass::factory(),
             'program_id' => null,
-            'time_id' => null,
-            'duration_id' => null,
             'started_on' => $start->format('Y-m-d'),
             'ends_on' => (clone $start)->modify('+6 months')->format('Y-m-d'),
             'status' => 'active',

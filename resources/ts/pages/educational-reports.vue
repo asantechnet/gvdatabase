@@ -16,8 +16,10 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const toast = useToast()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const { t, locale } = useI18n()
 const route = useRoute()
 
@@ -66,7 +68,7 @@ const canExport = computed(() => canAccess('export_reports'))
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, service.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)

@@ -15,9 +15,9 @@ use App\Services\Contracts\BuiltInContractTemplateService;
 use App\Support\BuiltInService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademySlipTest extends TestCase
+class AcademySlipTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

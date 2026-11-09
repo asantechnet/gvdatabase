@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Services\Contracts\PlaceholderRegistry;
 use App\Services\Contracts\PlaceholderResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyContractDocumentTest extends TestCase
+class AcademyContractDocumentTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

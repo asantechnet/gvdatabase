@@ -552,7 +552,7 @@ class DashboardController extends Controller
     private function servicePortfolio(): array
     {
         return ApplicantContract::query()
-            ->whereIn('applicant_contract.service', BuiltInService::ALL)
+            ->whereIn('applicant_contract.service', BuiltInService::enabled())
             ->join('contracts', 'contracts.id', '=', 'applicant_contract.contract_id')
             ->where('contracts.status', 'active')
             ->where('contracts.is_cancelled', false)

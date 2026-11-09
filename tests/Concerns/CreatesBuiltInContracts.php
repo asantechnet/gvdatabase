@@ -4,18 +4,17 @@ namespace Tests\Concerns;
 
 use App\Models\AcademyClass;
 use App\Models\ContractType;
+use App\Models\Employee;
 use App\Models\Country;
 use App\Models\Currency;
-use App\Models\Duration;
 use App\Models\EducationLevel;
 use App\Models\Language;
+use App\Models\Position;
 use App\Models\Program;
 use App\Models\Semester;
 use App\Models\Skill;
 use App\Models\Subject;
-use App\Models\Teacher;
 use App\Models\Test;
-use App\Models\TimeSlot;
 use App\Services\Contracts\BuiltInContractTemplateService;
 
 trait CreatesBuiltInContracts
@@ -78,10 +77,16 @@ trait CreatesBuiltInContracts
                 'student_id' => 'STU-1001',
                 'service_fee' => $fee,
                 'program_id' => Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true])->id,
-                'time_id' => TimeSlot::firstOrCreate(['name' => 'Morning'], ['is_active' => true])->id,
-                'duration_id' => Duration::firstOrCreate(['name' => '6 months'], ['months' => 6, 'is_active' => true])->id,
-                'teacher_ids' => [Teacher::firstOrCreate(['name' => 'Jane Doe'], ['is_active' => true])->id],
-                'class_id' => AcademyClass::firstOrCreate(['name' => 'Class A'], ['is_active' => true])->id,
+                'teacher_ids' => [Employee::factory()->create([
+                    'name' => 'Jane Doe',
+                    'position_id' => Position::firstOrCreate(['system_key' => 'teacher'], ['title' => 'Teacher', 'status' => 'active'])->id,
+                ])->id],
+                // An Academy term needs a class end date; without one the
+                // enrollment service correctly refuses to create the line.
+                'class_id' => AcademyClass::firstOrCreate(
+                    ['name' => 'Class A'],
+                    ['is_active' => true, 'ends_on' => now()->addYear()->toDateString()],
+                )->id,
             ],
         };
 
@@ -92,7 +97,7 @@ trait CreatesBuiltInContracts
                 'admission_employee_id', 'responsible_employee_id', 'passport_id', 'grade_score', 'country_id',
                 'contract_type_id', 'education_level_id', 'semester_id', 'university_id', 'university_fee',
                 'favorite_subject_ids', 'scholarship_id', 'test_id', 'skill_ids', 'student_id', 'program_id',
-                'time_id', 'duration_id', 'teacher_ids', 'class_id'] as $field) {
+                'teacher_ids', 'class_id'] as $field) {
                 unset($payload[$field]);
             }
         }

@@ -21,6 +21,7 @@ class Task extends Model
 
     protected $fillable = [
         'board_id',
+        'created_by',
         'applicant_id',
         'applicant_contract_id',
         'title',
@@ -122,6 +123,11 @@ class Task extends Model
     public function board(): BelongsTo
     {
         return $this->belongsTo(Board::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function applicant(): BelongsTo

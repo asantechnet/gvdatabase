@@ -17,9 +17,9 @@ use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyContractTermTest extends TestCase
+class AcademyContractTermTest extends AcademyTestCase
 {
     use RefreshDatabase;
 
@@ -151,6 +151,25 @@ class AcademyContractTermTest extends TestCase
         $this->assertSame(['Jane Doe'], $academy['teachers']);
         $this->assertSame($contract->start_date->toDateString(), $academy['started_on']);
         $this->assertSame('2027-02-01', $academy['ends_on']);
+    }
+
+    public function test_academy_contract_resolves_its_hidden_version_and_creates_the_student(): void
+    {
+        $payload = $this->payload();
+        unset($payload['contract_template_version_id'], $payload['language_id'], $payload['student_id']);
+
+        $contract = Contract::findOrFail(
+            $this->postJson('/api/contracts/academy', $payload)->assertCreated()->json('data.id')
+        );
+        $line = $contract->applicantContracts()->sole();
+        $enrollment = AcademyEnrollment::query()->where('applicant_contract_id', $line->id)->sole();
+
+        $this->assertNotNull($contract->contract_template_version_id);
+        $this->assertNull($contract->contract_language_id);
+        $this->assertSame('Academy applicant', $enrollment->student->name);
+        $this->assertSame($enrollment->student->student_number, $contract->applicant->academyDetail->student_id);
+        $this->assertMatchesRegularExpression('/^STU-\d{6}$/', $enrollment->student->student_number);
+        $this->assertSame($enrollment->student->student_number, $contract->snapshot_data['entity']['academy']['student_id']);
     }
 
     public function test_open_class_uses_calendar_month_arithmetic_at_month_end(): void

@@ -116,8 +116,6 @@ class PlaceholderResolver
                 'applicant.test' => $applicant->service === 'test_offer' ? $detail?->test?->name : null,
                 'applicant.program' => $applicant->service === 'academy' ? $detail?->program?->name : null,
                 'applicant.class' => $applicant->service === 'academy' ? $detail?->academyClass?->name : null,
-                'applicant.time' => $applicant->service === 'academy' ? $detail?->time?->name : null,
-                'applicant.duration' => $applicant->service === 'academy' ? $detail?->duration?->name : null,
                 'applicant.subjects' => $applicant->favoriteSubjects->pluck('name')->join(', '),
                 'applicant.skills' => $applicant->skills->pluck('name')->join(', '),
                 'applicant.teachers' => $applicant->teachers->pluck('name')->join(', '),

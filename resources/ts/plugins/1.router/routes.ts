@@ -40,7 +40,6 @@ const pageComponents: Record<string, Component> = {
   expenseTypes: () => import("@/pages/options/expense-types.vue"),
   optionsCurrencies: () => import("@/pages/options/currencies.vue"),
   educationalMasterData: () => import("@/pages/educational-master-data.vue"),
-  academyData: () => import("@/pages/academy-data.vue"),
   academyOverview: () => import("@/pages/academy/overview.vue"),
   academyClasses: () => import("@/pages/academy/classes.vue"),
   academyStudents: () => import("@/pages/academy/students.vue"),
@@ -242,16 +241,12 @@ const routeDefinitions: Array<{
     },
   },
   {
+    // The Academy contract surface is gone; students and their slips are the
+    // single Academy record. Keep old deep links working.
     path: "/contracts/academy",
-    component: "serviceContracts",
     name: "academy-contracts",
-    meta: {
-      builtInService: "academy",
-      navActiveLink: "academy-contracts",
-      requiresAuth: true,
-      action: "read",
-      subject: "view_contracts",
-    },
+    redirect: { name: "academy-students" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/employee-contracts",
@@ -355,55 +350,41 @@ const routeDefinitions: Array<{
     name: "educational-master-data",
     meta: { requiresAuth: true, action: "read", subject: "view_country" },
   },
-  // The old Academy data entry point is now the Academy catalogue. Keep the
-  // component reachable for audit/support under a separate static record.
-  {
-    path: "/contracts/academy-data",
-    name: "academy-data",
-    redirect: (to) => ({ name: "academy-catalog", query: to.query }),
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
-  },
-  {
-    path: "/contracts/academy-data-legacy",
-    component: "academyData",
-    name: "academy-data-legacy",
-    meta: { requiresAuth: true, action: "read", subject: "view_country" },
-  },
   {
     path: "/academy",
     component: "academyOverview",
     name: "academy-overview",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/academy/classes",
     component: "academyClasses",
     name: "academy-classes",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/academy/students",
     component: "academyStudents",
     name: "academy-students",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/academy/catalog",
     component: "academyCatalog",
     name: "academy-catalog",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/academy/attendance",
     component: "academyAttendance",
     name: "academy-attendance",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_attendance" },
   },
   {
     path: "/academy/certificates",
     component: "academyCertificates",
     name: "academy-certificates",
-    meta: { requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/applications",

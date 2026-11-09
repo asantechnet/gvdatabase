@@ -2,19 +2,21 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AcademyEnrollmentDialog from '@/components/academy/AcademyEnrollmentDialog.vue'
+import AcademySlipPrinter from '@/components/academy/AcademySlipPrinter.vue'
 import AcademyStudentCard from '@/components/academy/AcademyStudentCard.vue'
+import AcademyStudentDialog from '@/components/academy/AcademyStudentDialog.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
-import { AcademyClassesApi, type AcademyClassRecord, type AcademyOption } from '@/api/academyClasses'
+import { AcademyClassesApi, type AcademyClassRecord } from '@/api/academyClasses'
 import { AcademyEnrollmentsApi, type AcademyEnrollmentRecord, type AcademyEnrollmentStatus } from '@/api/academyEnrollments'
-import MasterDataApi from '@/api/educationalMasterData'
+import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
 import { canAccess } from '@/utils/authorization'
 import { formatActiveDate, formatActiveMoney } from '@/utils/localization'
 
 const { t } = useI18n()
 const classes = ref<AcademyClassRecord[]>([])
-const teachers = ref<AcademyOption[]>([])
+const teachers = ref<AcademyTeacher[]>([])
 const enrollments = ref<AcademyEnrollmentRecord[]>([])
 const loading = ref(true)
 const failed = ref(false)
@@ -30,7 +32,11 @@ const editing = ref<AcademyEnrollmentRecord | null>(null)
 const cardOpen = ref(false)
 const cardEnrollments = ref<AcademyEnrollmentRecord[]>([])
 const cardKey = ref<number | null>(null)
+const addOpen = ref(false)
+const slipOpen = ref(false)
+const slipEnrollmentId = ref<number | null>(null)
 const canManage = computed(() => canAccess('manage_academy_classes'))
+const canPrintSlip = computed(() => canAccess('view_academy_contracts'))
 const statusItems = computed(() => ['active', 'completed', 'withdrawn', 'cancelled'].map(value => ({ title: t(`academy.status.${value}`), value })))
 
 async function load() {
@@ -59,7 +65,7 @@ async function load() {
 
 async function loadOptions() {
   try {
-    const [classRows, teacherRows] = await Promise.all([AcademyClassesApi.list(), MasterDataApi.list('teachers')])
+    const [classRows, teacherRows] = await Promise.all([AcademyClassesApi.list(), AcademyTeachersApi.list()])
     classes.value = classRows
     teachers.value = teacherRows
   }
@@ -69,6 +75,11 @@ async function loadOptions() {
 function openDetail(row: AcademyEnrollmentRecord) {
   editing.value = row
   detailOpen.value = true
+}
+
+function openSlip(row: AcademyEnrollmentRecord) {
+  slipEnrollmentId.value = row.id
+  slipOpen.value = true
 }
 
 async function openCard(row: AcademyEnrollmentRecord) {
@@ -102,7 +113,11 @@ onMounted(async () => {
 
 <template>
   <div class="academy-page pa-4 pa-sm-6">
-    <ErpPageHeader :title="t('academy.students.title')" :description="t('academy.students.description')" section="academy" />
+    <ErpPageHeader :title="t('academy.students.title')" :description="t('academy.students.description')" section="academy">
+      <template #actions>
+        <VBtn v-if="canManage" color="primary" prepend-icon="tabler-plus" @click="addOpen = true">{{ t('academy.students.add') }}</VBtn>
+      </template>
+    </ErpPageHeader>
 
     <VCard class="mb-4">
       <VCardText class="d-flex flex-wrap ga-3 align-center">
@@ -119,12 +134,7 @@ onMounted(async () => {
       <VCardText>
         <TableLoadingSkeleton v-if="loading" :columns="8" :label="t('common.messages.loading')" />
         <VAlert v-else-if="failed" type="error" variant="tonal">{{ t('academy.students.loadFailed') }}</VAlert>
-        <TableEmptyState
-          v-else-if="enrollments.length === 0"
-          icon="tabler-user-off"
-          :title="t('academy.students.emptyTitle')"
-          :description="t('academy.students.emptyDescription')"
-        />
+        <TableEmptyState v-else-if="enrollments.length === 0" icon="tabler-user-off" :title="t('academy.students.emptyTitle')" :description="t('academy.students.emptyDescription')" />
         <div v-else class="table-scroll">
           <VTable density="compact" class="text-no-wrap">
             <thead>
@@ -149,10 +159,11 @@ onMounted(async () => {
                 <td>{{ teacherNames(row) }}</td>
                 <td>{{ formatActiveDate(row.started_on) }} — {{ formatActiveDate(row.ends_on) }}</td>
                 <td><VChip size="small" :color="statusColor(row.status)">{{ t(`academy.status.${row.status}`) }}</VChip></td>
-                <td>{{ row.line ? formatActiveMoney(row.line.fee, row.line.currency) : '—' }}</td>
+                <td>{{ row.line ? formatActiveMoney(row.line.fee, row.line.currency) : formatActiveMoney(row.class?.fee ?? 0) }}</td>
                 <td>{{ row.line ? formatActiveMoney(row.line.balance, row.line.currency) : '—' }}</td>
                 <td class="text-end">
                   <VBtn icon="tabler-eye" size="small" variant="text" :aria-label="t('academy.students.detailTitle')" @click="openDetail(row)" />
+                  <VBtn v-if="canPrintSlip" icon="tabler-printer" size="small" variant="text" :aria-label="t('documents.academySlip.print')" @click="openSlip(row)" />
                 </td>
               </tr>
             </tbody>
@@ -168,6 +179,8 @@ onMounted(async () => {
 
     <AcademyEnrollmentDialog v-model="detailOpen" :record="editing" :can-manage="canManage" @saved="load" />
     <AcademyStudentCard v-model="cardOpen" :enrollments="cardEnrollments" />
+    <AcademyStudentDialog v-model="addOpen" :classes="classes" @saved="load" />
+    <AcademySlipPrinter v-model="slipOpen" :enrollment-id="slipEnrollmentId" />
   </div>
 </template>
 

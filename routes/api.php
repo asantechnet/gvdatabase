@@ -141,7 +141,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
 
     // 1. Fetch entire Kanban state (Boards with nested tasks, assignees, tags, etc.)
     $boardReadPermissions = 'permission:view_all_boards,view_assigned_boards,create_personal_tasks,view_private_contracts,view_scholarship_contracts,view_test_offer_contracts,view_academy_contracts,view_other_contracts';
-    Route::get('/kanban', [KanbanController::class, 'index'])->middleware($boardReadPermissions);
+    Route::get('/kanban', [KanbanController::class, 'index'])->middleware(['permission:view_kanban', $boardReadPermissions]);
 
     // 2. Board reads. Boards are product-owned and cannot be created, renamed,
     // reordered, shared or deleted through the API. Service-board access is
@@ -149,7 +149,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('/boards', [BoardController::class, 'index'])->middleware($boardReadPermissions);
 
     // 3. Task Management (Cards)
-    Route::get('/task-assignees', [TaskAssigneeController::class, 'index'])->middleware('permission:assign_task_members');
+    Route::get('/task-assignees', [TaskAssigneeController::class, 'index'])->middleware('permission:assign_task_members|manage_department_tasks');
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
@@ -312,6 +312,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // applicant's own lines (declared before the resource route below).
     Route::get('incomes/applicants', [IncomeController::class, 'applicants'])
         ->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
+    Route::get('incomes/payers', [IncomeController::class, 'payers'])
+        ->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
     Route::get('incomes/applicant-contracts', [IncomeController::class, 'applicantContracts'])
         ->middleware('permission:view_incomes,view_own_finance_records,view_all_finance_records');
     Route::put('incomes/applicant-contracts/{line}/payment-override', [IncomeController::class, 'paymentOverride'])
@@ -461,8 +463,6 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('company-profile', [SettingController::class, 'profile']);
 
     // Setting routes
-    Route::get('company-profile', [SettingController::class, 'profile'])
-        ->middleware('permission:view_settings,view_contracts');
     Route::apiResource('settings', SettingController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_settings')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:edit_settings');
@@ -470,7 +470,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     // Contract Template routes (replaces old policies)
     Route::post('contract-templates/built-in/{service}', [ContractTemplateController::class, 'ensureBuiltIn'])
         ->whereIn('service', BuiltInService::ALL)
-        ->middleware('permission:manage_contract_templates');
+        ->middleware(['permission:manage_contract_templates', \App\Http\Middleware\EnsureBuiltInServiceEnabled::class]);
     Route::apiResource('contract-templates', ContractTemplateController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
@@ -497,7 +497,10 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middleware('permission:view_contract_templates,view_contracts');
 
     // Academy route tree. Each feature owns a file under routes/academy/.
-    require base_path('routes/academy.php');
+    // The whole tree disappears when the company turns Academy off.
+    Route::middleware(\App\Http\Middleware\EnsureAcademyEnabled::class)->group(function () {
+        require base_path('routes/academy.php');
+    });
     // CRM relationships are an optional handoff owned by Task-047. The guard
     // lets this tree load before that file exists.
     if (is_file(base_path('routes/crm.php'))) {
@@ -509,22 +512,22 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
         ->middleware('permission:create_contracts,edit_contracts');
     Route::get('contracts/{service}/options', [ContractController::class, 'serviceOptions'])
         ->whereIn('service', BuiltInService::ALL)
-        ->middleware('permission:create_contracts');
+        ->middleware(['permission:create_contracts', \App\Http\Middleware\EnsureBuiltInServiceEnabled::class]);
     Route::get('contracts/{service}/version-options', [ContractController::class, 'versionOptions'])
         ->whereIn('service', BuiltInService::ALL)
-        ->middleware('permission:view_contracts');
+        ->middleware(['permission:view_contracts', \App\Http\Middleware\EnsureBuiltInServiceEnabled::class]);
     Route::post('contracts/{service}', [ContractController::class, 'storeService'])
         ->whereIn('service', BuiltInService::ALL)
-        ->middleware('permission:create_contracts');
+        ->middleware(['permission:create_contracts', \App\Http\Middleware\EnsureBuiltInServiceEnabled::class]);
     Route::put('contracts/{service}/{id}', [ContractController::class, 'updateService'])
         ->whereIn('service', BuiltInService::ALL)
-        ->middleware('permission:edit_contracts');
+        ->middleware(['permission:edit_contracts', \App\Http\Middleware\EnsureBuiltInServiceEnabled::class]);
     // Receipt-like A5 enrolment slip for an individual academy contract.
     // Registered before the resource so `counterparties` is not read as an id.
     Route::get('contracts/counterparties', [ContractController::class, 'counterparties'])
         ->middleware('permission:view_contracts');
     Route::get('contracts/{id}/academy-slip', [ContractController::class, 'academySlip'])
-        ->middleware('permission:view_contracts');
+        ->middleware(['permission:view_contracts', \App\Http\Middleware\EnsureAcademyEnabled::class]);
     Route::apiResource('contracts', ContractController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contracts')
         ->middlewareFor('store', 'permission:create_contracts')

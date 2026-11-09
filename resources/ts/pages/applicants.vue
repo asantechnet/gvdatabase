@@ -19,11 +19,13 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ApplicantPipeline from '@/pages/applicant-pipeline.vue'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
+const { enabled: academyEnabled } = useAcademyEnabled()
 
 const rows = ref<Applicant[]>([])
 // Keep the table in its loading state through catalogue bootstrapping so the
@@ -59,7 +61,7 @@ const service = ref<BuiltInService | ''>(['scholarship', 'private', 'test_offer'
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 // The stage tab strip drives this same filter, so deep links such as

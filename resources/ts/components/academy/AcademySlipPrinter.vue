@@ -4,15 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import AcademySlipApi, { type AcademySlipPayload } from '@/api/academySlip'
 import AcademySlipTemplate, { type AcademySlipPaperSize } from '@/pages/templates/academy_slip_template.vue'
+import SlipPrintDialog from '@/components/documents/SlipPrintDialog.vue'
 
-const props = defineProps<{ modelValue: boolean; contractId: number | null }>()
+const props = defineProps<{ modelValue: boolean; contractId?: number | null; enrollmentId?: number | null }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const { t } = useI18n()
 const toast = useToast()
 const slip = ref<AcademySlipPayload | null>(null)
 const loading = ref(false)
-const printing = ref(false)
 const templateRef = ref<InstanceType<typeof AcademySlipTemplate> | null>(null)
 
 const paperSize = ref<AcademySlipPaperSize>('A4 2x A5')
@@ -27,18 +27,18 @@ const paperSizes = computed<Array<{ title: string; value: AcademySlipPaperSize }
   { title: t('documents.academySlip.paperA5'), value: 'A5' },
 ])
 
-const previewScale = computed(() => (paperSize.value === 'A5' || paperSize.value === 'A5 2x' ? 0.85 : paperSize.value === 'A4 2x A5' ? 0.9 : 1))
-
-watch(() => [props.modelValue, props.contractId] as const, async ([open, contractId]) => {
+watch(() => [props.modelValue, props.contractId, props.enrollmentId] as const, async ([open, contractId, enrollmentId]) => {
   const generation = ++requestGeneration
   slip.value = null
   loading.value = false
-  if (!open || !contractId)
+  if (!open || (!contractId && !enrollmentId))
     return
 
   loading.value = true
   try {
-    const result = await AcademySlipApi.getForContract(Number(contractId))
+    const result = enrollmentId
+      ? await AcademySlipApi.getForEnrollment(Number(enrollmentId))
+      : await AcademySlipApi.getForContract(Number(contractId))
     if (generation === requestGeneration)
       slip.value = result
   }
@@ -53,73 +53,34 @@ watch(() => [props.modelValue, props.contractId] as const, async ([open, contrac
 }, { immediate: true })
 
 const print = async () => {
-  if (!templateRef.value || printing.value || loading.value)
-    return
-  printing.value = true
-  try {
-    await templateRef.value.print()
-  }
-  catch {
-    toast.error(t('documents.academySlip.printFailed'))
-  }
-  finally {
-    printing.value = false
-  }
+  if (!templateRef.value)
+    throw new Error('documents.academySlip.printFailed')
+  await templateRef.value.print()
 }
 </script>
 
 <template>
-  <VDialog
+  <SlipPrintDialog
     :model-value="modelValue"
-    width="92vw"
-    max-width="1100"
-    :persistent="printing"
+    :title="t('documents.academySlip.title')"
+    :subtitle="slip?.reference"
+    icon="tabler-school"
+    :paper-size="paperSize"
+    :paper-sizes="paperSizes"
+    :loading="loading"
+    :ready="!!slip"
+    :print-action="print"
+    :print-label="t('documents.academySlip.print')"
+    error-fallback="documents.academySlip.printFailed"
     @update:model-value="emit('update:modelValue', $event)"
+    @update:paper-size="paperSize = $event as AcademySlipPaperSize"
   >
-    <VCard flat>
-      <VCardTitle class="d-flex flex-wrap align-center ga-3">
-        <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-school" /></VAvatar>
-        <div>
-          <div class="text-h6 font-weight-bold">{{ t('documents.academySlip.title') }}</div>
-          <div class="text-caption text-medium-emphasis">{{ slip?.reference || '—' }}</div>
-        </div>
-        <VSpacer />
-        <VSelect v-model="paperSize" :items="paperSizes" :label="t('documents.academySlip.paperSize')" density="compact" hide-details :disabled="printing" style="min-width: 200px;" />
-        <VBtn variant="tonal" color="secondary" :disabled="printing" @click="emit('update:modelValue', false)">{{ t('common.actions.close') }}</VBtn>
-        <VBtn color="primary" prepend-icon="tabler-printer" :disabled="!slip || loading || printing" :loading="printing" @click="print">{{ t('documents.academySlip.print') }}</VBtn>
-      </VCardTitle>
-
-      <VCardText class="academy-slip-preview">
-        <VProgressCircular v-if="loading" indeterminate color="primary" />
-        <div
-          v-else-if="slip"
-          class="academy-slip-preview__paper"
-          :style="{ transform: `scale(${previewScale})` }"
-        >
-          <AcademySlipTemplate
-            ref="templateRef"
-            :slip="slip"
-            :copies="copies"
-            :paper-size="paperSize"
-          />
-        </div>
-      </VCardText>
-    </VCard>
-  </VDialog>
+    <AcademySlipTemplate
+      v-if="slip"
+      ref="templateRef"
+      :slip="slip"
+      :copies="copies"
+      :paper-size="paperSize"
+    />
+  </SlipPrintDialog>
 </template>
-
-<style scoped>
-.academy-slip-preview {
-  display: grid;
-  place-items: start center;
-  padding: 1.5rem;
-  max-block-size: 74vh;
-  overflow: auto;
-  background: #edf2f7;
-}
-
-.academy-slip-preview__paper {
-  width: 100%;
-  transform-origin: top center;
-}
-</style>

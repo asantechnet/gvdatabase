@@ -15,12 +15,12 @@ export interface AcademySlipCompany {
   licence: string | null
 }
 
-export interface AcademySlipApplicant {
+export interface AcademySlipPerson {
   id: number
   name: string
   father_name: string | null
   contact: string | null
-  father_phone: string | null
+  father_phone?: string | null
   email: string | null
   address: string | null
 }
@@ -28,8 +28,6 @@ export interface AcademySlipApplicant {
 export interface AcademySlipAcademy {
   student_id: string | null
   program: string | null
-  time: string | null
-  duration: string | null
   class: string | null
   teachers: string[]
   started_on: string | null
@@ -41,8 +39,9 @@ export interface AcademySlipPayload {
   document: 'academy_slip'
   date: string | null
   company: AcademySlipCompany
-  applicant: AcademySlipApplicant | null
-  contract: { id: number; contract_number: string | null }
+  applicant: AcademySlipPerson | null
+  student?: (AcademySlipPerson & { student_number: string | null }) | null
+  contract: { id: number; contract_number: string | null } | null
   academy: AcademySlipAcademy
   service: {
     id: number
@@ -66,6 +65,12 @@ export interface AcademySlipPayload {
 const AcademySlipApi = {
   async getForContract(contractId: number): Promise<AcademySlipPayload> {
     const response = await api.get<{ success: boolean; data: AcademySlipPayload }>(`/contracts/${contractId}/academy-slip`)
+
+    return response.data.data
+  },
+
+  async getForEnrollment(enrollmentId: number): Promise<AcademySlipPayload> {
+    const response = await api.get<{ success: boolean; data: AcademySlipPayload }>(`/academy/enrollments/${enrollmentId}/slip`)
 
     return response.data.data
   },

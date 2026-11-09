@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AcademyEnrollment;
+use App\Models\Student;
 use App\Models\Applicant;
 use App\Models\Contract;
 use App\Models\Setting;
@@ -25,8 +26,6 @@ class AcademySlipService
     {
         $contract->loadMissing([
             'applicant.academyDetail.program',
-            'applicant.academyDetail.time',
-            'applicant.academyDetail.duration',
             'applicant.academyDetail.academyClass',
             'applicant.teachers',
             'applicantContracts.currency',
@@ -78,20 +77,92 @@ class AcademySlipService
         ];
     }
 
+    /**
+     * The student-facing slip. This is the Academy record's document: it does
+     * not require a contract or an applicant, and derives its amount from the
+     * enrollment's contract line when present, otherwise from the class fee.
+     */
+    public function forEnrollment(AcademyEnrollment $enrollment): array
+    {
+        $enrollment->loadMissing([
+            'student', 'applicant.teachers', 'academyClass.program', 'academyClass.teachers',
+            'line.currency', 'contract',
+        ]);
+
+        $setting = Setting::latest('id')->first();
+        $class = $enrollment->academyClass;
+        $line = $enrollment->line;
+        $currency = $line?->currency;
+        $fee = (float) ($line?->fee ?? $class?->fee ?? 0);
+        $discount = (float) ($line?->discount ?? 0);
+        $paid = (float) ($line?->amount_paid ?? 0);
+        $payable = max(0.0, $fee - $discount);
+
+        return [
+            'reference' => $enrollment->student?->student_number ?? 'ENR-'.str_pad((string) $enrollment->id, 6, '0', STR_PAD_LEFT),
+            'document' => 'academy_slip',
+            'date' => ($enrollment->started_on ?? now())->toDateString(),
+            'company' => $this->companyPayload($setting),
+            'applicant' => $enrollment->applicant ? $this->applicantPayload($enrollment->applicant) : null,
+            'student' => $enrollment->student ? $this->studentPayload($enrollment->student) : null,
+            'contract' => $enrollment->contract ? [
+                'id' => $enrollment->contract->id,
+                'contract_number' => $enrollment->contract->contract_number,
+            ] : null,
+            'academy' => $this->academyPayload($enrollment->applicant, $enrollment),
+            'service' => $line ? [
+                'id' => $line->id,
+                'name' => BuiltInService::label(BuiltInService::ACADEMY),
+                'service_label' => BuiltInService::label(BuiltInService::ACADEMY),
+                'fee' => $fee,
+                'discount' => $discount,
+                'payment_status' => $line->payment_status,
+                'payment_status_label' => PaymentStatus::label($line->payment_status),
+                'currency' => $this->currencyPayload($currency),
+            ] : null,
+            'totals' => [
+                'total_fee' => round($payable, 2),
+                'paid_amount' => round($paid, 2),
+                'balance' => round(max(0, $payable - $paid), 2),
+                'currency' => $this->currencyPayload($currency),
+            ],
+            'signature' => [
+                'url' => $setting?->company_signature ? Storage::disk('public')->url($setting->company_signature) : null,
+                'name' => $setting?->original_company_name ?: $setting?->short_company_name,
+            ],
+        ];
+    }
+
     /** @return array<string, mixed> */
     private function academyPayload(?Applicant $applicant, ?AcademyEnrollment $enrollment): array
     {
         $detail = $applicant?->academyDetail;
+        $teachers = $enrollment?->academyClass?->teachers?->pluck('name')->values()->all()
+            ?? $applicant?->teachers?->pluck('name')->values()->all()
+            ?? [];
 
         return [
             'student_id' => $enrollment?->student?->student_number,
-            'program' => $detail?->program?->name,
-            'time' => $detail?->time?->name,
-            'duration' => $detail?->duration?->name,
+            'program' => $enrollment?->academyClass?->program?->name ?? $detail?->program?->name,
             'class' => $enrollment?->academyClass?->name ?? $detail?->academyClass?->name,
-            'teachers' => $applicant ? $applicant->teachers->pluck('name')->values()->all() : [],
+            'teachers' => $teachers,
             'started_on' => $enrollment?->started_on?->format('Y-m-d'),
             'ends_on' => $enrollment?->ends_on?->format('Y-m-d'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function studentPayload(Student $student): array
+    {
+        return [
+            'id' => $student->id,
+            'student_number' => $student->student_number,
+            'name' => $student->name,
+            'father_name' => $student->father_name,
+            'contact' => $student->contact,
+            'father_phone' => $student->father_phone,
+            'email' => $student->email,
+            'address' => $student->address,
         ];
     }
 

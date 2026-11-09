@@ -18,9 +18,9 @@ use App\Models\User;
 use App\Services\Contracts\BuiltInContractTemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyMultiCourseTest extends TestCase
+class AcademyMultiCourseTest extends AcademyTestCase
 {
     use RefreshDatabase;
 
@@ -174,5 +174,43 @@ class AcademyMultiCourseTest extends TestCase
         $this->assertSame($income->id, Income::query()->sole()->id);
         $this->assertSame($snapshot, $contract->fresh()->snapshot_data);
         $this->assertSame(1, AcademyEnrollment::where('contract_id', $contract->id)->count());
+    }
+
+    public function test_the_same_student_cannot_buy_the_same_class_twice(): void
+    {
+        $first = Contract::findOrFail(
+            $this->postJson('/api/contracts/academy', $this->payload())->assertCreated()->json('data.id')
+        );
+
+        $this->postJson('/api/contracts/academy', $this->payload([
+            'parent_contract_id' => $first->id,
+            'class_id' => $this->class->id,
+        ]))->assertStatus(422)->assertJsonPath('code', 'business.academy_enrollment_duplicate');
+
+        $this->assertSame(1, Contract::count());
+        $this->assertSame(1, AcademyEnrollment::count());
+        $this->assertSame(1, Student::count());
+    }
+
+    public function test_moving_an_enrollment_to_a_class_the_student_already_takes_is_refused(): void
+    {
+        $first = Contract::findOrFail(
+            $this->postJson('/api/contracts/academy', $this->payload())->assertCreated()->json('data.id')
+        );
+        $secondClass = $this->makeClass('Class B');
+        $extension = Contract::findOrFail(
+            $this->postJson('/api/contracts/academy', $this->payload([
+                'parent_contract_id' => $first->id,
+                'class_id' => $secondClass->id,
+            ]))->assertCreated()->json('data.id')
+        );
+        $extensionEnrollment = AcademyEnrollment::where('contract_id', $extension->id)->sole();
+
+        $this->putJson("/api/contracts/academy/{$extension->id}", $this->payload([
+            'class_id' => $this->class->id,
+        ]))->assertStatus(422)->assertJsonPath('code', 'business.academy_enrollment_duplicate');
+
+        $this->assertSame($secondClass->id, $extensionEnrollment->fresh()->class_id);
+        $this->assertSame(2, AcademyEnrollment::count());
     }
 }

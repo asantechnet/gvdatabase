@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { canAccess } from '@/utils/authorization'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 import './workspace.scss'
 
 type HeaderSection = 'contracts' | 'academy' | 'crm' | 'applications' | 'dashboard' | 'tasks' | 'finance' | 'hr'
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const route = useRoute()
 const navigation = ref<HTMLElement | null>(null)
+const { enabled: academyEnabled } = useAcademyEnabled()
 
 // One in-page navigation per concept. Each destination owns its icon and colour
 // so the strip reads as a set of purposeful workspaces rather than a row of
@@ -45,7 +47,6 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
     { name: 'private-contracts', label: 'educational.builtInServices.private', icon: 'tabler-user', color: 'info', permission: 'view_private_contracts' },
     { name: 'scholarship-contracts', label: 'educational.builtInServices.scholarship', icon: 'tabler-school', color: 'primary', permission: 'view_scholarship_contracts' },
     { name: 'test-offer-contracts', label: 'educational.builtInServices.testOffer', icon: 'tabler-certificate', color: 'success', permission: 'view_test_offer_contracts' },
-    { name: 'academy-contracts', label: 'educational.builtInServices.academy', icon: 'tabler-book', color: 'tertiary', permission: 'view_academy_contracts' },
     { name: 'other-contracts', label: 'common.navigation.otherContracts', icon: 'tabler-files', color: 'secondary', permission: 'view_other_contracts' },
     { name: 'cancelled-contracts', label: 'common.navigation.cancelledContracts', icon: 'tabler-ban', color: 'error', permissions: ['view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_employment_contracts', 'view_other_contracts'] },
   ],
@@ -54,9 +55,8 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
     { name: 'academy-classes', label: 'common.navigation.academyClasses', icon: 'tabler-school', color: 'info', permission: 'view_academy_contracts' },
     { name: 'academy-students', label: 'common.navigation.academyStudents', icon: 'tabler-users', color: 'success', permission: 'view_academy_contracts' },
     { name: 'academy-catalog', label: 'common.navigation.academyCatalog', icon: 'tabler-book-2', color: 'secondary', permission: 'view_academy_contracts' },
-    { name: 'academy-attendance', label: 'common.navigation.academyAttendance', icon: 'tabler-calendar-check', color: 'warning', permission: 'view_academy_contracts' },
+    { name: 'academy-attendance', label: 'common.navigation.academyAttendance', icon: 'tabler-calendar-check', color: 'warning', permission: 'view_academy_attendance' },
     { name: 'academy-certificates', label: 'common.navigation.academyCertificates', icon: 'tabler-certificate', color: 'tertiary', permission: 'view_academy_contracts' },
-    { name: 'academy-contracts', label: 'common.navigation.academyContracts', icon: 'tabler-file-text', color: 'primary', permission: 'view_academy_contracts' },
   ],
   crm: [
     { name: 'visitor', label: 'common.navigation.visitor', icon: 'tabler-user-search', color: 'primary', permission: 'view_visitors' },
@@ -74,7 +74,8 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   hr: [],
 }
 
-const links = computed(() => sections[props.section].filter(link => !link.permission || canAccess(link.permission)))
+const links = computed(() => sections[props.section]
+  .filter(link => !link.permission || canAccess(link.permission)))
 const sectionLabel = computed(() => {
   if (props.section === 'hr')
     return t('common.navigation.hrm')

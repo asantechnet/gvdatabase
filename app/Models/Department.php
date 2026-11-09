@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * An organisational group inside the firm (for example "Visa Counselors" or
- * "Finance"). A department names the employee who heads it; the head and each
- * employee's `supervisor_id` define whose records a senior role may see.
+ * "Finance"). A department may name several senior managers; membership, not
+ * a reporting line, is what defines the team.
  */
 class Department extends Model
 {
@@ -34,14 +35,22 @@ class Department extends Model
         return $this->belongsTo(Employee::class, 'manager_employee_id');
     }
 
-    /**
-     * Every member, including employees whose primary department is another
-     * one. `is_primary` on the pivot matches `employees.department_id`.
-     */
+    /** Every senior employee who co-manages this department. */
+    public function managers(): BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'department_manager')
+            ->withTimestamps()
+            ->orderBy('employees.name');
+    }
+
     public function employees(): BelongsToMany
     {
         return $this->belongsToMany(Employee::class, 'department_employee')
-            ->withPivot('is_primary')
             ->withTimestamps();
+    }
+
+    public function board(): HasOne
+    {
+        return $this->hasOne(Board::class);
     }
 }

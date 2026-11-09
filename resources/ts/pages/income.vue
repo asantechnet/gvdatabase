@@ -10,6 +10,7 @@ import {
   type IncomeCreateData,
   type IncomeParams,
   type IncomeUpdateData,
+  type IncomePayerOption,
   type ApplicantContractPaymentOption,
   approveIncome,
   createIncome,
@@ -17,11 +18,11 @@ import {
   getIncomes,
   getIncomesPage,
   getApplicantContractPayments,
+  getIncomePayers,
   rejectIncome,
   updateIncome,
 } from "@/api/incomes";
 import ReceiptApi from "@/api/receipts";
-import ApplicantApi, { type Applicant } from "@/api/applicants";
 import CurrencyApi, { type Currency } from "@/api/currency";
 import { apiErrorMessage } from "@/utils/apiErrors";
 import { formatActiveMoney } from "@/utils/localization";
@@ -58,6 +59,7 @@ type IncomeForm = Omit<
   "applicant_contract_id" | "status"
 > & {
   id: number;
+  student_id: number | null;
   applicant_contract_id: number | null;
   base_amount: number;
   // A saved row can be approved, rejected or still a draft.
@@ -72,6 +74,7 @@ type IncomeForm = Omit<
 const emptyIncomeForm = (): IncomeForm => ({
   id: 0,
   applicant_id: null,
+  student_id: null,
   applicant_contract_id: null,
   type: "",
   description: "",
@@ -93,7 +96,7 @@ const dateTo = ref("");
 const isLoading = ref(false);
 const applicantContracts = ref<ApplicantContractPaymentOption[]>([]);
 const currencies = ref<Currency[]>([]);
-const applicants = ref<Applicant[]>([]);
+const payers = ref<IncomePayerOption[]>([]);
 const formError = ref("");
 const isReceiptPreviewOpen = ref(false);
 const activeReceiptIncomeId = ref<number | null>(null);
@@ -217,10 +220,8 @@ const fetchCurrencies = async () => {
   currencies.value = response.data;
 };
 
-const fetchApplicants = async () => {
-  const response = await ApplicantApi.list({ per_page: 100 });
-
-  applicants.value = response.data;
+const fetchPayers = async () => {
+  payers.value = await getIncomePayers();
 };
 
 const openReceiptPreview = (income: Income) => {
@@ -289,7 +290,7 @@ const openAddIncomeDialog = () => {
   saveMode.value = canCreateDirect.value ? "direct" : "draft";
   selectedIncome.value = emptyIncomeForm();
   applicantContracts.value = [];
-  Promise.all([fetchCurrencies(), fetchApplicants(), fetchTypes()])
+  Promise.all([fetchCurrencies(), fetchPayers(), fetchTypes()])
     .then(() => {
       setDefaultCurrency();
       isAddIncomeDialogVisible.value = true;
@@ -310,7 +311,7 @@ const openEditIncomeDialog = (income: Income) => {
       : Promise.resolve(),
     fetchCurrencies(),
     fetchTypes(),
-    fetchApplicants(),
+    fetchPayers(),
   ])
     .then(() => {
       isEditIncomeDialogVisible.value = true;
@@ -322,9 +323,28 @@ const openEditIncomeDialog = (income: Income) => {
     });
 };
 
-const handleApplicantChange = async (applicantId: number | null) => {
+const payerKey = computed<string | null>({
+  get: () => {
+    const income = selectedIncome.value;
+    if (income.applicant_id)
+      return `applicant:${income.applicant_id}`;
+    if (income.student_id)
+      return `student:${income.student_id}`;
+
+    return null;
+  },
+  set: (key) => { void handlePayerChange(key); },
+});
+
+const handlePayerChange = async (key: string | null) => {
+  const [type, rawId] = (key ?? "").split(":");
+  const id = Number(rawId);
+  const valid = Number.isSafeInteger(id) && id > 0;
+
+  selectedIncome.value.applicant_id = type === "applicant" && valid ? id : null;
+  selectedIncome.value.student_id = type === "student" && valid ? id : null;
   selectedIncome.value.applicant_contract_id = null;
-  await fetchApplicantContracts(applicantId);
+  await fetchApplicantContracts(selectedIncome.value.applicant_id);
   setDefaultCurrency();
   calculateTotal();
 };
@@ -656,7 +676,7 @@ onMounted(() => {
   fetchTypes();
   fetchIncomes();
   fetchCurrencies();
-  fetchApplicants();
+  fetchPayers();
 });
 </script>
 
@@ -1162,10 +1182,9 @@ onMounted(() => {
             <VRow>
               <VCol cols="12" md="6">
                 <ApplicantSelect
-                  v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
+                  v-model="payerKey"
+                  :payers="payers"
                   :disabled="Boolean(selectedServiceLine)"
-                  @update:model-value="handleApplicantChange"
                 />
               </VCol>
               <VCol cols="12" md="6">
@@ -1418,10 +1437,9 @@ onMounted(() => {
             <VRow>
               <VCol cols="12" md="6">
                 <ApplicantSelect
-                  v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
+                  v-model="payerKey"
+                  :payers="payers"
                   :disabled="Boolean(selectedServiceLine)"
-                  @update:model-value="handleApplicantChange"
                 />
               </VCol>
               <VCol cols="12" md="6">

@@ -18,23 +18,27 @@ class AcademyCertificateService
         if ($enrollment->status !== 'completed') {
             throw ValidationException::withMessages(['academy_enrollment_id' => ['business.academy_certificate_not_eligible']]);
         }
-        $applicant = $enrollment->applicant ?? $enrollment->student?->applicant;
-        if (! $enrollment->student || ! $applicant) {
+        $student = $enrollment->student;
+        if (! $student) {
             throw ValidationException::withMessages(['academy_enrollment_id' => ['business.academy_certificate_not_eligible']]);
         }
+        // A direct Academy student is enrolled without an applicant or a
+        // contract. The durable student record is the certificate identity, so
+        // the applicant link is optional and copied only when it exists.
+        $applicant = $enrollment->applicant ?? $student->applicant;
         if (AcademyCertificate::withTrashed()->where('academy_enrollment_id', $enrollment->id)->exists()) {
             throw ValidationException::withMessages(['academy_enrollment_id' => ['business.academy_certificate_duplicate']]);
         }
 
         $template = $this->template($templateId);
 
-        return DB::transaction(function () use ($enrollment, $template, $actor, $applicant): AcademyCertificate {
+        return DB::transaction(function () use ($enrollment, $template, $actor, $applicant, $student): AcademyCertificate {
             $setting = Setting::query()->latest('id')->first();
             $signatoryName = $setting?->original_company_name ?: $setting?->short_company_name ?: $setting?->website_title;
             $signatoryTitle = $template->signatory_title;
             $certificate = AcademyCertificate::create([
                 'academy_enrollment_id' => $enrollment->id,
-                'applicant_id' => $applicant->id,
+                'applicant_id' => $applicant?->id,
                 'class_id' => $enrollment->class_id,
                 'contract_id' => $enrollment->contract_id,
                 'applicant_contract_id' => $enrollment->applicant_contract_id,
@@ -47,9 +51,9 @@ class AcademyCertificateService
             $certificate->refresh();
 
             $values = [
-                'student_name' => $enrollment->student->name,
-                'father_name' => $enrollment->student->father_name,
-                'student_id' => $enrollment->student->student_number,
+                'student_name' => $student->name,
+                'father_name' => $student->father_name,
+                'student_id' => $student->student_number,
                 'program' => $enrollment->academyClass?->program?->name,
                 'class' => $enrollment->academyClass?->name,
                 'teachers' => $enrollment->academyClass?->teachers->pluck('name')->join(', ') ?: null,
@@ -59,6 +63,13 @@ class AcademyCertificateService
                 'certificate_number' => $certificate->certificate_number,
                 'issue_date' => $certificate->issued_at?->format('Y-m-d'),
             ];
+            // Printed prose must never collapse to an empty gap when an optional
+            // academy field is missing; the snapshot is immutable, so make the
+            // fallback explicit at issue time.
+            $bodyValues = array_map(
+                fn (mixed $value) => is_string($value) && trim($value) === '' ? '—' : ($value ?? '—'),
+                $values,
+            );
             $certificate->update(['snapshot' => [
                 'award' => [
                     'student_name' => $values['student_name'],
@@ -82,7 +93,7 @@ class AcademyCertificateService
                     'signatory_title' => $template->signatory_title,
                     'version' => $template->updated_at?->toIso8601String() ?? 'v1',
                 ],
-                'rendered_body' => $template->renderBody($values),
+                'rendered_body' => $template->renderBody($bodyValues),
             ]]);
 
             return $certificate->fresh();

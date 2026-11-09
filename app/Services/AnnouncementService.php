@@ -114,7 +114,7 @@ class AnnouncementService
         }
 
         return Employee::query()
-            ->where('department_id', $departmentId)
+            ->whereHas('departments', fn ($query) => $query->whereKey($departmentId))
             ->whereNotNull('user_id')
             ->whereHas('user', fn ($query) => $query->where('acc_status', 'active'))
             ->pluck('user_id');

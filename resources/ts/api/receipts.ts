@@ -37,6 +37,18 @@ export interface ReceiptApplicant {
   status: string | null
 }
 
+export interface ReceiptStudent {
+  id: number
+  student_number: string | null
+  name: string | null
+  father_name: string | null
+  contact: string | null
+  father_phone: string | null
+  email: string | null
+  address: string | null
+  created_at: string | null
+}
+
 export interface ReceiptLine {
   id: number
   name: string
@@ -75,6 +87,8 @@ export interface ReceiptPayload {
   }
   company: ReceiptCompany
   applicant: ReceiptApplicant | null
+  /** A direct Academy student payer; receipts for applicants leave this null. */
+  student: ReceiptStudent | null
   /** The contract the paid service belongs to (receipts are per service). */
   contract: {
     id: number | null

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademyEnrollment;
 use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
@@ -13,9 +14,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesBuiltInContracts;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class ApplicantStageContextTest extends TestCase
+class ApplicantStageContextTest extends AcademyTestCase
 {
     use CreatesBuiltInContracts, RefreshDatabase;
 
@@ -39,92 +40,71 @@ class ApplicantStageContextTest extends TestCase
 
     public function test_a_case_read_returns_only_stages_that_apply_to_that_line(): void
     {
-        $line = $this->line('test_offer');
-        $this->assertNotNull($line->applicant->testDetail);
-        $toefl = Test::create(['name' => 'TOEFL', 'is_active' => true]);
+        $line = $this->line('scholarship');
         ApplicantStage::create([
-            'service' => 'test_offer', 'key' => 'toefl_only', 'name' => 'TOEFL only',
-            'test_id' => $toefl->id, 'is_active' => true,
+            'service' => 'private', 'key' => 'private_only', 'name' => 'Private only', 'is_active' => true,
         ]);
 
         $rows = $this->getJson("/api/applicant-stages?line_id={$line->id}")->assertOk()->json('data');
         $keys = array_column($rows, 'key');
 
-        $this->assertContains('documents_required', $keys);
-        $this->assertNotContains('toefl_only', $keys);
-        $this->assertNotContains('consultation', $keys);
-        $this->assertSame(['test_offer'], array_values(array_unique(array_column($rows, 'service'))));
+        $this->assertContains('new', $keys);
+        $this->assertNotContains('private_only', $keys);
+        $this->assertSame(['scholarship'], array_values(array_unique(array_column($rows, 'service'))));
         // A stage read never carries the case's personal or financial payload.
         $this->assertArrayNotHasKey('applicant', $rows[0]);
 
         $applicantRows = $this->getJson("/api/applicant-stages?applicant_id={$line->applicant_id}")->assertOk()->json('data');
-        $this->assertSame(['test_offer'], array_values(array_unique(array_column($applicantRows, 'service'))));
+        $this->assertSame(['scholarship'], array_values(array_unique(array_column($applicantRows, 'service'))));
     }
 
-    public function test_a_move_to_a_stage_from_another_test_is_refused_without_history(): void
+    public function test_a_case_free_service_refuses_stage_writes_without_history(): void
     {
-        $line = $this->line('test_offer');
-        $toefl = Test::create(['name' => 'TOEFL', 'is_active' => true]);
-        $stage = ApplicantStage::create([
-            'service' => 'test_offer', 'key' => 'toefl_review', 'name' => 'TOEFL review',
-            'test_id' => $toefl->id, 'is_active' => true,
-        ]);
-
-        $new = ApplicantStage::query()->where('service', 'test_offer')->where('key', 'new')->firstOrFail();
-        $new->update(['allowed_next_keys' => [...$new->allowed_next_keys, 'toefl_review']]);
+        $line = $this->line('academy');
+        $stage = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'new')->firstOrFail();
 
         $historyBefore = ApplicantStageHistory::query()->where('applicant_contract_id', $line->id)->count();
         $tasksBefore = Task::query()->where('applicant_contract_id', $line->id)->count();
 
+        // Academy is case-free, so it has no stage catalogue to read.
+        $this->getJson("/api/applicant-stages?line_id={$line->id}")->assertOk()->assertJsonCount(0, 'data');
+
         $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $stage->id])
             ->assertStatus(422)
-            ->assertJsonPath('errors.stage_id.0', 'business.applicant_stage_context_mismatch');
+            ->assertJsonPath('code', 'business.applicant_stage_service_not_supported');
 
         // No stage, history or delivery task row changed.
         $this->assertSame($historyBefore, ApplicantStageHistory::query()->where('applicant_contract_id', $line->id)->count());
         $this->assertSame($tasksBefore, Task::query()->where('applicant_contract_id', $line->id)->count());
-        $this->assertSame($this->stageId('test_offer', 'new'), (int) $line->fresh()->current_stage_id);
+        $this->assertNull($line->fresh()->current_stage_id);
     }
 
-    public function test_shared_and_matching_test_stages_can_be_moved_to(): void
+    public function test_an_academy_case_has_no_stage_catalogue_or_writes(): void
     {
-        $line = $this->line('test_offer');
-        $ielts = Test::findOrFail($line->applicant->testDetail->test_id);
+        $line = $this->line('academy');
+        $stage = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'new')->firstOrFail();
 
-        $shared = ApplicantStage::create([
-            'service' => 'test_offer', 'key' => 'shared_check', 'name' => 'Shared check', 'is_active' => true,
-        ]);
-        $specific = ApplicantStage::create([
-            'service' => 'test_offer', 'key' => 'ielts_check', 'name' => 'IELTS check',
-            'test_id' => $ielts->id, 'is_active' => true,
-        ]);
+        $this->getJson("/api/applicant-stages?line_id={$line->id}")->assertOk()->assertJsonCount(0, 'data');
 
-        $new = ApplicantStage::query()->where('service', 'test_offer')->where('key', 'new')->firstOrFail();
-        $new->update(['allowed_next_keys' => [...$new->allowed_next_keys, 'shared_check']]);
+        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $stage->id])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'business.applicant_stage_service_not_supported');
 
-        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $shared->id])
-            ->assertOk()->assertJsonPath('data.current_stage.key', 'shared_check');
-
-        $shared->update(['allowed_next_keys' => ['ielts_check']]);
-        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", ['stage_id' => $specific->id])
-            ->assertOk()->assertJsonPath('data.current_stage.key', 'ielts_check');
+        $this->assertNull($line->fresh()->current_stage_id);
+        $this->assertSame(0, ApplicantStageHistory::query()->where('applicant_contract_id', $line->id)->count());
     }
 
     public function test_an_academy_case_needs_no_country_test_or_university(): void
     {
         $line = $this->line('academy');
+        $enrollment = AcademyEnrollment::query()->where('applicant_contract_id', $line->id)->firstOrFail();
 
-        $rows = $this->getJson("/api/applicant-stages?line_id={$line->id}")->assertOk()->json('data');
-        $this->assertSame(['academy'], array_values(array_unique(array_column($rows, 'service'))));
-        foreach ($rows as $row) {
-            $this->assertNull($row['country_id']);
-            $this->assertNull($row['university_id']);
-            $this->assertNull($row['test_id']);
-        }
-
-        $this->postJson("/api/applicant-contracts/{$line->id}/change-stage", [
-            'stage_id' => $this->stageId('academy', 'enrolled'),
-        ])->assertOk()->assertJsonPath('data.current_stage.key', 'enrolled');
+        // An academy case is a direct enrollment: a term exists without any
+        // country, test or university scope attached to it.
+        $this->assertNotNull($enrollment->started_on);
+        $this->assertNotNull($enrollment->ends_on);
+        $this->assertNull($line->current_stage_id);
+        $this->assertSame('active', $enrollment->status);
     }
 
     public function test_an_admission_stage_scoped_to_another_country_is_refused(): void

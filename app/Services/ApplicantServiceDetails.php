@@ -27,7 +27,7 @@ class ApplicantServiceDetails
         ],
         BuiltInService::PRIVATE => ['passport_id', 'grade_score', 'country_id', 'contract_type_id', 'education_level_id', 'semester_id', 'university_id', 'university_fee'],
         BuiltInService::TEST_OFFER => ['passport_id', 'test_id'],
-        BuiltInService::ACADEMY => ['student_id', 'program_id', 'time_id', 'duration_id', 'class_id'],
+        BuiltInService::ACADEMY => ['student_id', 'program_id', 'class_id'],
     ];
 
     /**

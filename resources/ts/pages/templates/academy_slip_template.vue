@@ -45,6 +45,8 @@ const formatDate = (value: string | null | undefined) => value
   ? formatLocalizedDate(`${value}T00:00:00`, { day: '2-digit', month: 'short', year: 'numeric' })
   : '—'
 
+const person = computed(() => props.slip.student ?? props.slip.applicant)
+
 const paperSizeCss = computed(() => props.paperSize ?? 'A5')
 const twoUp = computed(() => twoUpModes[paperSizeCss.value] ?? null)
 const isTwoUp = computed(() => twoUp.value !== null)
@@ -124,13 +126,13 @@ defineExpose({ print })
         </header>
 
         <div class="academy-grid">
-          <section v-if="slip.applicant" class="academy-block">
-            <h4>{{ t('documents.academySlip.applicant') }}</h4>
+          <section v-if="person" class="academy-block">
+            <h4>{{ t(slip.student ? 'documents.academySlip.student' : 'documents.academySlip.applicant') }}</h4>
             <dl>
-              <div><dt>{{ t('documents.academySlip.name') }}</dt><dd>{{ slip.applicant.name }}</dd></div>
-              <div><dt>{{ t('documents.academySlip.fatherName') }}</dt><dd>{{ slip.applicant.father_name || '—' }}</dd></div>
-              <div><dt>{{ t('documents.academySlip.contact') }}</dt><dd>{{ slip.applicant.contact || '—' }}</dd></div>
-              <div><dt>{{ t('documents.academySlip.email') }}</dt><dd>{{ slip.applicant.email || '—' }}</dd></div>
+              <div><dt>{{ t('documents.academySlip.name') }}</dt><dd>{{ person.name }}</dd></div>
+              <div><dt>{{ t('documents.academySlip.fatherName') }}</dt><dd>{{ person.father_name || '—' }}</dd></div>
+              <div><dt>{{ t('documents.academySlip.contact') }}</dt><dd>{{ person.contact || '—' }}</dd></div>
+              <div><dt>{{ t('documents.academySlip.email') }}</dt><dd>{{ person.email || '—' }}</dd></div>
             </dl>
           </section>
 
@@ -139,8 +141,6 @@ defineExpose({ print })
             <dl>
               <div><dt>{{ t('documents.academySlip.studentId') }}</dt><dd>{{ slip.academy.student_id || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.program') }}</dt><dd>{{ slip.academy.program || '—' }}</dd></div>
-              <div><dt>{{ t('documents.academySlip.time') }}</dt><dd>{{ slip.academy.time || '—' }}</dd></div>
-              <div><dt>{{ t('documents.academySlip.duration') }}</dt><dd>{{ slip.academy.duration || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.class') }}</dt><dd>{{ slip.academy.class || '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.teachers') }}</dt><dd>{{ slip.academy.teachers.length ? slip.academy.teachers.join(', ') : '—' }}</dd></div>
               <div><dt>{{ t('documents.academySlip.term') }}</dt><dd>{{ formatDate(slip.academy.started_on) }} — {{ formatDate(slip.academy.ends_on) }}</dd></div>

@@ -7,18 +7,11 @@ use App\Models\Employee;
 use App\Models\User;
 
 /**
- * Resolves who a user may see and change through the org hierarchy.
+ * Resolves who a user may see and change through department membership.
  *
- * A user's group is made of three sets, unioned:
- *  1. employees beneath them in the supervisor chain (`employees.supervisor_id`);
- *  2. everyone in a department they manage (`departments.manager_employee_id`);
- *  3. everyone beneath those department members.
- *
- * Reading the group needs `view_subordinate_records`; changing it needs
- * `manage_subordinate_records`. A user can always act on records whose owner
- * is themselves, exactly as before. Organisation-wide access is expressed by
- * the existing `*_all_*` permissions and is checked by callers before this
- * class is consulted.
+ * A manager's group is everyone in the departments they manage. Reading the
+ * group needs `view_subordinate_records`; changing it needs
+ * `manage_subordinate_records`. A user can always act on their own records.
  */
 class EmployeeScope
 {
@@ -46,25 +39,10 @@ class EmployeeScope
             return $this->teamCache[$user->id];
         }
 
-        $root = $this->ownEmployeeId($user);
-        if ($root === null) {
-            return $this->teamCache[$user->id] = [];
-        }
-
-        $ids = $this->descendants($root);
-        foreach ($this->managedDepartmentMembers($user, $root) as $memberId) {
-            $ids[] = $memberId;
-            $ids = [...$ids, ...$this->descendants($memberId)];
-        }
-
-        return $this->teamCache[$user->id] = array_values(array_unique($ids));
+        return $this->teamCache[$user->id] = $this->managedDepartmentMemberIds($user);
     }
 
-    /**
-     * Every employee id the user may reach with their scope permissions.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function visibleEmployeeIds(User $user): array
     {
         $own = $this->ownEmployeeId($user);
@@ -77,14 +55,7 @@ class EmployeeScope
         return array_values(array_unique($ids));
     }
 
-    /**
-     * Every employee whose employee-owned records the user may change.
-     * This is intentionally separate from `visibleEmployeeIds`: a senior
-     * counselor may inspect a counselor's work without being able to alter
-     * it.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function manageableEmployeeIds(User $user): array
     {
         $own = $this->ownEmployeeId($user);
@@ -97,11 +68,7 @@ class EmployeeScope
         return array_values(array_unique($ids));
     }
 
-    /**
-     * User ids linked to employees in visible scope, plus the actor.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function visibleUserIds(User $user): array
     {
         $ids = Employee::query()
@@ -115,11 +82,7 @@ class EmployeeScope
         return array_values(array_unique(array_map('intval', $ids)));
     }
 
-    /**
-     * User ids linked to employees the user supervises (never the actor).
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function teamUserIds(User $user): array
     {
         $team = $this->teamEmployeeIds($user);
@@ -135,12 +98,7 @@ class EmployeeScope
             ->all();
     }
 
-    /**
-     * Active departments the user heads. A department is headed by the employee
-     * named in `departments.manager_employee_id`.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function managedDepartmentIds(User $user): array
     {
         $root = $this->ownEmployeeId($user);
@@ -149,19 +107,17 @@ class EmployeeScope
         }
 
         return Department::query()
-            ->where('manager_employee_id', $root)
             ->where('is_active', true)
+            ->where(function ($query) use ($root): void {
+                $query->where('manager_employee_id', $root)
+                    ->orWhereHas('managers', fn ($managers) => $managers->whereKey($root));
+            })
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
     }
 
-    /**
-     * Employees who belong to a department the user heads. This is the set a
-     * department manager may hand tasks to, independent of the supervisor chain.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function managedDepartmentMemberIds(User $user): array
     {
         $departmentIds = $this->managedDepartmentIds($user);
@@ -176,12 +132,7 @@ class EmployeeScope
             ->all();
     }
 
-    /**
-     * User ids linked to the employees of a department the user heads. Used to
-     * scope assignment and to populate the department's assignee list.
-     *
-     * @return array<int, int>
-     */
+    /** @return array<int, int> */
     public function managedDepartmentUserIds(User $user): array
     {
         $memberIds = $this->managedDepartmentMemberIds($user);
@@ -197,7 +148,6 @@ class EmployeeScope
             ->all();
     }
 
-    /** Whether the user is the named manager of at least one active department. */
     public function isDepartmentManager(User $user): bool
     {
         return $this->managedDepartmentIds($user) !== [];
@@ -238,52 +188,5 @@ class EmployeeScope
         $id = $employee instanceof Employee ? (int) $employee->id : (int) $employee;
 
         return in_array($id, $this->teamEmployeeIds($user), true);
-    }
-
-    /** @return array<int, int> */
-    private function descendants(int $rootId): array
-    {
-        $collected = [];
-        $frontier = [$rootId];
-
-        while ($frontier !== []) {
-            $children = Employee::query()
-                ->whereIn('supervisor_id', $frontier)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->reject(fn (int $id) => $id === $rootId || in_array($id, $collected, true))
-                ->unique()
-                ->values()
-                ->all();
-
-            if ($children === []) {
-                break;
-            }
-
-            $collected = [...$collected, ...$children];
-            $frontier = $children;
-        }
-
-        return $collected;
-    }
-
-    /** @return array<int, int> */
-    private function managedDepartmentMembers(User $user, int $rootId): array
-    {
-        $departmentIds = Department::query()
-            ->where('manager_employee_id', $rootId)
-            ->where('is_active', true)
-            ->pluck('id')
-            ->all();
-
-        if ($departmentIds === []) {
-            return [];
-        }
-
-        return Employee::query()
-            ->whereHas('departments', fn ($query) => $query->whereIn('departments.id', $departmentIds))
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
     }
 }

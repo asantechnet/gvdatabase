@@ -28,7 +28,7 @@ class StoreServiceContractRequest extends FormRequest
 
     private const TEST_FIELDS = ['passport_id', 'test_id', 'skill_ids'];
 
-    private const ACADEMY_FIELDS = ['student_id', 'program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id'];
+    private const ACADEMY_FIELDS = ['student_id', 'program_id', 'teacher_ids', 'class_id'];
 
     public function authorize(): bool
     {
@@ -58,7 +58,7 @@ class StoreServiceContractRequest extends FormRequest
             if ($service === BuiltInService::ACADEMY && $this->filled('class_id')) {
                 $class = AcademyClass::query()->find($this->input('class_id'));
                 if ($class) {
-                    foreach (['program_id' => 'programme', 'time_id' => 'time', 'duration_id' => 'duration'] as $field => $label) {
+                    foreach (['program_id' => 'programme'] as $field => $label) {
                         if ($class->{$field} !== null && $this->filled($field)
                             && (int) $this->input($field) !== (int) $class->{$field}) {
                             $validator->errors()->add($field, "The selected {$label} does not match the class.");
@@ -124,7 +124,11 @@ class StoreServiceContractRequest extends FormRequest
             'currency_rate' => ['required', 'numeric', 'gt:0', 'max:9999999', 'decimal:0,8'],
             'language_id' => ['nullable', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
             'start_date' => ['prohibited'],
-            'contract_template_version_id' => ['required', 'integer', 'exists:contract_template_versions,id'],
+            // Academy prints only its slip and has no template/language choice,
+            // so the server resolves its hidden template's current version.
+            'contract_template_version_id' => $service === BuiltInService::ACADEMY
+                ? ['nullable', 'integer', 'exists:contract_template_versions,id']
+                : ['required', 'integer', 'exists:contract_template_versions,id'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'notes' => [$identity, 'string', 'max:10000'],
         ];
@@ -201,10 +205,10 @@ class StoreServiceContractRequest extends FormRequest
                 'skill_ids' => ['required', 'array', 'min:1', 'max:100'],
             ],
             BuiltInService::ACADEMY => [
-                'student_id' => ['required', 'string', 'max:64'],
+                // The student record and number are created from the contract;
+                // older clients may still supply their own number.
+                'student_id' => ['nullable', 'string', 'max:64'],
                 'program_id' => ['required', 'integer', $exists('programs')],
-                'time_id' => ['required', 'integer', $exists('times')],
-                'duration_id' => ['required', 'integer', $exists('durations')],
                 'teacher_ids' => ['required', 'array', 'min:1', 'max:100'],
                 'class_id' => ['required', 'integer', $exists('academy_classes')],
             ],
@@ -234,7 +238,7 @@ class StoreServiceContractRequest extends FormRequest
         if (in_array($service, BuiltInService::CASE_BEARING, true)) {
             $rules['responsible_employee_ids.*'] = ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')];
         }
-        foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'teachers'] as $key => $table) {
+        foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'employees'] as $key => $table) {
             if (isset($rules[$key]) && ! in_array('prohibited', $rules[$key], true)) {
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];
             }

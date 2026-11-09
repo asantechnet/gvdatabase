@@ -8,7 +8,7 @@ use App\Models\AcademyAttendance;
 use App\Models\AcademyClass;
 use App\Models\AcademyEnrollment;
 use App\Models\AcademyTeacherTimesheet;
-use App\Models\Teacher;
+use App\Models\Employee;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +22,7 @@ class AcademyAttendanceController extends Controller
             'class_id' => ['required', 'integer', 'exists:academy_classes,id'],
             'month' => ['required', 'date_format:Y-m'],
         ]);
-        $class = AcademyClass::with(['program', 'time', 'duration', 'teachers'])
+        $class = AcademyClass::with(['program', 'teachers'])
             ->withCount(['enrollments as seats_taken' => fn ($query) => $query->where('status', 'active')])
             ->findOrFail($data['class_id']);
         $start = CarbonImmutable::createFromFormat('Y-m-d', $data['month'].'-01')->startOfMonth();
@@ -96,10 +96,10 @@ class AcademyAttendanceController extends Controller
     public function teacherMonth(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'teacher_id' => ['required', 'integer', 'exists:teachers,id'],
+            'teacher_id' => ['required', 'integer', 'exists:employees,id'],
             'month' => ['required', 'date_format:Y-m'],
         ]);
-        $teacher = Teacher::findOrFail($data['teacher_id']);
+        $teacher = Employee::query()->findOrFail($data['teacher_id']);
         $start = CarbonImmutable::createFromFormat('Y-m-d', $data['month'].'-01')->startOfMonth();
         $end = $start->endOfMonth();
         $rows = AcademyTeacherTimesheet::with('academyClass')

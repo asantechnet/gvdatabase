@@ -1,50 +1,56 @@
 <script setup lang="ts">
-import type { Applicant } from '@/api/applicants'
+import type { IncomePayerOption } from '@/api/incomes'
 
 defineProps<{
-  modelValue: number | null | undefined
-  applicants: Applicant[]
+  modelValue: string | null | undefined
+  payers: IncomePayerOption[]
   disabled?: boolean
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
 </script>
 
 <template>
   <VAutocomplete
     :model-value="modelValue"
-    :items="applicants"
+    :items="payers"
     item-title="name"
-    item-value="id"
-    :label="$t('common.fields.applicant')"
-    prepend-inner-icon="tabler-user"
+    item-value="key"
+    :label="$t('common.fields.applicantOrStudent')"
+    prepend-inner-icon="tabler-users"
     :disabled="disabled"
     clearable
     auto-select-first
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template #selection="{ item }">
-      <div class="applicant-select__row">
+      <div class="payer-select__row">
         <strong>{{ item.raw.name }}</strong>
-        <span class="applicant-select__id">#{{ item.raw.id }}</span>
+        <span class="payer-select__id">
+          {{ item.raw.reference || `#${item.raw.id}` }}
+        </span>
       </div>
     </template>
 
     <template #item="{ props: itemProps, item }">
       <VListItem v-bind="itemProps">
         <template #title>
-          <div class="applicant-select__row">
+          <div class="payer-select__row">
             <strong>{{ item.raw.name }}</strong>
             <VChip
               size="x-small"
               variant="tonal"
+              :color="item.raw.type === 'student' ? 'info' : 'primary'"
             >
-              #{{ item.raw.id }}
+              {{ item.raw.type === 'student' ? $t('common.fields.student') : $t('common.fields.applicant') }}
             </VChip>
+            <span class="payer-select__id">
+              {{ item.raw.reference || `#${item.raw.id}` }}
+            </span>
           </div>
         </template>
         <template #subtitle>
-          <span>{{ item.raw.contact || item.raw.email || item.raw.details?.country?.name || $t('common.messages.notAvailable') }}</span>
+          <span>{{ item.raw.contact || $t('common.messages.notAvailable') }}</span>
         </template>
       </VListItem>
     </template>
@@ -52,14 +58,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
 </template>
 
 <style scoped>
-.applicant-select__row {
+.payer-select__row {
   display: flex;
   min-inline-size: 0;
   align-items: center;
   gap: 0.5rem;
 }
 
-.applicant-select__id {
+.payer-select__id {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
   font-size: 0.8125rem;
 }

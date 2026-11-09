@@ -19,7 +19,7 @@ class AcademyEnrollment extends Model
 
     protected $fillable = [
         'student_id', 'applicant_id', 'contract_id', 'applicant_contract_id',
-        'class_id', 'program_id', 'time_id', 'duration_id', 'started_on',
+        'class_id', 'program_id', 'started_on',
         'ends_on', 'status', 'completed_on', 'notes',
     ];
 
@@ -59,13 +59,4 @@ class AcademyEnrollment extends Model
         return $this->belongsTo(Program::class);
     }
 
-    public function time(): BelongsTo
-    {
-        return $this->belongsTo(TimeSlot::class, 'time_id');
-    }
-
-    public function duration(): BelongsTo
-    {
-        return $this->belongsTo(Duration::class);
-    }
 }

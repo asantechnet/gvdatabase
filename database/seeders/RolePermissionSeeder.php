@@ -48,7 +48,7 @@ class RolePermissionSeeder extends Seeder
         // Group-scope permissions shared by every supervisory role.
         $supervisoryScope = [
             'view_subordinate_records', 'manage_subordinate_records',
-            'view_departments', 'manage_departments', 'assign_employee_supervisor',
+            'view_departments', 'manage_departments',
             'view_team_audit_logs', 'view_agency_overview',
         ];
 
@@ -85,6 +85,7 @@ class RolePermissionSeeder extends Seeder
                 'view_recurring_events', 'create_recurring_events', 'edit_recurring_events', 'delete_recurring_events', 'manage_recurring_events', 'execute_recurring_events', 'create_recurring_incomes', 'create_recurring_expenses', 'create_recurring_tasks',
                 'view_assets', 'create_assets', 'edit_assets',
                 'view_currencies', 'view_financial_reports', 'view_commissions',
+                'view_kanban', 'update_kanban', 'manage_department_tasks',
                 'view_all_boards', 'view_assigned_boards',
                 'view_all_tasks', 'view_assigned_tasks', 'create_tasks', 'edit_all_tasks', 'edit_assigned_tasks', 'move_all_tasks', 'move_assigned_tasks',
                 'assign_task_members', 'manage_task_dependencies', 'manage_task_tags', 'view_task_tags', 'view_task_settings',
@@ -104,10 +105,8 @@ class RolePermissionSeeder extends Seeder
                 'view_university', 'create_university', 'edit_university', 'view_semester', 'create_semester', 'edit_semester',
                 'view_subject', 'create_subject', 'edit_subject', 'view_test', 'create_test', 'edit_test',
                 'view_skill', 'create_skill', 'edit_skill', 'view_program', 'create_program', 'edit_program',
-                'view_time', 'create_time', 'edit_time', 'view_duration', 'create_duration', 'edit_duration',
-                'view_teacher', 'create_teacher', 'edit_teacher',
                 'view_applicants', 'view_all_applicants', 'create_applicants', 'edit_applicants', 'delete_applicants', 'change_applicant_stage', 'view_applicant_stages', 'manage_applicant_stages', 'assign_applicant_employee', 'assign_responsible_employees',
-                'manage_academy_classes', 'manage_academy_attendance', 'issue_academy_certificates',
+                'view_academy_attendance', 'manage_academy_classes', 'manage_academy_attendance', 'issue_academy_certificates',
                 'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
                 'manage_educational_bonuses', 'view_visa_reports',
             ],
@@ -118,14 +117,14 @@ class RolePermissionSeeder extends Seeder
                 'view_dashboard', 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'manage_own_workday', 'submit_own_daily_report',
                 'request_own_leave',
-                'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
+                'view_kanban', 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
                 'create_subtasks_on_assigned_tasks', 'edit_own_subtasks', 'delete_own_subtasks',
                 'create_comments_on_assigned_tasks', 'edit_own_comments', 'delete_own_comments',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
                 'view_contracts', 'create_contracts', 'view_contract_templates',
                 'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
                 'view_country', 'view_education_level', 'view_province', 'view_english_level', 'view_acquisition_route', 'view_language', 'view_university', 'view_semester',
-                'view_subject', 'view_test', 'view_skill', 'view_program', 'view_time', 'view_duration', 'view_teacher',
+                'view_subject', 'view_test', 'view_skill', 'view_program', 'view_academy_attendance',
                 'view_applicants', 'create_applicants', 'edit_applicants', 'change_applicant_stage', 'view_applicant_stages',
                 'view_applicant_financials', 'view_applicant_contracts', 'invite_applicant_portal',
                 // The ledger pages open with the legacy page grants; the own
@@ -140,7 +139,8 @@ class RolePermissionSeeder extends Seeder
                 'request_own_leave',
                 'view_contracts',
                 'view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_other_contracts',
-                'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
+                'view_academy_attendance',
+                'view_kanban', 'view_assigned_boards', 'view_assigned_tasks', 'view_task_tags',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
 
@@ -150,6 +150,10 @@ class RolePermissionSeeder extends Seeder
                 'view_own_applicant_portal', 'edit_own_applicant_profile',
                 'view_own_notifications', 'update_own_notifications', 'delete_own_notifications',
             ],
+
+            // Teachers have attendance only. They do not receive the contracts,
+            // classes, students or finance surfaces.
+            'teacher' => ['view_academy_attendance', 'manage_academy_attendance'],
         ];
 
         // Supervisors inherit the manager toolkit plus the group-scope switch.
@@ -160,7 +164,8 @@ class RolePermissionSeeder extends Seeder
         // A senior counselor can see the team's records but must not change
         // them: only the read scope is granted, never the manage scope.
         $grants['senior_counselor'] = array_values(array_unique([
-            ...$grants['staff'], 'view_subordinate_records', 'view_departments', 'view_agency_overview', 'view_visa_reports',
+            ...$grants['staff'], 'view_kanban', 'update_kanban', 'manage_department_tasks',
+            'view_subordinate_records', 'view_departments', 'view_agency_overview', 'view_visa_reports',
         ]));
 
         // Visa counselors and case officers work their own assigned records.
@@ -212,7 +217,7 @@ class RolePermissionSeeder extends Seeder
         foreach (self::EMPLOYEE_ROLES as $employeeRole) {
             $grants[$employeeRole] = array_values(array_unique([
                 ...($grants[$employeeRole] ?? []),
-                'create_personal_tasks',
+                'view_kanban', 'create_personal_tasks',
             ]));
         }
 

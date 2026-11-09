@@ -12,9 +12,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesBuiltInContracts;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class ContractCaseBoundaryTest extends TestCase
+class ContractCaseBoundaryTest extends AcademyTestCase
 {
     use CreatesBuiltInContracts, RefreshDatabase;
 
@@ -27,36 +27,48 @@ class ContractCaseBoundaryTest extends TestCase
         return $user;
     }
 
-    public function test_test_offer_and_academy_contracts_create_no_case_stage_or_history(): void
+    public function test_test_offer_contracts_create_a_case_while_academy_stays_case_free(): void
     {
         $this->actingAsSuperAdmin();
 
-        foreach (['test_offer', 'academy'] as $service) {
-            $created = $this->createBuiltInContract($service);
-            $applicant = Applicant::query()->findOrFail($created['applicant_id']);
-            $line = ApplicantContract::query()->where('contract_id', $created['id'])->sole();
+        $testOffer = $this->createBuiltInContract('test_offer');
+        $testApplicant = Applicant::query()->findOrFail($testOffer['applicant_id']);
+        $testLine = ApplicantContract::query()->where('contract_id', $testOffer['id'])->sole();
 
-            $this->assertNull($applicant->current_stage_id, $service);
-            $this->assertNull($line->current_stage_id, $service);
-            $this->assertSame(0, ApplicantStageHistory::query()->where('applicant_id', $applicant->id)->count(), $service);
-            $this->assertSame(0, ApplicantStage::query()->where('service', $service)->where('is_active', true)->count(), $service);
-        }
+        $this->assertNotNull($testApplicant->current_stage_id);
+        $this->assertNotNull($testLine->current_stage_id);
+        // One applicant stage write and one line stage write.
+        $this->assertSame(2, ApplicantStageHistory::query()->where('applicant_id', $testApplicant->id)->count());
+        $this->assertGreaterThan(0, ApplicantStage::query()->where('service', 'test_offer')->where('is_active', true)->count());
+
+        $academy = $this->createBuiltInContract('academy');
+        $academyApplicant = Applicant::query()->findOrFail($academy['applicant_id']);
+        $academyLine = ApplicantContract::query()->where('contract_id', $academy['id'])->sole();
+
+        $this->assertNull($academyApplicant->current_stage_id);
+        $this->assertNull($academyLine->current_stage_id);
+        $this->assertSame(0, ApplicantStageHistory::query()->where('applicant_id', $academyApplicant->id)->count());
+        $this->assertSame(0, ApplicantStage::query()->where('service', 'academy')->where('is_active', true)->count());
     }
 
-    public function test_stage_api_has_no_case_free_catalogue_or_writes(): void
+    public function test_stage_api_offers_test_offer_and_hides_academy(): void
     {
         $this->actingAsSuperAdmin();
 
-        $this->getJson('/api/applicant-stages?service=test_offer')
-            ->assertOk()->assertJsonCount(0, 'data');
+        $stages = $this->getJson('/api/applicant-stages?service=test_offer')
+            ->assertOk()->json('data');
+        $this->assertNotEmpty($stages);
+        $this->assertSame(['test_offer'], array_values(array_unique(array_column($stages, 'service'))));
+
         $this->getJson('/api/applicants-pipeline?service=academy')
             ->assertOk()->assertJsonCount(0, 'data.cards');
-        $this->postJson('/api/applicant-stages', [
-            'service' => 'test_offer', 'key' => 'waiting_list', 'name' => 'Waiting list',
-        ])->assertStatus(422)->assertJsonPath('code', 'business.applicant_stage_service_not_supported');
-        $this->assertDatabaseMissing('applicant_stages', ['service' => 'test_offer', 'key' => 'waiting_list']);
 
-        $stage = ApplicantStage::query()->where('service', 'test_offer')->firstOrFail();
+        $this->postJson('/api/applicant-stages', [
+            'service' => 'academy', 'key' => 'waiting_list', 'name' => 'Waiting list',
+        ])->assertStatus(422)->assertJsonPath('code', 'business.applicant_stage_service_not_supported');
+        $this->assertDatabaseMissing('applicant_stages', ['service' => 'academy', 'key' => 'waiting_list']);
+
+        $stage = ApplicantStage::query()->where('service', 'academy')->firstOrFail();
         $this->deleteJson('/api/applicant-stages/'.$stage->id)
             ->assertStatus(422)->assertJsonPath('code', 'business.applicant_stage_service_not_supported');
     }

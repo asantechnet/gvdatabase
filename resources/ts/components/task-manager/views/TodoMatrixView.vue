@@ -10,6 +10,11 @@ import type { TaskPriority } from '@/types/taskManager'
 
 const store = useTaskStore()
 const userData = useCookie<{ id?: string | number } | null>('userData')
+const createDialog = ref(false)
+const creatingTask = ref(false)
+const createForm = ref({ title: '', description: '', priority: 'medium' as TaskPriority, due_date: new Date().toISOString().slice(0, 10) })
+const personalBoard = computed(() => store.boards.find(board => board.is_personal && board.is_owned))
+const canCreatePersonalTask = computed(() => canAccess('create_personal_tasks') && Boolean(personalBoard.value))
 const newTaskTitle = ref('')
 const newTaskCategory = ref('General')
 const newTaskPriority = ref<'low' | 'medium' | 'high' | 'urgent'>('medium')
@@ -23,6 +28,36 @@ const priorityColorMap: Record<'low' | 'medium' | 'high' | 'urgent', string> = {
 
 const getBoardTitle = (boardId: string) => {
   return store.boards.find(board => board.id === boardId)?.title ?? 'Unknown board'
+}
+
+const openCreateTask = () => {
+  createForm.value = { title: '', description: '', priority: 'medium', due_date: new Date().toISOString().slice(0, 10) }
+  createDialog.value = true
+}
+
+const createTask = async () => {
+  if (!personalBoard.value || !createForm.value.title.trim())
+    return
+
+  creatingTask.value = true
+  try {
+    const task = await store.addTask({
+      title: createForm.value.title.trim(),
+      description: createForm.value.description,
+      priority: createForm.value.priority,
+      start_date: new Date().toISOString().slice(0, 10),
+      due_date: createForm.value.due_date,
+      boardId: String(personalBoard.value.id),
+    })
+
+    if (task) {
+      store.selectTask(task.id)
+      createDialog.value = false
+    }
+  }
+  finally {
+    creatingTask.value = false
+  }
 }
 
 const getSubtaskProgress = (task: Task) => {
@@ -138,7 +173,23 @@ const handleAddTodo = () => {
       cols="12"
       md="4"
     >
-      <VCard :title="$t('components.taskManager.todomatrixview.megaTasks')">
+      <VCard>
+        <VCardItem class="pb-2">
+          <template #title>
+            {{ $t('components.taskManager.todomatrixview.megaTasks') }}
+          </template>
+          <template #append>
+            <VBtn
+              v-if="canCreatePersonalTask"
+              color="primary"
+              size="small"
+              prepend-icon="tabler-plus"
+              @click="openCreateTask"
+            >
+              {{ $t('components.taskManager.todomatrixview.newTask') }}
+            </VBtn>
+          </template>
+        </VCardItem>
         <VCardText class="pa-0">
           <VList
             lines="two"
@@ -477,6 +528,60 @@ const handleAddTodo = () => {
           {{ $t('components.taskManager.todomatrixview.selectAMegaTaskFromTheListToManageItsActionItems') }}
         </p>
       </VCard>
+
+      <VDialog
+        v-model="createDialog"
+        max-width="560"
+      >
+        <VCard :title="$t('components.taskManager.todomatrixview.newTask')">
+          <VCardText>
+            <VTextField
+              v-model="createForm.title"
+              :label="$t('common.fields.title')"
+              class="mb-3"
+              autofocus
+            />
+            <VTextarea
+              v-model="createForm.description"
+              :label="$t('components.taskManager.todomatrixview.taskContent')"
+              rows="3"
+              class="mb-3"
+            />
+            <VSelect
+              v-model="createForm.priority"
+              :items="['low', 'medium', 'high', 'urgent']"
+              :item-title="translateBackendValue"
+              :label="$t('common.fields.priority')"
+              class="mb-3"
+            />
+            <VTextField
+              v-model="createForm.due_date"
+              :label="$t('components.taskManager.taskdetaildrawer.dueDate')"
+              type="date"
+            />
+            <p class="text-caption text-medium-emphasis mt-3 mb-0">
+              {{ $t('components.taskManager.todomatrixview.newTaskHint') }}
+            </p>
+          </VCardText>
+          <VCardActions>
+            <VSpacer />
+            <VBtn
+              variant="tonal"
+              @click="createDialog = false"
+            >
+              {{ $t('common.actions.cancel') }}
+            </VBtn>
+            <VBtn
+              color="primary"
+              :loading="creatingTask"
+              :disabled="!createForm.title.trim()"
+              @click="createTask"
+            >
+              {{ $t('common.actions.save') }}
+            </VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
 
       <VDialog
         :model-value="Boolean(editingTodo)"

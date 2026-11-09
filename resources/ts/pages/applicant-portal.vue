@@ -9,8 +9,10 @@ import { formatLocalizedDate } from '@/utils/localization'
 import ErpField from '@/components/erp/ErpField.vue'
 import ApplicantPortalSkeleton from '@/components/ApplicantPortalSkeleton.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const toast = useToast()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const { t, locale } = useI18n()
 const portal = ref<ApplicantPortalData | null>(null)
 const loading = ref(true)
@@ -328,7 +330,7 @@ onBeforeUnmount(() => {
               <div class="portal-summary-row"><span>{{ $t('applicantPortal.destination') }}</span><strong>{{ portal.case.destination_country || $t('applicantPortal.toBeConfirmed') }}</strong></div><div class="portal-summary-row"><span>{{ $t('applicantPortal.primaryUniversity') }}</span><strong>{{ portal.case.primary_university || $t('applicantPortal.toBeConfirmed') }}</strong></div><div class="portal-summary-row"><span>{{ $t('applicantPortal.studyLevel') }}</span><strong>{{ portal.case.education_level || $t('applicantPortal.toBeConfirmed') }}</strong></div><div class="portal-summary-row"><span>{{ $t('educational.serviceFields.gradeScore') }}</span><strong>{{ portal.case.grade_score !== null ? `${portal.case.grade_score}` : $t('applicantPortal.toBeConfirmed') }}</strong></div>
               </template>
               <div v-if="portal.case.service === 'test_offer'" class="portal-summary-row"><span>{{ $t('educational.masterData.tests') }}</span><strong>{{ portal.case.service_details.test || $t('applicantPortal.toBeConfirmed') }}</strong></div>
-              <template v-if="portal.case.service === 'academy'">
+              <template v-if="academyEnabled && portal.case.service === 'academy'">
                 <div class="portal-summary-row"><span>{{ $t('educational.masterData.programs') }}</span><strong>{{ portal.case.service_details.program || $t('applicantPortal.toBeConfirmed') }}</strong></div><div class="portal-summary-row"><span>{{ $t('educational.masterData.times') }}</span><strong>{{ portal.case.service_details.time || $t('applicantPortal.toBeConfirmed') }}</strong></div><div class="portal-summary-row"><span>{{ $t('educational.masterData.durations') }}</span><strong>{{ portal.case.service_details.duration || $t('applicantPortal.toBeConfirmed') }}</strong></div>
               </template>
               <div class="portal-summary-row"><span>{{ $t('educational.serviceFields.createdAt') }}</span><strong>{{ formatDate(portal.case.created_at) || $t('applicantPortal.toBeConfirmed') }}</strong></div>

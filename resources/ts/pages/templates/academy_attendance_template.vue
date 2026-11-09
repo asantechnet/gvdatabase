@@ -11,13 +11,23 @@ const props = defineProps<{
   dates: string[]
   rows: AcademyAttendanceRow[]
   teacherRows?: AcademyTeacherTimesheetRow[]
+  teacherName?: string
   mode: 'students' | 'teachers'
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { logoUrl, originalCompanyName } = useBranding()
 const dayNumbers = computed(() => props.dates.map(date => Number(date.slice(8, 10))))
 const statusLabel = (status: string | undefined) => status ? t(`academy.attendance.status.${status}`) : ''
+const legendStatuses = ['present', 'absent', 'late', 'excused']
+const monthLabel = computed(() => {
+  const [year, monthNumber] = props.month.split('-').map(Number)
+  if (!year || !monthNumber)
+    return props.month
+
+  return new Intl.DateTimeFormat(locale.value, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, monthNumber - 1, 1)))
+})
 </script>
 
 <template>
@@ -33,7 +43,7 @@ const statusLabel = (status: string | undefined) => status ? t(`academy.attendan
         </div>
         <div class="text-end">
           <h2>{{ title }}</h2>
-          <div class="text-caption">{{ month }}</div>
+          <div class="text-caption">{{ monthLabel }}</div>
         </div>
       </header>
 
@@ -42,7 +52,7 @@ const statusLabel = (status: string | undefined) => status ? t(`academy.attendan
           <tr>
             <th class="name-cell">{{ t('academy.fields.student') }}</th>
             <th v-for="day in dayNumbers" :key="day">{{ day }}</th>
-            <th>{{ t('academy.fields.total') }}</th>
+            <th>{{ t('academy.attendance.totalRecorded') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -69,7 +79,7 @@ const statusLabel = (status: string | undefined) => status ? t(`academy.attendan
         </thead>
         <tbody>
           <tr v-for="row in teacherRows" :key="row.id">
-            <td>{{ row.teacher_id }}</td>
+            <td>{{ teacherName || row.teacher_id }}</td>
             <td>{{ row.class_name ?? '—' }}</td>
             <td>{{ formatActiveDate(row.date) }}</td>
             <td>{{ statusLabel(row.status) }}</td>
@@ -80,8 +90,17 @@ const statusLabel = (status: string | undefined) => status ? t(`academy.attendan
       </table>
 
       <footer class="academy-print-footer">
-        <span>{{ t('academy.attendance.printFooter') }}</span>
-        <span>{{ formatActiveDate(new Date()) }}</span>
+        <div class="academy-print-legend">
+          <span class="academy-print-legend__title">{{ t('academy.attendance.legend') }}</span>
+          <span v-for="status in legendStatuses" :key="status" class="academy-print-legend__item">
+            <i class="academy-print-legend__swatch" :class="`status-${status}`" />
+            {{ statusLabel(status) }}
+          </span>
+        </div>
+        <div class="academy-print-meta">
+          <span>{{ t('academy.attendance.printFooter') }}</span>
+          <span>{{ formatActiveDate(new Date()) }}</span>
+        </div>
       </footer>
     </div>
   </div>
@@ -103,5 +122,14 @@ const statusLabel = (status: string | undefined) => status ? t(`academy.attendan
 .status-absent { color: #b91c1c; font-weight: 800; }
 .status-late { color: #b45309; font-weight: 800; }
 .status-excused { color: #1d4ed8; font-weight: 800; }
-.academy-print-footer { display: flex; justify-content: space-between; margin-block-start: 8px; font-size: 8pt; color: #475569; }
+.academy-print-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm; margin-block-start: 8px; font-size: 8pt; color: #475569; }
+.academy-print-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2mm 4mm; max-inline-size: 70%; }
+.academy-print-legend__title { font-weight: 700; color: #111; }
+.academy-print-legend__item { display: inline-flex; align-items: center; gap: 1.2mm; white-space: nowrap; }
+.academy-print-legend__swatch { display: inline-block; inline-size: 2.4mm; block-size: 2.4mm; border-radius: 50%; border: .2mm solid currentColor; }
+.academy-print-legend__swatch.status-present { background: #047857; }
+.academy-print-legend__swatch.status-absent { background: #b91c1c; }
+.academy-print-legend__swatch.status-late { background: #b45309; }
+.academy-print-legend__swatch.status-excused { background: #1d4ed8; }
+.academy-print-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
 </style>

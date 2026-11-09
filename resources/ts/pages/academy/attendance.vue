@@ -5,17 +5,17 @@ import { useToast } from 'vue-toastification'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import type { AcademyClassRecord, AcademyOption } from '@/api/academyClasses'
 import { AcademyClassesApi } from '@/api/academyClasses'
+import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
 import { AcademyAttendanceApi, type AcademyAttendanceMonth, type AcademyAttendanceStatus, type AcademyTeacherMonth, type AcademyTeacherWriteRow } from '@/api/academyAttendance'
-import MasterDataApi from '@/api/educationalMasterData'
 import { canAccess } from '@/utils/authorization'
 import { printDocument } from '@/utils/printDocument'
 import AcademyAttendanceTemplate from '@/pages/templates/academy_attendance_template.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
 const tab = ref<'students' | 'teachers'>('students')
 const classes = ref<AcademyClassRecord[]>([])
-const teachers = ref<AcademyOption[]>([])
+const teachers = ref<AcademyTeacher[]>([])
 const classId = ref<number | null>(null)
 const teacherId = ref<number | null>(null)
 const month = ref(new Date().toISOString().slice(0, 7))
@@ -29,6 +29,16 @@ const canPrint = computed(() => tab.value === 'students'
   ? (studentMonth.value?.rows.length ?? 0) > 0
   : (teacherMonth.value?.rows.length ?? 0) > 0)
 const statuses: Array<AcademyAttendanceStatus | ''> = ['', 'present', 'absent', 'late', 'excused']
+const legendStatuses: AcademyAttendanceStatus[] = ['present', 'absent', 'late', 'excused']
+const statusLabel = (status: AcademyAttendanceStatus | '') => status ? t(`academy.attendance.status.${status}`) : t('academy.attendance.emptyCell')
+const monthLabel = computed(() => {
+  const [year, monthNumber] = month.value.split('-').map(Number)
+  if (!year || !monthNumber)
+    return month.value
+
+  return new Intl.DateTimeFormat(locale.value, { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year, monthNumber - 1, 1)))
+})
 const teacherDialog = ref(false)
 const teacherRow = ref<AcademyTeacherWriteRow>({
   teacher_id: 0,
@@ -46,7 +56,7 @@ const teacherTitle = computed(() => teacherMonth.value?.teacher.name ?? '')
 
 async function loadOptions() {
   try {
-    const [classRows, teacherRows] = await Promise.all([AcademyClassesApi.list(), MasterDataApi.list('teachers')])
+    const [classRows, teacherRows] = await Promise.all([AcademyClassesApi.list(), AcademyTeachersApi.list()])
     classes.value = classRows
     teachers.value = teacherRows
     classId.value ||= classRows[0]?.id ?? null
@@ -145,6 +155,17 @@ function openTeacherRow() {
   teacherDialog.value = true
 }
 
+async function completeClass() {
+  if (!classId.value)
+    return
+  try {
+    await AcademyClassesApi.complete(classId.value)
+    toast.success(t('academy.attendance.classCompleted'))
+    await loadOptions()
+  }
+  catch { /* Global notifier owns the API error. */ }
+}
+
 async function saveTeacherRow() {
   try {
     await AcademyAttendanceApi.saveTeacher([teacherRow.value])
@@ -205,6 +226,7 @@ onMounted(async () => {
         :dates="teacherMonth.dates"
         :rows="[]"
         :teacher-rows="teacherMonth.rows"
+        :teacher-name="teacherTitle"
         mode="teachers"
       />
     </div>
@@ -212,6 +234,9 @@ onMounted(async () => {
     <ErpPageHeader :title="t('academy.attendance.title')" :description="t('academy.attendance.description')" section="academy">
       <template #actions>
         <VBtn variant="tonal" prepend-icon="tabler-printer" :disabled="!canPrint" @click="printSheet">{{ t('academy.attendance.print') }}</VBtn>
+        <VBtn v-if="canManage && tab === 'students'" variant="tonal" color="success" prepend-icon="tabler-check" :disabled="!classId" @click="completeClass">
+          {{ t('academy.attendance.completeClass') }}
+        </VBtn>
         <VBtn v-if="canManage && tab === 'students'" color="primary" :disabled="Object.keys(changes).length === 0" @click="save">
           {{ t('common.actions.save') }}
         </VBtn>
@@ -231,6 +256,17 @@ onMounted(async () => {
         <VTextField v-model="month" type="month" :label="t('academy.fields.month')" density="compact" hide-details style="max-width: 180px" />
         <VSelect v-if="tab === 'students'" v-model="classId" :items="classes" item-title="name" item-value="id" :label="t('academy.fields.class')" density="compact" hide-details style="min-width: 200px" />
         <VSelect v-else v-model="teacherId" :items="teachers" item-title="name" item-value="id" :label="t('academy.fields.teacher')" density="compact" hide-details style="min-width: 200px" />
+      </VCardText>
+
+      <VCardText v-if="tab === 'students'" class="pt-0 pb-0">
+        <div class="attendance-legend">
+          <span class="attendance-legend__title">{{ t('academy.attendance.legend') }}</span>
+          <span v-for="status in legendStatuses" :key="status" class="attendance-legend__item">
+            <i class="attendance-legend__swatch" :class="`status-${status}`" />
+            {{ statusLabel(status) }}
+          </span>
+          <span class="attendance-legend__hint">{{ t('academy.attendance.legendHint') }}</span>
+        </div>
       </VCardText>
 
       <VCardText>
@@ -254,10 +290,11 @@ onMounted(async () => {
                     class="attendance-cell"
                     :class="{ 'out-of-scope': !inScope(row, date), [`status-${statusFor(row, date)}`]: statusFor(row, date) }"
                     :disabled="!canManage || !inScope(row, date)"
-                    :aria-label="`${row.name} ${date} ${statusFor(row, date) || t('academy.attendance.emptyCell')}`"
+                    :aria-label="`${row.name} ${date} ${statusLabel(statusFor(row, date))}`"
+                    :title="`${monthLabel} ${Number(date.slice(8, 10))}: ${statusLabel(statusFor(row, date))}`"
                     @click="cycle(row, date)"
                   >
-                    {{ statusFor(row, date) ? t(`academy.attendance.status.${statusFor(row, date)}`).charAt(0) : '' }}
+                    {{ statusFor(row, date) ? statusLabel(statusFor(row, date)).charAt(0) : '' }}
                   </button>
                 </td>
               </tr>
@@ -312,6 +349,11 @@ onMounted(async () => {
 .attendance-grid th, .attendance-grid td { border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); padding: 2px; text-align: center; }
 .attendance-grid .student-col { position: sticky; inset-inline-start: 0; background: rgb(var(--v-theme-surface)); text-align: start; min-inline-size: 170px; z-index: 1; }
 .attendance-grid th:not(.student-col) { min-inline-size: 24px; writing-mode: vertical-rl; }
+.attendance-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding-block-end: 8px; font-size: 12px; }
+.attendance-legend__title { font-weight: 700; }
+.attendance-legend__item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.attendance-legend__swatch { display: inline-block; inline-size: 11px; block-size: 11px; border-radius: 50%; }
+.attendance-legend__hint { color: rgba(var(--v-theme-on-surface), .62); }
 .attendance-cell { inline-size: 22px; block-size: 22px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; font-weight: 700; }
 .attendance-cell.out-of-scope { opacity: .25; cursor: not-allowed; }
 .status-present { background: rgba(16, 185, 129, .18); color: #047857; }

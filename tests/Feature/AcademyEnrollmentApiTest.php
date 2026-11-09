@@ -9,9 +9,9 @@ use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyEnrollmentApiTest extends TestCase
+class AcademyEnrollmentApiTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

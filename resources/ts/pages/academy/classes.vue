@@ -6,8 +6,8 @@ import AcademyClassDialog from '@/components/academy/AcademyClassDialog.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
-import { AcademyClassesApi, type AcademyClassRecord, type AcademyDurationRecord, type AcademyOption } from '@/api/academyClasses'
-import type { AcademyEnrollmentSummary } from '@/api/academyClasses'
+import { AcademyClassesApi, type AcademyClassRecord, type AcademyOption } from '@/api/academyClasses'
+import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
 import MasterDataApi from '@/api/educationalMasterData'
 import { canAccess } from '@/utils/authorization'
 import { formatActiveDate, formatActiveMoney } from '@/utils/localization'
@@ -16,16 +16,14 @@ const { t } = useI18n()
 const toast = useToast()
 const classes = ref<AcademyClassRecord[]>([])
 const programs = ref<AcademyOption[]>([])
-const times = ref<AcademyOption[]>([])
-const durations = ref<AcademyDurationRecord[]>([])
-const teachers = ref<AcademyOption[]>([])
+const teachers = ref<AcademyTeacher[]>([])
 const loading = ref(true)
 const failed = ref(false)
 const dialogOpen = ref(false)
 const editing = ref<AcademyClassRecord | null>(null)
 const rosterOpen = ref(false)
 const rosterLoading = ref(false)
-const roster = ref<AcademyEnrollmentSummary[]>([])
+const roster = ref<NonNullable<AcademyClassRecord['roster']>>([])
 const selectedClass = ref<AcademyClassRecord | null>(null)
 const canManage = computed(() => canAccess('manage_academy_classes'))
 const weekdays = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -34,17 +32,13 @@ async function load() {
   loading.value = true
   failed.value = false
   try {
-    const [classRows, programRows, timeRows, durationRows, teacherRows] = await Promise.all([
+    const [classRows, programRows, teacherRows] = await Promise.all([
       AcademyClassesApi.list(),
       MasterDataApi.list('programs'),
-      MasterDataApi.list('times'),
-      AcademyClassesApi.durations(),
-      MasterDataApi.list('teachers'),
+      AcademyTeachersApi.list(),
     ])
     classes.value = classRows
     programs.value = programRows
-    times.value = timeRows
-    durations.value = durationRows
     teachers.value = teacherRows
   }
   catch {
@@ -76,6 +70,17 @@ async function remove(row: AcademyClassRecord) {
   catch { /* Global notifier owns the API error. */ }
 }
 
+async function complete(row: AcademyClassRecord) {
+  if (!confirm(t('academy.classes.completeConfirm', { name: row.name })))
+    return
+  try {
+    await AcademyClassesApi.complete(row.id)
+    toast.success(t('academy.classes.completed'))
+    await load()
+  }
+  catch { /* Global notifier owns the API error. */ }
+}
+
 async function viewRoster(row: AcademyClassRecord) {
   selectedClass.value = row
   roster.value = []
@@ -101,9 +106,7 @@ onMounted(load)
   <div class="academy-page pa-4 pa-sm-6">
     <ErpPageHeader :title="t('academy.classes.title')" :description="t('academy.classes.description')" section="academy">
       <template #actions>
-        <VBtn v-if="canManage" color="primary" prepend-icon="tabler-plus" @click="openCreate">
-          {{ t('academy.classes.create') }}
-        </VBtn>
+        <VBtn v-if="canManage" color="primary" prepend-icon="tabler-plus" @click="openCreate">{{ t('academy.classes.create') }}</VBtn>
       </template>
     </ErpPageHeader>
 
@@ -111,12 +114,7 @@ onMounted(load)
       <VCardText>
         <TableLoadingSkeleton v-if="loading" :columns="7" :label="t('common.messages.loading')" />
         <VAlert v-else-if="failed" type="error" variant="tonal">{{ t('academy.classes.loadFailed') }}</VAlert>
-        <TableEmptyState
-          v-else-if="classes.length === 0"
-          icon="tabler-school"
-          :title="t('academy.classes.emptyTitle')"
-          :description="t('academy.classes.emptyDescription')"
-        />
+        <TableEmptyState v-else-if="classes.length === 0" icon="tabler-school" :title="t('academy.classes.emptyTitle')" :description="t('academy.classes.emptyDescription')" />
         <div v-else class="table-scroll">
           <VTable density="compact" class="text-no-wrap">
             <thead>
@@ -135,12 +133,9 @@ onMounted(load)
               <tr v-for="row in classes" :key="row.id">
                 <td>
                   <div class="font-weight-medium">{{ row.name }}</div>
-                  <div class="text-caption text-medium-emphasis">{{ row.duration?.name ?? '—' }}</div>
+                  <div class="text-caption text-medium-emphasis">{{ formatActiveMoney(row.fee) }}</div>
                 </td>
-                <td>
-                  <div>{{ row.program?.name ?? '—' }}</div>
-                  <div class="text-caption text-medium-emphasis">{{ row.time?.name ?? '—' }}</div>
-                </td>
+                <td>{{ row.program?.name ?? '—' }}</td>
                 <td>
                   <div>{{ schedule(row) }}</div>
                   <div class="text-caption text-medium-emphasis">{{ row.starts_at ?? '—' }} — {{ row.ends_at ?? '—' }}</div>
@@ -152,12 +147,13 @@ onMounted(load)
                 <td>{{ seats(row) }}</td>
                 <td>{{ row.teachers.map(teacher => teacher.name).join(', ') || '—' }}</td>
                 <td>
-                  <VChip :color="row.is_active ? 'success' : 'secondary'" size="small">
-                    {{ t(row.is_active ? 'common.statuses.active' : 'common.statuses.inactive') }}
+                  <VChip :color="row.completed_at ? 'info' : row.is_active ? 'success' : 'secondary'" size="small">
+                    {{ t(row.completed_at ? 'academy.status.completed' : row.is_active ? 'common.statuses.active' : 'common.statuses.inactive') }}
                   </VChip>
                 </td>
                 <td class="text-end">
                   <VBtn icon="tabler-list-details" size="small" variant="text" :aria-label="t('academy.classes.roster')" @click="viewRoster(row)" />
+                  <VBtn v-if="canManage && !row.completed_at" icon="tabler-check" size="small" variant="text" color="success" :aria-label="t('academy.classes.complete')" @click="complete(row)" />
                   <VBtn v-if="canManage" icon="tabler-pencil" size="small" variant="text" :aria-label="t('common.actions.edit')" @click="openEdit(row)" />
                   <VBtn v-if="canManage" icon="tabler-trash" size="small" variant="text" color="error" :aria-label="t('common.actions.delete')" @click="remove(row)" />
                 </td>
@@ -168,15 +164,7 @@ onMounted(load)
       </VCardText>
     </VCard>
 
-    <AcademyClassDialog
-      v-model="dialogOpen"
-      :record="editing"
-      :programs="programs"
-      :times="times"
-      :durations="durations"
-      :teachers="teachers"
-      @saved="load"
-    />
+    <AcademyClassDialog v-model="dialogOpen" :record="editing" :programs="programs" :teachers="teachers" @saved="load" />
 
     <VDialog v-model="rosterOpen" max-width="960" scrollable>
       <VCard>

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import navItems from "@/navigation/horizontal";
+import baseNavItems from "@/navigation/horizontal";
+import { useAcademyEnabled } from "@/composables/useAcademyEnabled";
 
 import { themeConfig } from "@themeConfig";
 
@@ -18,9 +19,16 @@ import UserProfile from "@/layouts/components/UserProfile.vue";
 import { useBranding } from "@/composables/useBranding";
 
 const { logoUrl, hasCompanyLogo, logoFailed, isLogoSquare, isMonochromeLogo, shortCompanyName, handleLogoLoad, handleLogoError, loadBranding } = useBranding()
+const { enabled: academyEnabled, load: loadAcademyEnabled } = useAcademyEnabled()
+
+// Academy is a company-level feature: when it is off the whole navigation
+// group disappears, not just its pages.
+const navItems = computed(() => academyEnabled.value
+  ? baseNavItems
+  : baseNavItems.filter(item => !('title' in item) || item.title !== 'common.navigation.academy'))
 
 onMounted(async () => {
-  await loadBranding();
+  await Promise.all([loadBranding(), loadAcademyEnabled()]);
 });
 </script>
 

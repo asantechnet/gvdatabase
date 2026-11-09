@@ -189,10 +189,16 @@ const activeSlug = computed<string | null>(() => {
 // Employment templates are not versioned per country/language: they carry a
 // single current version identified by its name, so it is selected for you.
 const isEmploymentTemplate = computed(() => activeSlug.value === 'employment')
-const activeTemplateVersions = computed(() => selectedTemplate.value?.versions?.filter(version => version.is_current && version.status === 'active') ?? [])
-const requiresVersionSelection = computed(() => activeTemplateVersions.value.length > 0 && !isEmploymentTemplate.value)
-const hasTemplateVersions = computed(() => (selectedTemplate.value?.versions?.length ?? 0) > 0)
+// Customer and employment templates are versioned. Other agreements render
+// directly from the template and ignore any legacy versions.
+const isVersionedTemplate = computed(() => isEmploymentTemplate.value || activeSlug.value === 'customer')
+const activeTemplateVersions = computed(() => isVersionedTemplate.value ? (selectedTemplate.value?.versions?.filter(version => version.is_current && version.status === 'active') ?? []) : [])
+const requiresVersionSelection = computed(() => isVersionedTemplate.value && activeTemplateVersions.value.length > 0 && !isEmploymentTemplate.value)
+const hasTemplateVersions = computed(() => isVersionedTemplate.value && (selectedTemplate.value?.versions?.length ?? 0) > 0)
 const countryOptions = computed(() => {
+  if (!isVersionedTemplate.value)
+    return []
+
   const versionCountryIds = [...new Set(activeTemplateVersions.value.map(version => version.country_id ?? null))]
 
   return versionCountryIds.map(countryId => ({
@@ -204,11 +210,14 @@ const countryOptions = computed(() => {
     value: countryId,
   }))
 })
-const countryScopedVersions = computed(() => activeTemplateVersions.value.filter(version => version.country_id === form.value.country_id))
+const countryScopedVersions = computed(() => isVersionedTemplate.value ? activeTemplateVersions.value.filter(version => version.country_id === form.value.country_id) : [])
 const languageOptions = computed(() => languages.value
   .filter(language => language.is_active && countryScopedVersions.value.some(version => version.language_id === language.id))
   .map(language => ({ title: `${language.name}${language.code ? ` (${language.code})` : ''}`, value: language.id })))
 const selectedTemplateVersion = computed(() => {
+  if (!isVersionedTemplate.value)
+    return null
+
   if (isEmploymentTemplate.value)
     return activeTemplateVersions.value.find(version => version.id === form.value.contract_template_version_id) ?? activeTemplateVersions.value[0] ?? null
 
@@ -423,6 +432,14 @@ watch(() => props.applicantId, applicantId => {
 })
 
 watch(() => form.value.template_id, () => {
+  if (!isVersionedTemplate.value) {
+    form.value.country_id = null
+    form.value.language_id = null
+    form.value.contract_template_version_id = null
+
+    return
+  }
+
   const existingVersion = activeTemplateVersions.value.find(version => version.id === form.value.contract_template_version_id)
 
   if (isEmploymentTemplate.value) {
@@ -439,7 +456,7 @@ watch(() => form.value.template_id, () => {
 }, { immediate: true })
 
 watch(() => form.value.country_id, () => {
-  if (isEmploymentTemplate.value)
+  if (!isVersionedTemplate.value || isEmploymentTemplate.value)
     return
   if (!countryScopedVersions.value.some(version => version.language_id === form.value.language_id))
     form.value.language_id = null
@@ -447,7 +464,7 @@ watch(() => form.value.country_id, () => {
 })
 
 watch(() => form.value.language_id, () => {
-  if (isEmploymentTemplate.value)
+  if (!isVersionedTemplate.value || isEmploymentTemplate.value)
     return
   form.value.contract_template_version_id = selectedTemplateVersion.value?.id ?? null
 })
@@ -511,7 +528,7 @@ defineExpose({ submit })
       </VCol>
 
       <VCol
-        v-if="selectedTemplate && !isEmploymentTemplate"
+        v-if="selectedTemplate && isVersionedTemplate && !isEmploymentTemplate"
         cols="12"
         :md="isOtherAudience ? 6 : 3"
       >
@@ -525,7 +542,7 @@ defineExpose({ submit })
         />
       </VCol>
       <VCol
-        v-if="selectedTemplate && !isEmploymentTemplate"
+        v-if="selectedTemplate && isVersionedTemplate && !isEmploymentTemplate"
         cols="12"
         :md="isOtherAudience ? 6 : 3"
       >
@@ -541,7 +558,7 @@ defineExpose({ submit })
         />
       </VCol>
       <VCol
-        v-if="selectedTemplate && !requiresVersionSelection && !isEmploymentTemplate"
+        v-if="selectedTemplate && isVersionedTemplate && !requiresVersionSelection && !isEmploymentTemplate"
         cols="12"
       >
         <VAlert

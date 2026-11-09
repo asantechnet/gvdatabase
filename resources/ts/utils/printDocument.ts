@@ -156,3 +156,142 @@ export const printDocument = async ({
   if (!cleaned)
     fallbackTimer = window.setTimeout(cleanup, 60_000)
 }
+
+/**
+ * Shared geometry for a slip template that renders one or more cards per page.
+ * Slip templates keep their own paper catalogue; the page count and card height
+ * are always derived here so every slip groups copies identically.
+ */
+export interface CardPrintPaper {
+  size: string
+  width: number
+  height: number
+  perPage: number
+}
+
+export interface CardPrintLayout extends CardPrintPaper {
+  cardHeight: number
+}
+
+export interface CardPrintHostOptions {
+  root: HTMLElement
+  paper: CardPrintPaper
+  /** CSS selector for the per-copy cards, scoped to the root. */
+  cardSelector: string
+  hostClass: string
+  pageClass: string
+  /** Translation prefix, e.g. `documents.receipt`. */
+  errorPrefix: string
+}
+
+export interface CardPrintSheetOptions extends CardPrintHostOptions {
+  bodyClass: string
+  contentSelector: string
+}
+
+export function cardPrintLayout(paper: CardPrintPaper): CardPrintLayout {
+  // Leave a rounding allowance so a fixed paper does not spill onto a blank sheet.
+  const height = paper.height - 0.4
+
+  return { ...paper, height, cardHeight: height / Math.max(1, paper.perPage) }
+}
+
+export function clampCardCopies(value: number): number {
+  return Number.isFinite(value) ? Math.max(1, Math.min(4, Math.floor(value))) : 1
+}
+
+export function createCardPrintHost({
+  root,
+  paper,
+  cardSelector,
+  hostClass,
+  pageClass,
+  errorPrefix,
+}: CardPrintHostOptions): HTMLElement {
+  const layout = cardPrintLayout(paper)
+  const cards = Array.from(root.querySelectorAll<HTMLElement>(cardSelector))
+  if (!cards.length)
+    throw new Error(`${errorPrefix}.printFailed`)
+
+  const host = document.createElement('div')
+  host.className = hostClass
+  host.dir = root.dir
+  host.style.fontFamily = getComputedStyle(root).fontFamily
+  host.dataset.measuring = ''
+  for (let index = 0; index < cards.length; index += layout.perPage) {
+    const page = root.cloneNode(false) as HTMLElement
+    page.classList.add(pageClass)
+    page.style.width = `${layout.width}mm`
+    page.style.height = `${layout.height}mm`
+    for (const card of cards.slice(index, index + layout.perPage)) {
+      const copy = card.cloneNode(true) as HTMLElement
+      copy.style.height = `${layout.cardHeight}mm`
+      page.appendChild(copy)
+    }
+    host.appendChild(page)
+  }
+
+  return host
+}
+
+async function waitForCardArtwork(host: HTMLElement, errorPrefix: string): Promise<void> {
+  const loaded = Promise.all(Array.from(host.querySelectorAll('img')).map(image => {
+    if (image.complete)
+      return image.naturalWidth > 0 ? Promise.resolve() : Promise.reject(new Error(`${errorPrefix}.artworkFailed`))
+
+    return new Promise<void>((resolve, reject) => {
+      image.addEventListener('load', () => resolve(), { once: true })
+      image.addEventListener('error', () => reject(new Error(`${errorPrefix}.artworkFailed`)), { once: true })
+    })
+  }))
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      Promise.all([loaded, document.fonts?.ready]),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`${errorPrefix}.artworkFailed`)), 10_000) }),
+    ])
+  }
+  finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Print a card-based slip through the same body-level host as the Academy slip.
+ * The fixed `@page` rule is the strongest guarantee a browser allows: paper size
+ * and margins stay at the document's intended values unless the operator changes
+ * them in the browser's own print dialog, which JavaScript cannot lock.
+ */
+export async function printCardSheet({
+  root,
+  paper,
+  cardSelector,
+  contentSelector,
+  bodyClass,
+  hostClass,
+  pageClass,
+  errorPrefix,
+}: CardPrintSheetOptions): Promise<void> {
+  await nextTick()
+  const host = createCardPrintHost({ root, paper, cardSelector, hostClass, pageClass, errorPrefix })
+  try {
+    await printDocument({
+      bodyClass,
+      pageStyle: `size: ${paper.size}; margin: 0;`,
+      beforePrint: async () => {
+        document.body.appendChild(host)
+        await waitForCardArtwork(host, errorPrefix)
+        for (const content of host.querySelectorAll<HTMLElement>(contentSelector)) {
+          if (content.scrollHeight > content.clientHeight + 1 || content.scrollWidth > content.clientWidth + 1)
+            throw new Error(`${errorPrefix}.paperTooSmall`)
+        }
+        delete host.dataset.measuring
+      },
+      afterPrint: () => host.remove(),
+    })
+  }
+  catch (error) {
+    host.remove()
+    throw error
+  }
+}

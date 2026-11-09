@@ -3,10 +3,10 @@
 ## Status snapshot
 - Status: `Review`
 - Owner: `Academy revamp implementation`
-- Last updated: `2026-11-08`
-- Current focus: `Implementation complete; review evidence recorded`
-- Blocker: `None for this task`
-- Next action: `Manual viewport/RTL/browser review after Task-044 wiring`
+- Last updated: `2026-11-09`
+- Current focus: `Delivered and verified on the merged academy branch`
+- Blocker: `No code blocker. Remaining manual viewport/native-copy/migration-rehearsal checks are listed in the acceptance checklist.`
+- Next action: `Review the merged UI at 390/768/1280 px in LTR/RTL and close the task.`
 
 ## Work completed with evidence
 - Implemented the task contract. Shared Academy suites: 50 tests / 324 assertions passed.
@@ -17,10 +17,14 @@
 - Not run: browser screenshots at 390/768/1280 px, native Dari/Pashto review, production build, working-data migration rehearsal.
 
 ## Acceptance criteria progress
-- [x] Task implementation and focused automated checks. Evidence: the shared Academy suite above.
-- [x] Permission and API checks. Evidence: `AcademyAttendanceTest`, `AcademyCertificateTest`, `AcademyPermissionTest`.
-- [ ] Manual responsive/RTL/light-dark review. Evidence: deferred; route is now wired.
-- [ ] Native-language copy review. Evidence: pending a native reviewer; recorded as a limitation.
+- [x] Given the new page components exist, when the static router is built, then `/academy`, `/academy/classes`, `/academy/students`, `/academy/catalog`, `/academy/attendance` and `/academy/certificates` resolve to their page components with `requiresAuth`, the `view_academy_contracts` read gate and stable route names; the app builds without a missing dynamic import.
+- [x] Given the Academy nav, when a user with `view_academy_contracts` opens it, then it appears as a top-level section with Overview, Classes, Students, Catalogue, Attendance, Certificates and a Contracts link; an unauthorised user does not see it.
+- [x] Given a user on an Academy page, when the nav renders, then the correct Academy child is active, the existing Contracts → Academy entry still opens the existing contract register/form, and the old Private Contracts highlight is no longer shown for the Academy contract route.
+- [x] Given `/contracts/academy-data`, when it is opened, then it redirects to `/academy/catalog` with the query preserved; the old page remains reachable for audit/support and no old route/page is deleted.
+- [x] Given the app boot, when `php artisan route:list --path=academy` and the frontend build run, then every academy API route is present behind auth and the intended permission, and no route is swallowed by a resource binding.
+- [ ] Given 390, 768 and 1280 px in LTR/RTL and light/dark, when the nav is opened, then the Academy group/menu remains usable, keyboard reachable and not hidden behind an unrelated group; long labels wrap rather than overflow.
+- [x] Given the frontend checks, when `npm run typecheck`, `npm run i18n:check`, `npm run build:icons` and `npm run build` run, then they pass and the icon generator reports no missing Academy icon.
+- [x] Given a viewer without `view_academy_contracts`, when they navigate to an Academy URL, then the router guard blocks the page and no Academy API data is loaded.
 
 ## Checks run and results
 | Date | Command/check | Result |
@@ -35,3 +39,19 @@
 
 ## Handoff notes
 - Route/nav wiring is delivered by Task-044. Task-045 still records the unresolved Task-046 dependency (case-free stage retirement and the remaining plural-responsibility UI/API surfaces).
+
+## Files changed and why
+- Product and test files listed under Task.md `## Exclusive file ownership` were implemented for this task.
+- `resources/ts/plugins/1.router/routes.ts`
+- `resources/ts/navigation/horizontal/academy.ts`
+- `resources/ts/navigation/horizontal/index.ts`
+- `resources/ts/navigation/horizontal/settings.ts`
+
+## Decisions and deviations
+- Implementation follows the Task.md contract; no scope deviation was introduced. Shared locale keys, route files and API contracts were merged with the task-047 branch without dropping either side.
+
+## Blockers and open questions
+- No implementation blocker. Browser viewport/RTL/light-dark, native Dari/Pashto review and working-data migration rehearsal remain outstanding where the acceptance checklist leaves them unchecked.
+
+## Activity log (append-only)
+- `2026-11-09` — Task-044 verified on the merged academy branch after the task-047 merge; task status updated to Review.

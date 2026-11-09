@@ -137,7 +137,7 @@ class EducationalDashboardController extends Controller
             $counts[$key] = ($counts[$key] ?? 0) + (int) $row->total;
         }
 
-        $order = array_flip(BuiltInService::ALL);
+        $order = array_flip(BuiltInService::enabled());
         $stages = ApplicantStage::query()->where('is_active', true)->orderBy('sort_order')->get()
             ->sortBy(fn (ApplicantStage $stage) => [$order[$stage->service] ?? 99, $stage->sort_order])
             ->values();
@@ -177,7 +177,11 @@ class EducationalDashboardController extends Controller
             $contractQuery->whereDate('created_at', '<=', $filters['date_to']);
         }
         $out['contracts']['sold'] = $contractQuery->count();
-        foreach (['scholarships' => 'scholarship', 'test_offers' => 'test_offer', 'academy' => 'academy', 'private' => 'private'] as $key => $category) {
+        $salesCategories = ['scholarships' => 'scholarship', 'test_offers' => 'test_offer', 'academy' => 'academy', 'private' => 'private'];
+        if (! BuiltInService::isEnabled(BuiltInService::ACADEMY)) {
+            unset($salesCategories['academy']);
+        }
+        foreach ($salesCategories as $key => $category) {
             $query = ApplicantContract::query()->where('service', $category)
                 ->whereHas('contract', fn ($q) => $q->whereNotIn('status', ['cancelled', 'terminated'])->where('is_cancelled', false));
             if (($employeeIds = $this->employeeIds($filters)) !== []) {
@@ -307,7 +311,7 @@ class EducationalDashboardController extends Controller
             ->get();
 
         return $employees->map(function (Employee $employee) use ($filters) {
-            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::ALL)->where('sold_by_employee_id', $employee->id);
+            $sales = ApplicantContract::query()->whereIn('service', BuiltInService::enabled())->where('sold_by_employee_id', $employee->id);
             $bonuses = EducationalBonusSource::query()->where('employee_id', $employee->id);
             if (! empty($filters['date_from']) || ! empty($filters['date_to'])) {
                 $sales->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('created_at', '>=', $filters['date_from']))

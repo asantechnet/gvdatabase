@@ -6,7 +6,6 @@ use App\Models\AcademyClass;
 use App\Models\Applicant;
 use App\Models\ApplicantStage;
 use App\Models\Country;
-use App\Models\Duration;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
 use App\Models\Employee;
@@ -14,9 +13,7 @@ use App\Models\Program;
 use App\Models\Semester;
 use App\Models\Skill;
 use App\Models\Subject;
-use App\Models\Teacher;
 use App\Models\Test;
-use App\Models\TimeSlot;
 use App\Models\University;
 use App\Support\BuiltInService;
 use Illuminate\Database\Seeder;
@@ -46,10 +43,8 @@ class ApplicantSeeder extends Seeder
         $tests = Test::query()->pluck('id', 'name');
         $subjects = Subject::query()->pluck('id', 'name');
         $skills = Skill::query()->pluck('id', 'name');
-        $teachers = Teacher::query()->pluck('id', 'name');
+        $teachers = Employee::query()->whereHas('position', fn ($query) => $query->where('system_key', 'teacher'))->pluck('id', 'name');
         $programs = Program::query()->pluck('id', 'name');
-        $times = TimeSlot::query()->pluck('id', 'name');
-        $durations = Duration::query()->pluck('id', 'name');
         $classes = AcademyClass::query()->pluck('id', 'name');
 
         // --- Scholarship case -------------------------------------------------
@@ -112,8 +107,6 @@ class ApplicantSeeder extends Seeder
         ]);
         $academy->academyDetail()->updateOrCreate([], [
             'program_id' => $programs['English Language'] ?? null,
-            'time_id' => $times['Morning'] ?? null,
-            'duration_id' => $durations['3 Months'] ?? null,
             'class_id' => $classes['General English'] ?? null,
         ]);
         $academy->teachers()->sync(array_filter([$teachers['Layla Hashimi'] ?? null, $teachers['Omar Nazari'] ?? null]));

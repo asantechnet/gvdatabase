@@ -14,8 +14,10 @@ import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { printDocument } from '@/utils/printDocument'
 import { canAccess } from '@/utils/authorization'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const { t } = useI18n()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const route = useRoute()
 const toast = useToast()
 // Deep link support: `/all-customers?contact=<applicantId>` (from the visa case
@@ -39,7 +41,7 @@ const canDelete = computed(() => canAccess('delete_applicants'))
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const hasFilters = computed(() => Boolean(search.value || service.value || dateFrom.value || dateTo.value))

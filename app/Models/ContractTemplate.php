@@ -51,6 +51,15 @@ class ContractTemplate extends Model
         return $this->hasMany(ContractTemplateVersion::class);
     }
 
+    /**
+     * Only customer and employment templates are versioned. Other agreements
+     * (including custom contract types) keep one directly editable document.
+     */
+    public function usesVersioning(): bool
+    {
+        return in_array($this->contractType?->slug, ['customer', 'employment'], true);
+    }
+
     public function getTypeSlugAttribute(): ?string
     {
         return $this->contractType?->slug;

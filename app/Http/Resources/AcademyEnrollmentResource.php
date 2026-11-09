@@ -52,11 +52,6 @@ class AcademyEnrollmentResource extends JsonResource
                 ] : null,
             ] : null,
             'class' => $class ? (new AcademyClassResource($class))->resolve($request) : null,
-            'duration' => $this->whenLoaded('duration', fn () => $this->duration ? [
-                'id' => $this->duration->id,
-                'name' => $this->duration->name,
-                'months' => $this->duration->months,
-            ] : null),
             'started_on' => $this->started_on?->toDateString(),
             'ends_on' => $this->ends_on?->toDateString(),
             'status' => $this->status,

@@ -61,7 +61,7 @@ class ContractPolicyController extends Controller
             // contexts the resolver understands. Keep API callers aligned
             // with the restricted select shown in the policy editor.
             'type' => [$partial ? 'sometimes' : 'required', 'string', Rule::exists('contract_types', 'slug')->whereNull('deleted_at')->where('is_active', true)],
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'position_id' => ['nullable', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')],
             'country_id' => ['nullable', 'integer', 'exists:countries,id'],
             'language_id' => ['nullable', 'integer', 'exists:languages,id'],

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\EducationalWorkflowNotificationService;
 use App\Services\TaskBonusCalculationService;
 use App\Support\EmployeeScope;
+use App\Support\TaskAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,7 +55,7 @@ class TaskController extends Controller
         Gate::authorize('create', [Task::class, $board]);
 
         if ($request->has('assignees')) {
-            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? []);
+            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? [], $board);
         }
         if ($request->has('tags') && ! $request->user()->hasPermission('manage_task_tags')) {
             abort(403, 'auth.forbidden');
@@ -64,12 +65,14 @@ class TaskController extends Controller
         $tags = $validated['tags'] ?? [];
         unset($validated['assignees'], $validated['tags'], $validated['service_ids']);
 
-        $task = DB::transaction(function () use ($validated, $assignees, $tags) {
+        $actorId = (int) $request->user()->id;
+        $task = DB::transaction(function () use ($validated, $assignees, $tags, $actorId) {
             $board = Board::whereKey($validated['board_id'])->lockForUpdate()->firstOrFail();
 
             // Serializing creation per board prevents duplicate ordering when
             // multiple tasks are added to the same column concurrently.
             $validated['order'] = (Task::where('board_id', $board->id)->max('order') ?? -1) + 1;
+            $validated['created_by'] = $actorId;
 
             $task = Task::create($validated);
             $task->users()->sync($assignees);
@@ -80,7 +83,7 @@ class TaskController extends Controller
         });
 
         // Load empty relations so the resource doesn't fail
-        $task->load(['users.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task->load(['users.employee', 'creator.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'comments.mentionedUsers', 'dependencies', 'attachments']);
 
         $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
 
@@ -122,7 +125,7 @@ class TaskController extends Controller
 
         if ($request->has('assignees')) {
             Gate::authorize('assignMembers', $task);
-            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? []);
+            $this->assertAssigneesAssignable($request->user(), $validated['assignees'] ?? [], $task->board);
         }
         if ($request->has('tags')) {
             Gate::authorize('manageTags', $task);
@@ -175,7 +178,7 @@ class TaskController extends Controller
             return $task;
         });
 
-        $task = $task->fresh()->load(['users.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']);
+        $task = $task->fresh()->load(['users.employee', 'creator.employee', 'tags', 'applicant', 'subtasks', 'comments.user.employee', 'comments.mentionedUsers', 'dependencies', 'attachments']);
 
         if ($syncAssignees) {
             $this->notifications->taskAssigned($task, $assignees, (int) $request->user()->id);
@@ -229,7 +232,7 @@ class TaskController extends Controller
             }
         });
 
-        return new TaskResource($task->fresh()->load(['users.employee', 'tags', 'subtasks', 'comments.user.employee', 'dependencies', 'attachments']));
+        return new TaskResource($task->fresh()->load(['users.employee', 'creator.employee', 'tags', 'subtasks', 'comments.user.employee', 'comments.mentionedUsers', 'dependencies', 'attachments']));
     }
 
     /** Read-only projection used by the task drawer before anything is saved. */
@@ -317,14 +320,14 @@ class TaskController extends Controller
      *
      * @param  list<int|string>  $assigneeIds
      */
-    private function assertAssigneesAssignable(User $user, array $assigneeIds): void
+    private function assertAssigneesAssignable(User $user, array $assigneeIds, ?Board $board): void
     {
         if ($user->hasDirectPermission('assign_task_members')) {
             return;
         }
 
         $scope = app(EmployeeScope::class);
-        if (! $scope->isDepartmentManager($user)) {
+        if (! TaskAccess::canManageDepartmentBoard($user, $board)) {
             abort(403, 'auth.forbidden');
         }
 

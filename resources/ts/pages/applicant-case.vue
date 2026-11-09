@@ -51,9 +51,9 @@ const canEditCase = computed(() => canAccess('edit_applicants'))
 const canInvitePortal = computed(() => canAccess('invite_applicant_portal'))
 const canAssignEmployee = computed(() => canAccess('assign_applicant_employee'))
 const canAssignResponsible = computed(() => canAccess('assign_responsible_employees'))
-// Test-offer and academy are direct service agreements: no case stage, no
-// responsibility list and no case workspace workflow.
-const caseBearing = computed(() => ['scholarship', 'private'].includes(applicant.value?.service ?? ''))
+// Test offer, scholarship and private own a case stage and responsibility
+// list. Academy is the only direct service agreement without a case workflow.
+const caseBearing = computed(() => ['scholarship', 'test_offer', 'private'].includes(applicant.value?.service ?? ''))
 const canViewFinance = computed(() => canAccess('view_applicant_financials'))
 const canCreateDraftFinance = computed(() => canAccess('create_draft_finance_records'))
 const canApproveDrafts = computed(() => canAccess('approve_draft_finance_records'))
@@ -80,7 +80,7 @@ const guardianSummary = computed(() => {
     rows.push({ key: 'grade-score', label: t('educational.serviceFields.gradeScore'), value: `${n(Number(current.details?.grade_score))}` })
   if (current.details?.passport_id)
     rows.push({ key: 'passport', label: t('educational.serviceFields.passportId'), value: current.details.passport_id })
-  for (const [key, catalog] of [['scholarship', 'scholarships'], ['academy_class', 'classes'], ['test', 'tests'], ['program', 'programs'], ['time', 'times'], ['duration', 'durations']] as const) {
+  for (const [key, catalog] of [['scholarship', 'scholarships'], ['academy_class', 'classes'], ['test', 'tests'], ['program', 'programs']] as const) {
     const name = current.details?.[key]?.name
     if (name)
       rows.push({ key, label: t(catalog === 'scholarships' ? 'erp.scholarship' : catalog === 'classes' ? 'erp.class' : `educational.masterData.${catalog}`), value: name })
@@ -953,7 +953,7 @@ async function uploadDocument() {
       // Reuse the task's input-attachment flow: documents therefore retain
       // the same access controls, audit trail, download handling, and file
       // limits as the assigned case task.
-      await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value, 'input')
+      await TaskApi.uploadAttachment(String(documentTaskId.value), documentFile.value)
       await load()
       toast.success(translate('common.ui.documentAttachedToThisVisaCase'))
     }
@@ -1096,7 +1096,13 @@ onBeforeUnmount(() => {
             <ContactActionMenu v-if="caseCountry.email" kind="email" :value="caseCountry.email" :contactable-type="canEditCase ? 'country' : undefined" :contactable-id="caseCountry.id" :case-applicant-id="applicant.id" />
             <CrmRelationshipDetails type="country" :id="caseCountry.id" :title="caseCountry.name" :case-applicant-id="applicant.id" :readonly="!canEditCase" />
           </div>
-          <p v-if="applicant.details?.university" class="text-caption text-medium-emphasis">{{ t('educational.caseUi.primaryChoice', { university: applicant.details?.university.name }) }}</p>
+          <div v-if="applicant.details?.university" class="university-quick-contact my-2">
+            <span class="font-weight-medium">{{ t('educational.caseUi.primaryChoice', { university: applicant.details.university.name }) }}</span>
+            <ContactActionMenu v-if="universityContactFor(applicant.details.university_id ?? 0)?.phone" kind="phone" :value="universityContactFor(applicant.details.university_id ?? 0)?.phone" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="applicant.details.university_id ?? undefined" :case-applicant-id="applicant.id" />
+            <ContactActionMenu v-if="universityContactFor(applicant.details.university_id ?? 0)?.email" kind="email" :value="universityContactFor(applicant.details.university_id ?? 0)?.email" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="applicant.details.university_id ?? undefined" :case-applicant-id="applicant.id" />
+            <CrmRelationshipDetails v-if="applicant.details.university_id" type="university" :id="applicant.details.university_id" :title="applicant.details.university.name" :case-applicant-id="applicant.id" :readonly="!canEditCase" />
+            <a v-if="portalHref(universityContactFor(applicant.details.university_id ?? 0)?.portal_url)" :href="portalHref(universityContactFor(applicant.details.university_id ?? 0)?.portal_url) ?? undefined" class="case-portal-link" target="_blank" rel="noopener noreferrer">{{ t('educational.caseUi.openPortal') }}</a>
+          </div>
           <h4 class="mt-2">{{ t('educational.caseUi.trackedApplications') }}</h4>
           <VList>
             <VListItem
@@ -1194,7 +1200,7 @@ onBeforeUnmount(() => {
       <VForm class="app-form" @submit.prevent="saveUni">
         <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.addUniversityApplication') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingUni" @click="uniDialog = false" /></VCardTitle>
         <VCardText class="case-dialog-body case-form-dialog__body pa-5">
-          <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" label="Intake" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
+          <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" :label="t('educational.caseUi.intake')" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
           <ErpField v-model="uniForm.notes" kind="textarea" :label="t('common.fields.notes')" :placeholder="t('common.fields.notes')" rows="3" />
         </VCardText>
         <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingUni" @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingUni" :disabled="!uniForm.university_id">{{ t('common.actions.add') }}</VBtn></VCardActions>

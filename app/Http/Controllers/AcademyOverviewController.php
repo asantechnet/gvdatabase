@@ -13,7 +13,7 @@ class AcademyOverviewController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $active = AcademyEnrollment::query()->where('status', 'active');
-        $classes = AcademyClass::query()->with(['program', 'time', 'duration', 'teachers'])
+        $classes = AcademyClass::query()->with(['program', 'teachers'])
             ->withCount(['enrollments as seats_taken' => fn ($query) => $query->where('status', 'active')])
             ->where('is_active', true)
             ->orderBy('sort_order')

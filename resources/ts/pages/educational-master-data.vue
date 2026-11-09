@@ -5,11 +5,13 @@ import { useI18n } from 'vue-i18n'
 import MasterDataApi, { type EducationalCatalog, type MasterDataRecord } from '@/api/educationalMasterData'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import ContactActionMenu from '@/components/ContactActionMenu.vue'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
 import { canAccess } from '@/utils/authorization'
 
 const toast = useToast()
 const { t } = useI18n()
+const { enabled: academyEnabled, load: loadAcademyEnabled } = useAcademyEnabled()
 type Catalog = Exclude<EducationalCatalog, 'times' | 'durations' | 'teachers' | 'classes'>
 type CatalogRow = MasterDataRecord
 
@@ -25,7 +27,12 @@ const loading = ref(false)
 const form = ref<Partial<CatalogRow>>({ name: '', is_active: true })
 // Times, durations, teachers and classes moved to the academy data page under
 // Options -> Contracts (see `pages/academy-data.vue`).
-const labels = computed<Record<Catalog, string>>(() => ({ countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), scholarships: t('erp.scholarship'), provinces: t('educational.masterData.provinces'), 'english-levels': t('educational.masterData.englishLevels'), 'acquisition-routes': t('educational.masterData.acquisitionRoutes') }))
+const labels = computed<Record<Catalog, string>>(() => {
+  const items: Record<Catalog, string> = { countries: t('educational.masterData.countries'), 'education-levels': t('educational.masterData.educationLevels'), languages: t('educational.masterData.languages'), universities: t('educational.masterData.universities'), semesters: t('educational.semester'), subjects: t('educational.masterData.subjects'), tests: t('educational.masterData.tests'), skills: t('educational.masterData.skills'), programs: t('educational.masterData.programs'), scholarships: t('erp.scholarship'), provinces: t('educational.masterData.provinces'), 'english-levels': t('educational.masterData.englishLevels'), 'acquisition-routes': t('educational.masterData.acquisitionRoutes') }
+  if (!academyEnabled.value)
+    delete (items as Partial<Record<Catalog, string>>).programs
+  return items
+})
 const hasCode = computed(() => ['countries', 'languages', 'semesters'].includes(catalog.value))
 const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'programs', 'scholarships', 'provinces', 'english-levels', 'acquisition-routes'].includes(catalog.value))
 // Countries and universities are the two catalogues a visa case contacts
@@ -74,7 +81,7 @@ async function remove(row: CatalogRow) {
 }
 
 watch(catalog, load)
-onMounted(load)
+onMounted(() => Promise.all([loadAcademyEnabled(), load()]))
 </script>
 
 <template>

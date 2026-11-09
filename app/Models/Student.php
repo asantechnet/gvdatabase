@@ -31,4 +31,10 @@ class Student extends Model
     {
         return $this->hasMany(AcademyEnrollment::class);
     }
+
+    /** Receipts recorded directly against this student. */
+    public function incomes(): HasMany
+    {
+        return $this->hasMany(Income::class);
+    }
 }

@@ -15,7 +15,7 @@ class AcademyTeacherTimesheet extends Model
 
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class);
+        return $this->belongsTo(Employee::class, 'teacher_id');
     }
 
     public function academyClass(): BelongsTo

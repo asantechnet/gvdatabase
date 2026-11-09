@@ -12,6 +12,8 @@ export interface CommissionAccrual {
   id: number
   contract_id: number | null
   contract_number: string | null
+  class_id: number | null
+  class_name: string | null
   // The case that earned the accrual, and the stage it sits at now — the
   // backend only pays out while the case is in the completed stage.
   case_id: number | null
@@ -60,6 +62,7 @@ export interface CommissionSlipAccrual {
   entry_type: 'earned' | 'adjustment'
   adjustment_reason: string | null
   contract_number: string | null
+  class_name: string | null
   case_name: string | null
   service: string | null
   service_label: string

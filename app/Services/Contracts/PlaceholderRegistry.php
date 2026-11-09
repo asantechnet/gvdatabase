@@ -80,8 +80,6 @@ class PlaceholderRegistry
                     ['key' => 'applicant.test', 'label' => 'Test'],
                     ['key' => 'applicant.program', 'label' => 'Academy Program'],
                     ['key' => 'applicant.class', 'label' => 'Academy Class'],
-                    ['key' => 'applicant.time', 'label' => 'Class Time'],
-                    ['key' => 'applicant.duration', 'label' => 'Course Duration'],
                     ['key' => 'applicant.subjects', 'label' => 'Requested Subjects'],
                     ['key' => 'applicant.skills', 'label' => 'Skills'],
                     ['key' => 'applicant.teachers', 'label' => 'Teachers'],

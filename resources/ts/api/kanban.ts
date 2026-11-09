@@ -9,12 +9,16 @@ export interface Board {
   user_id: string | null
   is_personal: boolean
   is_owned: boolean
+  department_id: number | null
+  is_department: boolean
   tasks: Task[]
 }
 
 export interface Task {
   id: string
   boardId: string
+  creatorId: string | null
+  creator: User | null
   title: string
   description: string
   attachments: TaskAttachment[]
@@ -80,6 +84,8 @@ export interface Comment {
   senderId: string
   senderAvatar: string | null
   content: string
+  mentionIds: string[]
+  mentions: Array<{ id: string; name: string }>
   timestamp: string
   createdAt: string | null
   editableUntil: string
@@ -121,6 +127,7 @@ export interface MoveTaskData {
 
 export interface CreateCommentData {
   content: string
+  mention_ids?: number[]
 }
 
 // Kanban API endpoints

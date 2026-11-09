@@ -76,7 +76,9 @@ const print = async () => {
     return
   await printDocument({
     bodyClass: 'printing-advance-receipt',
-    pageStyle: 'size: A5; margin: 4mm;',
+    // Fixed A5 with no page margin: the card padding owns the safe area, so
+    // the browser's margin setting cannot shrink the two-copy layout.
+    pageStyle: 'size: A5; margin: 0;',
     element: rootRef.value,
   })
 }

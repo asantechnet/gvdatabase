@@ -8,6 +8,7 @@ This directory is the maintained reference for implemented behavior. Read the re
 | PWA and release updates | [pwa.md](pwa.md) | Installation, branding, release identity, update checks, consent, caches, offline behavior, manual deployment, troubleshooting and regression checks |
 | Background polling and error feedback | [background-polling.md](background-polling.md) | Active-tab scheduling, quiet API reads, auth retries, deferred heartbeat notices and regression procedure |
 | RTL direction and the always-LTR header | [rtl-direction.md](rtl-direction.md) | Locale-driven document direction, header direction override, scoped-style `:global()` mirroring pitfall, browser diagnosis and prevention checks |
+| Slip printing | [printing.md](printing.md) | Shared slip preview dialog, card-sheet grouping, fixed A5/A4 page settings, namespaced print CSS and browser print-control limits |
 
 PWA, background polling, RTL direction and testing behavior have been consolidated here so far. The absence of a facts file for another feature does not make its older plan current.
 

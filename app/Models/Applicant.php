@@ -296,10 +296,10 @@ class Applicant extends Model
             ->withTimestamps();
     }
 
-    /** An academy applicant's assigned teachers. */
+    /** An academy applicant's assigned teachers (employee records). */
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'academy_applicant_teacher')
+        return $this->belongsToMany(Employee::class, 'academy_applicant_teacher', 'applicant_id', 'teacher_id')
             ->withTimestamps();
     }
 

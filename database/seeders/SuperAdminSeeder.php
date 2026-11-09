@@ -70,7 +70,6 @@ class SuperAdminSeeder extends Seeder
                 'education_lvl' => 'Bachelor',
                 'position_id' => $directorPosition->id,
                 'salary' => $directorPosition->salary,
-                'department' => 'Administration',
                 'join_date' => now()->toDateString(),
                 'contract_duration' => 'Permanent',
             ],

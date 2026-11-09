@@ -26,9 +26,9 @@ const search = ref('')
 
 const canManageDepartments = computed(() => canAccess('manage_departments'))
 
-const blank = (): DepartmentPayload => ({ name: '', description: null, manager_employee_id: null, is_active: true })
+const blank = (): DepartmentPayload => ({ name: '', description: null, manager_employee_ids: [], create_task_board: true, is_active: true })
 const form = ref<DepartmentPayload>(blank())
-const managerError = computed(() => fieldErrorMessages('manager_id'))
+const managerError = computed(() => fieldErrorMessages('manager_employee_ids') || fieldErrorMessages('manager_id'))
 
 const managerSelectOptions = computed(() => {
   const options: Array<{ title: string; value: number; props?: { disabled: boolean } }> = managerOptions.value.map(option => ({
@@ -36,15 +36,15 @@ const managerSelectOptions = computed(() => {
     value: option.id,
   }))
 
-  // Keep a saved manager visible even after they lose eligibility. Dropping
-  // the value silently would make the form look like it has no manager.
-  const currentId = editing.value?.manager_employee_id
-  if (currentId && !options.some(option => option.value === currentId)) {
-    options.unshift({
-      title: `${editing.value?.manager_name ?? `#${currentId}`} · ${translate('common.ui.currentManagerNoLongerEligible')}`,
-      value: currentId,
-      props: { disabled: true },
-    })
+  for (const currentId of editing.value?.manager_employee_ids ?? []) {
+    if (!options.some(option => option.value === currentId)) {
+      const name = editing.value?.managers?.find(manager => manager.id === currentId)?.name ?? `#${currentId}`
+      options.unshift({
+        title: `${name} · ${translate('common.ui.currentManagerNoLongerEligible')}`,
+        value: currentId,
+        props: { disabled: true },
+      })
+    }
   }
 
   return options
@@ -89,7 +89,8 @@ async function openDialog(department: Department | null = null) {
     ? {
         name: department.name,
         description: department.description,
-        manager_employee_id: department.manager_employee_id,
+        manager_employee_ids: [...(department.manager_employee_ids ?? [])],
+        create_task_board: !department.board_id,
         is_active: department.is_active,
       }
     : blank()
@@ -239,24 +240,36 @@ onMounted(load)
       <VCardTitle class="department-dialog-title px-5 py-4"><span class="text-h5 department-dialog-heading">{{ editing ? $t('common.ui.editDepartment') : $t('common.ui.createDepartment') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="department-dialog-close" :aria-label="$t('common.actions.close')" @click="dialogOpen = false" /></VCardTitle>
       <VCardText class="department-dialog-body pa-5 pa-sm-6">
         <VAlert type="info" variant="tonal" class="mb-4">
-          {{ $t('common.ui.onlyAHigherRankedEmployeeWithSupervisoryAccessCanManageADepartmentAssignDirectSupervisorsFromStaffDirectoryAfterSaving') }}
+          {{ $t('common.ui.seniorManagersHint') }}
         </VAlert>
         <VRow>
           <VCol cols="12" sm="6"><ErpField v-model="form.name" :label="$t('common.ui.departmentName')" placeholder="e.g. Admissions" required /></VCol>
           <VCol cols="12" sm="6"><ErpField
-            v-model="form.manager_employee_id"
-            kind="select"
+            v-model="form.manager_employee_ids"
+            kind="autocomplete"
             :items="managerSelectOptions"
-            :label="$t('common.ui.departmentManager')"
-            placeholder="Select a manager"
+            :label="$t('common.ui.departmentManagers')"
+            placeholder="Select one or more senior managers"
             :error-messages="managerError"
             :no-data-text="$t('common.ui.noEligibleDepartmentManagers')"
+            multiple
+            chips
+            closable-chips
             clearable
-            @update:model-value="clearFieldError('manager_id')"
+            @update:model-value="clearFieldError('manager_employee_ids')"
           /></VCol>
         </VRow>
         <ErpField v-model="form.description" kind="textarea" :label="$t('common.ui.descriptionOptional')" placeholder="What does this team own?" rows="2" class="mb-3" />
-        <VSwitch v-model="form.is_active" :label="$t('common.ui.activeDepartment')" color="primary" hide-details />
+        <VSwitch v-model="form.is_active" :label="$t('common.ui.activeDepartment')" color="primary" hide-details class="mb-3" />
+        <VSwitch
+          v-if="!editing || !editing.board_id"
+          v-model="form.create_task_board"
+          :label="$t('common.ui.createTaskBoard')"
+          :hint="$t('common.ui.createTaskBoardHint')"
+          color="primary"
+          persistent-hint
+          hide-details
+        />
       </VCardText>
       <VCardActions class="department-dialog-actions px-5 py-4"><VBtn class="department-dialog-cancel" variant="flat" color="error" :disabled="loading" @click="dialogOpen = false">{{ $t('common.actions.cancel') }}</VBtn><VSpacer /><VBtn class="department-dialog-submit" color="primary" variant="flat" :loading="loading" @click="save">{{ $t('common.actions.save') }}</VBtn></VCardActions>
     </VCard>

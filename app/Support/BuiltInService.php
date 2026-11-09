@@ -25,10 +25,10 @@ final class BuiltInService
     public const ALL = [self::SCHOLARSHIP, self::TEST_OFFER, self::ACADEMY, self::PRIVATE];
 
     /** Services that own a stage workflow and an applicant case. */
-    public const CASE_BEARING = [self::SCHOLARSHIP, self::PRIVATE];
+    public const CASE_BEARING = [self::SCHOLARSHIP, self::TEST_OFFER, self::PRIVATE];
 
     /** Services sold as a direct agreement without a case or stage workflow. */
-    public const CASE_FREE = [self::TEST_OFFER, self::ACADEMY];
+    public const CASE_FREE = [self::ACADEMY];
 
     /** Human labels. The UI renders its own translations for these values. */
     private const LABELS = [
@@ -53,6 +53,21 @@ final class BuiltInService
         self::ACADEMY => 'educational.builtInServices.academy',
         self::PRIVATE => 'educational.builtInServices.private',
     ];
+
+    /** Services currently available under company settings. */
+    public static function enabled(): array
+    {
+        if (app(CompanyProfile::class)->academyEnabled()) {
+            return self::ALL;
+        }
+
+        return array_values(array_filter(self::ALL, fn (string $service) => $service !== self::ACADEMY));
+    }
+
+    public static function isEnabled(mixed $service): bool
+    {
+        return is_string($service) && in_array($service, self::enabled(), true);
+    }
 
     public static function isValid(mixed $service): bool
     {

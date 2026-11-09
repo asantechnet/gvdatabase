@@ -167,7 +167,7 @@ export const useTaskStore = defineStore('taskManager', () => {
       isLoading.value = true
       error.value = null
 
-      const response = await KanbanApi.getBoard()
+      const response = await BoardApi.getAll()
 
       boards.value = response.data.data
       tasks.value = response.data.data.flatMap(board => board.tasks).map(task => ({
@@ -527,14 +527,14 @@ export const useTaskStore = defineStore('taskManager', () => {
     task.progress = response.data.taskProgress
   }
 
-  const addComment = async (taskId: string, content: string) => {
+  const addComment = async (taskId: string, content: string, mentionIds: number[] = []) => {
     if (!canAccess('create_comments_on_assigned_tasks'))
       return
     try {
       isLoading.value = true
       error.value = null
 
-      const response = await CommentApi.create(taskId, { content })
+      const response = await CommentApi.create(taskId, { content, mention_ids: mentionIds })
       const task = tasks.value.find(t => t.id === taskId)
       if (task) {
         if (!task.comments)
@@ -552,12 +552,12 @@ export const useTaskStore = defineStore('taskManager', () => {
     }
   }
 
-  const updateComment = async (taskId: string, commentId: string, content: string) => {
+  const updateComment = async (taskId: string, commentId: string, content: string, mentionIds: number[] = []) => {
     const task = tasks.value.find(candidate => candidate.id === taskId)
     const comment = task?.comments.find(candidate => candidate.id === commentId)
     if (!comment || !comment.canEdit)
       return
-    const response = await CommentApi.update(taskId, commentId, content)
+    const response = await CommentApi.update(taskId, commentId, content, mentionIds)
 
     Object.assign(comment, response.data.data)
   }

@@ -7,7 +7,6 @@ use App\Models\AcademyEnrollment;
 use App\Models\Applicant;
 use App\Models\ApplicantContract;
 use App\Models\Contract;
-use App\Models\Duration;
 use App\Models\Student;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -15,32 +14,21 @@ use Illuminate\Support\Facades\DB;
 /**
  * The single writer for Academy terms and enrollments.
  *
- * Start is the contract's sale date. End is the earlier of the class end and
- * the sold duration's month count, so an enrollment never outlives either
- * promise. No client-supplied date is accepted.
+ * Start is the contract's sale date and end is the class end. No
+ * client-supplied date is accepted.
  */
 class AcademyEnrollmentService
 {
     /** @return array{started_on: string, ends_on: string} */
-    public function termFor(AcademyClass $class, ?Duration $duration, CarbonImmutable $start): array
+    public function termFor(AcademyClass $class, CarbonImmutable $start): array
     {
-        $classEnd = $class->ends_on?->toDateString();
+        $end = $class->ends_on?->toDateString();
 
-        if ($classEnd !== null && $classEnd < $start->toDateString()) {
-            abort(422, 'business.academy_class_ended');
-        }
-
-        $durationEnd = $duration?->months
-            ? $start->addMonthsNoOverflow((int) $duration->months)->toDateString()
-            : null;
-
-        $end = collect([$classEnd, $durationEnd])->filter()->sort()->first();
-
-        if ($end === null) {
+        if ($end === null || $end < $start->toDateString()) {
             abort(422, 'business.academy_term_undefined');
         }
 
-        if ($end < $start->toDateString()) {
+        if ($class->starts_on !== null && $end < $class->starts_on->toDateString()) {
             abort(422, 'business.academy_term_undefined');
         }
 
@@ -51,12 +39,13 @@ class AcademyEnrollmentService
     {
         return DB::transaction(function () use ($contract, $line, $applicant, $data): AcademyEnrollment {
             $class = AcademyClass::query()->lockForUpdate()->findOrFail($data['class_id']);
-            $duration = ! empty($data['duration_id']) ? Duration::query()->find($data['duration_id']) : $class->duration;
             $start = CarbonImmutable::parse($contract->start_date->toDateString());
-            $term = $this->termFor($class, $duration, $start);
+            $term = $this->termFor($class, $start);
             $this->assertSeatAvailable($class);
 
-            $student = $this->studentFor($applicant, (string) $data['student_id']);
+            $student = $this->studentFor($applicant, $data['student_id'] ?? null);
+            $this->assertStudentNotEnrolled($student, $class);
+            $this->syncStudentNumberOnDetail($applicant, $student);
             $enrollment = AcademyEnrollment::query()->create([
                 'student_id' => $student->id,
                 'applicant_id' => $applicant->id,
@@ -64,8 +53,6 @@ class AcademyEnrollmentService
                 'applicant_contract_id' => $line->id,
                 'class_id' => $class->id,
                 'program_id' => $data['program_id'] ?? $class->program_id,
-                'time_id' => $data['time_id'] ?? $class->time_id,
-                'duration_id' => $duration?->id ?? $class->duration_id,
                 'started_on' => $term['started_on'],
                 'ends_on' => $term['ends_on'],
                 'status' => 'active',
@@ -86,20 +73,19 @@ class AcademyEnrollmentService
             }
 
             $class = AcademyClass::query()->lockForUpdate()->findOrFail($data['class_id']);
-            $duration = ! empty($data['duration_id']) ? Duration::query()->find($data['duration_id']) : $class->duration;
             $start = CarbonImmutable::parse($contract->start_date->toDateString());
-            $term = $this->termFor($class, $duration, $start);
+            $term = $this->termFor($class, $start);
             $this->assertSeatAvailable($class, $enrollment->id);
 
-            $student = $this->studentFor($applicant, (string) $data['student_id']);
+            $student = $this->studentFor($applicant, $data['student_id'] ?? null);
+            $this->assertStudentNotEnrolled($student, $class, $enrollment->id);
+            $this->syncStudentNumberOnDetail($applicant, $student);
             $enrollment->update([
                 'student_id' => $student->id,
                 'applicant_id' => $applicant->id,
                 'contract_id' => $contract->id,
                 'class_id' => $class->id,
                 'program_id' => $data['program_id'] ?? $class->program_id,
-                'time_id' => $data['time_id'] ?? $class->time_id,
-                'duration_id' => $duration?->id ?? $class->duration_id,
                 'started_on' => $term['started_on'],
                 'ends_on' => $term['ends_on'],
             ]);
@@ -113,7 +99,7 @@ class AcademyEnrollmentService
     /** @return array<string, mixed> */
     public function snapshot(AcademyEnrollment $enrollment): array
     {
-        $enrollment->loadMissing(['student', 'academyClass.program', 'academyClass.time', 'academyClass.teachers', 'duration']);
+        $enrollment->loadMissing(['student', 'academyClass.program', 'academyClass.teachers']);
 
         return [
             'enrollment_id' => $enrollment->id,
@@ -122,12 +108,28 @@ class AcademyEnrollmentService
             'class_id' => $enrollment->class_id,
             'class_name' => $enrollment->academyClass?->name,
             'program' => $enrollment->academyClass?->program?->name,
-            'time' => $enrollment->academyClass?->time?->name,
-            'duration' => $enrollment->duration?->name,
             'teachers' => $enrollment->academyClass?->teachers?->pluck('name')->values()->all() ?? [],
             'started_on' => $enrollment->started_on?->toDateString(),
             'ends_on' => $enrollment->ends_on?->toDateString(),
         ];
+    }
+
+    /**
+     * One student cannot hold a second live or completed enrollment in the
+     * same class. Withdrawn and cancelled attempts are not a completed class
+     * and may be retried; soft-deleted rows do not block a new enrollment.
+     */
+    private function assertStudentNotEnrolled(Student $student, AcademyClass $class, ?int $excluding = null): void
+    {
+        $duplicate = AcademyEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('class_id', $class->id)
+            ->whereIn('status', ['active', 'completed'])
+            ->when($excluding, fn ($query) => $query->whereKeyNot($excluding))
+            ->lockForUpdate()
+            ->first();
+
+        abort_if($duplicate !== null, 422, 'business.academy_enrollment_duplicate');
     }
 
     private function assertSeatAvailable(AcademyClass $class, ?int $excluding = null): void
@@ -147,27 +149,73 @@ class AcademyEnrollmentService
         }
     }
 
-    private function studentFor(Applicant $applicant, string $studentNumber): Student
+    /**
+     * Reuse the applicant's durable student row or create it from the contract
+     * identity. Older clients may still supply a number; otherwise the student
+     * gets a generated number that slips and certificates can print without
+     * asking the operator for it.
+     */
+    private function studentFor(Applicant $applicant, ?string $studentNumber): Student
     {
-        $student = Student::query()->where('applicant_id', $applicant->id)->first();
-
-        if ($student) {
-            if ($student->student_number === null && $studentNumber !== '') {
-                $student->update(['student_number' => $studentNumber]);
-            }
-
-            return $student;
-        }
-
-        return Student::query()->create([
-            'student_number' => $studentNumber !== '' ? $studentNumber : null,
-            'applicant_id' => $applicant->id,
+        $identity = [
             'name' => $applicant->name,
             'father_name' => $applicant->father_name,
             'father_phone' => $applicant->father_phone,
             'contact' => $applicant->contact,
             'email' => $applicant->email,
             'address' => $applicant->address,
+        ];
+        $supplied = trim((string) $studentNumber);
+        $student = Student::query()->where('applicant_id', $applicant->id)->first();
+
+        if ($student) {
+            $student->fill($identity);
+            if ($student->student_number === null) {
+                $student->student_number = $supplied !== '' ? $supplied : null;
+            }
+            $student->save();
+
+            if ($student->student_number === null) {
+                $student->update(['student_number' => $this->generatedStudentNumber($student)]);
+            }
+
+            return $student->refresh();
+        }
+
+        $student = Student::query()->create([
+            ...$identity,
+            'student_number' => $supplied !== '' ? $supplied : null,
+            'applicant_id' => $applicant->id,
         ]);
+
+        if ($student->student_number === null) {
+            $student->update(['student_number' => $this->generatedStudentNumber($student)]);
+        }
+
+        return $student->refresh();
+    }
+
+    /** The student row id is unique, so it is the safe generated-number base. */
+    private function generatedStudentNumber(Student $student): string
+    {
+        $base = 'STU-'.str_pad((string) $student->id, 6, '0', STR_PAD_LEFT);
+        $number = $base;
+        $suffix = 1;
+
+        while (Student::withTrashed()->where('student_number', $number)->whereKeyNot($student->id)->exists()) {
+            $number = $base.'-'.(++$suffix);
+        }
+
+        return $number;
+    }
+
+    /** Keep the legacy academy detail's student number aligned with the student row. */
+    private function syncStudentNumberOnDetail(Applicant $applicant, Student $student): void
+    {
+        if ($student->student_number === null) {
+            return;
+        }
+
+        $applicant->academyDetail()->updateOrCreate([], ['student_id' => $student->student_number]);
     }
 }

@@ -5,20 +5,21 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateAcademyEnrollmentRequest;
 use App\Http\Resources\AcademyEnrollmentResource;
 use App\Models\AcademyEnrollment;
+use App\Services\AcademySlipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AcademyEnrollmentController extends Controller
 {
     private const RELATIONS = [
-        'student', 'applicant', 'contract', 'line.currency', 'duration',
-        'academyClass.program', 'academyClass.time', 'academyClass.teachers',
+        'student', 'applicant', 'contract', 'line.currency',
+        'academyClass.program', 'academyClass.teachers',
     ];
 
     private function withRelations($query)
     {
         return $query->with(self::RELATIONS)->with(['academyClass' => fn ($class) => $class
-            ->with(['program', 'time', 'duration', 'teachers'])
+            ->with(['program', 'teachers'])
             ->withCount(['enrollments as seats_taken' => fn ($enrollments) => $enrollments->where('status', 'active')])]);
     }
 
@@ -32,7 +33,7 @@ class AcademyEnrollmentController extends Controller
                 ->whereBetween('ends_on', [now()->toDateString(), now()->addDays(30)->toDateString()]))
             ->when($request->filled('teacher_id'), fn ($query) => $query->whereHas(
                 'academyClass.teachers',
-                fn ($teacher) => $teacher->where('teachers.id', $request->integer('teacher_id')),
+                fn ($teacher) => $teacher->where('employees.id', $request->integer('teacher_id')),
             ))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = $request->string('search')->toString();
@@ -70,6 +71,12 @@ class AcademyEnrollmentController extends Controller
             'success' => true,
             'data' => (new AcademyEnrollmentResource($academyEnrollment))->resolve($request),
         ]);
+    }
+
+    /** The student slip for one enrollment. */
+    public function slip(AcademyEnrollment $academyEnrollment, AcademySlipService $slips): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $slips->forEnrollment($academyEnrollment)]);
     }
 
     public function update(UpdateAcademyEnrollmentRequest $request, AcademyEnrollment $academyEnrollment): JsonResponse

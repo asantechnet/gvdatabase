@@ -27,6 +27,7 @@ return [
         'office_close_time' => 'دفتر تړل کیږي',
         'default_break_minutes' => 'د دمې (تفرېح) دقیقې',
         'automatic_attendance_enabled' => 'اتومات حاضري فعاله کړئ',
+        'academy_enabled' => 'اکاډمي فعاله کړئ',
         'missing_attendance_status' => 'د حاضري رکورد نه لرونکې ورځې',
         'primary_color' => 'لومړنی',
         'secondary_color' => 'دویم',

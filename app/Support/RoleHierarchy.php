@@ -2,20 +2,20 @@
 
 namespace App\Support;
 
-use App\Models\Role;
 use App\Models\Employee;
+use App\Models\Role;
 use App\Models\User;
 
 /**
- * Resolves role seniority from the `roles.level` column.
+ * Resolves authority from the role seniority flag.
  *
- * Levels are deliberately linear: a higher number outranks a lower one.
- * The constants below are the seed defaults and the fallback for rows that
- * predate the level column, so rank comparisons stay stable even before the
- * seeder has run.
+ * A role is either senior or junior. Senior employees may manage departments
+ * and supervise the work of junior employees; permissions still decide which
+ * actions each role can perform.
  */
 class RoleHierarchy
 {
+    /** Legacy seed defaults, retained only to seed/repair the is_senior flag. */
     public const LEVELS = [
         'super_admin' => 500,
         'admin' => 400,
@@ -28,6 +28,7 @@ class RoleHierarchy
         'staff' => 150,
         'document_officer' => 100,
         'viewer' => 50,
+        'teacher' => 40,
         'applicant' => 0,
     ];
 
@@ -36,27 +37,34 @@ class RoleHierarchy
         return self::LEVELS[$roleName] ?? 0;
     }
 
+    public function isSeniorRole(Role $role): bool
+    {
+        return $role->name === 'super_admin' || (bool) $role->is_senior;
+    }
+
+    public function isSenior(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $user->roles()->where('is_senior', true)->exists();
+    }
+
+    /** Legacy numeric rank used by older callers and audit tooling. */
     public function rank(User $user): int
     {
-        return $this->rankForRoles($user->roleNames());
+        return $user->isSuperAdmin() ? self::LEVELS['super_admin'] : ($this->isSenior($user) ? 200 : 100);
     }
 
     /** @param array<int, string> $roleNames */
     public function rankForRoles(array $roleNames): int
     {
-        if ($roleNames === []) {
-            return 0;
+        if (in_array('super_admin', $roleNames, true)) {
+            return self::LEVELS['super_admin'];
         }
 
-        $levels = Role::query()->whereIn('name', $roleNames)->pluck('level', 'name')->all();
-
-        return collect($roleNames)
-            ->map(function (string $role) use ($levels): int {
-                $level = (int) ($levels[$role] ?? 0);
-
-                return $level > 0 ? $level : $this->defaultLevel($role);
-            })
-            ->max() ?? 0;
+        return Role::query()->whereIn('name', $roleNames)->where('is_senior', true)->exists() ? 200 : 100;
     }
 
     public function canReview(User $reviewer, User $requester, ?int $protectedRank = null): bool
@@ -65,57 +73,48 @@ class RoleHierarchy
             return false;
         }
 
-        return $this->canReviewRank($reviewer, max($this->rank($requester), $protectedRank ?? 0));
+        if ($requester->isSuperAdmin()) {
+            return $reviewer->isSuperAdmin();
+        }
+
+        return $this->isSenior($reviewer) && ! $this->isSenior($requester);
     }
 
     public function canReviewRank(User $reviewer, int $requesterRank): bool
     {
         $reviewerRank = $this->rank($reviewer);
 
-        // A protected super-administrator may only be reviewed by a different
-        // super-administrator. Other equal-rank reviews are never permitted.
         return $requesterRank >= self::LEVELS['super_admin']
             ? $reviewerRank >= self::LEVELS['super_admin']
             : $reviewerRank > $requesterRank;
     }
 
-    /**
-     * True when the actor outranks (or is a super admin equivalent to) the
-     * target role level. Used to stop a user granting themselves or others a
-     * role at or above their own seniority.
-     */
+    public function canAssignRole(User $actor, Role $role): bool
+    {
+        if ($role->name === 'super_admin') {
+            return $actor->isSuperAdmin();
+        }
+
+        return ! $role->is_senior || $actor->isSuperAdmin() || $this->isSenior($actor);
+    }
+
+    /** Legacy level guard; new callers should use canAssignRole(). */
     public function canAssignLevel(User $actor, int $targetLevel): bool
     {
         if ($actor->isSuperAdmin()) {
             return true;
         }
 
-        return $this->rank($actor) > $targetLevel;
+        return $this->isSenior($actor) && $targetLevel < 200;
     }
 
-    /**
-     * A reporting line is only meaningful when its supervisor is both an
-     * authenticated staff member and strictly more senior than the employee
-     * being supervised.  This deliberately uses role levels, not job titles:
-     * positions describe work, while roles describe authority.
-     */
     public function canSupervise(Employee $supervisor, Employee $subordinate): bool
     {
         if ((int) $supervisor->id === (int) $subordinate->id || ! $supervisor->user) {
             return false;
         }
 
-        $supervisorRank = $this->rank($supervisor->user);
-        if ($supervisorRank === 0 || ! $supervisor->user->hasPermission('view_subordinate_records')) {
-            return false;
-        }
-
-        // Employees without an account receive the same baseline rank as the
-        // staff account the employee workflow would create for them.
-        $subordinateRank = $subordinate->user
-            ? $this->rank($subordinate->user)
-            : self::LEVELS['staff'];
-
-        return $supervisorRank > $subordinateRank;
+        return $this->isSenior($supervisor->user)
+            && $supervisor->user->hasPermission('view_subordinate_records');
     }
 }

@@ -108,6 +108,7 @@ class UpsertSettingRequest extends FormRequest
             'office_close_time' => ['nullable', 'date_format:H:i'],
             'default_break_minutes' => ['sometimes', 'integer', 'min:0', 'max:720'],
             'automatic_attendance_enabled' => ['sometimes', 'boolean'],
+            'academy_enabled' => ['sometimes', 'boolean'],
             'missing_attendance_status' => ['sometimes', 'required', Rule::in(['present', 'absent', 'off_day'])],
         ];
     }

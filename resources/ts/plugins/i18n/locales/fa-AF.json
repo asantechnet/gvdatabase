@@ -1,6 +1,8 @@
 {
   "serviceContracts": {
     "extension": "غځونه",
+    "contract": "قرارداد",
+    "parentContract": "قرارداد مادر",
     "responsibleEmployee": "مشاور",
     "number": "شماره قرارداد",
     "applicant": "نام متقاضی",
@@ -40,6 +42,7 @@
     "cancelled": "لغوشده",
     "studentId": "شناسه شاگرد",
     "studentFullName": "نام کامل شاگرد",
+    "studentIdAuto": "رکورد شاگرد و شماره شاگرد آکادمی هنگام ذخیره قرارداد به‌طور خودکار ایجاد می‌شوند.",
     "consultant": "مشاور",
     "applicationFeeRange": "محدوده فیس درخواست",
     "applicationFeeMinimum": "فیس درخواست از",
@@ -256,6 +259,8 @@
       "country": "کشور",
       "language": "زبان",
       "applicant": "متقاضی",
+      "student": "شاگرد",
+      "applicantOrStudent": "متقاضی یا شاگرد",
       "taxNumber": "شماره مالیاتی",
       "service": "خدمت",
       "position": "سمت",
@@ -887,7 +892,11 @@
       "departmentName": "نام دیپارتمنت",
       "codeOptional": "کد (اختیاری)",
       "departmentManager": "مدیر دیپارتمنت",
-      "noEligibleDepartmentManagers": "مدیر واجد شرایط وجود ندارد. مدیر باید حساب فعال و دسترسی نظارتی داشته باشد.",
+      "departmentManagers": "مدیران دیپارتمنت",
+      "seniorManagersHint": "تنها نقش‌های ارشد واجد شرایط هستند. می‌توانید بیش از یک مدیر ارشد را به یک دیپارتمنت اختصاص دهید.",
+      "createTaskBoard": "ایجاد بورد وظایف برای این دیپارتمنت",
+      "createTaskBoardHint": "یک بورد مشترک با نام دیپارتمنت ایجاد می‌شود. مدیران دیپارتمنت می‌توانند وظایف آن را مدیریت کنند.",
+      "noEligibleDepartmentManagers": "مدیر واجد شرایط وجود ندارد. مدیر باید حساب فعال و نقش ارشد داشته باشد.",
       "currentManagerNoLongerEligible": "مدیر فعلی — دیگر واجد شرایط نیست",
       "descriptionOptional": "توضیحات (اختیاری)",
       "activeDepartment": "دیپارتمنت فعال",
@@ -1772,6 +1781,7 @@
                   "subjects": "مضامین درخواستی",
                   "skills": "مهارت‌ها",
                   "teachers": "استادان",
+                  "responsible_employees": "کارمندان مسئول",
                   "admission_employee": "کارمند پذیرش"
                 }
               },
@@ -1883,6 +1893,8 @@
         "defaultBreakMinutes": "دقایق پیش‌فرض وقفه",
         "automaticAttendanceEnabled": "حاضری خودکار را فعال کنید",
         "automaticAttendanceEnabledHint": "شروع و پایان روز و ثبت خودکار روزهای گذشتهٔ بدون حاضری را فعال کنید. موقعیت هنگام ورود بررسی می‌شود. روزهای باز حتی پس از غیرفعال‌شدن قابل پایان هستند.",
+        "academyEnabled": "فعال‌سازی آکادمی",
+        "academyEnabledHint": "صنف‌ها، شاگردان، حاضری، تصدیق‌نامه‌ها و قراردادهای آکادمی را فعال کنید. در صورت غیرفعال بودن، آکادمی در همه‌جا پنهان می‌شود و API آن در دسترس نیست.",
         "layoutColors": "رنگ‌های طرح / قالب",
         "companyPage": "شرکت",
         "operationsPage": "عملیات",
@@ -2177,7 +2189,10 @@
           "roleNameRequired": "نام نقش الزامی است.",
           "superAdminLocked": "دسترسی‌های مدیر ارشد قابل تغییر نیست",
           "seniorityLevel": "سطح ارشدیت",
-          "seniorityHint": "عدد بالاتر از عدد پایین‌تر ارشدتر است. این سطح نظارت، واجد شرایط بودن مدیریت دیپارتمنت و سقف تخصیص را تعیین می‌کند؛ دسترسی نمی‌دهد.",
+          "roleSeniority": "ارشدیت نقش",
+          "seniorRole": "ارشد",
+          "juniorRole": "جوان",
+          "seniorityHint": "نقش‌های ارشد بر نقش‌های جوان برتری دارند. ارشدیت واجد شرایط بودن مدیریت دیپارتمنت و سقف تخصیص را تعیین می‌کند؛ دسترسی نمی‌دهد.",
           "seniorityProtected": "نقش‌های سیستمی سطح ارشدیت ثابت دارند.",
           "seniorityPermissionRequired": "برای تغییر سطح ارشدیت به اجازه مدیریت سلسله‌مراتب نقش‌ها نیاز دارید.",
           "seniorityInvalid": "یک عدد صحیح بین ۰ و ۱۰۰۰۰۰ وارد کنید.",
@@ -2798,6 +2813,7 @@
           "statusRequired": "وضعیت را انتخاب کنید",
           "startDate": "تاریخ شروع",
           "startRequired": "تاریخ شروع را انتخاب کنید",
+          "startDateRequired": "تاریخ شروع را انتخاب کنید",
           "endDate": "تاریخ ختم",
           "endDateHint": "اختیاری. برای محاسبه مدت قرارداد در سرصفحه چاپ استفاده می‌شود.",
           "duration": "مدت ثابت (ماه)",
@@ -4125,7 +4141,9 @@
         "taskComments": "نظرات وظیفه",
         "noCommentsYet": "هنوز نظری ثبت نشده است.",
         "beTheFirstToStartTheDiscussion": "اولین نفری باشید که بحث را شروع می‌کند!",
-        "addAComment": "افزودن نظر..."
+        "addAComment": "افزودن نظر...",
+        "mentionHint": "برای منشن کردن مسئول یا سازنده وظیفه {'@'} را تایپ کنید.",
+        "noMatchingPeople": "شخص مطابقی یافت نشد."
       },
       "comments": {
         "editComment": "ویرایش نظر"
@@ -4202,7 +4220,7 @@
       },
       "taskappshell": {
         "kanbanBoard": "بورد کانبان",
-        "todoMatrix": "ماتریکس کارهای روزمره (Todo)"
+        "todoMatrix": "وظایف"
       },
       "calendarview": {
         "scheduleTimelineView": "نمای خط زمانی برنامه‌ریزی",
@@ -4249,7 +4267,9 @@
         "labelCreated": "برچسب وظیفه ایجاد شد."
       },
       "todomatrixview": {
-        "megaTasks": "وظایف کلان",
+        "megaTasks": "وظایف",
+        "newTask": "وظیفه جدید",
+        "newTaskHint": "این وظیفه در تخته شخصی شما ذخیره می‌شود.",
         "completedProgress": "{completed} / {total} تکمیل‌شده",
         "taskContent": "محتوای وظیفه",
         "noTaskContent": "برای این وظیفه محتوایی ثبت نشده است.",
@@ -4615,6 +4635,7 @@
       "paymentDate": "تاریخ پرداخت",
       "receivedFrom": "دریافت شده از",
       "applicantId": "شناسه متقاضی",
+      "studentId": "شناسه شاگرد",
       "fatherName": "نام پدر",
       "phone": "شماره تماس",
       "email": "ایمیل",
@@ -4666,6 +4687,7 @@
       "reference": "مرجع",
       "date": "تاریخ صدور",
       "applicant": "متقاضی",
+      "student": "دانشجو",
       "name": "نام کامل",
       "fatherName": "نام پدر",
       "contact": "تماس",
@@ -4748,6 +4770,8 @@
       "telephone": "تلیفون: {phone}"
     },
     "payslip": {
+      "title": "فیش معاش",
+      "printFailed": "چاپ این فیش معاش ممکن نشد.",
       "amountInWords": "مبلغ به حروف",
       "amountInWordsFallback": "فقط {amount} {currency}",
       "workedDays": "{worked} / {total} روز",
@@ -4832,7 +4856,8 @@
       "employeeSignature": "امضای کارمند",
       "note": "این پیش‌پرداخت از معاش آینده بازپس گرفته می‌شود.",
       "employeeCopy": "نسخه کارمند",
-      "companyCopy": "نسخه شرکت"
+      "companyCopy": "نسخه شرکت",
+      "printFailed": "چاپ این رسید پیش‌پرداخت ممکن نشد."
     },
     "academyCertificate": {
       "eyebrow": "This is to certify that",
@@ -4922,6 +4947,12 @@
         "contract_payment_exceeds_balance": "مبلغ پرداختی از مانده این خدمت بیشتر است.",
         "contract_payment_currency_mismatch": "پرداخت را با واحد پول قرارداد خدمت ثبت کنید.",
         "contract_paid_line_immutable": "خدمت دارای سابقه مالی را نمی‌توان حذف کرد یا متقاضی و واحد پول آن را تغییر داد.",
+        "academy_term_undefined": "این صنف تاریخ پایان ندارد و مدت انتخاب‌شده نیز تعداد ماه ندارد. پیش از فروش کورس، یکی از آن‌ها را تعیین کنید.",
+        "academy_class_ended": "این صنف قبلاً پایان یافته است. صنف دیگری را انتخاب کنید.",
+        "academy_class_full": "این صنف پر است. صنف دیگری را انتخاب کنید.",
+        "academy_enrollment_duplicate": "این دانشجو قبلاً در این صنف ثبت‌نام شده است.",
+        "student_applicant_mismatch": "شاگرد انتخاب‌شده به متقاضی انتخاب‌شده تعلق ندارد.",
+        "builtin_contract_template_not_ready": "سند آکادمی تنظیم نشده است. بیج‌های معلومات مرجع را اجرا کنید و دوباره تلاش کنید.",
         "currency_rate_invalid": "یک واحد پولی با نرخ اسعار مثبت انتخاب کنید.",
         "service_currency_rate_invalid": "یک یا چند خدمت انتخاب‌شده نرخ اسعار نامعتبر دارند.",
         "employee_not_selectable": "این کارمند واجد شرایط برای این عملیات نیست.",
@@ -5600,7 +5631,7 @@
       "newTask": "وظیفه جدید پرونده",
       "personalBoardOnly": "وظایف پرونده در تخته شخصی شما ایجاد می‌شوند.",
       "personalBoardMissing": "تخته شخصی شما هنوز آماده نیست. صفحه را دوباره بارگیری کنید.",
-      "openInTaskMatrix": "باز کردن در ماتریس وظایف",
+      "openInTaskMatrix": "باز کردن در وظایف",
       "taskPermission": "ایجاد وظیفه به صلاحیت نیاز دارد. وظایف خودکار مرحله همچنان اینجا نمایش داده می‌شوند.",
       "taskSummary": "{progress}٪ تکمیل · {priority} · سررسید {date}",
       "complete": "تکمیل",
@@ -5644,6 +5675,7 @@
       "dueDate": "تاریخ سررسید",
       "addUniversityApplication": "افزودن درخواست دانشگاه",
       "outcome": "نتیجه",
+      "intake": "دوره ورودی",
       "intakeExample": "دوره ورودی (برای مثال، خزان ۲۰۲۷)",
       "inviteTitle": "حساب پورتال متقاضی",
       "inviteSubtitle": "برای ساخت حساب آماده، ایمیل و رمز عبور را وارد کنید؛ یا رمز عبور را خالی بگذارید تا دعوت‌نامه تایید ارسال شود.",
@@ -6239,6 +6271,10 @@
       "emptyTitle": "هنوز شاگردی نیست",
       "emptyDescription": "قراردادهای آکادمی ثبت‌نام شاگرد را ایجاد می‌کنند.",
       "loadFailed": "شاگردان بارگذاری نشد.",
+      "financeTitle": "مالی",
+      "financeTotalReceived": "مجموع دریافت‌شده",
+      "financeEmpty": "برای این شاگرد پرداختی ثبت نشده است.",
+      "financeLoadFailed": "مالی شاگرد بارگذاری نشد.",
       "saved": "ثبت‌نام به‌روز شد.",
       "terminalHint": "این ثبت‌نام بسته و فقط‌خواندنی است."
     },
@@ -6271,6 +6307,9 @@
       "emptyCell": "ثبت نشده",
       "loadFailed": "حاضری آکادمی بارگذاری نشد.",
       "addTeacherRow": "افزودن ساعت استاد",
+      "legend": "کلید وضعیت",
+      "legendHint": "برای تغییر وضعیت، روی روز کلیک کنید.",
+      "totalRecorded": "ثبت‌شده",
       "status": {
         "present": "حاضر",
         "absent": "غایب",
@@ -6349,7 +6388,16 @@
       "term": "دوره",
       "time": "زمان",
       "total": "مجموع",
-      "weekdays": "روزها"
+      "weekdays": "روزها",
+      "weekdaysShort": {
+        "mon": "دوشنبه",
+        "tue": "سه‌شنبه",
+        "wed": "چهارشنبه",
+        "thu": "پنجشنبه",
+        "fri": "جمعه",
+        "sat": "شنبه",
+        "sun": "یکشنبه"
+      }
     },
     "navigation": {
       "overview": "مرور",

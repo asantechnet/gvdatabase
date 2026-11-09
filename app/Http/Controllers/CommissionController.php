@@ -36,7 +36,7 @@ class CommissionController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ]);
 
-        $query = CommissionAccrual::with(['employee', 'contract.applicant.currentStage', 'baseCurrency', 'recorder', 'applicantContract'])
+        $query = CommissionAccrual::with(['employee', 'contract.applicant.currentStage', 'baseCurrency', 'recorder', 'applicantContract', 'academyClass'])
             ->when($validated['employee_id'] ?? null, fn ($q, $id) => $q->where('employee_id', $id))
             ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($validated['start_date'] ?? null, fn ($q, $date) => $q->whereDate('earned_at', '>=', $date))
@@ -82,6 +82,12 @@ class CommissionController extends Controller
 
             foreach ($cases as $case) {
                 $this->commissions->syncForApplicant($case);
+            }
+
+            // Rebuild completed-class accruals too. A class completed before
+            // the employee rate was configured is repaired by the same pass.
+            foreach (\App\Models\AcademyClass::query()->whereNotNull('completed_at')->with('teachers.serviceCommissions')->get() as $class) {
+                $this->commissions->syncForAcademyClass($class);
             }
 
             $voided = CommissionAccrual::query()
@@ -150,7 +156,7 @@ class CommissionController extends Controller
     {
         return new CommissionSettlementResource($commissionSettlement->load([
             'employee', 'baseCurrency', 'recorder', 'approver', 'payer',
-            'accruals.employee', 'accruals.contract', 'accruals.baseCurrency',
+            'accruals.employee', 'accruals.contract', 'accruals.baseCurrency', 'accruals.academyClass',
         ]));
     }
 

@@ -12,9 +12,9 @@ use App\Models\TimeSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyClassApiTest extends TestCase
+class AcademyClassApiTest extends AcademyTestCase
 {
     use RefreshDatabase;
 

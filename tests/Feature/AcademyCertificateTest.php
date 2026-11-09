@@ -7,18 +7,16 @@ use App\Models\AcademyCertificateTemplate;
 use App\Models\AcademyClass;
 use App\Models\AcademyEnrollment;
 use App\Models\Currency;
-use App\Models\Duration;
 use App\Models\Permission;
 use App\Models\Program;
 use App\Models\Role;
 use App\Models\Student;
-use App\Models\TimeSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class AcademyCertificateTest extends TestCase
+class AcademyCertificateTest extends AcademyTestCase
 {
     use RefreshDatabase;
 
@@ -44,11 +42,9 @@ class AcademyCertificateTest extends TestCase
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
         Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $program = Program::create(['name' => 'Foundation', 'is_active' => true]);
-        $time = TimeSlot::create(['name' => 'Morning', 'is_active' => true]);
-        $duration = Duration::create(['name' => 'Three months', 'months' => 3, 'is_active' => true]);
         $this->class = AcademyClass::create([
-            'name' => 'Class A', 'program_id' => $program->id, 'time_id' => $time->id,
-            'duration_id' => $duration->id, 'starts_on' => '2027-01-01', 'ends_on' => '2027-03-31',
+            'name' => 'Class A', 'program_id' => $program->id,
+            'starts_on' => '2027-01-01', 'ends_on' => '2027-03-31',
             'weekdays' => [1, 3], 'capacity' => 20, 'is_active' => true,
         ]);
         $this->template = AcademyCertificateTemplate::create([
@@ -82,6 +78,33 @@ class AcademyCertificateTest extends TestCase
         $this->postJson('/api/academy/certificates', ['academy_enrollment_id' => $enrollment->id])
             ->assertUnprocessable()->assertJsonValidationErrors('academy_enrollment_id');
         $this->assertDatabaseCount('academy_certificates', 0);
+    }
+
+    public function test_completed_enrollment_without_an_applicant_issues_a_certificate(): void
+    {
+        // A direct Academy student has no applicant and no contract; the
+        // certificate must still be issued from the durable student record.
+        $student = Student::factory()->create(['applicant_id' => null]);
+        $enrollment = AcademyEnrollment::factory()->create([
+            'student_id' => $student->id,
+            'applicant_id' => null,
+            'class_id' => $this->class->id,
+            'started_on' => '2027-01-04',
+            'ends_on' => '2027-03-31',
+            'completed_on' => '2027-03-31',
+            'status' => 'completed',
+        ]);
+
+        $this->postJson('/api/academy/certificates', ['academy_enrollment_id' => $enrollment->id])
+            ->assertCreated()
+            ->assertJsonPath('data.snapshot.award.student_name', $student->name)
+            ->assertJsonPath('data.snapshot.award.student_id', $student->student_number);
+
+        $this->assertDatabaseHas('academy_certificates', [
+            'academy_enrollment_id' => $enrollment->id,
+            'applicant_id' => null,
+            'class_id' => $this->class->id,
+        ]);
     }
 
     public function test_snapshot_survives_template_change_and_revocation_keeps_number(): void

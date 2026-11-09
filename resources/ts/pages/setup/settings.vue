@@ -8,6 +8,7 @@ import type { ApiResponse, Setting, SettingForm } from '@/api/setting'
 import { useAppApi } from '@/composables/useAppApi'
 import { useBranding } from '@/composables/useBranding'
 import { useAutomaticAttendance } from '@/composables/useAutomaticAttendance'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 import { useSettingsValidation } from '@/composables/useSettingsValidation'
 import { settingsUploadError } from '@/api/settingValidation'
 import { canAccess } from '@/utils/authorization'
@@ -28,6 +29,7 @@ const toast = useToast()
 const { settings } = useAppApi()
 const { updateBranding } = useBranding()
 const { setEnabled: setAutomaticAttendanceEnabled } = useAutomaticAttendance()
+const { enabled: academyEnabled, setEnabled: setAcademyEnabled } = useAcademyEnabled()
 const vuetifyTheme = useTheme()
 const route = useRoute()
 const router = useRouter()
@@ -97,6 +99,7 @@ const defaultForm = (): SettingForm => ({
   office_close_time: '17:00',
   default_break_minutes: 0,
   automatic_attendance_enabled: false,
+  academy_enabled: false,
 })
 
 const form = ref<SettingForm>(defaultForm())
@@ -141,7 +144,9 @@ const selectedDesignType = computed(() => contractTypes.value.find(type => type.
 // contracts carry exactly one cover/letterhead for the whole type.
 const supportsServiceScope = computed(() => selectedDesignType.value?.slug === 'customer')
 const isDesignScope = computed(() => selectedDesignTypeId.value !== null)
-const serviceOptions = computed(() => (['scholarship', 'test_offer', 'academy', 'private'] as BuiltInService[]).map(service => ({ title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`), value: service })))
+const serviceOptions = computed(() => (['scholarship', 'test_offer', 'academy', 'private'] as BuiltInService[])
+  .filter(service => service !== 'academy' || academyEnabled.value)
+  .map(service => ({ title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`), value: service })))
 // Human-readable label of the scope the artwork editor is currently writing to.
 const designScopeLabel = computed(() => {
   if (!isDesignScope.value)
@@ -206,7 +211,7 @@ const appearanceGroups = computed(() => [
 const pageFields: Record<SettingsPage, (keyof SettingForm)[]> = {
   company: ['website_title', 'website_logo', 'remove_website_logo', 'website_dark_logo', 'remove_website_dark_logo', 'favicon', 'remove_favicon', 'company_signature', 'remove_company_signature', 'website_address', 'timezone', 'phone', 'physical_address', 'short_company_name', 'original_company_name'],
   email: ['email_delivery_enabled', 'company_email', 'mail_host', 'mail_port', 'mail_encryption', 'mail_username', 'mail_password', 'clear_mail_password', 'mail_from_name', 'mail_reply_to'],
-  operations: ['off_day_allowance_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled', 'missing_attendance_status'],
+  operations: ['off_day_allowance_days_per_year', 'business_licence', 'office_open_time', 'office_close_time', 'default_break_minutes', 'automatic_attendance_enabled', 'academy_enabled', 'missing_attendance_status'],
   appearance: themeColorFields,
   documents: ['contract_letterhead', 'contract_cover_design', 'remove_contract_letterhead', 'remove_contract_cover_design', 'contract_letterhead_safe_x', 'contract_letterhead_safe_y', 'contract_letterhead_safe_width', 'contract_letterhead_safe_height', 'receipt_letterhead', 'remove_receipt_letterhead', 'receipt_letterhead_source', 'receipt_letterhead_safe_x', 'receipt_letterhead_safe_y', 'receipt_letterhead_safe_width', 'receipt_letterhead_safe_height', 'payslip_letterhead', 'remove_payslip_letterhead', 'payslip_letterhead_source', 'payslip_letterhead_safe_x', 'payslip_letterhead_safe_y', 'payslip_letterhead_safe_width', 'payslip_letterhead_safe_height'],
   office: [],
@@ -334,6 +339,7 @@ function applySavedSetting(setting: Setting) {
     office_close_time: setting.office_close_time || '17:00',
     default_break_minutes: setting.default_break_minutes ?? 0,
     automatic_attendance_enabled: setting.automatic_attendance_enabled,
+    academy_enabled: setting.academy_enabled ?? false,
     contract_letterhead_safe_x: setting.contract_letterhead_safe_x ?? 8.5,
     contract_letterhead_safe_y: setting.contract_letterhead_safe_y ?? 15,
     contract_letterhead_safe_width: setting.contract_letterhead_safe_width ?? 83,
@@ -352,6 +358,7 @@ function applySavedSetting(setting: Setting) {
 
   form.value = savedForm
   setAutomaticAttendanceEnabled(setting.automatic_attendance_enabled)
+  setAcademyEnabled(setting.academy_enabled ?? false)
   persistedForm.value = { ...savedForm }
   logoPreview.value = setting.website_logo_url || setting.website_logo || null
   darkLogoPreview.value = setting.website_dark_logo_url || setting.website_dark_logo || null
@@ -1531,6 +1538,21 @@ onBeforeUnmount(revokeObjectUrls)
                 />
                 <p class="text-body-2 text-medium-emphasis mt-2 mb-0">
                   {{ $t('pages.settings.settings.automaticAttendanceEnabledHint') }}
+                </p>
+              </section>
+            </VCol>
+            <VCol cols="12">
+              <section class="settings-feature-panel">
+                <VSwitch
+                  v-model="form.academy_enabled"
+                  v-bind="settingInputProps('academy_enabled')"
+                  color="primary"
+                  inset
+                  hide-details
+                  :label="$t('pages.settings.settings.academyEnabled')"
+                />
+                <p class="text-body-2 text-medium-emphasis mt-2 mb-0">
+                  {{ $t('pages.settings.settings.academyEnabledHint') }}
                 </p>
               </section>
             </VCol>

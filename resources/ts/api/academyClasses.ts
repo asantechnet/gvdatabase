@@ -5,10 +5,6 @@ export interface AcademyOption {
   name: string
 }
 
-export interface AcademyDurationOption extends AcademyOption {
-  months: number | null
-}
-
 export interface AcademyClassRecord {
   id: number
   name: string
@@ -16,11 +12,10 @@ export interface AcademyClassRecord {
   sort_order: number
   is_active: boolean
   program: AcademyOption | null
-  time: AcademyOption | null
-  duration: AcademyDurationOption | null
   teachers: AcademyOption[]
   starts_on: string | null
   ends_on: string | null
+  completed_at: string | null
   weekdays: number[]
   starts_at: string | null
   ends_at: string | null
@@ -54,7 +49,6 @@ export interface AcademyEnrollmentSummary {
     payment_status: string
     currency: { code: string; symbol: string | null; decimal_places: number } | null
   } | null
-  duration: AcademyDurationOption | null
   started_on: string | null
   ends_on: string | null
   status: string
@@ -66,8 +60,6 @@ export interface AcademyClassPayload {
   name: string
   description?: string | null
   program_id?: number | null
-  time_id?: number | null
-  duration_id?: number | null
   teacher_ids: number[]
   weekdays: number[]
   starts_on?: string | null
@@ -78,11 +70,6 @@ export interface AcademyClassPayload {
   fee?: number | null
   is_active: boolean
   sort_order?: number
-}
-
-export interface AcademyDurationRecord extends AcademyDurationOption {
-  is_active: boolean
-  sort_order: number
 }
 
 const data = <T>(response: { data: { data: T } }): T => response.data.data
@@ -106,17 +93,11 @@ export const AcademyClassesApi = {
     return data(await api.put(`/academy/classes/${id}`, payload))
   },
 
+  async complete(id: number): Promise<AcademyClassRecord> {
+    return data(await api.patch(`/academy/classes/${id}/complete`))
+  },
+
   async remove(id: number): Promise<void> {
     await api.delete(`/academy/classes/${id}`)
-  },
-
-  async durations(): Promise<AcademyDurationRecord[]> {
-    const response = await api.get('/academy/durations')
-
-    return Array.isArray(response.data.data) ? response.data.data : []
-  },
-
-  async updateDuration(id: number, months: number | null): Promise<AcademyDurationRecord> {
-    return data(await api.patch(`/academy/durations/${id}`, { months }))
   },
 }

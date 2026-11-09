@@ -93,4 +93,10 @@ class CompanyProfile
     {
         return $this->current()?->automatic_attendance_enabled ?? false;
     }
+
+    /** Feature gate for the entire Academy section and its API surface. */
+    public function academyEnabled(): bool
+    {
+        return (bool) ($this->current()?->academy_enabled ?? false);
+    }
 }

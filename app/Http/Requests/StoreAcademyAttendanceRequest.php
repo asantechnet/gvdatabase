@@ -26,7 +26,7 @@ class StoreAcademyAttendanceRequest extends FormRequest
         if ($isTeacher) {
             return [
                 'teacher_rows' => ['required', 'array', 'min:1', 'max:2000'],
-                'teacher_rows.*.teacher_id' => ['required', 'integer', Rule::exists('teachers', 'id')->whereNull('deleted_at')],
+                'teacher_rows.*.teacher_id' => ['required', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
                 'teacher_rows.*.class_id' => ['required', 'integer', Rule::exists('academy_classes', 'id')->whereNull('deleted_at')],
                 'teacher_rows.*.date' => ['required', 'date_format:Y-m-d'],
                 'teacher_rows.*.status' => ['required', Rule::in(AcademyTeacherTimesheet::STATUSES)],

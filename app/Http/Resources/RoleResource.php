@@ -13,6 +13,7 @@ class RoleResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'level' => (int) $this->level,
+            'is_senior' => (bool) $this->is_senior,
             'is_protected' => in_array($this->name, ['super_admin', 'applicant'], true),
             'permissions' => $this->relationLoaded('permissions')
                 ? $this->permissions->pluck('name')->values()

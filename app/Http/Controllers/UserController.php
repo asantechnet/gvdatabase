@@ -216,27 +216,22 @@ class UserController extends Controller
     }
 
     /**
-     * No one may grant a role at or above their own seniority. A senior
-     * counselor therefore cannot promote themselves or a peer into a
-     * supervisory role.
+     * Senior roles may only be granted by a senior actor; only a super admin
+     * may grant the super-admin role.
      *
      * @param  array<int, string>  $roleNames
      */
     private function guardRoleAssignment(Request $request, array $roleNames): void
     {
         $hierarchy = app(RoleHierarchy::class);
-        $levels = Role::query()->whereIn('name', $roleNames)->pluck('level', 'name')->all();
+        $roles = Role::query()->whereIn('name', $roleNames)->get();
 
-        foreach ($roleNames as $name) {
-            $level = (int) ($levels[$name] ?? 0);
-            if ($level === 0) {
-                $level = $hierarchy->defaultLevel($name);
-            }
-            abort_unless($hierarchy->canAssignLevel($request->user(), $level), 403, 'auth.forbidden');
+        foreach ($roles as $role) {
+            abort_unless($hierarchy->canAssignRole($request->user(), $role), 403, 'auth.forbidden');
         }
     }
 
-    /** A user may not edit or deactivate someone who outranks them. */
+    /** A user may not edit or deactivate a senior employee unless they are senior too. */
     private function guardTargetRank(Request $request, User $user): void
     {
         $actor = $request->user();
@@ -244,7 +239,6 @@ class UserController extends Controller
             return;
         }
 
-        $hierarchy = app(RoleHierarchy::class);
-        abort_unless($hierarchy->rank($actor) > $hierarchy->rank($user), 403, 'auth.forbidden');
+        abort_unless(app(RoleHierarchy::class)->isSenior($actor), 403, 'auth.forbidden');
     }
 }

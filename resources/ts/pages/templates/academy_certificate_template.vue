@@ -35,7 +35,7 @@ const revoked = computed(() => props.certificate.status === 'revoked')
           <span>·</span>
           {{ snapshot.certificate_number }}
         </p>
-        <p class="copy">{{ snapshot.rendered_body }}</p>
+        <p v-if="snapshot.rendered_body?.trim()" class="copy">{{ snapshot.rendered_body }}</p>
 
         <div class="certificate-facts">
           <div><span>{{ t('documents.academyCertificate.program') }}</span><strong>{{ award.program || '—' }}</strong></div>
@@ -77,6 +77,8 @@ const revoked = computed(() => props.certificate.status === 'revoked')
   font-family: Georgia, 'Times New Roman', serif;
   position: relative;
   overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .certificate-inner { block-size: 100%; border: 1.2mm solid var(--certificate-accent); padding: 8mm 11mm; position: relative; box-sizing: border-box; display: flex; flex-direction: column; }
 .certificate-inner::before { content: ''; position: absolute; inset: 2.5mm; border: .35mm solid var(--certificate-line); pointer-events: none; }
@@ -104,5 +106,4 @@ h1 { margin: 0; font-size: 29pt; line-height: 1.05; font-weight: 400; letter-spa
 .issue-date strong { font-size: 10pt; }
 .revoked-watermark { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 2; font: 800 58pt/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: rgb(170 30 30 / .18); letter-spacing: .12em; transform: rotate(-18deg); text-transform: uppercase; }
 [dir='rtl'] .signature img { align-self: flex-end; }
-@media (max-width: 900px) { .academy-certificate { inline-size: 100%; block-size: auto; min-block-size: 210mm; } .certificate-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

@@ -7,18 +7,27 @@ use App\Http\Requests\UpdateAcademyClassRequest;
 use App\Http\Resources\AcademyClassResource;
 use App\Http\Resources\AcademyEnrollmentResource;
 use App\Models\AcademyClass;
+use App\Services\CommissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AcademyClassController extends Controller
 {
-    private const RELATIONS = ['program', 'time', 'duration', 'teachers'];
+    private const RELATIONS = ['program', 'teachers'];
 
     public function index(Request $request): JsonResponse
     {
         $query = AcademyClass::with(self::RELATIONS)
             ->withCount(['enrollments as seats_taken' => fn ($query) => $query->where('status', 'active')]);
+
+        // A teacher sees only the classes they are assigned to. Staff with the
+        // Academy contracts surface retain the full class list.
+        if ($request->user()?->hasPermission('view_academy_attendance')
+            && ! $request->user()?->hasPermission('view_academy_contracts')) {
+            $employeeId = $request->user()?->employee?->id;
+            $query->whereHas('teachers', fn ($teacher) => $teacher->where('employees.id', $employeeId));
+        }
 
         $query->when($request->filled('search'), function ($query) use ($request): void {
             $search = $request->string('search')->toString();
@@ -41,7 +50,7 @@ class AcademyClassController extends Controller
             ->loadCount(['enrollments as seats_taken' => fn ($query) => $query->where('status', 'active')]);
 
         $roster = $academyClass->enrollments()
-            ->with(['student', 'applicant', 'contract', 'line.currency', 'duration', 'academyClass.program', 'academyClass.time', 'academyClass.teachers'])
+            ->with(['student', 'applicant', 'contract', 'line.currency', 'academyClass.program', 'academyClass.teachers'])
             ->orderBy('started_on')
             ->get();
 
@@ -89,6 +98,35 @@ class AcademyClassController extends Controller
         return response()->json([
             'success' => true,
             'data' => (new AcademyClassResource($academyClass->fresh()->load(self::RELATIONS)->loadCount(['enrollments as seats_taken' => fn ($query) => $query->where('status', 'active')])))->resolve($request),
+        ]);
+    }
+
+    /**
+     * Mark a class completed and accrue its teachers' commission.
+     *
+     * Teachers may complete only a class assigned to them; Academy staff may
+     * complete any class. The operation is idempotent.
+     */
+    public function complete(Request $request, AcademyClass $academyClass, CommissionService $commissions): JsonResponse
+    {
+        $user = $request->user();
+        $employeeId = $user?->employee?->id;
+        if (! $user?->hasPermission('manage_academy_classes')
+            && ($employeeId === null || ! $academyClass->teachers()->whereKey($employeeId)->exists())) {
+            abort(403, 'auth.forbidden');
+        }
+
+        DB::transaction(function () use ($academyClass, $commissions): void {
+            $class = AcademyClass::query()->lockForUpdate()->findOrFail($academyClass->id);
+            if ($class->completed_at === null) {
+                $class->update(['completed_at' => now()]);
+            }
+            $commissions->syncForAcademyClass($class->fresh('teachers.serviceCommissions'));
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => (new AcademyClassResource($academyClass->fresh()->load(self::RELATIONS)))->resolve($request),
         ]);
     }
 

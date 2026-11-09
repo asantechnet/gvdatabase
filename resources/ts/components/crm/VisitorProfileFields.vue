@@ -6,15 +6,19 @@ import type { VisitorFormData } from '@/api/visitor'
 import { BUILT_IN_SERVICES } from '@/api/applicants'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const model = defineModel<VisitorFormData>({ required: true })
 const { t } = useI18n()
+const { enabled: academyEnabled } = useAcademyEnabled()
 // Visitors share the case vocabulary, so the service is a fixed choice rather
 // than free text that would fragment reporting.
-const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
-  title: t(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
-  value: service,
-})))
+const serviceOptions = computed(() => BUILT_IN_SERVICES
+  .filter(service => academyEnabled.value || service !== 'academy')
+  .map(service => ({
+    title: t(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
+    value: service,
+  })))
 const reviewOptions = computed(() => [
   { title: t('common.statuses.bad'), value: 'bad' },
   { title: t('common.statuses.good'), value: 'good' },

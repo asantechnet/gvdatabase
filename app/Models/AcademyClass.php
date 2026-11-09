@@ -18,7 +18,7 @@ class AcademyClass extends Model
 
     protected $fillable = [
         'name', 'description', 'sort_order', 'is_active',
-        'program_id', 'time_id', 'duration_id', 'starts_on', 'ends_on',
+        'program_id', 'starts_on', 'ends_on', 'completed_at',
         'weekdays', 'starts_at', 'ends_at', 'capacity', 'fee',
     ];
 
@@ -28,6 +28,7 @@ class AcademyClass extends Model
         'weekdays' => 'array',
         'starts_on' => 'date:Y-m-d',
         'ends_on' => 'date:Y-m-d',
+        'completed_at' => 'datetime',
         'capacity' => 'integer',
         'fee' => 'decimal:2',
     ];
@@ -37,19 +38,9 @@ class AcademyClass extends Model
         return $this->belongsTo(Program::class);
     }
 
-    public function time(): BelongsTo
-    {
-        return $this->belongsTo(TimeSlot::class, 'time_id');
-    }
-
-    public function duration(): BelongsTo
-    {
-        return $this->belongsTo(Duration::class);
-    }
-
     public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'academy_class_teacher', 'academy_class_id', 'teacher_id')
+        return $this->belongsToMany(Employee::class, 'academy_class_teacher', 'academy_class_id', 'teacher_id')
             ->withTimestamps();
     }
 

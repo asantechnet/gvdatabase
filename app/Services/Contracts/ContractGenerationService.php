@@ -16,6 +16,7 @@ use App\Services\AcademyEnrollmentService;
 use App\Services\ApplicantPortalAccountService;
 use App\Services\ApplicantServiceDetails;
 use App\Services\CurrencyConversionService;
+use App\Services\CommissionService;
 use App\Services\ContractDocumentDesignService;
 use App\Services\ContractTaskService;
 use App\Services\CurrencyRateService;
@@ -79,13 +80,20 @@ class ContractGenerationService
             abort_unless($template, 422, 'business.builtin_contract_template_not_ready');
             $type = $template->contractType;
             abort_unless($type?->is_active && $type->slug === 'customer', 422, 'business.builtin_contract_template_not_ready');
-            // The operator may intentionally issue any active historical version,
-            // but never one belonging to another template, language or scope.
-            $version = $template->versions()->whereKey($data['contract_template_version_id'])
-                ->where('status', 'active')
-                ->when(! empty($data['language_id'] ?? null), fn ($query) => $query->where('language_id', $data['language_id']))
-                ->where('country_id', $countryId)
-                ->where('test_id', $testId)->lockForUpdate()->first();
+            // Academy issues a slip rather than a template-driven agreement, so
+            // its form has no version or language choice. Resolve the hidden
+            // academy template's current active version here. Other services
+            // may intentionally issue any active historical version, but never
+            // one belonging to another template, language or scope.
+            $version = $service === BuiltInService::ACADEMY
+                ? $template->versions()->where('status', 'active')
+                    ->orderByDesc('is_current')->orderBy('version_number')->orderBy('id')
+                    ->lockForUpdate()->first()
+                : $template->versions()->whereKey($data['contract_template_version_id'])
+                    ->where('status', 'active')
+                    ->when(! empty($data['language_id'] ?? null), fn ($query) => $query->where('language_id', $data['language_id']))
+                    ->where('country_id', $countryId)
+                    ->where('test_id', $testId)->lockForUpdate()->first();
             abort_unless($version && trim($version->content) !== '', 422, 'business.builtin_contract_template_not_ready');
 
             $rate = $this->rates->remember((int) $data['currency_id'], $data['currency_rate']);
@@ -104,7 +112,9 @@ class ContractGenerationService
                 'contract_role' => $primary ? Contract::ROLE_EXTENSION : Contract::ROLE_PRIMARY,
                 'parent_contract_id' => $primary?->id, 'applicant_id' => $applicant->id,
                 'sold_by_employee_id' => Employee::query()->active()->where('user_id', $request->user()->id)->value('id'),
-                'contract_country_id' => $countryId, 'contract_language_id' => $version->language_id,
+                'contract_country_id' => $countryId,
+                // The academy document is not a language-versioned contract.
+                'contract_language_id' => $service === BuiltInService::ACADEMY ? null : $version->language_id,
                 'name' => $template->name, 'type' => $type->name, 'cover_text' => $template->cover_text,
                 'content' => '', 'status' => 'active', 'start_date' => now()->toDateString(),
                 'company_signatory_name' => $signatory,
@@ -133,6 +143,12 @@ class ContractGenerationService
             $academyEnrollment = $service === BuiltInService::ACADEMY
                 ? $this->academyEnrollments->createForLine($contract, $line, $applicant, $data)
                 : null;
+            // Academy has no case completion to trigger commission, so its new
+            // live line is synced explicitly. Case-bearing services accrue
+            // when their case completes instead.
+            if ($service === BuiltInService::ACADEMY) {
+                app(CommissionService::class)->syncForContract($contract->fresh());
+            }
             // An academy fee paid at signing is a real receipt, not a stored
             // informational amount: the line's paid state follows the income.
             if ($service === BuiltInService::ACADEMY && (float) ($data['paid_fee'] ?? 0) > 0) {
@@ -159,7 +175,7 @@ class ContractGenerationService
                 'privateDetail.country', 'privateDetail.university', 'privateDetail.educationLevel', 'privateDetail.semester',
                 'scholarshipDetail.country', 'scholarshipDetail.educationLevel', 'scholarshipDetail.semester', 'scholarshipDetail.scholarship',
                 'testDetail.test',
-                'academyDetail.program', 'academyDetail.time', 'academyDetail.duration', 'academyDetail.academyClass',
+                'academyDetail.program', 'academyDetail.academyClass',
                 'favoriteSubjects', 'skills', 'teachers',
             ]);
             $version->loadMissing(['country', 'language']);
@@ -173,13 +189,13 @@ class ContractGenerationService
                 'content' => $this->sanitizer->clean($rendered['content']),
                 'snapshot_data' => [
                     'parties' => ['our_company' => PlaceholderRegistry::ourCompanyValues($contract->company_signatory_name), 'counterparty' => $counterparty],
-                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'print_details' => $this->officialPrintDetails($applicant), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('teachers.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'academy' => $academyEnrollment ? $this->academyEnrollments->snapshot($academyEnrollment) : null, 'extension_of' => $primary?->contract_number],
+                    'entity' => ['applicant_id' => $applicant->id, 'service' => $service, 'applicant' => $applicant->only(['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address']), 'details' => $applicant->detail()?->toArray(), 'print_details' => $this->officialPrintDetails($applicant), 'favorite_subject_ids' => $applicant->favoriteSubjects()->pluck('subjects.id')->all(), 'skill_ids' => $applicant->skills()->pluck('skills.id')->all(), 'teacher_ids' => $applicant->teachers()->pluck('employees.id')->all(), 'services' => [[...$line->only(['id', 'service', 'fee', 'discount', 'currency_id', 'currency_rate', 'application_fee', 'application_fee_min', 'application_fee_max', 'visa_fee', 'booking_fee', 'service_fee', 'remote_fee']), 'currency_code' => $line->currency?->code]], 'academy' => $academyEnrollment ? $this->academyEnrollments->snapshot($academyEnrollment) : null, 'extension_of' => $primary?->contract_number],
                     'template_version' => [...$version->only(['id', 'name', 'version_number', 'country_id', 'language_id']), 'country_name' => $version->country?->name, 'language_name' => $version->language?->name, 'language_code' => $version->language?->code],
                     'document_design' => $this->designs->snapshot($this->designs->resolve($type->id, [$service])),
                 ],
             ]);
-            // Case-bearing lines start their own workflow; a test-offer or
-            // academy agreement is a direct service, not a case.
+            // Case-bearing lines start their own workflow; an Academy
+            // agreement is a direct service, not a case.
             if ($newStage) {
                 ApplicantStageHistory::create([
                     'applicant_id' => $applicant->id, 'applicant_contract_id' => $line->id,
@@ -230,8 +246,6 @@ class ContractGenerationService
                 'test' => $relationName('test'),
                 'program' => $relationName('program'),
                 'academy_class' => $relationName('academyClass'),
-                'time' => $relationName('time'),
-                'duration' => $relationName('duration'),
             ],
             'subjects' => $applicant->favoriteSubjects->pluck('name')->filter()->implode(', '),
             'skills' => $applicant->skills->pluck('name')->filter()->implode(', '),
@@ -370,7 +384,9 @@ class ContractGenerationService
     /** The `new` stage of one service, preferring the most specific context. */
     private function newStage(string $service, ?int $countryId, ?int $universityId): ?ApplicantStage
     {
-        if (in_array($service, [BuiltInService::TEST_OFFER, BuiltInService::ACADEMY], true)) {
+        // Academy is the only service sold without a case. Test offer owns a
+        // stage workflow like the admission services.
+        if ($service === BuiltInService::ACADEMY) {
             return null;
         }
 

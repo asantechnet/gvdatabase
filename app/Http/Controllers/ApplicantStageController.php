@@ -23,7 +23,7 @@ class ApplicantStageController extends Controller
     public function index(Request $request)
     {
         $data = $request->validate([
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'country_id' => ['nullable', 'exists:countries,id'],
             'university_id' => ['nullable', 'exists:universities,id'],
             'line_id' => ['nullable', 'integer', Rule::exists('applicant_contract', 'id')->whereNull('deleted_at')],
@@ -52,8 +52,8 @@ class ApplicantStageController extends Controller
         }
 
         $query = ApplicantStage::query()
-            // Only case-bearing services have workflows. Test-offer and academy
-            // stage rows remain in history but are never offered anywhere.
+            // Only case-bearing services have workflows; Academy is the one
+            // service sold without a case.
             ->whereIn('service', BuiltInService::CASE_BEARING)
             ->when($service, fn ($q) => $q->where('service', $service));
         // Stage pickers only offer live stages; `all=1` is reserved for the
@@ -191,7 +191,7 @@ class ApplicantStageController extends Controller
             // it unique inside the service (including soft-deleted rows).
             'key' => ['sometimes', 'nullable', 'string', 'max:100', 'alpha_dash'],
             'name' => [$namePresence, 'string', 'max:255'],
-            'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
+            'service' => ['sometimes', Rule::in(BuiltInService::enabled())],
             // Values outside the stage's service are accepted and normalized to
             // null below, never copied into another workflow.
             'country_id' => $usesAdmissionScope ? ['nullable', 'exists:countries,id'] : ['nullable', 'integer'],

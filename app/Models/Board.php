@@ -19,7 +19,7 @@ class Board extends Model
     /** @use HasFactory<BoardFactory> */
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['title', 'order', 'user_id'];
+    protected $fillable = ['title', 'order', 'user_id', 'department_id'];
 
     /**
      * Boards the user may see: their own private personal board plus the shared
@@ -32,23 +32,30 @@ class Board extends Model
         $canSeeAllShared = $user->hasPermission('view_all_boards');
         $serviceTitles = ServiceBoard::serviceTitles();
         $allowedServiceTitles = ServiceBoard::titlesVisibleTo($user);
+        $employeeId = app(EmployeeScope::class)->ownEmployeeId($user);
 
-        return $query->where(function (Builder $q) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
+        return $query->where(function (Builder $q) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles, $employeeId) {
             $q->where('user_id', $user->id)
-                ->orWhere(function (Builder $shared) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
+                ->orWhere(function (Builder $shared) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles, $employeeId) {
                     $shared->whereNull('user_id')
-                        ->where(function (Builder $scope) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles) {
-                            // A built-in service board follows its contract-category
-                            // permission, not board membership. The unserviced
-                            // operational boards keep the membership rule.
-                            $scope->whereIn('title', $allowedServiceTitles)
-                                ->orWhere(function (Builder $unserviced) use ($user, $canSeeAllShared, $serviceTitles) {
-                                    $unserviced->whereNotIn('title', $serviceTitles);
-                                    if (! $canSeeAllShared) {
-                                        $unserviced->whereHas('users', fn ($members) => $members
-                                            ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user)));
-                                    }
-                                });
+                        ->where(function (Builder $scope) use ($user, $canSeeAllShared, $serviceTitles, $allowedServiceTitles, $employeeId) {
+                            // A department board is readable by its members and
+                            // managers. A service board follows its contract
+                            // category; other shared boards follow membership.
+                            if ($employeeId !== null) {
+                                $scope->orWhereHas('department.employees', fn ($members) => $members->whereKey($employeeId))
+                                    ->orWhereHas('department.managers', fn ($managers) => $managers->whereKey($employeeId));
+                            }
+
+                            $scope->orWhere(function (Builder $service) use ($allowedServiceTitles, $serviceTitles) {
+                                $service->whereNull('department_id')->whereIn('title', $allowedServiceTitles);
+                            })->orWhere(function (Builder $unserviced) use ($user, $canSeeAllShared, $serviceTitles) {
+                                $unserviced->whereNull('department_id')->whereNotIn('title', $serviceTitles);
+                                if (! $canSeeAllShared) {
+                                    $unserviced->whereHas('users', fn ($members) => $members
+                                        ->whereIn('users.id', app(EmployeeScope::class)->visibleUserIds($user)));
+                                }
+                            });
                         });
                 });
         });
@@ -63,6 +70,11 @@ class Board extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function tasks(): HasMany

@@ -15,13 +15,13 @@ use App\Services\CommissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesBuiltInContracts;
-use Tests\TestCase;
+use Tests\AcademyTestCase;
 
-class CommissionResponsibilityRegressionTest extends TestCase
+class CommissionResponsibilityRegressionTest extends AcademyTestCase
 {
     use CreatesBuiltInContracts, RefreshDatabase;
 
-    public function test_retired_case_free_accrual_is_not_voided_or_assigned_to_responsible_employees(): void
+    public function test_academy_accrual_is_not_voided_by_a_case_transition_or_assigned_to_responsible_employees(): void
     {
         $user = User::factory()->create(['acc_status' => 'active']);
         $user->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
@@ -29,12 +29,12 @@ class CommissionResponsibilityRegressionTest extends TestCase
 
         $base = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
         $seller = Employee::factory()->create();
-        $created = $this->createBuiltInContract('test_offer');
+        $created = $this->createBuiltInContract('academy');
         $contract = Contract::query()->findOrFail($created['id']);
         $line = ApplicantContract::query()->where('contract_id', $contract->id)->sole();
         $accrual = CommissionAccrual::create([
             'contract_id' => $contract->id, 'applicant_contract_id' => $line->id,
-            'employee_id' => $seller->id, 'service' => 'test_offer', 'base_currency_id' => $base->id,
+            'employee_id' => $seller->id, 'service' => 'academy', 'base_currency_id' => $base->id,
             'entry_type' => 'earned', 'earned_at' => now()->toDateString(),
             'source_base_amount' => 500, 'eligible_base_amount' => 500, 'percentage' => 10,
             'commission_base_amount' => 50, 'status' => 'earned',

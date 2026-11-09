@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
-use App\Support\RoleHierarchy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -71,7 +70,7 @@ class EmployeeController extends Controller
         }
 
         $query->orderBy($order['sort'] ?? 'created_at', $order['dir'] ?? 'desc')->orderBy('id', 'desc');
-        $query->with(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']);
+        $query->with(['position', 'office', 'user', 'departments', 'serviceCommissions']);
 
         if ($this->requestedPerPage($request)) {
             return response()->json(['success' => true] + $this->paginatedPayload($request, $query, fn ($rows) => EmployeeResource::collection($rows)->resolve()));
@@ -121,11 +120,8 @@ class EmployeeController extends Controller
             'education_lvl' => 'required|string|max:255',
             'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
-            'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
             'department_ids' => ['sometimes', 'array'],
             'department_ids.*' => ['integer', 'distinct', Rule::exists('departments', 'id')->whereNull('deleted_at')],
-            'primary_department_id' => ['sometimes', 'nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
-            'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'status' => ['sometimes', Rule::in([Employee::STATUS_ACTIVE, Employee::STATUS_INACTIVE])],
             'salary' => ['required', 'numeric', 'min:0'],
             'addr' => 'required|string|min:5',
@@ -137,11 +133,10 @@ class EmployeeController extends Controller
             'off_day_allowance_days' => 'nullable|numeric|min:0|max:366',
             'is_commission_based' => 'sometimes|boolean',
             'service_commissions' => 'nullable|array',
-            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
+            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::enabled())],
             'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
-        $this->guardHierarchyFields($request, $validated);
-        $this->assertPrimaryDepartmentInSet($validated);
+        $this->guardDepartmentFields($request, $validated);
 
         // The company-wide allowance is only a catalogue value: it prefills a
         // new employee profile and is never read for an existing employee.
@@ -151,7 +146,7 @@ class EmployeeController extends Controller
 
         $createdUser = false;
         $Employee = DB::transaction(function () use ($validated, $request, &$createdUser) {
-            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids', 'primary_department_id'])->all();
+            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids'])->all();
             $employeeData['contract_duration'] = $employeeData['contract_duration'] ?? '';
             $employee = Employee::create($employeeData);
             $this->syncEmployeeDepartments($employee, $validated);
@@ -187,7 +182,7 @@ class EmployeeController extends Controller
         $this->authorizeEmployeeView(request(), $Employee);
         abort_if((int) $Employee->id === Employee::primaryRecordId(), 404);
 
-        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']));
+        return new EmployeeResource($Employee->load(['position', 'office', 'user', 'departments', 'serviceCommissions']));
     }
 
     public function update(Request $request, Employee $Employee): EmployeeResource
@@ -226,11 +221,8 @@ class EmployeeController extends Controller
             'education_lvl' => 'sometimes|required|string|max:255',
             'position_id' => ['sometimes', 'required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'office_id' => ['nullable', 'integer', Rule::exists('offices', 'id')->whereNull('deleted_at')],
-            'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
             'department_ids' => ['sometimes', 'array'],
             'department_ids.*' => ['integer', 'distinct', Rule::exists('departments', 'id')->whereNull('deleted_at')],
-            'primary_department_id' => ['sometimes', 'nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
-            'supervisor_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'status' => ['sometimes', Rule::in([Employee::STATUS_ACTIVE, Employee::STATUS_INACTIVE])],
             'salary' => ['nullable', 'numeric', 'min:0'],
             'addr' => 'sometimes|required|string|min:5',
@@ -239,16 +231,15 @@ class EmployeeController extends Controller
             'off_day_allowance_days' => 'sometimes|nullable|numeric|min:0|max:366',
             'is_commission_based' => 'sometimes|boolean',
             'service_commissions' => 'sometimes|nullable|array',
-            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::ALL)],
+            'service_commissions.*.service' => ['required', Rule::in(BuiltInService::enabled())],
             'service_commissions.*.percentage' => 'required|numeric|min:0|max:100',
         ]);
-        $this->guardHierarchyFields($request, $validated, $Employee);
-        $this->assertPrimaryDepartmentInSet($validated);
+        $this->guardDepartmentFields($request, $validated);
 
         $createdUser = false;
         DB::transaction(function () use ($Employee, $validated, $request, $previousUserId, &$createdUser) {
             $Employee = Employee::query()->lockForUpdate()->findOrFail($Employee->id);
-            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids', 'primary_department_id'])->all();
+            $employeeData = collect($validated)->except(['email', 'create_user', 'department_ids'])->all();
             $Employee->update($employeeData);
             $this->syncEmployeeDepartments($Employee, $validated);
             if (! $Employee->user && $request->boolean('create_user')) {
@@ -279,7 +270,7 @@ class EmployeeController extends Controller
             $this->syncServiceCommissions($Employee, $request);
         });
 
-        $Employee = $Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']);
+        $Employee = $Employee->fresh(['position', 'office', 'user', 'departments', 'serviceCommissions']);
 
         if ($Employee->user && $createdUser && ! $hadUser) {
             $Employee->user->sendEmailVerificationNotification();
@@ -332,7 +323,7 @@ class EmployeeController extends Controller
             ], fn ($value) => $value !== null));
         });
 
-        return new EmployeeResource($Employee->fresh(['position', 'office', 'user', 'departmentRecord', 'departments', 'supervisor', 'serviceCommissions']));
+        return new EmployeeResource($Employee->fresh(['position', 'office', 'user', 'departments', 'serviceCommissions']));
     }
 
     public function destroy(Employee $Employee): JsonResponse
@@ -395,68 +386,20 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Only a user with `assign_employee_supervisor` may place a person in a
-     * department or under a team senior. Everyone else can edit the rest of
-     * the profile without silently reshuffling the hierarchy.
+     * Only a user with `manage_departments` may change an employee's department
+     * memberships. Everyone else can edit the rest of the profile without
+     * silently reshuffling the hierarchy.
      *
      * @param  array<string, mixed>  $data
      */
-    private function guardHierarchyFields(Request $request, array &$data, ?Employee $employee = null): void
+    private function guardDepartmentFields(Request $request, array &$data): void
     {
-        $hierarchyFields = ['supervisor_id', 'department_id', 'department_ids', 'primary_department_id'];
-        if (array_intersect($hierarchyFields, array_keys($data)) === []) {
+        if (! array_key_exists('department_ids', $data)) {
             return;
         }
 
-        if (! $request->user()->hasPermission('assign_employee_supervisor')) {
-            foreach ($hierarchyFields as $field) {
-                unset($data[$field]);
-            }
-
-            return;
-        }
-
-        // During creation the account does not exist yet, so compare against
-        // a harmless staff-level employee. Existing employees keep their
-        // actual role rank.
-        $subordinate = $employee ?? new Employee;
-        $hierarchy = app(RoleHierarchy::class);
-
-        $supervisorId = $data['supervisor_id'] ?? null;
-        if ($supervisorId) {
-            abort_if($employee && (int) $employee->id === (int) $supervisorId, 422, 'business.employee_cannot_supervise_self');
-            $this->assertNoSupervisorCycle($employee?->id, (int) $supervisorId);
-
-            $supervisor = Employee::query()->with('user.roles.permissions')->findOrFail($supervisorId);
-            abort_unless($hierarchy->canSupervise($supervisor, $subordinate), 422, 'business.employee_supervisor_rank_invalid');
-        }
-
-        // Every submitted membership must satisfy the same manager-rank rule
-        // the single-department select already applied.
-        $departmentIds = array_values(array_unique(array_filter(array_merge(
-            array_map('intval', $data['department_ids'] ?? []),
-            ! empty($data['department_id']) ? [(int) $data['department_id']] : [],
-            ! empty($data['primary_department_id']) ? [(int) $data['primary_department_id']] : [],
-        ))));
-
-        foreach ($departmentIds as $departmentId) {
-            $manager = Department::query()->with('manager.user.roles.permissions')->find($departmentId)?->manager;
-            if ($manager) {
-                abort_unless($hierarchy->canSupervise($manager, $subordinate), 422, 'business.department_manager_rank_invalid');
-            }
-        }
-    }
-
-    /** A primary department must be one of the submitted memberships. */
-    private function assertPrimaryDepartmentInSet(array $data): void
-    {
-        if (! array_key_exists('department_ids', $data) || empty($data['primary_department_id'])) {
-            return;
-        }
-
-        $ids = array_map('intval', $data['department_ids'] ?? []);
-        if (! in_array((int) $data['primary_department_id'], $ids, true)) {
-            throw ValidationException::withMessages(['primary_department_id' => ['validation.in']]);
+        if (! $request->user()->hasPermission('manage_departments')) {
+            unset($data['department_ids']);
         }
     }
 
@@ -467,18 +410,11 @@ class EmployeeController extends Controller
      */
     private function syncEmployeeDepartments(Employee $employee, array $data): void
     {
-        $hasSet = array_key_exists('department_ids', $data);
-        $primary = $data['primary_department_id'] ?? null;
-
-        if (! $hasSet && $primary === null) {
+        if (! array_key_exists('department_ids', $data)) {
             return;
         }
 
-        $ids = $hasSet
-            ? $data['department_ids']
-            : $employee->departments()->pluck('departments.id')->all();
-
-        $employee->syncDepartments($ids, $primary !== null ? (int) $primary : null);
+        $employee->syncDepartments($data['department_ids']);
     }
 
     /**
@@ -505,18 +441,6 @@ class EmployeeController extends Controller
                 'service' => $service,
                 'percentage' => $percentage,
             ]);
-        }
-    }
-
-    private function assertNoSupervisorCycle(?int $employeeId, int $supervisorId): void
-    {
-        $visited = [];
-        $current = $supervisorId;
-
-        while ($current !== 0 && ! in_array($current, $visited, true)) {
-            abort_if($employeeId !== null && $current === $employeeId, 422, 'business.employee_supervisor_cycle');
-            $visited[] = $current;
-            $current = (int) (Employee::query()->whereKey($current)->value('supervisor_id') ?? 0);
         }
     }
 
