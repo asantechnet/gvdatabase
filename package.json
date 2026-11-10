@@ -5,7 +5,9 @@
   "packageManager": "pnpm@10.33.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run build:icons",
     "dev": "vite",
+    "prebuild": "npm run build:icons",
     "build": "vite build",
     "typecheck": "node scripts/typecheck.mjs",
     "test:settings-validation": "node scripts/settings-validation-test.cjs",
