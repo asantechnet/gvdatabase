@@ -93,7 +93,7 @@ class SalaryController extends Controller
 
         $employees = Employee::selectable()->excludePrimaryRecord()
             ->where('status', Employee::STATUS_ACTIVE)
-            ->with(['position', 'office', 'user', 'departmentRecord', 'supervisor', 'serviceCommissions'])
+            ->with(['position', 'office', 'user', 'departments', 'serviceCommissions'])
             ->when($search, fn ($query) => $query->where(fn ($q) => $q
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")

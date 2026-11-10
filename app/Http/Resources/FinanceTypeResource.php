@@ -9,6 +9,6 @@ class FinanceTypeResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return ['id' => $this->id, 'kind' => $this->kind, 'value' => $this->value, 'name' => $this->name, 'is_system' => $this->is_system];
+        return ['id' => $this->id, 'kind' => $this->kind, 'value' => $this->value, 'name' => $this->name, 'is_system' => $this->is_system, 'created_at' => $this->created_at?->toIso8601String()];
     }
 }

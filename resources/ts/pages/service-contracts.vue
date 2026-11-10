@@ -67,7 +67,7 @@ const form = ref<ApplicantPayload>({})
 const currencies = ref<ServiceContractOptions['currencies']>([])
 const languages = ref<ServiceContractOptions['languages']>([])
 const selectedTemplate = ref<ServiceContractOptions['template']>(null)
-const admissionEmployees = ref<ServiceContractOptions['admission_employees']>([])
+const responsibleEmployees = ref<ServiceContractOptions['responsible_employees']>([])
 const counselorEmployees = ref<ServiceContractOptions['counselor_employees']>([])
 const visitors = ref<Visitor[]>([])
 const visitorId = ref<number | null>(null)
@@ -104,6 +104,8 @@ const parent = ref<Contract | null>(null)
 const editing = ref<Contract | null>(null)
 const printing = ref(false)
 const printable = ref<Contract | null>(null)
+const detailContract = ref<Contract | null>(null)
+const detailsOpen = ref(false)
 const slipOpen = ref(false)
 const slipContractId = ref<number | null>(null)
 // Cancelling never deletes a contract: the record stays in this list with a
@@ -189,8 +191,15 @@ const wizardSteps = computed(() => {
     title: t(`serviceContracts.${title}`),
   }))
 })
+const contractVersionLabel = (row: Contract) => row.snapshot_data?.template_version
+  ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}`
+  : '—'
 const contractReportRow = (row: Contract) => [row.contract_number, row.counterparty, row.counterparty_contact,
-  row.snapshot_data?.template_version ? `${row.snapshot_data.template_version.name} · v${row.snapshot_data.template_version.version_number}` : '—', row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]
+  ...(service.value === 'academy' ? [] : [contractVersionLabel(row)]), row.services?.map(line => linePrice(line)).join(', '), row.start_date, row.status]
+// Academy has no selectable contract version; other services keep the column.
+const reportColumns = computed(() => [t('serviceContracts.number'), t('serviceContracts.applicant'), t('erp.phone'),
+  ...(service.value === 'academy' ? [] : [t('agencyStaff.contractVersion')]),
+  t('erp.totalFee'), t('serviceContracts.startDate'), t('serviceContracts.status')])
 // Print is global: the report walks the filtered pages first.
 const printList = async () => {
   try {
@@ -218,6 +227,12 @@ const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.va
 const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
   && !row.is_cancelled && ['draft', 'active'].includes(row.status)
 const requestCancel = (row: Contract) => { cancelTarget.value = row; cancelOpen.value = true }
+const showDetails = (row: Contract) => {
+  detailContract.value = row
+  // Let the actions menu finish closing first. Otherwise its originating click
+  // can be treated as an outside click by the newly-mounted dialog.
+  window.setTimeout(() => { detailsOpen.value = true })
+}
 
 // A private application fee is a range. The displayed price is the whole
 // service (range + visa fee); the payable ceiling is the range maximum.
@@ -329,7 +344,7 @@ const headers = computed(() => [
   { title: t('serviceContracts.startDate'), key: 'start_date' },
   { title: t('serviceContracts.status'), key: 'status' },
   { title: t('serviceContracts.actions'), key: 'actions', sortable: false },
-])
+].filter(header => service.value !== 'academy' || header.key !== 'version'))
 // Keep the dense contract record in the detail viewer, where every value has
 // a label and relationships can be read in their own tab.
 const contractDetailFields = computed(() => [
@@ -356,7 +371,7 @@ const contractDetailFields = computed(() => [
   { key: 'created_at', label: t('serviceContracts.createdAt') },
   { key: 'updated_at', label: t('serviceContracts.updatedAt') },
 ])
-const valid = computed(() => !!(editing.value ? selectedVersionId.value : selectedVersion.value) && !preparing.value && (parent.value || form.value.name?.trim()) && currencyId.value
+const valid = computed(() => !preparing.value && (service.value === 'academy' || !!(editing.value ? selectedVersionId.value : selectedVersion.value)) && (parent.value || form.value.name?.trim()) && currencyId.value
   && chargeFields.value.every(field => Number.isFinite(Number(charges.value[field])) && Number(charges.value[field]) >= 0)
   && (service.value !== 'private' || (!applicationFeeFrom.value || Number(applicationFeeFrom.value) >= 0)
     && (!applicationFeeTo.value || Number(applicationFeeTo.value) >= 0)
@@ -384,6 +399,10 @@ const listParams = () => {
 }
 
 async function loadVersionOptions() {
+  if (service.value === 'academy') {
+    versionFilterOptions.value = []
+    return
+  }
   try {
     versionFilterOptions.value = await ContractApi.versionOptions(service.value)
   }
@@ -432,7 +451,7 @@ const emptyApplicantForm = (): ApplicantPayload => ({
   address: '',
   notes: '',
   responsible_employee_id: null,
-  admission_employee_id: null,
+  responsible_employee_ids: [],
   grade_score: null,
   country_id: null,
   education_level_id: null,
@@ -448,15 +467,13 @@ const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
   const applicant = contract.applicant
   const details = applicant?.details ?? {}
   const identity: Record<string, unknown> = { service: service.value }
-  for (const field of ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'notes', 'admission_employee_id', 'responsible_employee_id'] as const)
+  for (const field of ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'notes', 'responsible_employee_id', 'responsible_employee_ids'] as const)
     identity[field] = applicant?.[field] ?? null
 
   return {
     ...identity,
     student_id: details.student_id ?? null,
     program_id: details.program_id ?? null,
-    time_id: details.time_id ?? null,
-    duration_id: details.duration_id ?? null,
     class_id: details.class_id ?? null,
     test_id: details.test_id ?? null,
     country_id: details.country_id ?? null,
@@ -510,7 +527,7 @@ async function create(extension: Contract | null = null, editedContract: Contrac
     currencies.value = options.currencies
     languages.value = options.languages
     selectedTemplate.value = options.template
-    admissionEmployees.value = options.admission_employees
+    responsibleEmployees.value = options.responsible_employees
     counselorEmployees.value = options.counselor_employees
     // The parent line's rate wins; fall back to the currency's current rate.
     if (source)
@@ -646,7 +663,7 @@ const currentStepHasRequiredValues = () => {
       && (service.value !== 'test_offer' || hasValue(form.value.backup_phone)))
 
     if (service.value === 'academy')
-      return hasContact && !!selectedVersionId.value && hasValue(form.value.student_id)
+      return hasContact
 
     return service.value !== 'test_offer' || (hasContact && !!selectedVersionId.value
       && hasValue(form.value.test_id) && hasValue(form.value.skill_ids))
@@ -655,11 +672,10 @@ const currentStepHasRequiredValues = () => {
   if (wizardStep.value === 2) {
     if (service.value === 'test_offer')
       return true
+    if (service.value === 'academy')
+      return hasValue(form.value.teacher_ids) && hasValue(form.value.program_id) && hasValue(form.value.class_id)
     if (!selectedVersionId.value)
       return false
-    if (service.value === 'academy')
-      return hasValue(form.value.student_id) && hasValue(form.value.time_id) && hasValue(form.value.teacher_ids)
-        && hasValue(form.value.duration_id) && hasValue(form.value.program_id) && hasValue(form.value.class_id)
 
     return hasValue(form.value.grade_score) && hasValue(form.value.country_id)
       && hasValue(form.value.education_level_id) && (service.value !== 'private' || hasValue(form.value.semester_id))
@@ -700,9 +716,9 @@ async function save() {
       ...(parent.value
         ? {
             parent_contract_id: parent.value.id,
-            ...(selectedService === 'academy' ? serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_admission_employee')) : {}),
+            ...(selectedService === 'academy' ? serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_responsible_employees')) : {}),
           }
-        : serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_admission_employee'))),
+        : serviceContractApplicantFields(selectedService, form.value, ability.can('read', 'assign_responsible_employees'))),
       ...Object.fromEntries(chargeFields.value.map(field => [field, Number(charges.value[field])])),
       ...(selectedService === 'private' ? {
         application_fee_min: Number(applicationFeeFrom.value),
@@ -714,7 +730,8 @@ async function save() {
         ? { create_portal_user: true, portal_user_email: portalCredentials.value.email, portal_user_password: portalCredentials.value.password }
         : {}),
       fee: Number(fee.value), discount: Number(discount.value), currency_id: currencyId.value!,
-      currency_rate: Number(rate.value), language_id: languageId.value!, contract_template_version_id: selectedVersionId.value!,
+      currency_rate: Number(rate.value),
+      ...(selectedService === 'academy' ? {} : { language_id: languageId.value!, contract_template_version_id: selectedVersionId.value! }),
     }
     const result = editing.value
       ? await ContractApi.updateService(selectedService, editing.value.id, payload)
@@ -757,7 +774,7 @@ async function save() {
             <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" :show-reset="false">
               <ErpDateRange v-model:from="filterDraft.dateFrom" v-model:to="filterDraft.dateTo" :show-apply="false" />
               <ErpField v-model="filterDraft.status" kind="select" :items="statuses" :label="t('serviceContracts.status')" :placeholder="t('serviceContracts.placeholders.status')" clearable />
-              <ErpField v-model="filterDraft.contractVersionId" kind="select" :items="versionFilterOptions" item-title="name" item-value="id" :label="t('agencyStaff.contractVersion')" :placeholder="t('serviceContracts.placeholders.version')" clearable>
+              <ErpField v-if="service !== 'academy'" v-model="filterDraft.contractVersionId" kind="select" :items="versionFilterOptions" item-title="name" item-value="id" :label="t('agencyStaff.contractVersion')" :placeholder="t('serviceContracts.placeholders.version')" clearable>
                 <template #item="{ props: itemProps, item }">
                   <VListItem v-bind="itemProps" :title="`${item.raw.name} · v${item.raw.version_number}`" />
                 </template>
@@ -797,6 +814,9 @@ async function save() {
         class="service-contract-table text-no-wrap"
         @update:options="updateTableOptions"
       >
+      <template #item.contract_number="{ item }">
+        <VBtn variant="text" size="small" class="contract-number-link px-0 text-none" @click="showDetails(item)">{{ item.contract_number || '—' }}</VBtn>
+      </template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ linePrice(line) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
@@ -824,7 +844,7 @@ async function save() {
             </template>
             <VList class="service-contract-actions-menu" density="compact" min-width="220">
               <template v-if="!item.is_cancelled">
-                <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" menu-action />
+                <VListItem prepend-icon="tabler-eye" :title="t('common.actions.viewFullDetails')" @click="showDetails(item)" />
                 <VListItem v-if="ability.can('read', 'edit_contracts')" prepend-icon="tabler-edit" :title="t('serviceContracts.edit')" @click="edit(item)" />
                 <VListItem v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" prepend-icon="tabler-file-plus" :title="t('serviceContracts.extend')" @click="create(item)" />
                 <VListItem v-if="canMarkPaid(item)" prepend-icon="tabler-checks" :title="t('serviceContracts.markPaid')" :disabled="markingPaid === item.id" @click="markPaid(item)" />
@@ -846,6 +866,7 @@ async function save() {
       </template>
       </ResponsiveDataTableServer>
     </VCard>
+    <FullDetailsButton v-if="detailContract" v-model="detailsOpen" :item="detailContract" :fields="contractDetailFields" :title="detailContract.contract_number || detailContract.counterparty || ''" hide-activator />
     <VDialog :model-value="open" :persistent="saving" scrollable scroll-strategy="block" max-width="980" content-class="service-contract-form-dialog" @update:model-value="value => value ? open = true : requestFormClose()">
       <VCard class="service-contract-form-card">
         <VCardTitle class="service-contract-dialog-title px-5 py-5">
@@ -885,7 +906,7 @@ async function save() {
                    <VCol cols="12" sm="6" md="6"><ErpField v-model="form.father_phone" dir="ltr" inputmode="tel" :label="t('serviceContracts.fatherPhone')" :placeholder="t('serviceContracts.placeholders.fatherPhone')" maxlength="50" /></VCol>
                    <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.address" :label="t('serviceContracts.address')" :placeholder="t('serviceContracts.placeholders.address')" maxlength="1000" /></VCol>
                    <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                   <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                   <VCol cols="12" sm="6" :md="editing ? 6 : 4" :class="{ 'service-contract-third-row': !editing }"><ErpField v-model="form.responsible_employee_ids" kind="select" multiple chips closable-chips :items="responsibleEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployees')" :placeholder="t('serviceContracts.responsibleEmployees')" :disabled="!ability.can('read', 'assign_responsible_employees')" clearable /></VCol>
                 </VRow>
               </template>
               <VRow v-if="service !== 'academy' && service !== 'private'" class="service-contract-field-grid">
@@ -897,10 +918,10 @@ async function save() {
                 <VCol v-if="!parent && service !== 'scholarship'" cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
               </VRow>
             </template>
-            <ApplicantServiceFields v-if="!parent || service === 'academy'" v-model="form" v-model:language-id="languageId" fixed-service show-language contract-layout :contract-step="wizardStep" :languages="languages">
+            <ApplicantServiceFields v-if="!parent || service === 'academy'" v-model="form" v-model:language-id="languageId" fixed-service :show-language="service !== 'academy'" :show-student-id="service !== 'academy'" contract-layout :contract-step="wizardStep" :languages="languages">
               <template v-if="parent" #private-prefix>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_ids" kind="select" multiple chips closable-chips :items="responsibleEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployees')" :placeholder="t('serviceContracts.responsibleEmployees')" :disabled="!ability.can('read', 'assign_responsible_employees')" clearable /></VCol>
               </template>
               <template #private-version>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
@@ -915,7 +936,7 @@ async function save() {
               </template>
               <template #scholarship-staff>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.admission_employee_id" kind="select" :items="admissionEmployees" item-title="name" item-value="id" :label="t('serviceContracts.admissionEmployeeOptional')" :placeholder="t('serviceContracts.placeholders.admissionEmployee')" :disabled="!ability.can('read', 'assign_admission_employee')" clearable /></VCol>
+                <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_ids" kind="select" multiple chips closable-chips :items="responsibleEmployees" item-title="name" item-value="id" :label="t('serviceContracts.responsibleEmployees')" :placeholder="t('serviceContracts.responsibleEmployees')" :disabled="!ability.can('read', 'assign_responsible_employees')" clearable /></VCol>
               </template>
               <template #scholarship-version>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
@@ -927,9 +948,7 @@ async function save() {
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="form.name" :label="t('serviceContracts.studentFullName')" :placeholder="t('serviceContracts.placeholders.name')" maxlength="255" required /></VCol>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="form.contact" dir="ltr" inputmode="tel" :label="t('erp.phone')" :placeholder="t('serviceContracts.placeholders.phone')" maxlength="255" required /></VCol>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="form.responsible_employee_id" kind="select" :items="counselorEmployees" item-title="name" item-value="id" :label="t('serviceContracts.consultant')" :placeholder="t('serviceContracts.placeholders.consultant')" clearable /></VCol>
-              </template>
-              <template #academy-version>
-                <VCol cols="12" sm="6" md="6"><ErpField v-model="selectedVersionId" kind="select" :items="versionItems" :label="versionItems.length ? t('serviceContracts.matchingVersion') : t('agencyStaff.noMatchingVersion')" :placeholder="t('serviceContracts.placeholders.version')" :disabled="preparing || !versionItems.length || !!editing" required /></VCol>
+                <VCol cols="12"><div class="text-caption text-medium-emphasis">{{ t('serviceContracts.studentIdAuto') }}</div></VCol>
               </template>
               <template #academy-payment>
                 <VCol cols="12" sm="6" md="6"><ErpField v-model="charges.service_fee" type="number" min="0" step="0.01" :label="chargeLabel('service_fee')" :placeholder="t('serviceContracts.placeholders.amount')" required /></VCol>
@@ -1032,7 +1051,7 @@ async function save() {
         </VCardText>
       </VCard>
     </VDialog>
-    <PrintableListReport :title="t(labelKey)" :subtitle="[search, status, dateFrom, dateTo].filter(Boolean).join(' · ')" :columns="[t('serviceContracts.number'), t('serviceContracts.applicant'), t('erp.phone'), t('agencyStaff.contractVersion'), t('erp.totalFee'), t('serviceContracts.startDate'), t('serviceContracts.status')]" :rows="reportRows" />
+    <PrintableListReport :title="t(labelKey)" :subtitle="[search, status, dateFrom, dateTo].filter(Boolean).join(' · ')" :columns="reportColumns" :rows="reportRows" />
     <VDialog v-model="credentialsDialog" max-width="480" content-class="portal-credentials-dialog">
       <VCard class="portal-credentials-dialog__card">
         <VCardText class="portal-credentials-dialog__content">
@@ -1069,6 +1088,8 @@ async function save() {
 </template>
 
 <style scoped>
+:deep(.contract-number-link) { cursor: pointer; }
+:deep(.contract-number-link .v-btn__overlay) { opacity: 0 !important; }
 .service-contract-form-card {
   max-block-size: calc(100vh - 32px);
   overflow: hidden;

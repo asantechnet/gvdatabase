@@ -9,16 +9,20 @@ import { canAccess } from '@/utils/authorization'
 
 const store = useTaskStore()
 const route = useRoute()
+const canViewKanban = () => canAccess('view_kanban')
 const canViewSettings = () => canAccess('view_task_settings')
 
 const validViews = ['kanban', 'todos', 'settings'] as const
 
-// A case task can deep-link into the matrix. Load the board state first: the
-// matrix view is mounted here, not by the Kanban view's own onMounted fetch.
 const applyRouteQuery = () => {
   const view = String(route.query.view ?? '')
-  if (validViews.includes(view as typeof validViews[number]))
-    store.setView((view === 'settings' && !canViewSettings() ? 'kanban' : view) as typeof validViews[number])
+  if (validViews.includes(view as typeof validViews[number])) {
+    const next = (view === 'kanban' && !canViewKanban())
+      ? 'todos'
+      : (view === 'settings' && !canViewSettings() ? 'todos' : view)
+
+    store.setView(next as typeof validViews[number])
+  }
 
   const taskId = Number(route.query.task)
   if (Number.isInteger(taskId) && taskId > 0)
@@ -26,40 +30,41 @@ const applyRouteQuery = () => {
 }
 
 onMounted(async () => {
+  if (!canViewKanban() && store.activeView === 'kanban')
+    store.setView('todos')
+
   applyRouteQuery()
-  if (store.activeView !== 'kanban' && !store.boards.length)
+  if (!store.boards.length)
     await store.fetchBoardData()
 })
 
 watch(() => route.query, applyRouteQuery, { deep: true })
 
-// The selected id is applied before data exists when the route is opened
-// directly; re-apply after the board payload arrives so the matrix selects the
-// row rather than rendering an empty panel.
 watch(() => store.tasks.length, () => {
   const taskId = Number(route.query.task)
   if (Number.isInteger(taskId) && taskId > 0)
     store.selectTask(String(taskId))
 })
 
-// Settings is a permission-scoped tab: a role without the view grant falls
-// back to the board instead of rendering an empty settings surface.
 watch(() => store.activeView, view => {
+  if (view === 'kanban' && !canViewKanban())
+    store.setView('todos')
   if (view === 'settings' && !canViewSettings())
-    store.setView('kanban')
+    store.setView('todos')
 })
 
-// Bi-directional binding to the Pinia state
 const activeTab = computed({
   get: () => store.activeView,
   set: val => store.setView(val as any),
 })
 
 const tabs = computed(() => {
-  const items = [
-    { title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' },
-    { title: translate('components.taskManager.taskappshell.todoMatrix'), value: 'todos', icon: 'tabler-list-check' },
-  ]
+  const items: Array<{ title: string; value: string; icon: string }> = []
+
+  if (canViewKanban())
+    items.push({ title: translate('components.taskManager.taskappshell.kanbanBoard'), value: 'kanban', icon: 'tabler-layout-kanban' })
+
+  items.push({ title: translate('components.taskManager.taskappshell.todoMatrix'), value: 'todos', icon: 'tabler-list-check' })
 
   if (canViewSettings())
     items.push({ title: translate('common.messages.settings'), value: 'settings', icon: 'tabler-settings' })
@@ -67,21 +72,18 @@ const tabs = computed(() => {
   return items
 })
 
-// Dynamically swap views directly in this layout
 const currentComponent = computed(() => {
   switch (store.activeView) {
-    case 'kanban': return KanbanView
+    case 'kanban': return canViewKanban() ? KanbanView : TodoMatrixView
     case 'todos': return TodoMatrixView
-    case 'settings': return canViewSettings() ? TaskSettingsView : KanbanView
-    default: return KanbanView
+    case 'settings': return canViewSettings() ? TaskSettingsView : TodoMatrixView
+    default: return canViewKanban() ? KanbanView : TodoMatrixView
   }
 })
 </script>
 
 <template>
   <div class="task-app-shell">
-    <!-- Master Navigation -->
-    <!-- Added elevation="0" and border for a flatter, premium Vuexy look -->
     <VCard
       elevation="0"
       class="border mb-6 bg-surface"
@@ -114,7 +116,6 @@ const currentComponent = computed(() => {
       </div>
     </VCard>
 
-    <!-- View Container (Populates the view directly without route changes) -->
     <div class="view-container">
       <Transition
         name="fade-transition"
@@ -130,7 +131,6 @@ const currentComponent = computed(() => {
 </template>
 
 <style scoped>
-/* Optional: Ensures smooth transitions between views if not already defined globally */
 .fade-transition-enter-active,
 .fade-transition-leave-active {
   transition: opacity 0.2s ease;

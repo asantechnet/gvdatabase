@@ -30,7 +30,7 @@
   }
 
   .erp-subnav-chip:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
-  .erp-header-actions { display: flex; gap: 8px; }
+  .erp-header-actions { display: flex; flex-wrap: wrap; gap: 8px; max-inline-size: 100%; }
   .erp-date-range { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto; gap: 8px; align-items: start; }
   .erp-workspace .v-table tbody > tr:nth-child(odd) > td { background: rgb(var(--v-theme-surface)); }
   .erp-workspace .v-table tbody > tr:nth-child(even) > td { background: rgba(var(--v-theme-on-surface), .045); }
@@ -50,6 +50,7 @@
   @media (max-width: 599px) {
     .erp-page-header { gap: 12px; }
     .erp-subnav { flex-basis: 100%; inline-size: 100%; }
+    .erp-header-actions { inline-size: 100%; justify-content: flex-start; }
     .erp-date-range { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .erp-date-range .v-btn { grid-column: 1 / -1; }
     .erp-form .v-card-text { padding: 16px; }

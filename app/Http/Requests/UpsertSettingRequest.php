@@ -108,7 +108,11 @@ class UpsertSettingRequest extends FormRequest
             'office_close_time' => ['nullable', 'date_format:H:i'],
             'default_break_minutes' => ['sometimes', 'integer', 'min:0', 'max:720'],
             'automatic_attendance_enabled' => ['sometimes', 'boolean'],
+            'academy_enabled' => ['sometimes', 'boolean'],
             'missing_attendance_status' => ['sometimes', 'required', Rule::in(['present', 'absent', 'off_day'])],
+            // Optional presentation aid: historical audit rows remain readable
+            // in the Audits page whether or not the register colouring is on.
+            'audit_coloring_enabled' => ['sometimes', 'boolean'],
         ];
     }
 

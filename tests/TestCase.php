@@ -52,6 +52,7 @@ abstract class TestCase extends BaseTestCase
             $roles[] = [
                 'name' => $name,
                 'level' => $level,
+                'is_senior' => $level >= 220,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

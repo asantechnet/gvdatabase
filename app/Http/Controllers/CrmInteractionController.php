@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CrmInteractionResource;
 use App\Models\Applicant;
+use App\Models\Country;
 use App\Models\CrmInteraction;
+use App\Models\University;
 use App\Models\Visitor;
+use App\Support\EmployeeScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,7 +44,7 @@ class CrmInteractionController extends Controller
 
     public function update(Request $request, CrmInteraction $interaction): CrmInteractionResource
     {
-        $this->authorizeInteractionMutation($request, $interaction);
+        $this->authorizeExistingInteraction($request, $interaction);
         $data = $request->validate(['channel' => ['sometimes', Rule::in(['call', 'message', 'email', 'meeting', 'note'])],
             'title' => ['sometimes', 'required', 'string', 'max:255'], 'notes' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'contacted_at' => ['sometimes', 'date'], 'follow_up_at' => ['nullable', 'date']]);
@@ -50,28 +53,62 @@ class CrmInteractionController extends Controller
         return new CrmInteractionResource($interaction->load('creator'));
     }
 
-    public function destroy(Request $request, CrmInteraction $interaction)
+    public function destroy(Request $request, CrmInteraction $interaction): JsonResponse
     {
-        $this->authorizeInteractionMutation($request, $interaction);
+        $this->authorizeExistingInteraction($request, $interaction);
         $interaction->delete();
 
         return response()->noContent();
     }
 
-    private function authorizeInteractionMutation(Request $request, CrmInteraction $interaction): void
+    private function authorizeExistingInteraction(Request $request, CrmInteraction $interaction): void
     {
-        $type = match ($interaction->contactable_type) {
-            (new Applicant)->getMorphClass(), Applicant::class => 'applicant',
-            (new Visitor)->getMorphClass(), Visitor::class => 'visitor',
-            default => abort(404),
+        if ($interaction->applicant_id) {
+            $applicant = Applicant::query()->findOrFail($interaction->applicant_id);
+            $user = $request->user();
+            abort_unless($user && ($user->hasPermission('edit_applicants') || $user->isSuperAdmin()), 403, 'auth.forbidden');
+            abort_unless($user->isSuperAdmin()
+                || app(EmployeeScope::class)->canManageOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
+            $this->assertTargetLinked($applicant, $interaction);
+
+            return;
+        }
+
+        $this->authorizeMutation($request, $this->typeOf($interaction));
+    }
+
+    private function assertTargetLinked(Applicant $applicant, CrmInteraction $interaction): void
+    {
+        $linked = match (true) {
+            $interaction->contactable instanceof Country => (int) $applicant->detail()?->country_id === (int) $interaction->contactable_id,
+            $interaction->contactable instanceof University => (int) $applicant->detail()?->university_id === (int) $interaction->contactable_id
+                || $applicant->universities()->where('university_id', $interaction->contactable_id)->exists(),
+            default => false,
         };
 
-        $this->authorizeMutation($request, $type);
+        abort_unless($linked, 422, 'business.relationship_not_linked_to_case');
+    }
+
+    private function typeOf(CrmInteraction $interaction): string
+    {
+        return match (true) {
+            $interaction->contactable instanceof Applicant => 'applicant',
+            $interaction->contactable instanceof Visitor => 'visitor',
+            $interaction->contactable instanceof Country => 'country',
+            $interaction->contactable instanceof University => 'university',
+            default => abort(404),
+        };
     }
 
     private function authorizeMutation(Request $request, string $type): void
     {
-        $permission = $type === 'applicant' ? 'edit_applicants' : 'edit_visitors';
-        abort_unless($request->user()?->hasPermission($permission), 403, 'auth.forbidden');
+        $permission = match ($type) {
+            'applicant' => 'edit_applicants',
+            'visitor' => 'edit_visitors',
+            'country' => 'edit_country',
+            'university' => 'edit_university',
+            default => abort(404),
+        };
+        abort_unless($request->user()?->hasPermission($permission) || $request->user()?->isSuperAdmin(), 403, 'auth.forbidden');
     }
 }

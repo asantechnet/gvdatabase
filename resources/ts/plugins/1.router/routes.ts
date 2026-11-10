@@ -40,7 +40,12 @@ const pageComponents: Record<string, Component> = {
   expenseTypes: () => import("@/pages/options/expense-types.vue"),
   optionsCurrencies: () => import("@/pages/options/currencies.vue"),
   educationalMasterData: () => import("@/pages/educational-master-data.vue"),
-  academyData: () => import("@/pages/academy-data.vue"),
+  academyOverview: () => import("@/pages/academy/overview.vue"),
+  academyClasses: () => import("@/pages/academy/classes.vue"),
+  academyStudents: () => import("@/pages/academy/students.vue"),
+  academyCatalog: () => import("@/pages/academy/catalog.vue"),
+  academyAttendance: () => import("@/pages/academy/attendance.vue"),
+  academyCertificates: () => import("@/pages/academy/certificates.vue"),
   applicants: () => import("@/pages/applicants.vue"),
   applicantPipeline: () => import("@/pages/applicant-pipeline.vue"),
   applicantStages: () => import("@/pages/applicant-stages.vue"),
@@ -236,16 +241,12 @@ const routeDefinitions: Array<{
     },
   },
   {
+    // The Academy contract surface is gone; students and their slips are the
+    // single Academy record. Keep old deep links working.
     path: "/contracts/academy",
-    component: "serviceContracts",
     name: "academy-contracts",
-    meta: {
-      builtInService: "academy",
-      navActiveLink: "private-contracts",
-      requiresAuth: true,
-      action: "read",
-      subject: "view_contracts",
-    },
+    redirect: { name: "academy-students" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/employee-contracts",
@@ -349,14 +350,41 @@ const routeDefinitions: Array<{
     name: "educational-master-data",
     meta: { requiresAuth: true, action: "read", subject: "view_country" },
   },
-  // Academy scheduling records (times, durations, teachers, classes) live on
-  // their own page, reached from Options -> Contracts. The path is kept as
-  // `/contracts/academy-data` so existing deep links keep working.
   {
-    path: "/contracts/academy-data",
-    component: "academyData",
-    name: "academy-data",
-    meta: { requiresAuth: true, action: "read", subject: "view_country" },
+    path: "/academy",
+    component: "academyOverview",
+    name: "academy-overview",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+  },
+  {
+    path: "/academy/classes",
+    component: "academyClasses",
+    name: "academy-classes",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+  },
+  {
+    path: "/academy/students",
+    component: "academyStudents",
+    name: "academy-students",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+  },
+  {
+    path: "/academy/catalog",
+    component: "academyCatalog",
+    name: "academy-catalog",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+  },
+  {
+    path: "/academy/attendance",
+    component: "academyAttendance",
+    name: "academy-attendance",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_attendance" },
+  },
+  {
+    path: "/academy/certificates",
+    component: "academyCertificates",
+    name: "academy-certificates",
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {
     path: "/applications",
@@ -420,8 +448,8 @@ const routeDefinitions: Array<{
   },
   {
     path: "/finance/activity-report",
-    component: "educationalReports",
     name: "finance-activity-report",
+    redirect: { name: "reports", query: { report: "financial" } },
     meta: {
       reportWorkspace: "finance",
       requiresAuth: true,

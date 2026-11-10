@@ -25,7 +25,6 @@ use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Currency;
 use App\Models\DailyReport;
-use App\Models\Duration;
 use App\Models\EducationalBonusSource;
 use App\Models\EducationalScholarship;
 use App\Models\EducationLevel;
@@ -52,10 +51,8 @@ use App\Models\Subtask;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\TaskAttachment;
-use App\Models\Teacher;
 use App\Models\Test;
 use App\Models\TestApplicantDetail;
-use App\Models\TimeSlot;
 use App\Models\University;
 use App\Models\User;
 use App\Models\Visitor;
@@ -81,9 +78,6 @@ final class AuditRegistry
             'tests' => Test::class,
             'skills' => Skill::class,
             'programs' => Program::class,
-            'times' => TimeSlot::class,
-            'durations' => Duration::class,
-            'teachers' => Teacher::class,
             'applicant_attachments' => ApplicantAttachment::class,
             'applicant_stages' => ApplicantStage::class,
             'applicant_universities' => ApplicantUniversity::class,

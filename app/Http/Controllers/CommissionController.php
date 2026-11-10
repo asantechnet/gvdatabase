@@ -34,13 +34,22 @@ class CommissionController extends Controller
             'status' => ['nullable', 'in:pending,approved,paid,void'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'search' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $query = CommissionAccrual::with(['employee', 'contract.applicant.currentStage', 'baseCurrency', 'recorder', 'applicantContract'])
+        $query = CommissionAccrual::with(['employee', 'contract.applicant.currentStage', 'baseCurrency', 'recorder', 'applicantContract', 'academyClass'])
             ->when($validated['employee_id'] ?? null, fn ($q, $id) => $q->where('employee_id', $id))
             ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($validated['start_date'] ?? null, fn ($q, $date) => $q->whereDate('earned_at', '>=', $date))
-            ->when($validated['end_date'] ?? null, fn ($q, $date) => $q->whereDate('earned_at', '<=', $date));
+            ->when($validated['end_date'] ?? null, fn ($q, $date) => $q->whereDate('earned_at', '<=', $date))
+            ->when($validated['search'] ?? null, function ($q, $search) {
+                $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+                $q->where(function ($query) use ($term) {
+                    $query->where('adjustment_reason', 'like', $term)
+                        ->orWhereHas('employee', fn ($employee) => $employee->where('name', 'like', $term))
+                        ->orWhereHas('contract', fn ($contract) => $contract->where('contract_number', 'like', $term));
+                });
+            });
 
         return CommissionAccrualResource::collection($query->latest('earned_at')->latest('id')->get());
     }
@@ -82,6 +91,12 @@ class CommissionController extends Controller
 
             foreach ($cases as $case) {
                 $this->commissions->syncForApplicant($case);
+            }
+
+            // Rebuild completed-class accruals too. A class completed before
+            // the employee rate was configured is repaired by the same pass.
+            foreach (\App\Models\AcademyClass::query()->whereNotNull('completed_at')->with('teachers.serviceCommissions')->get() as $class) {
+                $this->commissions->syncForAcademyClass($class);
             }
 
             $voided = CommissionAccrual::query()
@@ -137,11 +152,20 @@ class CommissionController extends Controller
         $validated = $request->validate([
             'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'status' => ['nullable', 'in:draft,approved,paid,cancelled'],
+            'search' => ['nullable', 'string', 'max:120'],
         ]);
         $query = CommissionSettlement::with(['employee', 'baseCurrency', 'recorder', 'approver', 'payer'])
             ->withCount('accruals')
             ->when($validated['employee_id'] ?? null, fn ($q, $id) => $q->where('employee_id', $id))
-            ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
+            ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when($validated['search'] ?? null, function ($q, $search) {
+                $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+                $q->where(function ($query) use ($term) {
+                    $query->where('settlement_number', 'like', $term)
+                        ->orWhere('notes', 'like', $term)
+                        ->orWhereHas('employee', fn ($employee) => $employee->where('name', 'like', $term));
+                });
+            });
 
         return CommissionSettlementResource::collection($query->latest('id')->get());
     }
@@ -150,7 +174,7 @@ class CommissionController extends Controller
     {
         return new CommissionSettlementResource($commissionSettlement->load([
             'employee', 'baseCurrency', 'recorder', 'approver', 'payer',
-            'accruals.employee', 'accruals.contract', 'accruals.baseCurrency',
+            'accruals.employee', 'accruals.contract', 'accruals.baseCurrency', 'accruals.academyClass',
         ]));
     }
 

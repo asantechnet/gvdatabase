@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\ApplicantContract;
 use App\Models\Income;
 use App\Models\Setting;
+use App\Models\Student;
 use App\Support\BuiltInService;
 use App\Support\PaymentStatus;
 use App\Support\ThemePalette;
@@ -26,6 +27,7 @@ class IncomeReceiptService
         $income->loadMissing([
             'applicant.scholarshipDetail.country',
             'applicant.scholarshipDetail.educationLevel',
+            'student',
             'applicantContract.currency',
             'applicantContract.contract',
             'incomeCurrency',
@@ -71,6 +73,7 @@ class IncomeReceiptService
             ],
             'company' => $this->companyPayload($setting),
             'applicant' => $applicant ? $this->applicantPayload($applicant) : null,
+            'student' => $income->student ? $this->studentPayload($income->student) : null,
             'contract' => $line ? [
                 'id' => $line->contract_id,
                 'contract_number' => $line->contract?->contract_number,
@@ -184,6 +187,22 @@ class IncomeReceiptService
             'education_level' => $applicant->scholarshipDetail?->educationLevel?->name,
             'created_at' => $applicant->created_at?->toDateString(),
             'status' => $applicant->status,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function studentPayload(Student $student): array
+    {
+        return [
+            'id' => $student->id,
+            'student_number' => $student->student_number,
+            'name' => $student->name,
+            'father_name' => $student->father_name,
+            'contact' => $student->contact,
+            'father_phone' => $student->father_phone,
+            'email' => $student->email,
+            'address' => $student->address,
+            'created_at' => $student->created_at?->toDateString(),
         ];
     }
 

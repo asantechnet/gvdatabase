@@ -8,12 +8,14 @@ use App\Models\Applicant;
 use App\Models\ApplicantContract;
 use App\Models\Currency;
 use App\Models\Income;
+use App\Models\Student;
 use App\Services\ApplicantContractPaymentService;
 use App\Services\CurrencyConversionService;
 use App\Services\CurrencyRateService;
 use App\Services\EducationalWorkflowNotificationService;
 use App\Services\IncomeReceiptService;
 use App\Support\BuiltInService;
+use App\Support\CompanyProfile;
 use App\Support\PaymentStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +36,7 @@ class IncomeController extends Controller
 
     public function index(Request $request)
     {
-        $query = Income::with(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']);
+        $query = Income::with(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']);
         $this->scopeToVisibleRecords($request, $query);
 
         if ($request->filled('status')) {
@@ -44,6 +46,10 @@ class IncomeController extends Controller
 
         if ($request->filled('applicant_id')) {
             $query->where('applicant_id', $request->integer('applicant_id'));
+        }
+
+        if ($request->filled('student_id')) {
+            $query->where('student_id', $request->integer('student_id'));
         }
 
         if ($request->filled('applicant_contract_id')) {
@@ -105,6 +111,74 @@ class IncomeController extends Controller
     }
 
     /**
+     * The combined payer picker: applicants plus direct Academy students.
+     *
+     * A student linked to an applicant is already represented by that applicant
+     * and is deliberately omitted here, so the picker never shows two identities
+     * for the same person. Contract-payment dialogs keep using `applicants`.
+     */
+    public function payers(Request $request)
+    {
+        $data = $request->validate(['search' => ['nullable', 'string', 'max:255']]);
+        $search = trim($data['search'] ?? '');
+
+        $applicants = Applicant::query()
+            ->select(['id', 'name', 'contact'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('contact', 'like', '%'.$search.'%');
+                    if (ctype_digit($search)) {
+                        $query->orWhere('id', (int) $search);
+                    }
+                });
+            })
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Applicant $applicant) => [
+                'key' => 'applicant:'.$applicant->id,
+                'type' => 'applicant',
+                'id' => $applicant->id,
+                'name' => $applicant->name,
+                'contact' => $applicant->contact,
+                'reference' => null,
+            ]);
+
+        $students = app(CompanyProfile::class)->academyEnabled()
+            ? Student::query()
+                ->select(['id', 'student_number', 'name', 'contact'])
+                ->whereNull('applicant_id')
+                ->when($search !== '', function ($query) use ($search): void {
+                    $query->where(function ($query) use ($search): void {
+                        $query->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('student_number', 'like', '%'.$search.'%')
+                            ->orWhere('contact', 'like', '%'.$search.'%');
+                        if (ctype_digit($search)) {
+                            $query->orWhere('id', (int) $search);
+                        }
+                    });
+                })
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get()
+                ->map(fn (Student $student) => [
+                    'key' => 'student:'.$student->id,
+                    'type' => 'student',
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'contact' => $student->contact,
+                    'reference' => $student->student_number,
+                ])
+            : collect();
+
+        return response()->json([
+            'success' => true,
+            'data' => $applicants->concat($students)->sortBy('name')->values()->all(),
+        ]);
+    }
+
+    /**
      * The contracted service lines a payment can be recorded against, so the
      * page can offer the applicant's own services.
      */
@@ -157,6 +231,7 @@ class IncomeController extends Controller
             'company_id' => ['prohibited'],
             'status' => ['sometimes', Rule::in([Income::DRAFT, Income::APPROVED])],
             'applicant_id' => 'nullable|exists:applicants,id',
+            'student_id' => ['nullable', 'integer', Rule::exists('students', 'id')->whereNull('deleted_at')],
             'applicant_contract_id' => 'nullable|exists:applicant_contract,id',
             'type' => ['required', 'string', 'max:255', Rule::exists('finance_types', 'value')->where('kind', 'income')],
             'description' => 'nullable|string|max:65535',
@@ -177,6 +252,7 @@ class IncomeController extends Controller
         $income = DB::transaction(function () use ($data) {
             if (empty($data['applicant_contract_id'])) {
                 unset($data['applicant_contract_id']);
+                $this->normalizePayer($data);
                 $this->applyCurrencySnapshot($data);
 
                 return Income::create($data);
@@ -188,6 +264,7 @@ class IncomeController extends Controller
                 ->firstOrFail();
 
             $data['applicant_id'] = $line->applicant_id;
+            $data['student_id'] = Student::query()->where('applicant_id', $line->applicant_id)->value('id');
             $this->ensureLineCurrency($line, (int) $data['currency_id']);
             $this->applyCurrencySnapshot($data);
             $this->ensureLineCanAcceptPayment($line, $data);
@@ -201,14 +278,14 @@ class IncomeController extends Controller
             $this->notifications->incomeRecorded($income, (int) $request->user()->id);
         }
 
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+        return new IncomeResource($income->load(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
     public function show(Request $request, Income $income)
     {
         $this->assertCanViewRecord($request, $income);
 
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+        return new IncomeResource($income->load(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
     /**
@@ -233,6 +310,7 @@ class IncomeController extends Controller
             'invoice_amount' => ['prohibited'],
             'company_id' => ['prohibited'],
             'applicant_id' => 'nullable|exists:applicants,id',
+            'student_id' => ['nullable', 'integer', Rule::exists('students', 'id')->whereNull('deleted_at')],
             'applicant_contract_id' => 'nullable|exists:applicant_contract,id',
             'type' => ['sometimes', 'string', 'max:255', Rule::exists('finance_types', 'value')->where('kind', 'income')],
             'description' => 'sometimes|nullable|string|max:65535',
@@ -294,6 +372,7 @@ class IncomeController extends Controller
                 $line = $lines->get($lineId);
                 abort_unless($line && (! $line->trashed() || (int) $lineId === (int) $income->applicant_contract_id), 404);
                 $data['applicant_id'] = $line->applicant_id;
+                $data['student_id'] = Student::query()->where('applicant_id', $line->applicant_id)->value('id');
                 $this->ensureLineCurrency($line, (int) ($data['currency_id'] ?? $income->currency_id));
                 if ($requestedCurrency) {
                     $this->applyCurrencySnapshot($data);
@@ -302,6 +381,7 @@ class IncomeController extends Controller
                 }
                 $this->ensureLineCanAcceptPayment($line, array_merge($income->toArray(), $data), $income);
             } else {
+                $this->normalizePayer($data);
                 if ($requestedCurrency) {
                     $this->applyCurrencySnapshot($data);
                 } elseif ($requestedRate) {
@@ -314,7 +394,7 @@ class IncomeController extends Controller
             return $income;
         });
 
-        return new IncomeResource($income->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+        return new IncomeResource($income->load(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
     }
 
     public function approve(Request $request, Income $income, EducationalWorkflowNotificationService $notifications)
@@ -344,7 +424,7 @@ class IncomeController extends Controller
             $income->assignDocumentNumber();
             $notifications->financeDraftStatusChanged($income->fresh(), Income::APPROVED, $request->user()->id);
 
-            return new IncomeResource($income->fresh()->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+            return new IncomeResource($income->fresh()->load(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
         });
     }
 
@@ -363,7 +443,7 @@ class IncomeController extends Controller
             ]);
             $notifications->financeDraftStatusChanged($income->fresh(), Income::REJECTED, $request->user()->id);
 
-            return new IncomeResource($income->fresh()->load(['applicant', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
+            return new IncomeResource($income->fresh()->load(['applicant', 'student', 'applicantContract.contract', 'applicantContract.currency', 'incomeCurrency', 'recorder', 'approver']));
         });
     }
 
@@ -524,6 +604,55 @@ class IncomeController extends Controller
             throw ValidationException::withMessages([
                 'currency_id' => ['business.contract_payment_currency_mismatch'],
             ]);
+        }
+    }
+
+    /**
+     * Keep the optional applicant and student payer identities coherent.
+     * A direct student has no applicant; a student with an applicant inherits
+     * that applicant, and an applicant with a student row is linked to it.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function normalizePayer(array &$data): void
+    {
+        // The form may send both keys, with the unused payer explicitly null.
+        // Treat the non-null identity as the selection instead of clearing it.
+        if (array_key_exists('student_id', $data) && $data['student_id'] === null
+            && array_key_exists('applicant_id', $data) && $data['applicant_id'] !== null) {
+            unset($data['student_id']);
+        }
+        if (array_key_exists('applicant_id', $data) && $data['applicant_id'] === null
+            && array_key_exists('student_id', $data) && $data['student_id'] !== null) {
+            unset($data['applicant_id']);
+        }
+
+        $hasStudent = array_key_exists('student_id', $data);
+        $hasApplicant = array_key_exists('applicant_id', $data);
+        $student = $hasStudent && $data['student_id']
+            ? Student::query()->find($data['student_id'])
+            : null;
+        $applicantId = $hasApplicant && $data['applicant_id']
+            ? (int) $data['applicant_id']
+            : null;
+
+        if ($hasStudent && $student && $applicantId !== null
+            && (int) ($student->applicant_id ?? 0) !== $applicantId) {
+            throw ValidationException::withMessages([
+                'student_id' => ['business.student_applicant_mismatch'],
+            ]);
+        }
+
+        if ($hasStudent) {
+            $data['applicant_id'] = $student?->applicant_id;
+
+            return;
+        }
+
+        if ($hasApplicant) {
+            $data['student_id'] = $applicantId !== null
+                ? Student::query()->where('applicant_id', $applicantId)->value('id')
+                : null;
         }
     }
 

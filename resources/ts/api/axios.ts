@@ -6,6 +6,7 @@ import { validateApiRequest } from '@/utils/apiValidation'
 import { clearFormErrors, replaceFormErrors } from '@/utils/formErrors'
 import { currentLocale } from '@/utils/localization'
 import { isBackgroundActive } from '@/utils/backgroundActivity'
+import { tagAuditResourceRows } from '@/utils/auditResources'
 
 export interface ApiMutationOptions { quiet?: boolean }
 export const mutationHeaders = (options?: ApiMutationOptions) => options?.quiet ? { 'X-Suppress-Error-Notification': 'true' } : {}
@@ -120,6 +121,10 @@ api.interceptors.response.use(
     // downloads and prevents object URLs from being created by the browser.
     if (response.config.responseType === 'blob')
       return response
+
+    // Tag register list rows with their audit registry key. The symbol stays
+    // non-enumerable, so the API payload and typed objects are unchanged.
+    tagAuditResourceRows(response.config.url, response.data)
 
     // Standardize all successful responses to have a data property
     if (response.data && !response.data.data) {

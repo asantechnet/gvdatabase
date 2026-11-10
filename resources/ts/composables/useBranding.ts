@@ -14,6 +14,9 @@ const isLogoSquare = ref<boolean | null>(null)
 const isMonochromeLogo = ref(false)
 const shortCompanyName = ref('Educational Visa')
 const originalCompanyName = ref('Educational Visa Services')
+// Optional register audit colouring. Off by default; read from public branding
+// so every signed-in user can gate the display without the settings grant.
+const auditColoringEnabled = ref(false)
 let brandingRequest: Promise<void> | null = null
 let logoProbeId = 0
 
@@ -69,6 +72,7 @@ interface BrandingSettings {
   website_title?: string | null
   short_company_name?: string | null
   original_company_name?: string | null
+  audit_coloring_enabled?: boolean
   company_email?: string | null
   timezone?: string
   contract_letterhead_url?: string | null
@@ -105,6 +109,7 @@ export const useBranding = () => {
     updateFavicon(branding.favicon_url || null)
     shortCompanyName.value = branding.short_company_name || branding.website_title || shortCompanyName.value
     originalCompanyName.value = branding.original_company_name || branding.website_title || originalCompanyName.value
+    auditColoringEnabled.value = Boolean(branding.audit_coloring_enabled)
 
     const storedThemeColors = readStoredThemeColors()
 
@@ -160,6 +165,7 @@ export const useBranding = () => {
     isMonochromeLogo,
     shortCompanyName,
     originalCompanyName,
+    auditColoringEnabled,
     handleLogoLoad: (event: Event) => {
       const image = event.currentTarget as HTMLImageElement | null
 

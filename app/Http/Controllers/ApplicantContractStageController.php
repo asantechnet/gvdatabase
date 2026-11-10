@@ -9,6 +9,7 @@ use App\Models\ApplicantStage;
 use App\Models\ApplicantStageHistory;
 use App\Services\ApplicantStageTransitionGuard;
 use App\Services\ContractTaskService;
+use App\Support\BuiltInService;
 use App\Support\EmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,9 +30,14 @@ class ApplicantContractStageController extends Controller
      */
     public function show(Request $request, ApplicantContract $line)
     {
-        $line->loadMissing(['applicant', 'currentStage', 'contract.parentContract', 'currency']);
+        $line->loadMissing([
+            'applicant', 'currentStage', 'currency',
+            'contract.parentContract', 'contract.template', 'contract.templateVersion',
+            'contract.contractCountry', 'contract.contractLanguage',
+        ]);
         $applicant = $line->applicant;
         abort_unless($applicant, 404);
+        abort_if(BuiltInService::isCaseFree($line->serviceKey() ?? $applicant->service), 422, 'business.applicant_stage_service_not_supported');
 
         $this->assertViewAccess($request, $applicant);
 
@@ -56,6 +62,8 @@ class ApplicantContractStageController extends Controller
         $line->loadMissing(['applicant', 'currentStage', 'contract', 'currency']);
         $applicant = $line->applicant;
         abort_unless($applicant, 404);
+        $lineService = $line->serviceKey() ?? $applicant->service;
+        abort_if(BuiltInService::isCaseFree($lineService), 422, 'business.applicant_stage_service_not_supported');
 
         $user = $request->user();
         abort_unless($user, 403, 'auth.forbidden');
@@ -69,7 +77,6 @@ class ApplicantContractStageController extends Controller
         $next = ApplicantStage::findOrFail($data['stage_id']);
         // The stage must belong to the line's service. Legacy, service-agnostic
         // rows stay usable; another service's stage never is.
-        $lineService = $line->serviceKey() ?? $applicant->service;
         abort_if($next->service && $lineService && $next->service !== $lineService, 422, 'business.applicant_stage_context_mismatch');
 
         $current = $line->currentStage;
@@ -120,6 +127,9 @@ class ApplicantContractStageController extends Controller
     private function allowedNextStages(ApplicantContract $line)
     {
         $service = $line->serviceKey() ?? $line->applicant?->service;
+        if (BuiltInService::isCaseFree($service)) {
+            return collect();
+        }
 
         $stages = ApplicantStage::query()
             ->where('is_active', true)

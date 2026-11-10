@@ -62,9 +62,9 @@ class NotificationDemoSeederTest extends TestCase
         $employee = $user->employee;
         $applicant = Applicant::where('email', NotificationDemoSeeder::APPLICANT_EMAIL)->sole();
 
-        // The case carries a counselor (responsible) and an admission employee.
+        // The case carries a counselor and a plural responsible employee.
         $this->assertSame($employee->id, $applicant->responsible_employee_id);
-        $this->assertSame($employee->id, $applicant->admission_employee_id);
+        $this->assertTrue($applicant->responsibleEmployees()->whereKey($employee->id)->exists());
 
         $task = Task::query()->sole();
         $this->assertSame($applicant->id, $task->applicant_id);

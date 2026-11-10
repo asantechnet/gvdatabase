@@ -20,7 +20,9 @@ import ContactActionMenu from '@/components/ContactActionMenu.vue'
 import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { useCookie } from '@core/composable/useCookie'
 import { confirmActionWarning } from '@/composables/useActionWarning'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
+const { enabled: academyEnabled } = useAcademyEnabled()
 const visitors = ref<Visitor[]>([])
 // Both lists ask the server for one page at a time.
 const page = ref(1)
@@ -70,10 +72,12 @@ const hasActiveFilters = computed(() => Boolean(
   || dateFrom.value
   || dateTo.value,
 ))
-const serviceOptions = computed(() => BUILT_IN_SERVICES.map(service => ({
-  title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
-  value: service,
-})))
+const serviceOptions = computed(() => BUILT_IN_SERVICES
+  .filter(service => academyEnabled.value || service !== 'academy')
+  .map(service => ({
+    title: translate(`educational.builtInServices.${service === 'test_offer' ? 'testOffer' : service}`),
+    value: service,
+  })))
 const activeCountries = computed(() => (catalogs.value.countries ?? [])
   .filter(country => country.is_active)
   .map(country => ({ title: country.name, value: country.id })))
@@ -861,7 +865,7 @@ onMounted(async () => {
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
                   <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
-                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-contracts', query: { visitor: item.id } }" />
+                  <VListItem v-if="academyEnabled" prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-students', query: { visitor: item.id } }" />
                 </VList>
               </VMenu>
             </template>
@@ -1019,7 +1023,7 @@ onMounted(async () => {
       <VCardText class="visitor-dialog-body visitor-details-dialog__body pa-5 pa-sm-6">
         <div class="visitor-details-grid">
           <div v-for="field in visitorDetailFields" :key="field.key" class="visitor-detail-tile">
-            <VIcon :icon="field.icon" size="19" class="visitor-detail-tile__icon" />
+            <VIcon :icon="field.icon" size="22" class="visitor-detail-tile__icon" />
             <div class="visitor-detail-tile__content">
               <span class="visitor-detail-tile__label">{{ field.label }}</span>
               <div v-if="field.key === 'contact' && visitorDetails?.contact" dir="ltr" class="visitor-contact-value">
@@ -1045,7 +1049,7 @@ onMounted(async () => {
             </div>
           </div>
           <div class="visitor-detail-tile visitor-detail-tile--notes">
-            <VIcon icon="tabler-notes" size="19" class="visitor-detail-tile__icon" />
+            <VIcon icon="tabler-notes" size="22" class="visitor-detail-tile__icon" />
             <div class="visitor-detail-tile__content">
               <span class="visitor-detail-tile__label">{{ $t('pages.contracts.visitor.visitor.notes') }}</span>
               <span class="visitor-detail-tile__value">{{ visitorDetails?.notes || '—' }}</span>
@@ -1534,8 +1538,8 @@ onMounted(async () => {
 
 .visitor-details-dialog__eyebrow {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1549,9 +1553,9 @@ onMounted(async () => {
 .visitor-detail-tile {
   align-items: flex-start;
   display: flex;
-  gap: 0.75rem;
-  min-block-size: 5.25rem;
-  padding: 1rem;
+  gap: 0.875rem;
+  min-block-size: 5.75rem;
+  padding: 1.125rem;
   border: 1px solid rgba(var(--v-border-color), 0.42);
   border-radius: 12px;
   background-color: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%);
@@ -1571,14 +1575,14 @@ onMounted(async () => {
 
 .visitor-detail-tile__label {
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 .visitor-detail-tile__value {
   overflow-wrap: anywhere;
   color: rgb(var(--v-theme-on-surface));
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.45;
 }

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import navItems from "@/navigation/vertical";
+import baseNavItems from "@/navigation/vertical";
+import { useAcademyEnabled } from "@/composables/useAcademyEnabled";
 import { themeConfig } from "@themeConfig";
 
 import AppBrandMark from '@/components/erp/AppBrandMark.vue'
@@ -27,6 +28,13 @@ const {
   loadBranding,
 } = useBranding();
 const layoutConfigStore = useLayoutConfigStore();
+const { enabled: academyEnabled, load: loadAcademyEnabled } = useAcademyEnabled();
+
+// Academy is a company-level feature: when it is off the whole navigation
+// group disappears, not just its pages.
+const navItems = computed(() => academyEnabled.value
+  ? baseNavItems
+  : baseNavItems.filter(item => !('title' in item) || item.title !== 'common.navigation.academy'));
 
 const toggleSidebar = () => {
   const willCollapse = !layoutConfigStore.isVerticalNavCollapsed;
@@ -35,7 +43,7 @@ const toggleSidebar = () => {
 };
 
 onMounted(async () => {
-  await loadBranding();
+  await Promise.all([loadBranding(), loadAcademyEnabled()]);
 });
 </script>
 
@@ -135,10 +143,13 @@ onMounted(async () => {
 .vertical-nav-brand__logo {
   display: block;
   flex: 0 0 auto;
-  block-size: 2.5rem;
-  inline-size: auto;
-  max-block-size: 2.5rem;
-  max-inline-size: 10rem;
+  /* The company mark is the primary anchor in both the pinned sidebar and
+     the mobile drawer. Give it enough visual weight without changing nav
+     density or truncating a wide logo. */
+  block-size: 3.75rem !important;
+  inline-size: auto !important;
+  max-block-size: 3.75rem !important;
+  max-inline-size: 11.25rem !important;
   object-fit: contain;
 }
 

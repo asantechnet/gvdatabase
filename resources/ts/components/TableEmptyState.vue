@@ -2,11 +2,12 @@
 import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
-  description: string
+  description?: string
   icon?: string
   minHeight?: number | string
   title?: string
 }>(), {
+  description: '',
   icon: 'tabler-database-off',
   minHeight: 240,
   title: undefined,
@@ -27,7 +28,7 @@ const minHeight = computed(() => typeof props.minHeight === 'number'
       <h3 v-if="title" class="table-empty-state__title">
         {{ title }}
       </h3>
-      <p class="table-empty-state__description">
+      <p v-if="description" class="table-empty-state__description">
         {{ description }}
       </p>
     </div>

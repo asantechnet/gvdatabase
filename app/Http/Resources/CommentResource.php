@@ -23,6 +23,11 @@ class CommentResource extends JsonResource
             'senderId' => (string) $this->user_id,
             'senderAvatar' => $this->whenLoaded('user', fn () => $this->user?->employee?->avatar),
             'content' => $this->content,
+            'mentionIds' => $this->whenLoaded('mentionedUsers', fn () => $this->mentionedUsers->pluck('id')->map(fn ($id) => (string) $id)->values()->all(), []),
+            'mentions' => $this->whenLoaded('mentionedUsers', fn () => $this->mentionedUsers->map(fn ($user) => [
+                'id' => (string) $user->id,
+                'name' => $user->name,
+            ])->values()->all(), []),
             'timestamp' => $this->created_at ? $this->created_at->format('g:i A') : '',
             'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,
             'editableUntil' => $editableUntil->toISOString(),

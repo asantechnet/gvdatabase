@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { getIncomeApplicants, type IncomeApplicantOption } from '@/api/incomes'
 import { apiErrorMessage } from '@/utils/apiErrors'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{ modelValue: number | null; active: boolean; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
@@ -54,9 +55,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <VAutocomplete
-    :model-value="modelValue" :items="applicants" item-title="name" item-value="id"
-    :label="$t('common.fields.applicant')" :loading="loading" :disabled="disabled"
+  <ErpField
+    :model-value="modelValue" kind="autocomplete" :items="applicants" item-title="name" item-value="id"
+    :label="$t('common.fields.applicant')" :placeholder="$t('common.fields.applicant')" :loading="loading" :disabled="disabled"
     :error-messages="error" no-filter clearable
     @update:model-value="emit('update:modelValue', $event)" @update:search="search"
   />

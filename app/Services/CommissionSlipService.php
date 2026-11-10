@@ -23,10 +23,11 @@ class CommissionSlipService
     {
         $settlement->loadMissing([
             'employee.position',
-            'employee.departmentRecord',
+            'employee.departments',
             'baseCurrency',
             'accruals' => fn ($query) => $query->orderBy('earned_at')->orderBy('id'),
             'accruals.contract.applicant',
+            'accruals.academyClass',
         ]);
 
         $setting = Setting::latest('id')->first();
@@ -71,7 +72,8 @@ class CommissionSlipService
             'entry_type' => $accrual->entry_type,
             'adjustment_reason' => $accrual->adjustment_reason,
             'contract_number' => $accrual->contract?->contract_number,
-            'case_name' => $accrual->contract?->applicant?->name,
+            'class_name' => $accrual->academyClass?->name,
+            'case_name' => $accrual->contract?->applicant?->name ?? $accrual->academyClass?->name,
             'service' => $accrual->service,
             'service_label' => BuiltInService::label($accrual->service),
             'eligible_base_amount' => (float) $accrual->eligible_base_amount,
@@ -89,7 +91,7 @@ class CommissionSlipService
             'father_name' => $employee->father_name,
             'contact' => $employee->contact,
             'position' => $employee->position?->name,
-            'department' => $employee->department ?: $employee->departmentRecord?->name,
+            'department' => $employee->department,
             'join_date' => $employee->join_date?->toDateString(),
         ];
     }

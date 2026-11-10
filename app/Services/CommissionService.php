@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademyClass;
 use App\Models\Applicant;
 use App\Models\ApplicantContract;
 use App\Models\ApplicantStage;
@@ -10,22 +11,27 @@ use App\Models\CommissionAccrual;
 use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Employee;
+use App\Support\BuiltInService;
 use Illuminate\Support\Carbon;
 
 /**
- * Turns completed visa cases into employee commission accruals.
+ * Turns completed cases into employee commission accruals, plus live Academy
+ * agreements, which are sold without a case.
  *
  * The trigger is the applicant workflow itself: commission is earned when a
  * case reaches the terminal `completed` stage (see `ApplicantStage`), which is
  * the point where the office considers the case finished and the contracted
  * services delivered. Every service line of every non-cancelled contract on
  * that case then earns at the employee's per-service rate, converted to the
- * base currency.
+ * base currency. An employee earns when they are the contract/line seller or
+ * one of the case's responsible employees. Academy is the exception: its active
+ * contract is the earning trigger because there is no case to complete.
  *
  * A case that is anywhere else — still in the pipeline, or closed at one of the
  * exit stages (`cancelled`, `rejected`, `withdrawn`) — earns nothing, and any
- * accrual that is still unsettled is voided. Money already settled or paid is
- * never reversed.
+ * case-bearing accrual that is still unsettled is voided. Academy accruals are
+ * never voided by a stage change. Money already settled or paid is never
+ * reversed.
  *
  * The former `CommissionAccrualService` synced from invoices and income
  * receipts, neither of which exists any more; the pre-2026 ledger also keyed on
@@ -48,12 +54,6 @@ class CommissionService
      */
     public function syncForApplicant(Applicant $applicant, Carbon|string|null $earnedAt = null): void
     {
-        if (! $applicant->isCaseCompleted()) {
-            $this->voidForApplicant($applicant);
-
-            return;
-        }
-
         $applicant->loadMissing([
             'contracts.applicantContracts.currency',
             'contracts.applicantContracts.soldByEmployee',
@@ -68,15 +68,30 @@ class CommissionService
             return;
         }
 
-        $earnedOn = $this->earnedOn($applicant, $earnedAt);
+        // Academy has no case, so its live contract is the trigger. Every
+        // other service waits for the case to reach the completed stage.
+        $caseCompleted = $applicant->isCaseCompleted();
+        $caseEarnedOn = $this->earnedOn($applicant, $earnedAt);
         $eligibleIds = [];
+
+        // Responsibility is assigned to the case, so every responsible employee
+        // earns on every contracted service line, alongside the seller.
+        $responsibleEmployeeIds = $applicant->responsibleEmployees()
+            ->pluck('employees.id')
+            ->all();
 
         foreach ($applicant->contracts as $contract) {
             if (! $this->earnsCommission($contract)) {
                 continue;
             }
 
-            foreach ($this->lineAccruals($contract, $base, $earnedOn) as $id) {
+            // An Academy accrual is dated by the agreement, not by a case that
+            // will never exist; re-syncing must not keep moving that date.
+            $earnedOn = $caseCompleted
+                ? $caseEarnedOn
+                : ($contract->start_date?->toDateString() ?? $contract->created_at?->toDateString() ?? now()->toDateString());
+
+            foreach ($this->lineAccruals($contract, $base, $earnedOn, $caseCompleted, $responsibleEmployeeIds) as $id) {
                 $eligibleIds[] = $id;
             }
         }
@@ -90,14 +105,20 @@ class CommissionService
      */
     public function voidForApplicant(Applicant $applicant): void
     {
+        // Academy is sold without a case, so a stage change must never void
+        // its contract-triggered accrual. Case-bearing services follow the
+        // completed case.
         $this->accrualsFor($applicant)
             ->whereNull('commission_settlement_id')
+            ->whereHas('applicantContract', fn ($query) => $query
+                ->whereIn('service', BuiltInService::CASE_BEARING))
             ->update(['status' => 'void']);
     }
 
     /**
-     * Re-sync the case behind a contract. Kept so contract-side paths (status
-     * changes, manual reconciliation) reach the same rule: the case decides.
+     * Re-sync the applicant behind a contract. Kept so contract-side paths
+     * (status changes, manual reconciliation) reach the same rule: the case —
+     * or, for Academy, the live agreement — decides.
      */
     public function syncForContract(Contract $contract): void
     {
@@ -140,20 +161,26 @@ class CommissionService
     }
 
     /**
-     * Build the accruals for every service line of one contract and return the
-     * ids that are still eligible (the rest are voided by `voidStale`).
+     * Build the accruals for the eligible service lines of one contract and
+     * return the ids that are still eligible (the rest are voided by
+     * `voidStale`).
      *
+     * @param  list<int>  $responsibleEmployeeIds  Employees attached to the case.
      * @return list<int>
      */
-    private function lineAccruals(Contract $contract, Currency $base, string $earnedOn): array
+    private function lineAccruals(Contract $contract, Currency $base, string $earnedOn, bool $caseCompleted, array $responsibleEmployeeIds): array
     {
         $eligibleIds = [];
 
         foreach ($contract->applicantContracts as $line) {
+            // Sellers and every responsible employee share the line's
+            // commission. Unique ids prevent a seller who is also responsible
+            // from being paid twice for the same line.
             $employeeIds = array_values(array_unique(array_filter([
                 $contract->employee_id,
                 $contract->sold_by_employee_id,
                 $line->sold_by_employee_id,
+                ...$responsibleEmployeeIds,
             ])));
 
             if ($employeeIds === []) {
@@ -166,6 +193,12 @@ class CommissionService
             }
 
             $lineService = $line->service ?: $contract->service;
+
+            // Academy earns while its agreement is live. Every case-bearing
+            // service — test offer included — waits for its case to complete.
+            if (! $caseCompleted && $lineService !== BuiltInService::ACADEMY) {
+                continue;
+            }
 
             foreach ($employeeIds as $employeeId) {
                 $employee = Employee::with('serviceCommissions')->find($employeeId);
@@ -281,5 +314,64 @@ class CommissionService
         }
 
         return round($amount / $rate, 6);
+    }
+
+    /**
+     * Build the accruals for a completed Academy class.
+     *
+     * Class teachers earn from the class fee at their academy service rate.
+     * The ledger key is the class and the employee, so a reconciliation pass
+     * updates the amount instead of duplicating it. Settled accruals are
+     * immutable, just like case accruals.
+     */
+    public function syncForAcademyClass(AcademyClass $class): void
+    {
+        if ($class->completed_at === null) {
+            return;
+        }
+
+        $base = Currency::query()->where('is_base', true)->first();
+        $amount = (float) $class->fee;
+        if (! $base || $amount <= 0) {
+            return;
+        }
+
+        $class->loadMissing('teachers.serviceCommissions');
+        foreach ($class->teachers as $employee) {
+            if (! $employee->is_commission_based) {
+                continue;
+            }
+
+            $rate = $employee->serviceCommissions->firstWhere('service', BuiltInService::ACADEMY);
+            $percentage = $rate ? (float) $rate->percentage : 0.0;
+            if ($percentage <= 0) {
+                continue;
+            }
+
+            $accrual = CommissionAccrual::withTrashed()->firstOrNew([
+                'academy_class_id' => $class->id,
+                'employee_id' => $employee->id,
+            ]);
+
+            if ($accrual->exists && $accrual->commission_settlement_id !== null) {
+                continue;
+            }
+
+            $accrual->fill([
+                'contract_id' => null,
+                'applicant_contract_id' => null,
+                'service' => BuiltInService::ACADEMY,
+                'base_currency_id' => $base->id,
+                'commission_settlement_id' => null,
+                'entry_type' => 'earned',
+                'earned_at' => $class->completed_at->toDateString(),
+                'source_base_amount' => $amount,
+                'eligible_base_amount' => $amount,
+                'percentage' => $percentage,
+                'commission_base_amount' => round($amount * ($percentage / 100), 6),
+                'status' => 'pending',
+                'deleted_at' => null,
+            ])->save();
+        }
     }
 }

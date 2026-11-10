@@ -27,6 +27,7 @@ return [
         'office_close_time' => 'ساعت بسته شدن دفتر',
         'default_break_minutes' => 'دقایق پیش‌فرض وقفه',
         'automatic_attendance_enabled' => 'حاضری خودکار را فعال کنید',
+        'academy_enabled' => 'فعال‌سازی آکادمی',
         'missing_attendance_status' => 'روزهای بدون ثبت حضور',
         'primary_color' => 'اصلی',
         'secondary_color' => 'دوم',

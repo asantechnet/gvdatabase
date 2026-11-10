@@ -22,6 +22,14 @@ class IncomeResource extends JsonResource
             'receipt_number' => $this->receipt_number,
             'attachments' => $this->attachmentsPayload('incomes', $this->id),
             'applicant_id' => $this->applicant_id,
+            'student_id' => $this->student_id,
+            'student' => $this->whenLoaded('student', fn () => $this->student ? [
+                'id' => $this->student->id,
+                'student_number' => $this->student->student_number,
+                'name' => $this->student->name,
+                'contact' => $this->student->contact,
+                'email' => $this->student->email,
+            ] : null),
             'applicant_contract_id' => $this->applicant_contract_id,
             'contract_service' => $line ? [
                 'id' => $line->id,

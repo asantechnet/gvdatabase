@@ -67,6 +67,8 @@ const expiringOnly = ref(route.query.expiring === '1')
 const isDialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
 const selectedContract = ref<Contract | null>(null)
+const detailContract = ref<Contract | null>(null)
+const detailsOpen = ref(false)
 // Set only while the form creates an extension of an existing agreement.
 const extensionParent = ref<Contract | null>(null)
 
@@ -76,6 +78,11 @@ const isCancelling = ref(false)
 const toast = useToast()
 const isContractActionDialogVisible = ref(false)
 const pendingContractAction = ref<{ type: 'delete' | 'cancel'; contract: Contract } | null>(null)
+const showDetails = (contract: Contract) => {
+  detailContract.value = contract
+  // Avoid the actions menu's click also dismissing the dialog as an outside click.
+  window.setTimeout(() => { detailsOpen.value = true })
+}
 // Other contracts are free-form templates the office completes by hand, so they
 // carry no counterparty at all: no input, no column, no filter and no print
 // party block. Only employment contracts are drawn for a named counterparty.
@@ -633,6 +640,7 @@ onMounted(async () => {
       </template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.contract_number="{ item }">
+        <VBtn variant="text" size="small" class="contract-number-link px-0 text-none" @click="showDetails(item)">{{ item.contract_number || '—' }}</VBtn>
         <span>{{ item.contract_number ?? '—' }}</span>
         <VChip
           v-if="item.contract_role === 'extension'"
@@ -736,7 +744,7 @@ onMounted(async () => {
           <VMenu location="bottom end">
             <template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" class="contract-actions-trigger" :aria-label="$t('common.messages.actions')" /></template>
             <VList density="compact" min-width="220">
-              <FullDetailsButton :item="item" :title="item.contract_number || item.contract" :fields="contractDetailFields" menu-action />
+              <VListItem prepend-icon="tabler-eye" :title="t('common.actions.viewFullDetails')" @click="showDetails(item)" />
               <VListItem v-if="isEmployeeAudience && !item.is_cancelled" prepend-icon="tabler-printer" :title="$t('pages.contracts.allContracts.allContracts.printContract')" @click="printContract(item)" />
               <VListItem v-if="canExtend(item)" prepend-icon="tabler-file-plus" :title="$t('pages.contracts.allContracts.allContracts.extendContract')" @click="extendContract(item)" />
               <VListItem v-if="item.status === 'draft' && !item.is_cancelled" prepend-icon="tabler-edit" :title="$t('pages.contracts.allContracts.allContracts.editContract')" @click="editContractUI(item)" />
@@ -748,6 +756,7 @@ onMounted(async () => {
       </template>
     </ResponsiveDataTableServer>
   </VCard>
+  <FullDetailsButton v-if="detailContract" v-model="detailsOpen" :item="detailContract" :title="detailContract.contract_number || detailContract.contract" :fields="contractDetailFields" hide-activator />
   <PrintableListReport
     :title="t(audienceCopy.report)"
     :subtitle="$t('pages.contracts.allContracts.allContracts.filteredContractRecords')"
@@ -822,6 +831,9 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+:deep(.contract-number-link + span) { display: none; }
+:deep(.contract-number-link) { cursor: pointer; }
+:deep(.contract-number-link .v-btn__overlay) { opacity: 0 !important; }
 .contract-form-dialog__body {
   /* ContractForm owns the action bar's padding. Keeping VCardText's bottom
      padding leaves an extra gutter below that footer inside the dialog. */

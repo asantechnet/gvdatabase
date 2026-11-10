@@ -9,8 +9,17 @@ class CrmInteractionResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        return ['id' => $this->id, 'channel' => $this->channel, 'title' => $this->title, 'notes' => $this->notes,
-            'contacted_at' => $this->contacted_at?->toISOString(), 'follow_up_at' => $this->follow_up_at?->toISOString(),
-            'created_by' => $this->created_by, 'creator' => $this->whenLoaded('creator', fn () => $this->creator?->only(['id', 'name']))];
+        return [
+            'id' => $this->id,
+            'channel' => $this->channel,
+            'title' => $this->title,
+            'notes' => $this->notes,
+            'contacted_at' => $this->contacted_at?->toISOString(),
+            'follow_up_at' => $this->follow_up_at?->toISOString(),
+            'applicant_id' => $this->applicant_id,
+            'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant?->only(['id', 'name'])),
+            'created_by' => $this->created_by,
+            'creator' => $this->whenLoaded('creator', fn () => $this->creator?->only(['id', 'name'])),
+        ];
     }
 }

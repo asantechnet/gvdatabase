@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
 import { formatActiveDate, formatActiveMoney, translate } from '@/utils/localization'
 import { toIsoDate } from '@/utils/money'
@@ -13,12 +12,15 @@ import { printDocument } from '@/utils/printDocument'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import ResponsiveDataTableServer from '@/components/responsive-data-table/ResponsiveDataTableServer.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
-import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
+import AssetFormDialog from '@/components/forms/AssetFormDialog.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
 
 const toast = useToast()
 
-type ValidatableForm = { validate: () => Promise<{ valid: boolean }> }
 
 const assets = ref<AssetItem[]>([])
 // The table asks the server for one page at a time.
@@ -38,12 +40,11 @@ const filterModel = ref<string | null>(null)
 const filterOffice = ref<number | null>(null)
 const filterCondition = ref<AssetCondition | null>(null)
 const isLoading = ref(false)
+const isSavingAsset = ref(false)
 const employeesLoading = ref(false)
 const officeDirectory = ref<Office[]>([])
 const models = ref<string[]>([])
 const currencies = ref<Currency[]>([])
-const addFormRef = ref<ValidatableForm | null>(null)
-const editFormRef = ref<ValidatableForm | null>(null)
 const canCreateAssets = computed(() => canAccess('create_assets'))
 const canEditAssets = computed(() => canAccess('edit_assets'))
 const canDeleteAssets = computed(() => canAccess('delete_assets'))
@@ -101,13 +102,9 @@ const conditionColor = (condition: AssetCondition) => ({
   damaged: 'error',
 }[condition])
 
+// Retained for the inert legacy form markup while the shared dialog component
+// below owns the active create/edit flow.
 const isBlank = (value: unknown) => value === null || value === undefined || String(value).trim() === ''
-const requiredRule = (value: unknown) => !isBlank(value) || translate('common.validation.required')
-const wholeNumberAtLeast = (min: number) => (value: unknown) =>
-  (Number.isInteger(Number(value)) && Number(value) >= min) || translate('pages.finance.asset.asset.wholeNumberAtLeast', { min })
-const nonNegativeNumber = (value: unknown) =>
-  (!isBlank(value) && Number.isFinite(Number(value)) && Number(value) >= 0) || translate('pages.finance.asset.asset.nonNegativeNumber')
-const optionalRule = (rule: (value: unknown) => true | string) => (value: unknown) => isBlank(value) ? true : rule(value)
 
 const currencyFor = (asset: AssetItem) => asset.currency ?? baseCurrency.value
 const assetMoney = (value: number | string | null | undefined, asset: AssetItem) => formatActiveMoney(value, currencyFor(asset))
@@ -261,11 +258,8 @@ const openDeleteAssetDialog = (asset: AssetItem) => {
 }
 
 const addAsset = async () => {
-  const validation = await addFormRef.value?.validate()
-  if (validation && !validation.valid)
-    return
-
   if (selectedAsset.value) {
+    isSavingAsset.value = true
     try {
       const created = await AssetApi.create(toPayload(selectedAsset.value))
       // A new row belongs on the first page, and the paging counts changed.
@@ -279,15 +273,15 @@ const addAsset = async () => {
       console.error('Error adding asset:', error)
       toast.error(translate('pages.finance.asset.asset.failedToAddAssetItem'))
     }
+    finally {
+      isSavingAsset.value = false
+    }
   }
 }
 
 const updateAsset = async () => {
-  const validation = await editFormRef.value?.validate()
-  if (validation && !validation.valid)
-    return
-
   if (selectedAsset.value) {
+    isSavingAsset.value = true
     try {
       await AssetApi.update(selectedAsset.value.id, toPayload(selectedAsset.value))
       await fetchAssets()
@@ -297,6 +291,9 @@ const updateAsset = async () => {
     catch (error) {
       console.error('Error updating asset:', error)
       toast.error(translate('pages.finance.asset.asset.failedToUpdateAssetItem'))
+    }
+    finally {
+      isSavingAsset.value = false
     }
   }
 }
@@ -345,66 +342,57 @@ onMounted(() => {
 
 <template>
   <div>
-    <DataTablePageKpis
-      :items="assets"
-      :title="$t('components.dataTablePageKpis.pages.assetInventory.title')"
-      :description="$t('components.dataTablePageKpis.pages.assetInventory.description')"
-      icon="tabler-packages"
-    />
-    <VCard class="mb-6">
-      <VCardText>
+    <ErpPageHeader :title="$t('components.dataTablePageKpis.pages.assetInventory.title')" section="finance" class="mb-5" />
+    <VCard class="mb-6 filter-deck" elevation="0">
+      <VCardText class="filter-deck__content">
         <VRow align="center">
           <VCol
             cols="12"
-            md="7"
+            md="5"
           >
-            <VTextField
+            <ErpSearchField
               v-model="search"
-              class="data-table-search"
-              prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.finance.asset.asset.searchAsset')"
-              density="compact"
-              clearable
-              hide-details
             />
           </VCol>
           <VCol
             cols="12"
-            md="5"
-            class="text-end d-flex gap-2 justify-end"
+            md="7"
+            class="d-flex flex-wrap align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
               :active="Boolean(filterModel || filterOffice || filterCondition)"
               @reset="filterModel = null; filterOffice = null; filterCondition = null"
             >
-              <VSelect
+              <ErpField
                 v-model="filterModel"
+                kind="select"
                 :items="models"
                 :label="$t('pages.finance.asset.asset.filterByModel')"
-                density="compact"
+                :placeholder="$t('pages.finance.asset.asset.filterByModel')"
                 clearable
-                hide-details
               />
-              <VSelect
+              <ErpField
                 v-model="filterOffice"
+                kind="select"
                 :items="officeOptions"
                 :label="$t('pages.finance.asset.asset.filterByOffice')"
-                density="compact"
+                :placeholder="$t('pages.finance.asset.asset.filterByOffice')"
                 clearable
-                hide-details
               />
-              <VSelect
+              <ErpField
                 v-model="filterCondition"
+                kind="select"
                 :items="conditions"
                 :label="$t('pages.finance.asset.asset.filterByCondition')"
-                density="compact"
+                :placeholder="$t('pages.finance.asset.asset.filterByCondition')"
                 clearable
-                hide-details
-              />
+              /><template #actions><VBtn variant="tonal" color="secondary" @click="filterModel = null; filterOffice = null; filterCondition = null">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="fetchAssets">{{ $t('educational.apply') }}</VBtn></template>
             </DataTableFilterMenu>
             <VBtn
-              icon
-              variant="text"
+              icon="tabler-printer"
+              size="small"
+              variant="tonal"
               :aria-label="$t('pages.finance.asset.asset.printAssetRecords')"
               @click="printTable"
             >
@@ -419,12 +407,10 @@ onMounted(() => {
             <VBtn
               v-if="canCreateAssets"
               color="primary"
+              size="small"
+              prepend-icon="tabler-plus"
               @click="openAddAssetDialog"
             >
-              <VIcon
-                icon="tabler-plus"
-                class="me-1"
-              />
               {{ $t('pages.finance.asset.asset.addAsset') }}
             </VBtn>
           </VCol>
@@ -442,23 +428,25 @@ onMounted(() => {
           :items-per-page="perPage"
           :items-per-page-options="[10, 25, 50, 100]"
           item-value="id"
-          class="text-no-wrap"
+          class="asset-data-table"
           :loading="isLoading"
-          mobile-breakpoint="sm"
+          :skeleton-rows="5"
+          :show-scroll-affordance="false"
+          mobile-cards
+          mobile-title-key="item"
+          mobile-action-key="actions"
+          :mobile-fields="['serial_number', 'total_value', 'condition']"
           density="compact"
-          sticky-last-column
+          :sticky-first-column="false"
+          :sticky-last-column="false"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
           @update:options="updateTableOptions"
         >
-          <template #loading>
-            <TableLoadingSkeleton
-              :columns="headers.length"
-              :label="$t('common.messages.loading')"
-            />
-          </template>
-
           <template #no-data>
             <TableEmptyState
               icon="tabler-packages"
+              :title="$t('common.messages.noRecordsFound')"
               :description="$t('common.messages.noMatchingRecords')"
             />
           </template>
@@ -517,46 +505,7 @@ onMounted(() => {
           </template>
 
           <template #item.actions="{ item }">
-            <div class="d-flex gap-1">
-              <FullDetailsButton
-                :item="item"
-                :title="item.item_name || item.name || item.serial_number"
-              />
-              <VBtn
-                v-if="canEditAssets"
-                icon
-                variant="text"
-                size="small"
-                color="medium-emphasis"
-                :aria-label="$t('pages.finance.asset.asset.editAssetRecord')"
-                @click="openEditAssetDialog(item)"
-              >
-                <VIcon icon="tabler-edit" />
-                <VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t('pages.finance.asset.asset.editAssetRecord') }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                v-if="canDeleteAssets"
-                icon
-                variant="text"
-                size="small"
-                color="error"
-                :aria-label="$t('pages.finance.asset.asset.deleteAssetRecord')"
-                @click="openDeleteAssetDialog(item)"
-              >
-                <VIcon icon="tabler-trash" />
-                <VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t('pages.finance.asset.asset.deleteAssetRecord') }}
-                </VTooltip>
-              </VBtn>
-            </div>
+            <VMenu location="bottom end" content-class="asset-actions-menu"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="text" size="small" class="asset-action-trigger" :aria-label="$t('common.messages.actions')"><VIcon icon="tabler-dots-vertical" /></VBtn></template><VList density="compact" min-width="190" class="asset-actions-menu__list"><FullDetailsButton :item="item" :title="item.item || item.serial_number" menu-action /><VListItem v-if="canEditAssets" prepend-icon="tabler-edit" @click="openEditAssetDialog(item)">{{ $t('pages.finance.asset.asset.editAssetRecord') }}</VListItem><VListItem v-if="canDeleteAssets" color="error" prepend-icon="tabler-trash" @click="openDeleteAssetDialog(item)">{{ $t('pages.finance.asset.asset.deleteAssetRecord') }}</VListItem></VList></VMenu>
           </template>
         </ResponsiveDataTableServer>
       </div>
@@ -582,534 +531,37 @@ onMounted(() => {
       :rows="reportRows"
     />
 
-    <!-- Add Asset Dialog -->
-    <VDialog
+    <AssetFormDialog
       v-model="isAddAssetDialogVisible"
-      max-width="1000px"
-      scrollable
-    >
-      <VCard v-if="selectedAsset">
-        <VCardTitle class="pa-5">
-          <span class="headline">{{ $t('pages.finance.asset.asset.addNewAssetItem') }}</span>
-        </VCardTitle>
-
-        <VCardText>
-          <VForm ref="addFormRef" class="app-form">
-            <VRow>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.serial_number"
-                  :label="$t('common.messages.serialNumber')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.item"
-                  :label="$t('common.messages.itemName')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.quantity"
-                  :label="$t('common.messages.quantity')"
-                  type="number"
-                  :rules="[requiredRule, wholeNumberAtLeast(1)]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.price"
-                  :label="$t('pages.finance.asset.asset.unitPrice')"
-                  type="number"
-                  min="0"
-                  :rules="[requiredRule, nonNegativeNumber]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.currency_id"
-                  :items="currencyOptions"
-                  :label="$t('common.fields.currency')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.acquisition_date"
-                  :label="$t('pages.finance.asset.asset.acquisitionDate')"
-                  type="date"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.useful_life_years"
-                  :label="$t('pages.finance.asset.asset.usefulLifeYears')"
-                  type="number"
-                  min="1"
-                  :rules="[optionalRule(wholeNumberAtLeast(1))]"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.salvage_value"
-                  :label="$t('pages.finance.asset.asset.salvageValue')"
-                  type="number"
-                  min="0"
-                  :rules="[optionalRule(nonNegativeNumber)]"
-                />
-              </VCol>
-              <VCol cols="12">
-                <VAlert
-                  type="info"
-                  variant="tonal"
-                  density="compact"
-                >
-                  {{ valuationSummary }}
-                </VAlert>
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.model"
-                  :label="$t('common.messages.model')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.office_id"
-                  :items="activeOfficeOptions"
-                  :label="$t('common.fields.office')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.condition"
-                  :items="conditions"
-                  :label="$t('common.messages.condition')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol cols="12">
-                <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">{{ $t('pages.finance.asset.asset.employeeAllocations') }}</span><VBtn
-                    size="small"
-                    variant="tonal"
-                    prepend-icon="tabler-plus"
-                    @click="addAllocation"
-                  >
-                    {{ $t('pages.finance.asset.asset.addEmployee') }}
-                  </VBtn>
-                </div>
-                <VAlert
-                  type="info"
-                  variant="tonal"
-                  density="compact"
-                  class="mb-3"
-                >
-                  {{ $t('pages.finance.asset.asset.allocationTotalCannotExceed', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
-                </VAlert>
-                <VRow
-                  v-for="(allocation, index) in selectedAsset.allocations"
-                  :key="index"
-                >
-                  <VCol
-                    cols="12"
-                    sm="7"
-                  >
-                    <VAutocomplete
-                      v-model="allocation.employee_id"
-                      :label="$t('pages.finance.asset.asset.employee')"
-                      :items="employees"
-                      item-title="name"
-                      item-value="id"
-                      :loading="employeesLoading"
-                    />
-                  </VCol>
-                  <VCol
-                    cols="9"
-                    sm="4"
-                  >
-                    <VTextField
-                      v-model.number="allocation.quantity"
-                      :label="$t('pages.finance.asset.asset.quantity')"
-                      type="number"
-                      min="1"
-                      :max="selectedAsset.quantity"
-                    />
-                  </VCol>
-                  <VCol
-                    cols="3"
-                    sm="1"
-                    class="d-flex align-center"
-                  >
-                    <VBtn
-                      icon
-                      variant="text"
-                      color="error"
-                      :aria-label="$t('pages.finance.asset.asset.removeAllocation')"
-                      @click="removeAllocation(index)"
-                    >
-                      <VIcon icon="tabler-trash" />
-                      <VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ $t('pages.finance.asset.asset.removeAllocation') }}
-                      </VTooltip>
-                    </VBtn>
-                  </VCol>
-                </VRow>
-              </VCol>
-            </VRow>
-          </VForm>
-        </VCardText>
-
-        <VCardActions class="pa-5">
-          <VSpacer />
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            @click="isAddAssetDialogVisible = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="primary"
-            @click="addAsset"
-          >
-            {{ $t('common.actions.save') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
-
-    <!-- Edit Asset Dialog -->
-    <VDialog
+      :asset="selectedAsset"
+      mode="create"
+      :currencies="currencies"
+      :offices="activeOfficeOptions"
+      :employees="employees"
+      :employees-loading="employeesLoading"
+      :conditions="conditions"
+      :saving="isSavingAsset"
+      @save="addAsset"
+      @add-allocation="addAllocation"
+      @remove-allocation="removeAllocation"
+    />
+    <AssetFormDialog
       v-model="isEditAssetDialogVisible"
-      max-width="1000px"
-      scrollable
-    >
-      <VCard v-if="selectedAsset">
-        <VCardTitle class="pa-5">
-          <span class="headline">{{ $t('pages.finance.asset.asset.editAssetItem') }}</span>
-        </VCardTitle>
+      :asset="selectedAsset"
+      mode="edit"
+      :currencies="currencies"
+      :offices="activeOfficeOptions"
+      :employees="employees"
+      :employees-loading="employeesLoading"
+      :conditions="conditions"
+      :saving="isSavingAsset"
+      @save="updateAsset"
+      @add-allocation="addAllocation"
+      @remove-allocation="removeAllocation"
+    />
 
-        <VCardText>
-          <VForm ref="editFormRef" class="app-form">
-            <VRow>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.serial_number"
-                  :label="$t('common.messages.serialNumber')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.item"
-                  :label="$t('common.messages.itemName')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.quantity"
-                  :label="$t('common.messages.quantity')"
-                  type="number"
-                  :rules="[requiredRule, wholeNumberAtLeast(1)]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.price"
-                  :label="$t('pages.finance.asset.asset.unitPrice')"
-                  type="number"
-                  min="0"
-                  :rules="[requiredRule, nonNegativeNumber]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.currency_id"
-                  :items="currencyOptions"
-                  :label="$t('common.fields.currency')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.acquisition_date"
-                  :label="$t('pages.finance.asset.asset.acquisitionDate')"
-                  type="date"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.useful_life_years"
-                  :label="$t('pages.finance.asset.asset.usefulLifeYears')"
-                  type="number"
-                  min="1"
-                  :rules="[optionalRule(wholeNumberAtLeast(1))]"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model.number="selectedAsset.salvage_value"
-                  :label="$t('pages.finance.asset.asset.salvageValue')"
-                  type="number"
-                  min="0"
-                  :rules="[optionalRule(nonNegativeNumber)]"
-                />
-              </VCol>
-              <VCol cols="12">
-                <VAlert
-                  type="info"
-                  variant="tonal"
-                  density="compact"
-                >
-                  {{ valuationSummary }}
-                </VAlert>
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VTextField
-                  v-model="selectedAsset.model"
-                  :label="$t('common.messages.model')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.office_id"
-                  :items="activeOfficeOptions"
-                  :label="$t('common.fields.office')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                md="6"
-              >
-                <VSelect
-                  v-model="selectedAsset.condition"
-                  :items="conditions"
-                  :label="$t('common.messages.condition')"
-                  :rules="[requiredRule]"
-                  required
-                />
-              </VCol>
-              <VCol cols="12">
-                <div class="d-flex justify-space-between align-center mb-2">
-                  <span class="text-subtitle-2">{{ $t('pages.finance.asset.asset.employeeAllocations') }}</span><VBtn
-                    size="small"
-                    variant="tonal"
-                    prepend-icon="tabler-plus"
-                    @click="addAllocation"
-                  >
-                    {{ $t('pages.finance.asset.asset.addEmployee') }}
-                  </VBtn>
-                </div>
-                <VAlert
-                  type="info"
-                  variant="tonal"
-                  density="compact"
-                  class="mb-3"
-                >
-                  {{ $t('pages.finance.asset.asset.allocationReduceBeforeLowering', { allocated: allocationTotal(selectedAsset), quantity: selectedAsset.quantity }) }}
-                </VAlert>
-                <VRow
-                  v-for="(allocation, index) in selectedAsset.allocations"
-                  :key="index"
-                >
-                  <VCol
-                    cols="12"
-                    sm="7"
-                  >
-                    <VAutocomplete
-                      v-model="allocation.employee_id"
-                      :label="$t('pages.finance.asset.asset.employee')"
-                      :items="employees"
-                      item-title="name"
-                      item-value="id"
-                      :loading="employeesLoading"
-                    />
-                  </VCol>
-                  <VCol
-                    cols="9"
-                    sm="4"
-                  >
-                    <VTextField
-                      v-model.number="allocation.quantity"
-                      :label="$t('pages.finance.asset.asset.quantity')"
-                      type="number"
-                      min="1"
-                      :max="selectedAsset.quantity"
-                    />
-                  </VCol>
-                  <VCol
-                    cols="3"
-                    sm="1"
-                    class="d-flex align-center"
-                  >
-                    <VBtn
-                      icon
-                      variant="text"
-                      color="error"
-                      :aria-label="$t('pages.finance.asset.asset.removeAllocation')"
-                      @click="removeAllocation(index)"
-                    >
-                      <VIcon icon="tabler-trash" />
-                      <VTooltip
-                        activator="parent"
-                        location="top"
-                      >
-                        {{ $t('pages.finance.asset.asset.removeAllocation') }}
-                      </VTooltip>
-                    </VBtn>
-                  </VCol>
-                </VRow>
-              </VCol>
-            </VRow>
-          </VForm>
-        </VCardText>
+    <ConfirmDialog v-model:is-dialog-visible="isDeleteAssetDialogVisible" tone="error" icon="tabler-trash" :confirmation-question="$t('common.messages.confirmDelete')" :confirmation-message="`${$t('common.confirmations.areYouSureYouWantToDeleteThisAssetItem')} ${$t('common.confirmations.thisActionCannotBeUndone')}`" :confirm-text="$t('common.actions.delete')" :cancel-text="$t('common.actions.cancel')" :confirm-title="$t('common.actions.delete')" confirm-msg="" :cancel-title="$t('common.actions.cancel')" cancel-msg="" @confirm="confirmed => { if (confirmed) deleteAsset() }" />
 
-        <VCardActions class="pa-5">
-          <VSpacer />
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            @click="isEditAssetDialogVisible = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="primary"
-            @click="updateAsset"
-          >
-            {{ $t('common.actions.save') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
-
-    <!-- Delete Asset Dialog -->
-    <VDialog
-      v-model="isDeleteAssetDialogVisible"
-      max-width="500px"
-    >
-      <VCard>
-        <VCardTitle class="pa-5">
-          <span class="headline">{{ $t('common.messages.confirmDelete') }}</span>
-        </VCardTitle>
-
-        <VCardText>
-          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisAssetItem') }}
-          <br>
-          {{ $t('common.confirmations.thisActionCannotBeUndone') }}
-        </VCardText>
-
-        <VCardActions class="pa-5">
-          <VSpacer />
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            @click="isDeleteAssetDialogVisible = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="error"
-            @click="deleteAsset"
-          >
-            {{ $t('common.actions.delete') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
   </div>
 </template>
 
@@ -1117,4 +569,127 @@ onMounted(() => {
 .table-container {
   min-inline-size: 0;
 }
+
+.asset-data-table :deep(.v-table__wrapper) {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.asset-data-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+
+.asset-data-table :deep(.v-table__wrapper > table) {
+  inline-size: max-content !important;
+  min-inline-size: 100% !important;
+  table-layout: auto !important;
+}
+
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > th) {
+  min-block-size: 3rem;
+  padding-block: 1rem !important;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important;
+  color: rgba(var(--v-theme-on-surface), .72) !important;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.asset-data-table :deep(.v-table__wrapper > table > tbody > tr > td) {
+  min-block-size: 4.15rem;
+  white-space: nowrap;
+}
+
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > th),
+.asset-data-table :deep(.v-table__wrapper > table > tbody > tr > td) {
+  inline-size: max-content;
+  min-inline-size: max-content !important;
+  white-space: nowrap !important;
+}
+
+.asset-data-table :deep(.v-table__wrapper > table > tbody > tr > td:last-child) {
+  background: rgba(var(--v-theme-on-surface), .035);
+}
+
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(1)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(1)) { min-inline-size: 11rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(2)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(2)) { min-inline-size: 16rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(3)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(3)) { min-inline-size: 7rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(4)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(4)) { min-inline-size: 11rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(5)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(5)) { min-inline-size: 12rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(6)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(6)) { min-inline-size: 8rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(7)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(7)) { min-inline-size: 10rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(8)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(8)) { min-inline-size: 12rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(9)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(9)) { min-inline-size: 13rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(10)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(10)) { min-inline-size: 9rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(11)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(11)) { min-inline-size: 13rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(12)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(12)) { min-inline-size: 16rem; }
+.asset-data-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(13)), .asset-data-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(13)) { min-inline-size: 7rem; }
+
+.asset-action-trigger {
+  background: rgba(var(--v-theme-on-surface), .07) !important;
+  color: rgba(var(--v-theme-on-surface), .72) !important;
+}
+
+:global(.asset-actions-menu .asset-actions-menu__list) {
+  padding: .35rem;
+}
+
+:global(.asset-actions-menu .v-list-item) {
+  min-block-size: 2.5rem;
+  border-radius: .5rem;
+}
+
+.filter-deck :deep(.v-btn) {
+  min-block-size: 38px;
+  padding-inline: .85rem;
+  font-size: .88rem;
+}
+</style>
+
+<!-- ResponsiveDataTableServer renders the actual Vuetify table from a child
+ component, so sizing rules for its table must remain global. -->
+<style>
+.asset-data-table .v-table__wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.asset-data-table .v-table__wrapper::-webkit-scrollbar { display: none; }
+.asset-data-table .v-table__wrapper > table {
+  inline-size: max-content !important;
+  min-inline-size: 126rem !important;
+  table-layout: auto !important;
+}
+.asset-data-table .v-table__wrapper > table > thead > tr > th,
+.asset-data-table .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 9rem !important;
+  padding-inline: 1rem !important;
+  white-space: nowrap !important;
+}
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(1),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(1) { min-inline-size: 10rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(2),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(2) { min-inline-size: 14rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(3),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(3) { min-inline-size: 6rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(4),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(4) { min-inline-size: 10rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(5),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(5) { min-inline-size: 11rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(6),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(6) { min-inline-size: 7rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(7),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(7) { min-inline-size: 9rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(8),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(8) { min-inline-size: 11rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(9),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(9) { min-inline-size: 11rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(10),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(10) { min-inline-size: 8rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(11),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(11) { min-inline-size: 10rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(12),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(12) { min-inline-size: 13rem !important; }
+.asset-data-table .v-table__wrapper > table > thead > tr > :nth-child(13),
+.asset-data-table .v-table__wrapper > table > tbody > tr > :nth-child(13) { min-inline-size: 6rem !important; }
 </style>

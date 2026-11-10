@@ -13,6 +13,8 @@ class CommissionAccrualResource extends JsonResource
             'id' => $this->id,
             'contract_id' => $this->contract_id,
             'contract_number' => $this->whenLoaded('contract', fn () => $this->contract?->contract_number),
+            'class_id' => $this->academy_class_id,
+            'class_name' => $this->whenLoaded('academyClass', fn () => $this->academyClass?->name),
             // Commission is earned by the case, so the ledger names it and the
             // stage it sits at: a case that left the completed stage explains
             // why its accruals were voided.

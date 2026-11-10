@@ -52,6 +52,7 @@ class AcademyContractTemplateSeeder extends Seeder
     private function content(): string
     {
         return '<p>This agreement covers the academy enrolment confirmed by the firm, including the agreed program, schedule and class, for the fee and payment terms recorded on the applicant&rsquo;s contract.</p>'
+            .'<p>This enrolment runs from {contract.start_date} to {contract.end_date}.</p>'
             .'<p>Attendance, conduct and completion are governed by the academy policy in force at the time of enrolment.</p>';
     }
 }

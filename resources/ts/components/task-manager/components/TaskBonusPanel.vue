@@ -7,6 +7,7 @@ import type { Task } from '@/api/kanban'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { currentLocale } from '@/utils/localization'
 import { formatMoney as formatCurrency } from '@/utils/money'
+import ErpField from '@/components/erp/ErpField.vue'
 
 const props = defineProps<{ task: Task }>()
 const { t } = useI18n()
@@ -294,8 +295,8 @@ const save = async () => {
       <VCard
         v-for="row in rows"
         :key="row.key"
-        variant="outlined"
-        class="pa-3 mb-2 mt-2"
+        variant="flat"
+        class="task-bonus-panel__staff pa-4 mb-3 mt-3"
       >
         <div class="d-flex align-start justify-space-between ga-3">
           <div class="d-flex align-center ga-2 min-width-0">
@@ -323,7 +324,7 @@ const save = async () => {
 
         <div class="d-flex flex-wrap align-center ga-2 mt-3">
           <div class="task-bonus-panel__contribution">
-            <VTextField
+            <ErpField
               v-model.number="contributions[row.key]"
               type="number"
               min="0"
@@ -437,4 +438,8 @@ const save = async () => {
   flex: 0 0 auto;
   inline-size: 160px;
 }
+
+.task-bonus-panel > .text-caption:first-of-type { display: block; padding: .75rem 1rem; border-radius: .7rem; background: rgba(var(--v-theme-primary), .06); line-height: 1.6; }
+.task-bonus-panel__staff { border: 1px solid rgba(var(--v-border-color), .45); border-radius: .85rem; background: rgba(var(--v-theme-on-surface), .025); }
+.task-bonus-panel__staff:nth-of-type(even) { background: rgba(var(--v-theme-primary), .045); }
 </style>

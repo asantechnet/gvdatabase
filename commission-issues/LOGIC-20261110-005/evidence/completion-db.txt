@@ -1,0 +1,35 @@
+Case completion and commission evidence captured 2026-11-10:
+
+Lines:
+  line 10, contract 17, private,      stage 31 Completed, fee 50000, sold_by 8
+  line 11, contract 18, scholarship,  stage 14 Completed, fee 40000, sold_by 8
+  line 12, contract 19, test_offer,   stage 40 Completed, fee 30000, sold_by 8
+
+Applicants:
+  applicant 7 → stage 31, status closed
+  applicant 8 → stage 14, status closed
+  applicant 9 → stage 40, status closed
+
+Contracts:
+  contract 17: employee_id NULL, sold_by_employee_id 8
+  contract 18: employee_id NULL, sold_by_employee_id 8
+  contract 19: employee_id NULL, sold_by_employee_id 8
+
+Responsible pivot:
+  applicant 7 → employee 9
+  applicant 8 → employee 9
+  applicant 9 → employee 9
+
+Accruals:
+  employee 8 / private:     2500.00 pending
+  employee 8 / scholarship: 2000.00 pending
+  employee 8 / test_offer:  1500.00 pending
+  employee 10 / academy:    1000.00 pending
+  employee 9 / any:         0 rows
+
+Commissions filter:
+  Test Counselor: 3 accruals / 6000.00 AFN
+  Test Admission: 0 records / 0-0 of 0
+
+Settlements: 0
+Reconcile after completion: 4 accruals remained, no duplicates

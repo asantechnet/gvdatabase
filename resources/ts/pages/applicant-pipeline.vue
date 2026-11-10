@@ -37,10 +37,9 @@ const employees = ref<Employee[]>([])
 // The board shows one service's stage list at a time; the line's own stage is
 // what places a card, so mixing services in one board is meaningless here.
 const filters = ref<ApplicantListParams>({ service: 'scholarship', search: '', status: undefined, responsible_employee_id: null, country_id: null, university_id: null, education_level_id: null, date_from: '', date_to: '' })
+// Only scholarship and private cases have a workflow to display.
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
-  { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 

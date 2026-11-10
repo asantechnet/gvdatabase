@@ -8,19 +8,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * The single writer for "who belongs to this department".
+ * The single writer for "who belongs to this department" and "who manages it".
  *
- * The department update endpoint sends the complete member set. This service
- * compares it with the current set, refuses the cases the UI must explain
- * (removing the manager, adding an inactive employee, adding someone the
- * manager does not outrank) before writing anything, then delegates every
- * membership write to `Employee::syncDepartments` so the primary-department
- * projection stays in one place.
+ * Memberships are a flat set. Managers are senior employees and must remain
+ * members of the department they manage.
  */
 class DepartmentMembership
 {
-    public function __construct(private readonly RoleHierarchy $hierarchy) {}
-
     /**
      * @param  array<int, int|string>  $employeeIds  the complete member set
      * @return array{attached: int, detached: int}
@@ -33,59 +27,33 @@ class DepartmentMembership
             ->values()
             ->all();
 
-        $current = $department->employees()
-            ->pluck('employees.id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
+        $current = $department->employees()->pluck('employees.id')->map(fn ($id) => (int) $id)->all();
         $added = array_values(array_diff($submitted, $current));
         $removed = array_values(array_diff($current, $submitted));
 
-        $managerId = $department->manager_employee_id !== null
-            ? (int) $department->manager_employee_id
-            : null;
+        $managerIds = $department->managers()->pluck('employees.id')
+            ->merge($department->manager_employee_id ? [(int) $department->manager_employee_id] : [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
-        // The current manager cannot be removed from the member set in the
-        // same save that would leave the department without a head; the UI
-        // disables the action, this guard makes the API refuse it too.
-        if ($managerId !== null && in_array($managerId, $removed, true)) {
+        if (array_intersect($managerIds, $removed) !== []) {
             throw ValidationException::withMessages([
                 'employee_ids' => ['business.department_manager_cannot_be_removed'],
             ]);
         }
 
         if ($added !== []) {
-            $employees = Employee::query()
-                ->whereIn('id', $added)
-                ->with(['user.roles', 'departments'])
-                ->get()
-                ->keyBy('id');
-
-            $manager = $managerId !== null
-                ? Employee::query()->with(['user.roles'])->find($managerId)
-                : null;
+            $employees = Employee::query()->whereIn('id', $added)->get()->keyBy('id');
 
             foreach ($added as $id) {
+                $index = array_search($id, $submitted, true);
                 $employee = $employees->get($id);
 
-                if (! $employee) {
-                    continue;
-                }
-
-                $index = array_search($id, $submitted, true);
-
-                if ($employee->status !== Employee::STATUS_ACTIVE) {
+                if ($employee && $employee->status !== Employee::STATUS_ACTIVE) {
                     throw ValidationException::withMessages([
                         "employee_ids.{$index}" => ['business.employee_inactive'],
-                    ]);
-                }
-
-                // A manager who is also a member does not have to outrank
-                // themselves; every other addition must be below them.
-                if ($manager && (int) $manager->id !== (int) $employee->id
-                    && $this->rankFor($manager) <= $this->rankFor($employee)) {
-                    throw ValidationException::withMessages([
-                        "employee_ids.{$index}" => ['business.department_member_rank_invalid'],
                     ]);
                 }
             }
@@ -102,16 +70,13 @@ class DepartmentMembership
                     continue;
                 }
 
-                $ids = $employee->departments
-                    ->pluck('id')
-                    ->map(fn ($departmentId) => (int) $departmentId)
-                    ->reject(fn (int $departmentId) => $departmentId === (int) $department->id)
-                    ->values()
-                    ->all();
-
-                // Null primary lets the writer promote the oldest remaining
-                // membership, or clear the projection when none remain.
-                $employee->syncDepartments($ids, null);
+                $employee->syncDepartments(
+                    $employee->departments->pluck('id')
+                        ->map(fn ($departmentId) => (int) $departmentId)
+                        ->reject(fn (int $departmentId) => $departmentId === (int) $department->id)
+                        ->values()
+                        ->all(),
+                );
                 $detached++;
             }
 
@@ -122,21 +87,14 @@ class DepartmentMembership
                     continue;
                 }
 
-                $ids = $employee->departments
-                    ->pluck('id')
-                    ->map(fn ($departmentId) => (int) $departmentId)
-                    ->push((int) $department->id)
-                    ->unique()
-                    ->values()
-                    ->all();
-
-                $primary = $employee->department_id !== null ? (int) $employee->department_id : null;
-
-                if ($primary !== null && ! in_array($primary, $ids, true)) {
-                    $primary = null;
-                }
-
-                $employee->syncDepartments($ids, $primary);
+                $employee->syncDepartments(
+                    $employee->departments->pluck('id')
+                        ->map(fn ($departmentId) => (int) $departmentId)
+                        ->push((int) $department->id)
+                        ->unique()
+                        ->values()
+                        ->all(),
+                );
                 $attached++;
             }
         });
@@ -145,26 +103,58 @@ class DepartmentMembership
     }
 
     /**
-     * Role seniority from eager-loaded roles so a large addition never runs a
-     * per-employee query. Employees without an account use the staff baseline,
-     * matching `RoleHierarchy::canSupervise`.
+     * Replace the department's managers. Every manager must be a senior,
+     * active employee; managers are always attached as members.
+     *
+     * @param  array<int, int|string>  $employeeIds
+     * @return array<int, int>
      */
-    private function rankFor(Employee $employee): int
+    public function syncManagers(Department $department, array $employeeIds): array
     {
-        $user = $employee->user;
+        $ids = collect($employeeIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
-        if (! $user) {
-            return RoleHierarchy::LEVELS['staff'];
+        $employees = Employee::query()
+            ->with(['user.roles'])
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($ids as $index => $id) {
+            $employee = $employees->get($id);
+
+            if (! $employee || $employee->status !== Employee::STATUS_ACTIVE) {
+                throw ValidationException::withMessages([
+                    "manager_employee_ids.{$index}" => ['business.employee_inactive'],
+                ]);
+            }
+
+            $isSenior = $employee->user?->isSuperAdmin()
+                || $employee->user?->roles->contains(fn ($role) => $role->name === 'super_admin' || (bool) $role->is_senior);
+
+            if (! $isSenior) {
+                throw ValidationException::withMessages([
+                    "manager_employee_ids.{$index}" => ['business.department_manager_not_supervisory'],
+                ]);
+            }
         }
 
-        if (! $user->relationLoaded('roles')) {
-            return $this->hierarchy->rank($user);
-        }
+        DB::transaction(function () use ($department, $ids, $employees): void {
+            $department->managers()->sync($ids);
+            $department->update(['manager_employee_id' => $ids[0] ?? null]);
 
-        $rank = $user->roles->max(
-            fn ($role) => (int) ($role->level ?: $this->hierarchy->defaultLevel($role->name)),
-        );
+            foreach ($employees as $employee) {
+                $current = $employee->departments()->pluck('departments.id')->map(fn ($id) => (int) $id)->all();
+                if (! in_array((int) $department->id, $current, true)) {
+                    $employee->syncDepartments([...$current, (int) $department->id]);
+                }
+            }
+        });
 
-        return (int) $rank;
+        return $ids;
     }
 }

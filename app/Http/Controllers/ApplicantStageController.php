@@ -23,22 +23,27 @@ class ApplicantStageController extends Controller
     public function index(Request $request)
     {
         $data = $request->validate([
-            'service' => ['nullable', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', Rule::in(BuiltInService::enabled())],
             'country_id' => ['nullable', 'exists:countries,id'],
             'university_id' => ['nullable', 'exists:universities,id'],
-            'test_id' => ['nullable', 'integer', Rule::exists('tests', 'id')->whereNull('deleted_at')],
             'line_id' => ['nullable', 'integer', Rule::exists('applicant_contract', 'id')->whereNull('deleted_at')],
             'applicant_id' => ['nullable', 'integer', Rule::exists('applicants', 'id')->whereNull('deleted_at')],
             'active' => ['nullable', 'boolean'],
             'all' => ['nullable', 'boolean'],
         ]);
         $service = $data['service'] ?? null;
+        if ($service && BuiltInService::isCaseFree($service)) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
 
         // A case read resolves the service from the case itself. The response is
         // the same stage rows the case may move to, never applicant data.
         $case = $this->caseContext($data, $service);
         if ($case) {
             [$applicant, $caseService] = $case;
+            if (BuiltInService::isCaseFree($caseService)) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -47,9 +52,9 @@ class ApplicantStageController extends Controller
         }
 
         $query = ApplicantStage::query()
-            // A service-scoped request returns that service's list. Without a
-            // service (the cross-service list filter) every service's stages are
-            // returned once per key, preserving the legacy single-pipeline shape.
+            // Only case-bearing services have workflows; Academy is the one
+            // service sold without a case.
+            ->whereIn('service', BuiltInService::CASE_BEARING)
             ->when($service, fn ($q) => $q->where('service', $service));
         // Stage pickers only offer live stages; `all=1` is reserved for the
         // stage editor, which must also show inactive rows.
@@ -60,19 +65,6 @@ class ApplicantStageController extends Controller
         }
 
         $all = (bool) ($data['all'] ?? false);
-
-        // A test-offer picker returns the shared baseline plus the selected
-        // test's stages. The editor read (`all=1`) keeps the whole catalogue so
-        // an administrator can see which test a stage is limited to.
-        if (! $all && $service === BuiltInService::TEST_OFFER) {
-            $testId = $data['test_id'] ?? null;
-            $query->where(function ($scope) use ($testId): void {
-                $scope->whereNull('test_id');
-                if ($testId) {
-                    $scope->orWhere('test_id', $testId);
-                }
-            });
-        }
 
         // Destination scope only exists for the admission services. Test-offer
         // and academy rows never carry one, so filtering them here would only
@@ -130,6 +122,7 @@ class ApplicantStageController extends Controller
 
     public function destroy(ApplicantStage $applicantStage)
     {
+        abort_if(BuiltInService::isCaseFree($applicantStage->service), 422, 'business.applicant_stage_service_not_supported');
         $this->assertUnlocked($applicantStage);
         abort_if(
             $applicantStage->id && (
@@ -190,6 +183,7 @@ class ApplicantStageController extends Controller
         $service = $partial
             ? $request->route('applicantStage')?->service
             : $request->input('service', BuiltInService::SCHOLARSHIP);
+        abort_unless(BuiltInService::isCaseBearing($service), 422, 'business.applicant_stage_service_not_supported');
         $usesAdmissionScope = in_array($service, self::ADMISSION_SERVICES, true);
 
         $data = $request->validate([
@@ -197,14 +191,12 @@ class ApplicantStageController extends Controller
             // it unique inside the service (including soft-deleted rows).
             'key' => ['sometimes', 'nullable', 'string', 'max:100', 'alpha_dash'],
             'name' => [$namePresence, 'string', 'max:255'],
-            'service' => ['sometimes', Rule::in(BuiltInService::ALL)],
+            'service' => ['sometimes', Rule::in(BuiltInService::enabled())],
             // Values outside the stage's service are accepted and normalized to
             // null below, never copied into another workflow.
             'country_id' => $usesAdmissionScope ? ['nullable', 'exists:countries,id'] : ['nullable', 'integer'],
             'university_id' => $usesAdmissionScope ? ['nullable', 'exists:universities,id'] : ['nullable', 'integer'],
-            'test_id' => $service === BuiltInService::TEST_OFFER
-                ? ['nullable', 'integer', Rule::exists('tests', 'id')->whereNull('deleted_at')]
-                : ['nullable', 'integer'],
+            'test_id' => ['prohibited'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
             'allowed_next_keys' => ['nullable', 'array'],
@@ -258,16 +250,12 @@ class ApplicantStageController extends Controller
      */
     private function normalizeScope(array $data, ?string $service): array
     {
-        if ($service === BuiltInService::TEST_OFFER) {
-            $data['country_id'] = null;
-            $data['university_id'] = null;
-        } elseif ($service === BuiltInService::ACADEMY) {
-            $data['country_id'] = null;
-            $data['university_id'] = null;
-            $data['test_id'] = null;
-        } else {
-            $data['test_id'] = null;
+        if ($service !== null && in_array($service, self::ADMISSION_SERVICES, true)) {
+            return $data;
         }
+
+        $data['country_id'] = null;
+        $data['university_id'] = null;
 
         return $data;
     }

@@ -88,7 +88,7 @@ final class ServiceBoard
      */
     public static function ensure(string $title, int $order): Board
     {
-        $board = Board::withTrashed()->firstOrNew(['title' => $title]);
+        $board = Board::withTrashed()->firstOrNew(['title' => $title, 'department_id' => null]);
         $board->order = $order;
         $board->deleted_at = null;
         $board->save();
@@ -122,7 +122,7 @@ final class ServiceBoard
      */
     public static function firstOrCreateFor(string $title): Board
     {
-        $board = Board::withTrashed()->firstOrNew(['title' => $title]);
+        $board = Board::withTrashed()->firstOrNew(['title' => $title, 'department_id' => null]);
         if (! $board->exists) {
             $board->order = (Board::query()->max('order') ?? -1) + 1;
         }

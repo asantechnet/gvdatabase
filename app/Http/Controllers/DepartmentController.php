@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Board;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Support\ApiMessage;
 use App\Support\DepartmentMembership;
-use App\Support\RoleHierarchy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Departments are the firm's groups. Each one names the employee who manages
- * it; that employee (and anyone above them in the supervisor chain) sees the
- * group's records through the employee scope.
+ * Departments are the firm's groups. Each department may have several senior
+ * managers; membership is flat and is what defines the team.
  */
 class DepartmentController extends Controller
 {
@@ -25,10 +25,10 @@ class DepartmentController extends Controller
         $withMembers = $request->boolean('with_members');
 
         $departments = Department::query()
-            ->with('manager:id,name')
+            ->with(['manager:id,name', 'managers:id,name', 'board:id,department_id,title'])
             ->when($withMembers, fn (Builder $query) => $query->with([
                 'employees' => fn ($members) => $members
-                    ->with(['position:id,title', 'user.roles:id,name,level', 'supervisor:id,name'])
+                    ->with(['position:id,title', 'user.roles:id,name,is_senior'])
                     ->orderBy('employees.name'),
             ]))
             ->withCount('employees')
@@ -41,48 +41,26 @@ class DepartmentController extends Controller
     }
 
     /**
-     * Employees who may actually be named as a department manager: active,
-     * linked to an active account, and holding a role that grants supervisory
-     * visibility. An existing department limits the list to candidates who
-     * outrank every current member, so the picker and the save guard agree.
+     * Active employees whose account holds a senior role. There is no rank
+     * comparison: several seniors may manage the same department.
      */
     public function managerOptions(Request $request): JsonResponse
     {
-        $data = $request->validate([
+        $request->validate([
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')->whereNull('deleted_at')],
         ]);
 
-        $hierarchy = app(RoleHierarchy::class);
-        $memberRanks = collect();
-
-        if (! empty($data['department_id'])) {
-            $department = Department::query()->findOrFail($data['department_id']);
-            $memberRanks = $department->employees()
-                ->with('user.roles')
-                ->get()
-                ->map(fn (Employee $member) => $this->rankForEmployee($member, $hierarchy));
-        }
-
         $options = $this->eligibleManagerQuery()
-            ->with(['user.roles', 'departmentRecord:id,name'])
+            ->with(['user.roles:id,name,is_senior', 'departments:id,name'])
             ->orderBy('name')
             ->get()
-            ->filter(function (Employee $employee) use ($memberRanks, $hierarchy): bool {
-                if ($memberRanks->isEmpty()) {
-                    return true;
-                }
-
-                $rank = $this->rankForEmployee($employee, $hierarchy);
-
-                return $memberRanks->every(fn (int $memberRank) => $rank > $memberRank);
-            })
             ->map(fn (Employee $employee) => [
                 'id' => $employee->id,
                 'name' => $employee->name,
                 'employeeId' => $employee->id,
-                'rank' => $this->rankForEmployee($employee, $hierarchy),
-                'departmentId' => $employee->department_id,
-                'departmentName' => $employee->departmentRecord?->name,
+                'isSenior' => true,
+                'departmentId' => $employee->departments->first()?->id,
+                'departmentName' => $employee->departments->first()?->name,
             ])
             ->values();
 
@@ -91,7 +69,32 @@ class DepartmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $department = Department::create(collect($this->validated($request))->except('employee_ids')->all());
+        $data = $this->validated($request);
+        $managerIds = $this->managerIds($data);
+
+        $department = DB::transaction(function () use ($data, $managerIds): Department {
+            $department = Department::create([
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'is_active' => $data['is_active'] ?? true,
+            ]);
+
+            $membership = app(DepartmentMembership::class);
+            $membership->syncManagers($department, $managerIds);
+
+            if (array_key_exists('employee_ids', $data) || $managerIds !== []) {
+                $membership->sync($department, array_values(array_unique([
+                    ...($data['employee_ids'] ?? []),
+                    ...$managerIds,
+                ])));
+            }
+
+            if ($data['create_task_board'] ?? true) {
+                $this->createDepartmentBoard($department);
+            }
+
+            return $department;
+        });
 
         return response()->json([
             'success' => true,
@@ -103,16 +106,37 @@ class DepartmentController extends Controller
     {
         $data = $this->validated($request, $department);
 
-        $department->update(collect($data)->except('employee_ids')->all());
+        DB::transaction(function () use ($request, $department, $data): void {
+            $department->update([
+                'name' => $data['name'] ?? $department->name,
+                'description' => array_key_exists('description', $data) ? $data['description'] : $department->description,
+                'is_active' => array_key_exists('is_active', $data) ? $data['is_active'] : $department->is_active,
+            ]);
 
-        // An omitted member set means "unchanged". Only an explicit array
-        // (including an empty one) replaces the members of this department.
-        if ($request->has('employee_ids')) {
-            app(DepartmentMembership::class)->sync(
-                $department,
-                $request->input('employee_ids', []),
-            );
-        }
+            $membership = app(DepartmentMembership::class);
+
+            if ($request->has('manager_employee_ids') || $request->has('manager_employee_id')) {
+                $membership->syncManagers($department, $this->managerIds($data));
+            }
+
+            if ($request->has('employee_ids')) {
+                $managerIds = $department->managers()->pluck('employees.id')
+                    ->merge($department->manager_employee_id ? [(int) $department->manager_employee_id] : [])
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $membership->sync($department, array_values(array_unique([
+                    ...$data['employee_ids'],
+                    ...$managerIds,
+                ])));
+            }
+
+            if (($data['create_task_board'] ?? false) && ! $department->board()->exists()) {
+                $this->createDepartmentBoard($department);
+            }
+        });
 
         return response()->json([
             'success' => true,
@@ -127,9 +151,6 @@ class DepartmentController extends Controller
             ->get(['employees.id', 'employees.name']);
 
         if ($blocking->isNotEmpty()) {
-            // The count and names let the dialog explain the refusal instead
-            // of repeating a generic message. The code/localized message keep
-            // the one-toast contract and the audit trail intact.
             return response()->json([
                 'success' => false,
                 'code' => 'business.department_has_employees',
@@ -147,52 +168,33 @@ class DepartmentController extends Controller
     /** @return array<string, mixed> */
     private function validated(Request $request, ?Department $department = null): array
     {
-        $data = $request->validate([
+        return $request->validate([
             'name' => [$department ? 'sometimes' : 'required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department?->id)],
             'description' => ['nullable', 'string', 'max:5000'],
             'manager_employee_id' => ['nullable', 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')],
+            'manager_employee_ids' => ['sometimes', 'array', 'max:20'],
+            'manager_employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')],
             'is_active' => ['sometimes', 'boolean'],
+            'create_task_board' => ['sometimes', 'boolean'],
             'employee_ids' => ['sometimes', 'array', 'max:500'],
             'employee_ids.*' => ['integer', 'distinct', Rule::exists('employees', 'id')->whereNull('deleted_at')],
         ]);
-
-        if (array_key_exists('manager_employee_id', $data) && $data['manager_employee_id']) {
-            // Reuse the picker's query so the UI and the guard can never drift.
-            $manager = $this->eligibleManagerQuery()
-                ->with('user.roles')
-                ->find($data['manager_employee_id']);
-
-            if (! $manager) {
-                throw ValidationException::withMessages([
-                    'manager_id' => ['business.department_manager_not_supervisory'],
-                ]);
-            }
-
-            // Changing a department head must not retroactively make a peer
-            // or junior employee the supervisor of existing members.
-            if ($department) {
-                $hierarchy = app(RoleHierarchy::class);
-                $managerRank = $this->rankForEmployee($manager, $hierarchy);
-
-                $members = $department->employees()
-                    ->with('user.roles')
-                    ->where('employees.id', '!=', $manager->id)
-                    ->get();
-
-                foreach ($members as $member) {
-                    if ($managerRank <= $this->rankForEmployee($member, $hierarchy)) {
-                        throw ValidationException::withMessages([
-                            'manager_id' => ['business.department_manager_rank_invalid'],
-                        ]);
-                    }
-                }
-            }
-        }
-
-        return $data;
     }
 
-    /** The single eligibility rule shared by the picker and the save guard. */
+    /** @param array<string, mixed> $data @return array<int, int> */
+    private function managerIds(array $data): array
+    {
+        return collect([
+            ...($data['manager_employee_ids'] ?? []),
+            $data['manager_employee_id'] ?? null,
+        ])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     private function eligibleManagerQuery(): Builder
     {
         return Employee::query()
@@ -200,53 +202,49 @@ class DepartmentController extends Controller
             ->whereNotNull('user_id')
             ->whereHas('user', function (Builder $query) {
                 $query->where('acc_status', 'active')
-                    // Super admins hold every permission at runtime but may not
-                    // have an explicit role_permissions row, exactly like
-                    // User::hasPermission().
                     ->where(function (Builder $query) {
-                        $query->whereHas('roles.permissions', fn (Builder $permissions) => $permissions->where('name', 'view_subordinate_records'))
-                            ->orWhereHas('roles', fn (Builder $roles) => $roles->where('name', 'super_admin'));
+                        $query->whereHas('roles', fn (Builder $roles) => $roles->where('name', 'super_admin'))
+                            ->orWhereHas('roles', fn (Builder $roles) => $roles->where('is_senior', true));
                     });
             });
     }
 
-    /** Load the member payload exactly the way the page renders it. */
+    private function createDepartmentBoard(Department $department): Board
+    {
+        return Board::query()->firstOrCreate(
+            ['department_id' => $department->id],
+            [
+                'title' => "{$department->name} Tasks",
+                'order' => (Board::query()->max('order') ?? -1) + 1,
+            ],
+        );
+    }
+
     private function loadMembers(Department $department): Department
     {
         return $department
             ->load([
                 'manager:id,name',
+                'managers:id,name',
+                'board:id,department_id,title',
                 'employees' => fn ($members) => $members
-                    ->with(['position:id,title', 'user.roles:id,name,level', 'supervisor:id,name'])
+                    ->with(['position:id,title', 'user.roles:id,name,is_senior'])
                     ->orderBy('employees.name'),
             ])
             ->loadCount('employees');
     }
 
-    /**
-     * Rank from eager-loaded roles so a long candidate list never triggers a
-     * per-row role query. Falls back to RoleHierarchy for unloaded users.
-     */
-    private function rankForEmployee(Employee $employee, RoleHierarchy $hierarchy): int
-    {
-        $user = $employee->user;
-
-        if (! $user) {
-            return RoleHierarchy::LEVELS['staff'];
-        }
-
-        if (! $user->relationLoaded('roles')) {
-            return $hierarchy->rank($user);
-        }
-
-        return (int) $user->roles->max(
-            fn ($role) => (int) ($role->level ?: $hierarchy->defaultLevel($role->name)),
-        );
-    }
-
     /** @return array<string, mixed> */
     private function present(Department $department): array
     {
+        $managerIds = $department->relationLoaded('managers')
+            ? $department->managers->pluck('id')->map(fn ($id) => (int) $id)->all()
+            : $department->managers()->pluck('employees.id')->map(fn ($id) => (int) $id)->all();
+
+        if ($department->manager_employee_id && ! in_array((int) $department->manager_employee_id, $managerIds, true)) {
+            array_unshift($managerIds, (int) $department->manager_employee_id);
+        }
+
         $payload = [
             'id' => $department->id,
             'name' => $department->name,
@@ -254,6 +252,12 @@ class DepartmentController extends Controller
             'is_active' => (bool) $department->is_active,
             'manager_employee_id' => $department->manager_employee_id,
             'manager_name' => $department->manager?->name,
+            'manager_employee_ids' => array_values(array_unique($managerIds)),
+            'managers' => $department->relationLoaded('managers')
+                ? $department->managers->map(fn (Employee $employee) => ['id' => $employee->id, 'name' => $employee->name])->values()
+                : [],
+            'board_id' => $department->board?->id,
+            'board_title' => $department->board?->title,
             'employees_count' => (int) ($department->employees_count ?? $department->employees()->count()),
         ];
 
@@ -264,14 +268,11 @@ class DepartmentController extends Controller
                     'name' => $employee->name,
                     'position' => $employee->position?->title,
                     'role' => $employee->relationLoaded('user')
-                        ? $employee->user?->roles->pluck('name')->first()
+                        ? $employee->user?->roles->firstWhere('is_senior', true)?->name
+                            ?? $employee->user?->roles->pluck('name')->first()
                         : null,
                     'status' => $employee->status,
-                    'supervisor_id' => $employee->supervisor_id,
-                    'supervisor_name' => $employee->supervisor?->name,
-                    'is_primary' => (bool) ($employee->pivot->is_primary ?? false),
-                    'is_manager' => $department->manager_employee_id !== null
-                        && (int) $department->manager_employee_id === (int) $employee->id,
+                    'is_manager' => in_array((int) $employee->id, $managerIds, true),
                 ])
                 ->values();
         }

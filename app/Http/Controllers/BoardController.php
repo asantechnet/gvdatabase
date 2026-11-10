@@ -28,9 +28,19 @@ class BoardController extends Controller
 
         $boards = Board::query()
             ->visibleTo($user)
-            ->with(['tasks' => fn ($query) => $query
-                ->visibleTo($user)
-                ->orderBy('order')])
+            ->with([
+                'tasks' => fn ($query) => $query
+                    ->visibleTo($user)
+                    ->orderBy('order'),
+                'tasks.users.employee',
+                'tasks.creator.employee',
+                'tasks.tags',
+                'tasks.subtasks',
+                'tasks.comments.user.employee',
+                'tasks.comments.mentionedUsers',
+                'tasks.dependencies',
+                'tasks.attachments',
+            ])
             ->orderBy('order')
             ->get();
 

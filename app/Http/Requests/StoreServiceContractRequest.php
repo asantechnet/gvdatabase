@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\AcademyClass;
 use App\Models\University;
 use App\Support\AgencyStaffAssignment;
 use App\Support\BuiltInService;
@@ -27,10 +28,15 @@ class StoreServiceContractRequest extends FormRequest
 
     private const TEST_FIELDS = ['passport_id', 'test_id', 'skill_ids'];
 
-    private const ACADEMY_FIELDS = ['student_id', 'program_id', 'time_id', 'duration_id', 'teacher_ids', 'class_id'];
+    private const ACADEMY_FIELDS = ['student_id', 'program_id', 'teacher_ids', 'class_id'];
 
     public function authorize(): bool
     {
+        if ($this->has('responsible_employee_ids')
+            && ! $this->user()?->hasPermission('assign_responsible_employees')) {
+            return false;
+        }
+
         return $this->user()?->hasPermission($this->isMethod('post') ? 'create_contracts' : 'edit_contracts') ?? false;
     }
 
@@ -47,6 +53,18 @@ class StoreServiceContractRequest extends FormRequest
                 && $this->filled('university_id') && $this->filled('country_id')
                 && ! University::query()->whereKey($this->input('university_id'))->where('country_id', $this->input('country_id'))->exists()) {
                 $validator->errors()->add('university_id', 'The selected university does not belong to the selected country.');
+            }
+
+            if ($service === BuiltInService::ACADEMY && $this->filled('class_id')) {
+                $class = AcademyClass::query()->find($this->input('class_id'));
+                if ($class) {
+                    foreach (['program_id' => 'programme'] as $field => $label) {
+                        if ($class->{$field} !== null && $this->filled($field)
+                            && (int) $this->input($field) !== (int) $class->{$field}) {
+                            $validator->errors()->add($field, "The selected {$label} does not match the class.");
+                        }
+                    }
+                }
             }
 
             $fields = match ($service) {
@@ -93,18 +111,24 @@ class StoreServiceContractRequest extends FormRequest
             'address' => [$identity, 'string', 'max:1000'],
             'tax_number' => [$identity, 'string', 'max:255'],
             'responsible_employee_id' => [$identity, 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('status', 'active')],
-            'admission_employee_id' => $extending && $service !== BuiltInService::ACADEMY
-                ? ['prohibited']
-                : ($service === BuiltInService::SCHOLARSHIP || $service === BuiltInService::PRIVATE
-                    ? AgencyStaffAssignment::rules('admission')
-                    : ['prohibited']),
+            // The singular admission field is retired. Responsibility is a
+            // plural assignment accepted only on case-bearing services.
+            'admission_employee_id' => ['prohibited'],
+            'responsible_employee_ids' => in_array($service, BuiltInService::CASE_BEARING, true)
+                ? ['nullable', 'array', 'max:100']
+                : ['prohibited'],
+            'responsible_employee_ids.*' => ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')],
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'discount' => ['required', 'numeric', 'min:0', 'lte:fee', 'decimal:0,2'],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->whereNull('deleted_at')],
             'currency_rate' => ['required', 'numeric', 'gt:0', 'max:9999999', 'decimal:0,8'],
             'language_id' => ['nullable', 'integer', Rule::exists('languages', 'id')->whereNull('deleted_at')->where('is_active', true)],
             'start_date' => ['prohibited'],
-            'contract_template_version_id' => ['required', 'integer', 'exists:contract_template_versions,id'],
+            // Academy prints only its slip and has no template/language choice,
+            // so the server resolves its hidden template's current version.
+            'contract_template_version_id' => $service === BuiltInService::ACADEMY
+                ? ['nullable', 'integer', 'exists:contract_template_versions,id']
+                : ['required', 'integer', 'exists:contract_template_versions,id'],
             'company_signatory_name' => ['nullable', 'string', 'max:255'],
             'notes' => [$identity, 'string', 'max:10000'],
         ];
@@ -181,10 +205,10 @@ class StoreServiceContractRequest extends FormRequest
                 'skill_ids' => ['required', 'array', 'min:1', 'max:100'],
             ],
             BuiltInService::ACADEMY => [
-                'student_id' => ['required', 'string', 'max:64'],
+                // The student record and number are created from the contract;
+                // older clients may still supply their own number.
+                'student_id' => ['nullable', 'string', 'max:64'],
                 'program_id' => ['required', 'integer', $exists('programs')],
-                'time_id' => ['required', 'integer', $exists('times')],
-                'duration_id' => ['required', 'integer', $exists('durations')],
                 'teacher_ids' => ['required', 'array', 'min:1', 'max:100'],
                 'class_id' => ['required', 'integer', $exists('academy_classes')],
             ],
@@ -211,10 +235,23 @@ class StoreServiceContractRequest extends FormRequest
             };
         }
 
-        foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'teachers'] as $key => $table) {
+        if (in_array($service, BuiltInService::CASE_BEARING, true)) {
+            $rules['responsible_employee_ids.*'] = ['integer', 'distinct', ...AgencyStaffAssignment::rules('admission')];
+        }
+        foreach (['favorite_subject_ids' => 'subjects', 'skill_ids' => 'skills', 'teacher_ids' => 'employees'] as $key => $table) {
             if (isset($rules[$key]) && ! in_array('prohibited', $rules[$key], true)) {
                 $rules["{$key}.*"] = ['integer', 'distinct', $exists($table)];
             }
+        }
+        if (in_array($service, [BuiltInService::SCHOLARSHIP, BuiltInService::PRIVATE], true)) {
+            $rules['responsible_employee_ids.*'] = [
+                'integer', 'distinct',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! AgencyStaffAssignment::query('admission')->whereKey($value)->exists()) {
+                        $fail('Choose an active employee with the admission position or role.');
+                    }
+                },
+            ];
         }
         foreach (['applicant_id', 'service', 'service_id', 'service_ids', 'service_lines', 'package_id', 'customer_package_id', 'template_id', 'status', 'content', 'amount_paid', 'payment_status'] as $field) {
             $rules[$field] = ['prohibited'];

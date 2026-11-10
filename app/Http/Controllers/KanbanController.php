@@ -33,9 +33,11 @@ class KanbanController extends Controller
                     ->orderBy('order'),
                 // Eager load all relations required by TaskResource
                 'tasks.users.employee',
+                'tasks.creator.employee',
                 'tasks.tags',
                 'tasks.subtasks',
                 'tasks.comments.user.employee', // Names and avatars for comments
+                'tasks.comments.mentionedUsers',
                 'tasks.dependencies',
                 'tasks.attachments',
             ])

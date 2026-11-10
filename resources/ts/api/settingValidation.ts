@@ -32,6 +32,7 @@ export const settingFieldLabels: Record<string, string> = {
   office_close_time: 'pages.settings.settings.officeCloses',
   default_break_minutes: 'pages.settings.settings.defaultBreakMinutes',
   automatic_attendance_enabled: 'pages.settings.settings.automaticAttendanceEnabled',
+  academy_enabled: 'pages.settings.settings.academyEnabled',
   primary_color: 'pages.settings.settings.primaryColor',
   secondary_color: 'pages.settings.settings.secondaryColor',
   dark_primary_color: 'pages.settings.settings.darkPrimaryColor',

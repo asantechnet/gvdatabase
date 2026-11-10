@@ -22,6 +22,7 @@ import PayslipTemplate, {
 import AdvanceReceiptTemplate, {
   type AdvanceReceiptData,
 } from "./templates/advance_receipt_template.vue";
+import SlipPrintDialog from "@/components/documents/SlipPrintDialog.vue";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import {
@@ -136,6 +137,7 @@ const paymentForm = ref({
   remarks: "",
 });
 
+const payslipDialog = ref(false);
 const payslipProps = ref<SalarySlipProps | null>(null);
 const payslipRef = ref<InstanceType<typeof PayslipTemplate> | null>(null);
 
@@ -165,6 +167,7 @@ const editAdvanceForm = ref({
   date: today.toISOString().slice(0, 10),
   remarks: "",
 });
+const advanceReceiptDialog = ref(false);
 const advanceReceipt = ref<AdvanceReceiptData | null>(null);
 const advanceReceiptRef = ref<InstanceType<
   typeof AdvanceReceiptTemplate
@@ -551,8 +554,12 @@ async function openPayslip(row: PayrollRow) {
     advanceRecovery: Number(salary.advanceRecovery ?? 0),
     reimbursements: [],
   };
+  payslipDialog.value = true;
   // The template owns the complete A4 composition, including the letterhead.
   await nextTick();
+}
+
+async function printPayslip() {
   await payslipRef.value?.print();
 }
 
@@ -780,7 +787,13 @@ function openAdvanceReceipt(advance: EmployeeAdvance) {
     },
     company: companyProfile.value,
   };
-  void nextTick(() => advanceReceiptRef.value?.print());
+  advanceReceiptDialog.value = true;
+}
+
+// The browser print engine opens only after the operator presses Print in the
+// shared slip popup, never while the preview is opening.
+async function printAdvanceReceipt() {
+  await advanceReceiptRef.value?.print();
 }
 
 function statusLabel(status: PayrollRow["status"]) {
@@ -1483,14 +1496,41 @@ onMounted(load);
       </VCard>
     </VDialog>
 
-    <div class="payroll-payslip-print-host" aria-hidden="true">
-      <PayslipTemplate v-if="payslipProps" ref="payslipRef" v-bind="payslipProps" />
-    </div>
+    <!-- Payslip preview -->
+    <SlipPrintDialog
+      v-model="payslipDialog"
+      :title="$t('documents.payslip.title')"
+      :subtitle="payslipProps?.documentNumber"
+      icon="tabler-file-invoice"
+      :ready="!!payslipProps"
+      :print-action="printPayslip"
+      :print-label="$t('common.actions.print')"
+      error-fallback="documents.payslip.printFailed"
+    >
+      <PayslipTemplate
+        v-if="payslipProps"
+        ref="payslipRef"
+        v-bind="payslipProps"
+      />
+    </SlipPrintDialog>
 
-    <!-- Mounted off-screen only for direct receipt printing. -->
-    <div class="payroll-advance-print-host" aria-hidden="true">
-      <AdvanceReceiptTemplate v-if="advanceReceipt" ref="advanceReceiptRef" :receipt="advanceReceipt" />
-    </div>
+    <!-- Advance receipt preview -->
+    <SlipPrintDialog
+      v-model="advanceReceiptDialog"
+      :title="$t('documents.advanceReceipt.title')"
+      :subtitle="advanceReceipt?.advanceNumber"
+      icon="tabler-receipt"
+      :ready="!!advanceReceipt"
+      :print-action="printAdvanceReceipt"
+      :print-label="$t('common.actions.print')"
+      error-fallback="documents.advanceReceipt.printFailed"
+    >
+      <AdvanceReceiptTemplate
+        v-if="advanceReceipt"
+        ref="advanceReceiptRef"
+        :receipt="advanceReceipt"
+      />
+    </SlipPrintDialog>
   </div>
 </template>
 

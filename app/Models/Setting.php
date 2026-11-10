@@ -11,14 +11,16 @@ class Setting extends Model
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $attributes = ['email_delivery_enabled' => false];
+    protected $attributes = ['email_delivery_enabled' => false, 'academy_enabled' => false];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'mail_password' => 'encrypted',
         'automatic_attendance_enabled' => 'boolean',
+        'academy_enabled' => 'boolean',
         'missing_attendance_status' => 'string',
+        'audit_coloring_enabled' => 'boolean',
         'email_delivery_enabled' => 'boolean',
         'receipt_letterhead_safe_x' => 'float',
         'receipt_letterhead_safe_y' => 'float',
@@ -86,6 +88,8 @@ class Setting extends Model
         'office_close_time',
         'default_break_minutes',
         'automatic_attendance_enabled',
+        'academy_enabled',
         'missing_attendance_status',
+        'audit_coloring_enabled',
     ];
 }

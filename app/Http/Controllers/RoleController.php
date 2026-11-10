@@ -55,11 +55,11 @@ class RoleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:roles,name',
-            'level' => 'sometimes|integer|min:0|max:100000',
+            'is_senior' => 'sometimes|boolean',
         ]);
         $validator->validate();
         $data = $validator->validated();
-        $this->guardLevelChange($request, (int) ($data['level'] ?? 0));
+        $this->guardSeniorityChange($request, (bool) ($data['is_senior'] ?? false));
 
         $role = Role::create($data);
 
@@ -76,15 +76,14 @@ class RoleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255|unique:roles,name,' . $role->id,
-            'level' => 'sometimes|integer|min:0|max:100000',
+            'is_senior' => 'sometimes|boolean',
         ]);
         $validator->validate();
         $data = $validator->validated();
 
-        if (array_key_exists('level', $data) && (int) $data['level'] !== (int) $role->level) {
-            abort_unless($request->user()->hasPermission('manage_role_hierarchy'), 403, 'auth.forbidden');
+        if (array_key_exists('is_senior', $data) && (bool) $data['is_senior'] !== (bool) $role->is_senior) {
             abort_if($role->name === 'super_admin', 422, 'business.request_rejected');
-            $this->guardLevelChange($request, (int) $data['level']);
+            $this->guardSeniorityChange($request, (bool) $data['is_senior']);
         }
 
         $role->update($data);
@@ -131,13 +130,13 @@ class RoleController extends Controller
         ]);
     }
 
-    /**
-     * A user may only define roles below their own seniority. This keeps a
-     * senior counselor from minting an equal-or-higher role and escalating
-     * their own access.
-     */
-    private function guardLevelChange(Request $request, int $level): void
+    /** Changing whether a role is senior is a hierarchy decision. */
+    private function guardSeniorityChange(Request $request, bool $isSenior): void
     {
-        abort_unless(app(RoleHierarchy::class)->canAssignLevel($request->user(), $level), 403, 'auth.forbidden');
+        abort_unless($request->user()->hasPermission('manage_role_hierarchy'), 403, 'auth.forbidden');
+
+        if ($isSenior) {
+            abort_unless(app(RoleHierarchy::class)->isSenior($request->user()), 403, 'auth.forbidden');
+        }
     }
 }

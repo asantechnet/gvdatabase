@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
             // Academy is hidden from Templates & Policies, so its template is
             // ensured here rather than created through the admin UI.
             AcademyContractTemplateSeeder::class,
+            AcademyCertificateTemplateSeeder::class,
             // Ensure template versions for all built-in services (private, scholarship,
             // test_offer, academy) so contract generation never aborts on missing versions.
             ContractTemplateVersionSeeder::class,
@@ -63,6 +64,7 @@ class DatabaseSeeder extends Seeder
             AttendanceSeeder::class,
             LeaveRequestSeeder::class,
             SalarySeeder::class,
+            CommissionDemoSeeder::class,
             WorthyEmployeeSeeder::class,
             VisitorSeeder::class,
             // Starter message templates for the WhatsApp quick-contact menus.

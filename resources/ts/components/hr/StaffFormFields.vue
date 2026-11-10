@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import ErpField from '@/components/erp/ErpField.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
 import type { Department } from '@/api/department'
-import type { Employee, EmployeeAccount } from '@/api/employee'
+import type { EmployeeAccount } from '@/api/employee'
 import type { Office } from '@/api/office'
 
 export interface StaffFormData {
@@ -26,8 +26,6 @@ export interface StaffFormData {
   email: string
   office_id: number | null
   department_ids?: number[]
-  primary_department_id?: number | null
-  supervisor_id: number | null
   salary: number | null
   addr: string
   join_date: string
@@ -45,11 +43,10 @@ const props = defineProps<{
   positionOptions: string[]
   offices: Office[]
   departments: Department[]
-  supervisors: Employee[]
   accounts: EmployeeAccount[]
   isPositionsLoading: boolean
   isAccountsLoading: boolean
-  canAssignSupervisor: boolean
+  canAssignDepartments: boolean
   commissionOptions: Array<{ value: string; title: string }>
   commissionRate: (service: string) => number | null
 }>()
@@ -57,8 +54,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   positionChange: [value: string]
   accountChange: [value: number | null]
-  departmentsChange: [value: number[] | null]
-  supervisorChange: [value: number | null]
   commissionEnabled: [value: boolean]
   commissionRateChange: [service: string, value: unknown]
 }>()
@@ -67,16 +62,6 @@ const departmentOptions = () => props.departments.map(department => ({
   title: department.name,
   value: department.id,
 }))
-
-const primaryDepartmentOptions = () => departmentOptions()
-  .filter(option => (model.value.department_ids ?? []).includes(option.value))
-
-const supervisorOptions = () => props.supervisors
-  .filter(employee => employee.status === 'active')
-  .map(employee => ({
-    title: [employee.name, employee.position, employee.department_name].filter(Boolean).join(' · '),
-    value: employee.id,
-  }))
 
 function dockDatePickerCalendar(_: unknown, __: unknown, instance: any) {
   requestAnimationFrame(() => {
@@ -141,14 +126,9 @@ function dockDatePickerCalendar(_: unknown, __: unknown, instance: any) {
         <ErpField v-model="model.salary" type="number" min="0" :label="t('common.messages.salary')" placeholder="Monthly base salary" :error-messages="props.errors.salary" required :show-required-rule="false" />
       </VCol>
       <VCol cols="12" md="4">
-        <ErpField v-model="model.department_ids" kind="autocomplete" :items="departmentOptions()" item-title="title" item-value="value" :label="t('common.fields.departments')" placeholder="Select departments" :disabled="!props.canAssignSupervisor" :error-messages="props.errors.department_ids" multiple chips closable-chips clearable @update:model-value="emit('departmentsChange', $event)" />
+        <ErpField v-model="model.department_ids" kind="autocomplete" :items="departmentOptions()" item-title="title" item-value="value" :label="t('common.fields.departments')" placeholder="Select departments" :disabled="!props.canAssignDepartments" :error-messages="props.errors.department_ids" multiple chips closable-chips clearable />
       </VCol>
-      <VCol cols="12" md="4">
-        <ErpField v-model="model.primary_department_id" kind="select" :items="primaryDepartmentOptions()" item-title="title" item-value="value" :label="t('common.fields.primaryDepartment')" placeholder="Choose primary department" :disabled="!props.canAssignSupervisor || !(model.department_ids?.length)" :error-messages="props.errors.primary_department_id" clearable />
-      </VCol>
-      <VCol cols="12" md="4">
-        <ErpField :model-value="model.supervisor_id" kind="select" :items="supervisorOptions()" item-title="title" item-value="value" :label="t('common.fields.supervisor')" placeholder="Choose a supervisor" :disabled="!props.canAssignSupervisor" :error-messages="props.errors.supervisor_id" clearable @update:model-value="emit('supervisorChange', $event)" />
-      </VCol>
+
       <VCol cols="12" md="4">
         <ErpField v-model="model.off_day_allowance_days" type="number" min="0" step="0.5" :label="t('pages.settings.staffList.staffList.offDayAllowanceDays')" placeholder="Annual days" />
       </VCol>

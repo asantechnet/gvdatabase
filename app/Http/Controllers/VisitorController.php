@@ -30,7 +30,7 @@ class VisitorController extends Controller
         $dates = $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable']]);
         $request->validate([
             'follow_up' => ['nullable', 'boolean'],
-            'service' => ['nullable', 'string', Rule::in(BuiltInService::ALL)],
+            'service' => ['nullable', 'string', Rule::in(BuiltInService::enabled())],
             'consultant_employee_id' => ['nullable', 'integer'],
             'country_id' => ['nullable', 'integer'],
             'education_level_id' => ['nullable', 'integer'],
@@ -100,7 +100,7 @@ class VisitorController extends Controller
             'email' => 'nullable|email|max:255',
             // The four built-in services are the CRM's shared vocabulary: a
             // typo here would fragment case and report groupings forever.
-            'service' => ['required', 'string', Rule::in(BuiltInService::ALL)],
+            'service' => ['required', 'string', Rule::in(BuiltInService::enabled())],
             'country_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],
@@ -146,7 +146,7 @@ class VisitorController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'contact' => 'sometimes|required|string|max:255',
             'email' => 'nullable|email|max:255',
-            'service' => ['sometimes', 'required', 'string', Rule::in(BuiltInService::ALL)],
+            'service' => ['sometimes', 'required', 'string', Rule::in(BuiltInService::enabled())],
             'country_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'consultant_employee_id' => AgencyStaffAssignment::rules('counselor'),
             'education_level_id' => ['nullable', 'integer', Rule::exists('education_levels', 'id')->whereNull('deleted_at')],

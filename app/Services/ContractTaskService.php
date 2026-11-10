@@ -84,13 +84,12 @@ class ContractTaskService
             'order' => (Task::query()->where('board_id', $board->id)->max('order') ?? -1) + 1,
         ]);
 
-        // The counselor owns the relationship and the admission employee
-        // handles intake, so both are assigned; the actor is only a fallback
-        // when the case has neither specialist.
-        $applicant->loadMissing(['responsibleEmployee', 'admissionEmployee']);
+        // The case owner and every responsible employee are assigned; the
+        // actor is only a fallback when the case has no specialist.
+        $applicant->loadMissing(['responsibleEmployee', 'responsibleEmployees']);
         $assignees = array_values(array_unique(array_filter([
             $applicant->responsibleEmployee?->user_id,
-            $applicant->admissionEmployee?->user_id,
+            ...$applicant->responsibleEmployees->pluck('user_id')->all(),
         ])));
         if ($assignees === []) {
             $assignees = array_values(array_filter([$actor?->id]));

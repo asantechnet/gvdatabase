@@ -99,6 +99,26 @@ final class AuditPresenter
         ];
     }
 
+    /**
+     * Compact trail serializer for register rows. It deliberately skips the
+     * audited-model lookup: the stored subject label and event are enough to
+     * draw a rail, so a 100-row page stays a bounded number of queries.
+     */
+    public function presentTrail(AuditLog $audit): array
+    {
+        $audit->loadMissing(['user:id,name,email', 'employee:id,name']);
+
+        return [
+            'audit_id' => $audit->id,
+            'event' => $audit->event,
+            'changed_fields' => $audit->event === 'created' ? [] : $this->changes($audit),
+            'created_at' => $audit->created_at?->toISOString(),
+            'changed_by' => $this->person($audit->employee?->name ?: $audit->user?->name, $audit->user_id),
+            'audit_state' => $audit->audited_at ? 'audited' : 'pending',
+            'resolution' => $audit->review_status,
+        ];
+    }
+
     private function person(?string $name, ?int $id): ?array
     {
         return $name ? ['id' => $id, 'name' => $name] : null;

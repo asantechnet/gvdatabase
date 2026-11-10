@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A single earned commission, or a manual adjustment, owed to an employee.
  *
  * Accruals are produced from the service lines of a case that has reached the
- * terminal `completed` stage (see `CommissionService`) and grouped into
- * settlement periods by the commission workspace. The pre-restructure ledger
- * keyed this on invoices; this one keys on the contract and its
- * `applicant_contract` line.
+ * terminal `completed` stage, or from a live Academy agreement, and grouped
+ * into settlement periods by the commission workspace (see
+ * `CommissionService`). The pre-restructure ledger keyed this on invoices; this
+ * one keys on the contract and its `applicant_contract` line.
  */
 class CommissionAccrual extends Model
 {
@@ -21,6 +21,7 @@ class CommissionAccrual extends Model
 
     protected $fillable = [
         'contract_id',
+        'academy_class_id',
         'applicant_contract_id',
         'employee_id',
         'service',
@@ -56,6 +57,11 @@ class CommissionAccrual extends Model
     public function applicantContract(): BelongsTo
     {
         return $this->belongsTo(ApplicantContract::class, 'applicant_contract_id')->withTrashed();
+    }
+
+    public function academyClass(): BelongsTo
+    {
+        return $this->belongsTo(AcademyClass::class, 'academy_class_id')->withTrashed();
     }
 
     public function employee(): BelongsTo

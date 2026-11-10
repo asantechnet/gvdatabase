@@ -14,9 +14,15 @@ const props = withDefaults(defineProps<{
   title?: string
   mobileAction?: boolean
   menuAction?: boolean
+  /** Scope a country/university relationship to one applicant case. */
+  caseApplicantId?: number | null
+  /** Read-only viewers can inspect the relationship but not write to it. */
+  readonly?: boolean
 }>(), {
   mobileAction: false,
   menuAction: false,
+  caseApplicantId: null,
+  readonly: false,
 })
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -44,6 +50,17 @@ const channels = computed<Array<{ value: Channel; label: string; icon: string; c
   { value: 'note', label: t('common.crmDetails.channels.notes'), icon: 'tabler-note', color: 'secondary' },
 ])
 
+const entityLabel = computed(() => props.type === 'applicant'
+  ? t('common.crmDetails.entities.applicant')
+  : props.type === 'visitor'
+    ? t('common.crmDetails.entities.visitor')
+    : props.type === 'country'
+      ? t('educational.masterData.countries')
+      : t('educational.masterData.universities'))
+const entityIcon = computed(() => ({ visitor: 'tabler-walk', applicant: 'tabler-user-check', country: 'tabler-world', university: 'tabler-school' }[props.type]))
+const isPlace = computed(() => props.type === 'country' || props.type === 'university')
+const isCaseContext = computed(() => isPlace.value && props.caseApplicantId !== null && props.caseApplicantId !== undefined)
+
 const channelMeta = (channel: Channel) => channels.value.find(item => item.value === channel) ?? channels.value[4]
 const filteredInteractions = computed(() => (record.value?.interactions ?? []).filter(item => channelFilter.value === 'all' || item.channel === channelFilter.value))
 
@@ -70,6 +87,16 @@ const detailItems = computed(() => {
   if (!item)
     return []
 
+  if (isPlace.value) {
+    return [
+      { key: 'code', icon: 'tabler-hash', label: t('common.fields.code'), value: item.code },
+      { key: 'country', icon: 'tabler-world', label: t('common.fields.country'), value: item.country?.name },
+      { key: 'contact', icon: 'tabler-phone', label: t('common.crmDetails.fields.contact'), value: item.contact },
+      { key: 'email', icon: 'tabler-mail', label: t('common.crmDetails.fields.email'), value: item.email },
+      { key: 'status', icon: 'tabler-toggle-right', label: t('common.fields.status'), value: item.is_active === false ? t('common.statuses.inactive') : item.is_active === true ? t('common.statuses.active') : null },
+    ].filter(detail => detail.value !== null && detail.value !== undefined && detail.value !== '')
+  }
+
   return [
     { key: 'contact', icon: 'tabler-phone', label: t('common.crmDetails.fields.contact'), value: item.contact },
     { key: 'email', icon: 'tabler-mail', label: t('common.crmDetails.fields.email'), value: item.email },
@@ -85,6 +112,7 @@ const detailItems = computed(() => {
     { key: 'consultant-review', icon: 'tabler-message', label: t('pages.contracts.visitor.visitor.consultantReview'), value: item.consultant_review },
     { key: 'owner', icon: 'tabler-user-check', label: t('common.crmDetails.fields.owner'), value: item.responsible_employee?.name ?? item.owner?.name },
     { key: 'stage', icon: 'tabler-progress-check', label: t('common.crmDetails.fields.stage'), value: item.current_stage?.name ?? item.stage },
+    { key: 'responsible-employees', icon: 'tabler-users', label: t('educational.responsibleEmployee'), value: item.responsible_employees?.map(row => row.name).join(', ') || item.responsible_employee?.name },
     { key: 'probability', icon: 'tabler-percentage', label: t('common.crmDetails.fields.probability'), value: item.probability == null ? null : `${item.probability}%` },
     { key: 'estimated_value', icon: 'tabler-cash', label: t('common.crmDetails.fields.estimatedValue'), value: item.estimated_value },
     { key: 'next_follow_up_at', icon: 'tabler-calendar-event', label: t('common.crmDetails.fields.nextFollowUp'), value: item.next_follow_up_at ? formatDateTime(item.next_follow_up_at) : null },
@@ -113,7 +141,7 @@ const compactCalendar = (_selectedDates: Date[], _dateString: string, instance: 
 const load = async () => {
   loading.value = true
   try {
-    record.value = await CrmApi.get(props.type, props.id)
+    record.value = await CrmApi.get(props.type, props.id, props.caseApplicantId)
     notesDraft.value = record.value?.notes ?? ''
   }
   catch (error) {
@@ -178,7 +206,7 @@ const saveInteraction = async () => {
     if (editingInteractionId.value)
       await CrmApi.updateInteraction(editingInteractionId.value, payload)
     else
-      await CrmApi.createInteraction(props.type, props.id, payload)
+      await CrmApi.createInteraction(props.type, props.id, payload, props.caseApplicantId)
 
     interactionDialog.value = false
     await load()
@@ -260,15 +288,14 @@ const removeInteraction = async (interaction: Interaction) => {
             color="primary"
             variant="tonal"
             size="52"
-          >
-            <VIcon
-              icon="tabler-user-heart"
+          >              <VIcon
+              :icon="entityIcon"
               size="27"
             />
           </VAvatar>
           <div class="min-w-0">
             <div class="text-overline text-primary">
-              {{ $t('common.crmDetails.entityRelationship', { entity: $t(`common.crmDetails.entities.${type}`) }) }}
+              {{ $t('common.crmDetails.entityRelationship', { entity: entityLabel }) }}
             </div>
             <h2 class="text-h5 font-weight-bold text-truncate">
               {{ record?.name || title }}
@@ -307,6 +334,7 @@ const removeInteraction = async (interaction: Interaction) => {
             {{ $t('common.crmDetails.details') }}
           </VTab>
           <VTab
+            v-if="!isCaseContext"
             value="overview"
             prepend-icon="tabler-notes"
           >
@@ -370,11 +398,11 @@ const removeInteraction = async (interaction: Interaction) => {
                 </div>
               </div>
               <VChip
-                :prepend-icon="type === 'applicant' ? 'tabler-user-check' : 'tabler-walk'"
+                :prepend-icon="entityIcon"
                 color="primary"
                 variant="tonal"
               >
-                {{ $t(`common.crmDetails.entities.${type}`) }}
+                {{ entityLabel }}
               </VChip>
             </div>
 
@@ -407,8 +435,8 @@ const removeInteraction = async (interaction: Interaction) => {
                       <div class="text-caption text-medium-emphasis">
                         {{ item.label }}
                       </div>
-                      <ContactActionMenu v-if="item.key === 'contact'" kind="phone" :value="String(item.value)" :contactable-type="type" :contactable-id="id" :context="record" />
-                      <ContactActionMenu v-else-if="item.key === 'email'" kind="email" :value="String(item.value)" :contactable-type="type" :contactable-id="id" :context="record" />
+                      <ContactActionMenu v-if="item.key === 'contact'" kind="phone" :value="String(item.value)" :contactable-type="readonly ? undefined : type" :contactable-id="id" :case-applicant-id="props.caseApplicantId ?? undefined" :context="record" />
+                      <ContactActionMenu v-else-if="item.key === 'email'" kind="email" :value="String(item.value)" :contactable-type="readonly ? undefined : type" :contactable-id="id" :case-applicant-id="props.caseApplicantId ?? undefined" :context="record" />
                       <div v-else class="text-body-1 font-weight-medium text-break">{{ item.value }}</div>
                     </div>
                   </VCardText>
@@ -470,7 +498,7 @@ const removeInteraction = async (interaction: Interaction) => {
             </VCard>
           </VWindowItem>
 
-          <VWindowItem value="overview">
+          <VWindowItem v-if="!isCaseContext" value="overview">
             <VRow>
               <VCol
                 cols="12"
@@ -494,6 +522,7 @@ const removeInteraction = async (interaction: Interaction) => {
                     </div>
                     <VTextarea
                       v-model="notesDraft"
+                      :readonly="readonly"
                       bg-color="surface"
                       rows="7"
                       auto-grow
@@ -503,7 +532,7 @@ const removeInteraction = async (interaction: Interaction) => {
                       <VBtn
                         type="button"
                         :loading="saving"
-                        :disabled="!record || !notesDirty"
+                        :disabled="readonly || !record || !notesDirty"
                         prepend-icon="tabler-device-floppy"
                         @click.stop="saveProfileNotes"
                       >
@@ -543,6 +572,7 @@ const removeInteraction = async (interaction: Interaction) => {
                       <span>{{ item.label }}</span><VSpacer /><span class="text-h6">{{ interactionCounts[item.value] }}</span>
                     </div>
                     <VBtn
+                      v-if="!readonly"
                       block
                       color="primary"
                       variant="flat"
@@ -578,6 +608,7 @@ const removeInteraction = async (interaction: Interaction) => {
               </VChip>
               <VSpacer />
               <VBtn
+                v-if="!readonly"
                 prepend-icon="tabler-plus"
                 @click="startInteraction()"
               >
@@ -652,7 +683,7 @@ const removeInteraction = async (interaction: Interaction) => {
                         {{ $t('common.crmDetails.followUpAt', { date: formatDateTime(item.follow_up_at) }) }}
                       </VAlert>
                     </div>
-                    <VMenu>
+                    <VMenu v-if="!readonly">
                       <template #activator="{ props: menuProps }">
                         <VBtn
                           v-bind="menuProps"
@@ -692,11 +723,21 @@ const removeInteraction = async (interaction: Interaction) => {
   >
     <VCard class="relationship-interaction-card">
       <VCardTitle class="relationship-interaction-card__title px-5 py-5">
-        <span class="relationship-interaction-card__heading">{{ $t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation') }}</span>
+        <div class="d-flex align-center ga-3">
+          <VAvatar color="primary" variant="tonal" size="40">
+            <VIcon :icon="channelMeta(form.channel).icon" size="21" />
+          </VAvatar>
+          <span class="relationship-interaction-card__heading">{{ $t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation') }}</span>
+        </div>
         <VSpacer />
         <VBtn icon="tabler-x" variant="tonal" color="error" class="relationship-interaction-card__close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="interactionDialog = false" />
       </VCardTitle>
       <VCardText class="relationship-interaction-card__body pa-5 pa-sm-6">
+        <div class="relationship-interaction-card__context">
+          <VIcon icon="tabler-bell" size="18" />
+          <span>{{ $t('common.crmUi.followUp') }}</span>
+          <strong>{{ record?.name || title }}</strong>
+        </div>
         <div class="relationship-interaction-card__fields">
           <ErpField
           v-model="form.channel"
@@ -845,7 +886,7 @@ const removeInteraction = async (interaction: Interaction) => {
 .crm-relationship-details__menu-action :deep(.v-list-item-title) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .min-w-0 { min-inline-size: 0; }
 
-.relationship-interaction-card { overflow: hidden; }
+.relationship-interaction-card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .35); border-radius: 16px !important; box-shadow: 0 20px 44px rgba(var(--v-theme-on-surface), .16); }
 
 .relationship-interaction-card__title,
 .relationship-interaction-card__actions {
@@ -858,8 +899,10 @@ const removeInteraction = async (interaction: Interaction) => {
 }
 .relationship-interaction-card__title { border-block-end-width: 1px; }
 .relationship-interaction-card__actions { border-block-start-width: 1px; }
-.relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 700; }
-.relationship-interaction-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
+.relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 750; }
+.relationship-interaction-card__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .12) !important; }
+.relationship-interaction-card__context { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-block-end: 1rem; padding: .7rem .875rem; border: 1px solid rgba(var(--v-theme-primary), .2); border-radius: 11px; background: rgba(var(--v-theme-primary), .06); color: rgb(var(--v-theme-primary)); font-size: .8125rem; font-weight: 700; }
+.relationship-interaction-card__context strong { min-inline-size: 0; overflow: hidden; color: rgb(var(--v-theme-on-surface)); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .relationship-interaction-card__fields { display: grid; gap: 12px; }
 
 .relationship-interaction-card__cancel {

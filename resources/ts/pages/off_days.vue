@@ -13,6 +13,7 @@ import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -247,6 +248,7 @@ onMounted(load)
         </VRow>
       </VCardText>
         <ResponsiveDataTableServer
+          class="off-days-table"
           :items="visibleRows"
           :items-length="total"
           :page="page"
@@ -254,6 +256,7 @@ onMounted(load)
           :items-per-page-options="[10, 25, 50, 100]"
           :loading="loading"
           :skeleton-rows="6"
+          :show-scroll-affordance="false"
           mobile-cards
           mobile-expand-all
           mobile-title-key="start_date"
@@ -282,7 +285,7 @@ onMounted(load)
             <VChip
               :color="statusColor(item.status)"
               size="small"
-              label
+              variant="tonal"
             >
               {{ t(`common.statuses.${item.status}`) }}
             </VChip>
@@ -292,62 +295,17 @@ onMounted(load)
             <span v-else class="text-medium-emphasis">—</span>
           </template>
           <template #item.actions="{ item }">
-            <div class="d-flex justify-end ga-1">
-              <VBtn
-                v-if="item.status === 'pending' && canApprove"
-                icon="tabler-check"
-                size="small"
-                variant="text"
-                color="success"
-                :aria-label="t('pages.offDays.approve')"
-                @click="approve(item)"
-              >
-                <VIcon icon="tabler-check" />
-                <VTooltip activator="parent" location="top">
-                  {{ t('pages.offDays.approve') }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                v-if="item.status === 'pending' && canApprove"
-                icon="tabler-x"
-                size="small"
-                variant="text"
-                color="error"
-                :aria-label="t('pages.offDays.reject')"
-                @click="reject(item)"
-              >
-                <VIcon icon="tabler-x" />
-                <VTooltip activator="parent" location="top">
-                  {{ t('pages.offDays.reject') }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                v-if="canManage && (item.status === 'pending' || canApprove)"
-                icon="tabler-edit"
-                size="small"
-                variant="text"
-                :aria-label="t('common.actions.edit')"
-                @click="openEdit(item)"
-              >
-                <VIcon icon="tabler-edit" />
-                <VTooltip activator="parent" location="top">
-                  {{ t('common.actions.edit') }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                v-if="canManage && (item.status === 'pending' || canApprove)"
-                icon="tabler-trash"
-                size="small"
-                variant="text"
-                color="error"
-                :aria-label="t('pages.offDays.remove')"
-                @click="openDelete(item)"
-              >
-                <VIcon icon="tabler-trash" />
-                <VTooltip activator="parent" location="top">
-                  {{ t('pages.offDays.remove') }}
-                </VTooltip>
-              </VBtn>
+            <div class="d-flex justify-end">
+              <VMenu location="bottom end" origin="top end" :close-on-content-click="true">
+                <template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" size="small" variant="tonal" :aria-label="t('common.messages.actions')" /></template>
+                <VList density="compact" min-width="190">
+                  <VListItem v-if="item.status === 'pending' && canApprove" prepend-icon="tabler-check" base-color="success" :title="t('pages.offDays.approve')" @click="approve(item)" />
+                  <VListItem v-if="item.status === 'pending' && canApprove" prepend-icon="tabler-x" base-color="error" :title="t('pages.offDays.reject')" @click="reject(item)" />
+                  <VDivider v-if="item.status === 'pending' && canApprove && canManage && (item.status === 'pending' || canApprove)" class="my-1" />
+                  <VListItem v-if="canManage && (item.status === 'pending' || canApprove)" prepend-icon="tabler-edit" :title="t('common.actions.edit')" @click="openEdit(item)" />
+                  <VListItem v-if="canManage && (item.status === 'pending' || canApprove)" prepend-icon="tabler-trash" base-color="error" :title="t('pages.offDays.remove')" @click="openDelete(item)" />
+                </VList>
+              </VMenu>
             </div>
           </template>
           <template #no-data><TableEmptyState icon="tabler-calendar-off" :title="t('pages.offDays.noRecordsTitle')" :description="t('pages.offDays.noRecords')" /></template>
@@ -431,29 +389,20 @@ onMounted(load)
       </VCard>
     </VDialog>
 
-    <VDialog
-      v-model="deleteDialog"
-      max-width="460"
-    >
-      <VCard :title="t('pages.offDays.remove')">
-        <VCardText>{{ t('pages.offDays.removeConfirm') }}</VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn
-            variant="text"
-            @click="deleteDialog = false"
-          >
-            {{ t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="error"
-            @click="remove"
-          >
-            {{ t('pages.offDays.remove') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <ConfirmDialog
+      v-model:is-dialog-visible="deleteDialog"
+      tone="error"
+      icon="tabler-trash"
+      :confirmation-question="t('pages.offDays.remove')"
+      :confirmation-message="t('pages.offDays.removeConfirm')"
+      :confirm-text="t('pages.offDays.remove')"
+      :cancel-text="t('common.actions.cancel')"
+      :confirm-title="t('pages.offDays.remove')"
+      :confirm-msg="t('pages.offDays.removed')"
+      :cancel-title="t('common.actions.cancel')"
+      cancel-msg=""
+      @confirm="confirmed => { if (confirmed) remove() }"
+    />
   </div>
 </template>
 
@@ -463,6 +412,12 @@ onMounted(load)
 .off-days-toolbar { padding: 1.25rem 1.5rem !important; }
 .off-days-screen :deep(.v-data-table__thead > tr > th) { background: rgba(var(--v-theme-on-surface), .045) !important; }
 .off-days-screen :deep(.v-data-table__tbody > tr:hover > td) { background: rgba(var(--v-theme-on-surface), .035) !important; }
+.off-days-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
+.off-days-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+.off-days-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 74rem; table-layout: auto !important; }
+.off-days-table :deep(th), .off-days-table :deep(td) { min-inline-size: 9rem; white-space: nowrap; }
+.off-days-table :deep(th:nth-child(4)), .off-days-table :deep(td:nth-child(4)) { min-inline-size: 20rem; }
+.off-days-table :deep(th:last-child), .off-days-table :deep(td:last-child) { min-inline-size: 6rem; }
 .off-day-form-dialog__card { overflow: hidden; }
 .off-day-form-dialog__header,
 .off-day-form-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }

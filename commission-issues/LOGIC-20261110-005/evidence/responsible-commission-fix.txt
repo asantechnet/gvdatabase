@@ -1,0 +1,42 @@
+Responsible-employee commission fix — 2026-11-10
+
+Code:
+  app/Services/CommissionService.php
+  - syncForApplicant() reads applicant_responsible_employees.
+  - lineAccruals() merges responsible employee ids with contract employee,
+    contract sold_by and line sold_by ids.
+  - array_unique() prevents duplicate accruals when the seller is also responsible.
+  - Existing checks remain: is_commission_based must be true and the employee
+    must have a positive rate for the line service.
+
+Tests:
+  php artisan test
+    tests/Feature/CommissionResponsibilityRegressionTest.php
+    tests/Feature/ResponsibleEmployeeAssignmentTest.php
+    tests/Feature/CommissionLifecycleTest.php
+    tests/Feature/AcademyContractCommissionTest.php
+
+  Result: 24 passed, 570 assertions.
+  - responsible employee earns at own rate
+  - seller who is also responsible earns one accrual
+  - non-commission-based responsible employee earns nothing
+  - two responsible employees each earn
+  - existing settlement, cancellation, reconcile and Academy cases still pass
+
+Post-fix ledger backfill for applicants 7, 8, 9:
+  employee 8 / private:      2500.00 pending
+  employee 8 / scholarship:  2000.00 pending
+  employee 8 / test_offer:   1500.00 pending
+  employee 9 / private:      2000.00 pending
+  employee 9 / scholarship:  1600.00 pending
+  employee 9 / test_offer:   1200.00 pending
+  employee 10 / academy:     1000.00 pending
+
+Summary:
+  employee 8:  3 accruals / 6000.00
+  employee 9:  3 accruals / 4800.00
+  employee 10: 1 accrual  / 1000.00
+  total:       7 accruals / 11800.00
+  settlements: 0
+
+No duplicate rows and no settlement changes.

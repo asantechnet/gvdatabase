@@ -96,6 +96,8 @@ const buildHarness = locale => {
   const stubs = [
     '@/components/erp/ErpField.vue',
     '@/components/erp/ErpDateRange.vue',
+    '@/components/erp/ErpSearchField.vue',
+    '@/pages/applicant-pipeline.vue',
     '@/components/ApplicantServiceFields.vue',
     '@/components/crm/CrmRelationshipDetails.vue',
     '@/components/ContactActionMenu.vue',
@@ -110,6 +112,7 @@ const buildHarness = locale => {
 const messages = ${JSON.stringify(messages)};
 const t = key => key.split('.').reduce((node, part) => node?.[part], messages) ?? key;
 const locale = ${JSON.stringify(locale)};
+const useDebounceFn = fn => fn;
 const stages = [
   { id: 1, key: 'new', name: 'New', is_terminal: false, sort_order: 10 },
   { id: 2, key: 'consultation', name: 'Consultation', is_terminal: false, sort_order: 20 },
@@ -134,6 +137,7 @@ const mocks = {
   'vue-router': {
     useRoute: () => ({ name: 'applications', meta: {}, query: {}, params: {} }),
     useRouter: () => ({ push: () => {}, replace: () => {} }),
+    onBeforeRouteLeave: () => {},
   },
   'vue-toastification': { useToast: () => ({ error: message => window.toastErrors.push(String(message)), success: () => {}, info: () => {} }) },
   '@/utils/authorization': { canAccess: () => true },

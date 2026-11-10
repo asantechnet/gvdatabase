@@ -251,15 +251,9 @@ function onAfterLeave() {
               <td>
                 <div class="d-flex align-center flex-wrap ga-2">
                   <span>{{ member.name }}</span>
-                  <VChip v-if="member.is_primary" size="x-small" color="primary" variant="tonal">
-                    {{ $t('common.ui.departmentMembersPrimary') }}
-                  </VChip>
                   <VChip v-if="member.is_manager" size="x-small" color="info" variant="tonal">
                     {{ $t('common.ui.departmentMembersManager') }}
                   </VChip>
-                </div>
-                <div v-if="member.supervisor_name" class="text-caption text-medium-emphasis">
-                  {{ $t('common.fields.supervisor') }}: {{ member.supervisor_name }}
                 </div>
                 <div v-if="memberErrors[member.id]" class="text-error text-caption mt-1" role="alert">
                   {{ memberErrors[member.id] }}

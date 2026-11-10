@@ -27,7 +27,7 @@ class ContractTemplateVersionTest extends TestCase
 
     public function test_versions_are_country_and_language_scoped_and_active_versions_are_immutable(): void
     {
-        $type = ContractType::firstOrCreate(['slug' => 'educational-service'], ['name' => 'Educational Service']);
+        $type = ContractType::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
         $template = ContractTemplate::create(['name' => 'Admission agreement', 'contract_type_id' => $type->id, 'cover_text' => '', 'content' => '<p>legacy</p>']);
         $country = Country::create(['name' => 'Afghanistan', 'code' => 'AFG']);
         $language = Language::create(['name' => 'English', 'code' => 'en']);
@@ -45,6 +45,23 @@ class ContractTemplateVersionTest extends TestCase
             ->assertOk()->assertJsonPath('data.is_current', true);
         $this->putJson("/api/contract-templates/{$template->id}/versions/{$second['id']}", ['name' => 'Locked'])
             ->assertStatus(422);
+    }
+
+    public function test_other_contract_templates_have_no_versioning_and_edit_content_directly(): void
+    {
+        $type = ContractType::where('slug', 'other')->firstOrFail();
+        $template = ContractTemplate::create([
+            'name' => 'Consulting agreement', 'contract_type_id' => $type->id,
+            'cover_text' => '', 'content' => '<p>direct</p>',
+        ]);
+
+        $this->postJson("/api/contract-templates/{$template->id}/versions", [
+            'name' => 'Draft terms', 'content' => '<p>versioned</p>',
+        ])->assertStatus(422);
+        $this->assertDatabaseCount('contract_template_versions', 0);
+
+        $this->putJson("/api/contract-templates/{$template->id}", ['content' => '<p>direct v2</p>'])
+            ->assertOk()->assertJsonPath('data.content', '<p>direct v2</p>');
     }
 
     public function test_employment_versions_are_name_only_and_need_no_country_or_language(): void
@@ -73,8 +90,8 @@ class ContractTemplateVersionTest extends TestCase
         $this->assertSame("{$template->id}:::", (string) ContractTemplateVersion::findOrFail($second['id'])->current_scope_key);
         $this->assertFalse(ContractTemplateVersion::findOrFail($first['id'])->is_current);
 
-        // Every other template still has to declare a country and language scope.
-        $serviceType = ContractType::firstOrCreate(['slug' => 'educational-service'], ['name' => 'Educational Service']);
+        // A customer template still has to declare a country and language scope.
+        $serviceType = ContractType::firstOrCreate(['slug' => 'customer'], ['name' => 'Customer']);
         $serviceTemplate = ContractTemplate::create([
             'name' => 'Admission agreement', 'contract_type_id' => $serviceType->id, 'cover_text' => '', 'content' => '<p>legacy</p>',
         ]);

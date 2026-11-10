@@ -32,9 +32,10 @@ const label = computed(() => t('components.taskManager.taskbonuspanel.open'))
     v-model="isOpen"
     max-width="640"
     scrollable
+    content-class="task-bonus-dialog"
   >
-    <VCard>
-      <VCardItem class="px-5 py-4">
+    <VCard class="task-bonus-dialog__card">
+      <VCardItem class="task-bonus-dialog__header px-5 py-4">
         <template #prepend>
           <VAvatar
             color="primary"
@@ -49,7 +50,8 @@ const label = computed(() => t('components.taskManager.taskbonuspanel.open'))
         <template #append>
           <VBtn
             icon="tabler-x"
-            variant="text"
+            variant="tonal"
+            color="error"
             size="small"
             :aria-label="$t('common.actions.close')"
             :title="$t('common.actions.close')"
@@ -58,11 +60,15 @@ const label = computed(() => t('components.taskManager.taskbonuspanel.open'))
         </template>
       </VCardItem>
 
-      <VDivider />
-
       <VCardText class="pa-5">
         <TaskBonusPanel :task="props.task" />
       </VCardText>
     </VCard>
   </VDialog>
 </template>
+
+<style scoped>
+.task-bonus-dialog__card { overflow: hidden; }
+.task-bonus-dialog__header { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+:global(.v-overlay:has(.task-bonus-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+</style>

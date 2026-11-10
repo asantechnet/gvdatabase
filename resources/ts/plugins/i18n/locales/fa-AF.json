@@ -1,6 +1,8 @@
 {
   "serviceContracts": {
     "extension": "غځونه",
+    "contract": "قرارداد",
+    "parentContract": "قرارداد مادر",
     "responsibleEmployee": "مشاور",
     "number": "شماره قرارداد",
     "applicant": "نام متقاضی",
@@ -40,6 +42,7 @@
     "cancelled": "لغوشده",
     "studentId": "شناسه شاگرد",
     "studentFullName": "نام کامل شاگرد",
+    "studentIdAuto": "رکورد شاگرد و شماره شاگرد آکادمی هنگام ذخیره قرارداد به‌طور خودکار ایجاد می‌شوند.",
     "consultant": "مشاور",
     "applicationFeeRange": "محدوده فیس درخواست",
     "applicationFeeMinimum": "فیس درخواست از",
@@ -120,8 +123,12 @@
       "amount": "0.00",
       "currency": "واحد پول را انتخاب کنید",
       "rate": "مثلاً 71.25",
-      "admissionNotes": "مثلاً مدارک کامل است"
-    }
+      "admissionNotes": "مثلاً مدارک کامل است",
+      "responsibleEmployees": "کارمندان مسئول"
+    },
+    "responsibleEmployees": "کارمندان مسئول",
+    "responsibleEmployeesOptional": "اختیاری. کارمندان مسئول این پرونده را انتخاب کنید.",
+    "responsibleEmployeesHint": "وظیفه تحویل و اطلاعیه‌های پرونده به این کارمندان ارسال می‌شود."
   },
   "common": {
     "attachments": {
@@ -170,7 +177,8 @@
       "adding": "در حال افزودن",
       "editing": "در حال ویرایش",
       "viewFullDetails": "مشاهده جزئیات کامل",
-      "editFullDetails": "ویرایش جزئیات کامل"
+      "editFullDetails": "ویرایش جزئیات کامل",
+      "previous": "قبلی"
     },
     "values": {
       "yes": "بله",
@@ -251,9 +259,14 @@
       "country": "کشور",
       "language": "زبان",
       "applicant": "متقاضی",
+      "student": "شاگرد",
+      "applicantOrStudent": "متقاضی یا شاگرد",
       "taxNumber": "شماره مالیاتی",
       "service": "خدمت",
-      "position": "سمت"
+      "position": "سمت",
+      "actions": "عملیات",
+      "details": "جزئیات",
+      "responsibleEmployees": "کارمندان مسئول"
     },
     "statuses": {
       "cancelled": "لغوشده",
@@ -578,7 +591,15 @@
       "announcements": "اعلامیه‌ها",
       "incomeTypes": "انواع درآمد",
       "expenseTypes": "انواع هزینه",
-      "payrolls": "معاش‌ها"
+      "payrolls": "معاش‌ها",
+      "academy": "آکادمی",
+      "academyOverview": "مرور آکادمی",
+      "academyClasses": "صنوف",
+      "academyStudents": "شاگردان",
+      "academyCatalog": "کاتالوگ",
+      "academyAttendance": "حاضری",
+      "academyCertificates": "تصدیق‌نامه‌ها",
+      "academyContracts": "قراردادهای آکادمی"
     },
     "languages": {
       "english": "English",
@@ -872,7 +893,11 @@
       "departmentName": "نام دیپارتمنت",
       "codeOptional": "کد (اختیاری)",
       "departmentManager": "مدیر دیپارتمنت",
-      "noEligibleDepartmentManagers": "مدیر واجد شرایط وجود ندارد. مدیر باید حساب فعال و دسترسی نظارتی داشته باشد.",
+      "departmentManagers": "مدیران دیپارتمنت",
+      "seniorManagersHint": "تنها نقش‌های ارشد واجد شرایط هستند. می‌توانید بیش از یک مدیر ارشد را به یک دیپارتمنت اختصاص دهید.",
+      "createTaskBoard": "ایجاد بورد وظایف برای این دیپارتمنت",
+      "createTaskBoardHint": "یک بورد مشترک با نام دیپارتمنت ایجاد می‌شود. مدیران دیپارتمنت می‌توانند وظایف آن را مدیریت کنند.",
+      "noEligibleDepartmentManagers": "مدیر واجد شرایط وجود ندارد. مدیر باید حساب فعال و نقش ارشد داشته باشد.",
       "currentManagerNoLongerEligible": "مدیر فعلی — دیگر واجد شرایط نیست",
       "descriptionOptional": "توضیحات (اختیاری)",
       "activeDepartment": "دیپارتمنت فعال",
@@ -1757,6 +1782,7 @@
                   "subjects": "مضامین درخواستی",
                   "skills": "مهارت‌ها",
                   "teachers": "استادان",
+                  "responsible_employees": "کارمندان مسئول",
                   "admission_employee": "کارمند پذیرش"
                 }
               },
@@ -1868,6 +1894,10 @@
         "defaultBreakMinutes": "دقایق پیش‌فرض وقفه",
         "automaticAttendanceEnabled": "حاضری خودکار را فعال کنید",
         "automaticAttendanceEnabledHint": "شروع و پایان روز و ثبت خودکار روزهای گذشتهٔ بدون حاضری را فعال کنید. موقعیت هنگام ورود بررسی می‌شود. روزهای باز حتی پس از غیرفعال‌شدن قابل پایان هستند.",
+        "academyEnabled": "فعال‌سازی آکادمی",
+        "academyEnabledHint": "صنف‌ها، شاگردان، حاضری، تصدیق‌نامه‌ها و قراردادهای آکادمی را فعال کنید. در صورت غیرفعال بودن، آکادمی در همه‌جا پنهان می‌شود و API آن در دسترس نیست.",
+        "auditColoringEnabled": "نمایش رنگ‌های سابقه بررسی در فهرست‌ها",
+        "auditColoringEnabledHint": "نوار ایجاد / تغییر / حذف، برجسته‌سازی خانه‌های تغییریافته و دکمه مشاهده سابقه را به جدول‌ها اضافه می‌کند. نیازمند اجازه مشاهده سابقه بررسی است. خاموش‌کردن آن فقط رنگ‌ها را پنهان می‌کند و هیچ سابقه‌ای حذف نمی‌شود.",
         "layoutColors": "رنگ‌های طرح / قالب",
         "companyPage": "شرکت",
         "operationsPage": "عملیات",
@@ -2163,7 +2193,10 @@
           "roleNameRequired": "نام نقش الزامی است.",
           "superAdminLocked": "دسترسی‌های مدیر ارشد قابل تغییر نیست",
           "seniorityLevel": "سطح ارشدیت",
-          "seniorityHint": "عدد بالاتر از عدد پایین‌تر ارشدتر است. این سطح نظارت، واجد شرایط بودن مدیریت دیپارتمنت و سقف تخصیص را تعیین می‌کند؛ دسترسی نمی‌دهد.",
+          "roleSeniority": "ارشدیت نقش",
+          "seniorRole": "ارشد",
+          "juniorRole": "جوان",
+          "seniorityHint": "نقش‌های ارشد بر نقش‌های جوان برتری دارند. ارشدیت واجد شرایط بودن مدیریت دیپارتمنت و سقف تخصیص را تعیین می‌کند؛ دسترسی نمی‌دهد.",
           "seniorityProtected": "نقش‌های سیستمی سطح ارشدیت ثابت دارند.",
           "seniorityPermissionRequired": "برای تغییر سطح ارشدیت به اجازه مدیریت سلسله‌مراتب نقش‌ها نیاز دارید.",
           "seniorityInvalid": "یک عدد صحیح بین ۰ و ۱۰۰۰۰۰ وارد کنید.",
@@ -2793,6 +2826,7 @@
           "statusRequired": "وضعیت را انتخاب کنید",
           "startDate": "تاریخ شروع",
           "startRequired": "تاریخ شروع را انتخاب کنید",
+          "startDateRequired": "تاریخ شروع را انتخاب کنید",
           "endDate": "تاریخ ختم",
           "endDateHint": "اختیاری. برای محاسبه مدت قرارداد در سرصفحه چاپ استفاده می‌شود.",
           "duration": "مدت ثابت (ماه)",
@@ -4133,7 +4167,9 @@
         "taskComments": "نظرات وظیفه",
         "noCommentsYet": "هنوز نظری ثبت نشده است.",
         "beTheFirstToStartTheDiscussion": "اولین نفری باشید که بحث را شروع می‌کند!",
-        "addAComment": "افزودن نظر..."
+        "addAComment": "افزودن نظر...",
+        "mentionHint": "برای منشن کردن مسئول یا سازنده وظیفه {'@'} را تایپ کنید.",
+        "noMatchingPeople": "شخص مطابقی یافت نشد."
       },
       "comments": {
         "editComment": "ویرایش نظر"
@@ -4210,7 +4246,7 @@
       },
       "taskappshell": {
         "kanbanBoard": "بورد کانبان",
-        "todoMatrix": "ماتریکس کارهای روزمره (Todo)"
+        "todoMatrix": "وظایف"
       },
       "calendarview": {
         "scheduleTimelineView": "نمای خط زمانی برنامه‌ریزی",
@@ -4257,7 +4293,9 @@
         "labelCreated": "برچسب وظیفه ایجاد شد."
       },
       "todomatrixview": {
-        "megaTasks": "وظایف کلان",
+        "megaTasks": "وظایف",
+        "newTask": "وظیفه جدید",
+        "newTaskHint": "این وظیفه در تخته شخصی شما ذخیره می‌شود.",
         "completedProgress": "{completed} / {total} تکمیل‌شده",
         "taskContent": "محتوای وظیفه",
         "noTaskContent": "برای این وظیفه محتوایی ثبت نشده است.",
@@ -4623,6 +4661,7 @@
       "paymentDate": "تاریخ پرداخت",
       "receivedFrom": "دریافت شده از",
       "applicantId": "شناسه متقاضی",
+      "studentId": "شناسه شاگرد",
       "fatherName": "نام پدر",
       "phone": "شماره تماس",
       "email": "ایمیل",
@@ -4674,6 +4713,7 @@
       "reference": "مرجع",
       "date": "تاریخ صدور",
       "applicant": "متقاضی",
+      "student": "دانشجو",
       "name": "نام کامل",
       "fatherName": "نام پدر",
       "contact": "تماس",
@@ -4701,7 +4741,11 @@
       "loadFailed": "بارگذاری این برگه آکادمی ممکن نشد.",
       "printFailed": "چاپ این برگه آکادمی ممکن نشد.",
       "artworkFailed": "تصاویر یا قلم‌های برگه بارگذاری نشد. چاپ لغو شد.",
-      "paperTooSmall": "این برگه ثبت‌نام در کاغذ انتخاب‌شده جا نمی‌شود. اندازه بزرگ‌تر کاغذ را انتخاب کنید."
+      "paperTooSmall": "این برگه ثبت‌نام در کاغذ انتخاب‌شده جا نمی‌شود. اندازه بزرگ‌تر کاغذ را انتخاب کنید.",
+      "studentId": "Student ID",
+      "term": "Term",
+      "startedOn": "Start date",
+      "endsOn": "End date"
     },
     "commissionSlip": {
       "title": "برگه کمیسیون",
@@ -4752,6 +4796,8 @@
       "telephone": "تلیفون: {phone}"
     },
     "payslip": {
+      "title": "فیش معاش",
+      "printFailed": "چاپ این فیش معاش ممکن نشد.",
       "amountInWords": "مبلغ به حروف",
       "amountInWordsFallback": "فقط {amount} {currency}",
       "workedDays": "{worked} / {total} روز",
@@ -4836,7 +4882,23 @@
       "employeeSignature": "امضای کارمند",
       "note": "این پیش‌پرداخت از معاش آینده بازپس گرفته می‌شود.",
       "employeeCopy": "نسخه کارمند",
-      "companyCopy": "نسخه شرکت"
+      "companyCopy": "نسخه شرکت",
+      "printFailed": "چاپ این رسید پیش‌پرداخت ممکن نشد."
+    },
+    "academyCertificate": {
+      "eyebrow": "This is to certify that",
+      "father": "Daughter/son of {name}",
+      "program": "Programme",
+      "class": "Class",
+      "term": "Term",
+      "completed": "Completed",
+      "issued": "Issued",
+      "signatory": "Authorised signatory",
+      "revoked": "Revoked"
+    },
+    "academyAttendance": {
+      "printSubtitle": "Academy monthly attendance",
+      "printFooter": "Academy attendance record"
     }
   },
   "pwa": {
@@ -4911,6 +4973,12 @@
         "contract_payment_exceeds_balance": "مبلغ پرداختی از مانده این خدمت بیشتر است.",
         "contract_payment_currency_mismatch": "پرداخت را با واحد پول قرارداد خدمت ثبت کنید.",
         "contract_paid_line_immutable": "خدمت دارای سابقه مالی را نمی‌توان حذف کرد یا متقاضی و واحد پول آن را تغییر داد.",
+        "academy_term_undefined": "این صنف تاریخ پایان ندارد و مدت انتخاب‌شده نیز تعداد ماه ندارد. پیش از فروش کورس، یکی از آن‌ها را تعیین کنید.",
+        "academy_class_ended": "این صنف قبلاً پایان یافته است. صنف دیگری را انتخاب کنید.",
+        "academy_class_full": "این صنف پر است. صنف دیگری را انتخاب کنید.",
+        "academy_enrollment_duplicate": "این دانشجو قبلاً در این صنف ثبت‌نام شده است.",
+        "student_applicant_mismatch": "شاگرد انتخاب‌شده به متقاضی انتخاب‌شده تعلق ندارد.",
+        "builtin_contract_template_not_ready": "سند آکادمی تنظیم نشده است. بیج‌های معلومات مرجع را اجرا کنید و دوباره تلاش کنید.",
         "currency_rate_invalid": "یک واحد پولی با نرخ اسعار مثبت انتخاب کنید.",
         "service_currency_rate_invalid": "یک یا چند خدمت انتخاب‌شده نرخ اسعار نامعتبر دارند.",
         "employee_not_selectable": "این کارمند واجد شرایط برای این عملیات نیست.",
@@ -5589,7 +5657,7 @@
       "newTask": "وظیفه جدید پرونده",
       "personalBoardOnly": "وظایف پرونده در تخته شخصی شما ایجاد می‌شوند.",
       "personalBoardMissing": "تخته شخصی شما هنوز آماده نیست. صفحه را دوباره بارگیری کنید.",
-      "openInTaskMatrix": "باز کردن در ماتریس وظایف",
+      "openInTaskMatrix": "باز کردن در وظایف",
       "taskPermission": "ایجاد وظیفه به صلاحیت نیاز دارد. وظایف خودکار مرحله همچنان اینجا نمایش داده می‌شوند.",
       "taskSummary": "{progress}٪ تکمیل · {priority} · سررسید {date}",
       "complete": "تکمیل",
@@ -5633,6 +5701,7 @@
       "dueDate": "تاریخ سررسید",
       "addUniversityApplication": "افزودن درخواست دانشگاه",
       "outcome": "نتیجه",
+      "intake": "دوره ورودی",
       "intakeExample": "دوره ورودی (برای مثال، خزان ۲۰۲۷)",
       "inviteTitle": "حساب پورتال متقاضی",
       "inviteSubtitle": "برای ساخت حساب آماده، ایمیل و رمز عبور را وارد کنید؛ یا رمز عبور را خالی بگذارید تا دعوت‌نامه تایید ارسال شود.",
@@ -6030,7 +6099,8 @@
       "rejected": "رد شده",
       "withdrawn": "انصراف داده"
     },
-    "contractType": "نوع قرارداد"
+    "contractType": "نوع قرارداد",
+    "responsibleEmployees": "کارمندان مسئول"
   },
   "finance": {
     "servicePayments": {
@@ -6126,9 +6196,54 @@
     "contractVersion": "نسخه قرارداد",
     "templateNotReady": "قالب قرارداد تنظیم نشده است",
     "noMatchingVersion": "نسخه مطابق موجود نیست",
-    "currentPageReport": "متقاضیان صفحه فعلی"
+    "currentPageReport": "متقاضیان صفحه فعلی",
+    "responsibleEmployees": "کارمندان مسئول"
   },
   "agencyDashboard": {
+    "tasksDueToday": "کارهای امروز",
+    "unassignedTasks": "کارهای بدون مسئول",
+    "unassignedCases": "پرونده‌های بدون مسئول",
+    "kpiUnassigned": "{count} بدون مسئول",
+    "kpiActionsHelp": "وظایف و پرونده‌ها",
+    "kpiCollectionsHelp": "پس از پرداخت‌ها",
+    "kpiWaiting": "{count} در انتظار",
+    "allClearHelp": "موردی برای اقدام نیست.",
+    "noWorkloadTitle": "پرونده فعال نیست",
+    "noWorkloadHelp": "پرونده‌ای واگذار نشده است",
+    "noDestinationsTitle": "پرونده مقصد ندارد",
+    "noDestinationsHelp": "برای دیدن کشورها پرونده اضافه کنید",
+    "noUniversitiesTitle": "هنوز درخواستی نیست",
+    "noUniversitiesHelp": "درخواستی ثبت نشده است",
+    "pageTitle": "نمای کلی داشبورد",
+    "overdueTasks": "وظایف عقب‌مانده",
+    "stuckCasesShort": "پرونده‌های متوقف",
+    "contractAttentionShort": "قراردادهای نیازمند بررسی",
+    "overview": "نمای کلی",
+    "needsAction": "نیاز به اقدام",
+    "missingDocuments": "اسناد ناقص",
+    "pendingApproval": "در انتظار تأیید",
+    "payroll": "معاشات",
+    "applications": "درخواست‌ها",
+    "openCases": "باز",
+    "closedCases": "بسته",
+    "today": "امروز",
+    "allClear": "همه‌چیز خوب است",
+    "results": "نتایج",
+    "admissions": "پذیرش‌ها",
+    "currentPeriod": "دوره انتخاب‌شده",
+    "collections": "دریافتی‌ها",
+    "activeWork": "پرونده‌های فعال",
+    "unassignedShort": "بدون مسئول",
+    "popular": "محبوب",
+    "topUniversities": "دانشگاه‌های برتر",
+    "universityProgress": "پیشرفت دانشگاه‌ها",
+    "university": "دانشگاه",
+    "inProgress": "در حال اجرا",
+    "caseProgressShort": "پیشرفت پرونده‌ها",
+    "teamWorkloadShort": "حجم کار تیم",
+    "destinationsShort": "مقصدها",
+    "toCollectShort": "قابل دریافت",
+    "admittedShort": "پذیرفته‌شده",
     "title": "نمای کلی داشبورد",
     "welcomeBack": "خوش آمدید. این تازه‌ترین تصویر عملیاتی شما است.",
     "noPriorityItems": "در این دسته‌ها هشدار پرونده یا قرارداد وجود ندارد.",
@@ -6181,5 +6296,187 @@
     "safeWidth": "{field}: مجموع فاصله افقی و عرض نباید بیش از ۱۰۰٪ باشد. فاصله یا عرض را کاهش دهید.",
     "safeHeight": "{field}: مجموع فاصله عمودی و ارتفاع نباید بیش از ۱۰۰٪ باشد. فاصله یا ارتفاع را کاهش دهید.",
     "saveFailed": "تنظیمات ذخیره نشد. فیلدهای مشخص‌شده را اصلاح و دوباره تلاش کنید."
+  },
+  "academy": {
+    "overview": {
+      "title": "مرور آکادمی",
+      "description": "صنوف، شاگردان و وضعیت دوره فعلی.",
+      "loadFailed": "مرور آکادمی بارگذاری نشد.",
+      "todayClasses": "صنوف امروز",
+      "noTodayClasses": "امروز صنفی برگزار نمی‌شود.",
+      "terms": "وضعیت دوره",
+      "termHint": "{count} ثبت‌نام فعال",
+      "kpis": {
+        "activeStudents": "شاگردان فعال",
+        "activeClasses": "صنوف فعال",
+        "seats": "صندلی‌های پرشده",
+        "endingSoon": "نزدیک به پایان",
+        "outstanding": "باقی‌مانده",
+        "completed": "تکمیل‌شده در این ماه"
+      }
+    },
+    "classes": {
+      "title": "صنوف",
+      "description": "صنوف جاری، جدول و ظرفیت.",
+      "createTitle": "ایجاد صنف",
+      "editTitle": "ویرایش صنف",
+      "create": "ایجاد صنف",
+      "saved": "صنف ذخیره شد.",
+      "removed": "صنف حذف شد.",
+      "removeConfirm": "این صنف حذف شود؟ ثبت‌نام‌های موجود حفظ می‌شوند.",
+      "emptyTitle": "هنوز صنفی نیست",
+      "emptyDescription": "اولین صنف را ایجاد کنید.",
+      "loadFailed": "صنوف بارگذاری نشد.",
+      "roster": "فهرست",
+      "rosterTitle": "فهرست صنف",
+      "emptyRoster": "هیچ شاگردی در این صنف نیست."
+    },
+    "students": {
+      "title": "شاگردان",
+      "description": "شاگردان و کورس‌های ثبت‌نام‌شده.",
+      "cardTitle": "کورس‌های شاگرد",
+      "detailTitle": "جزئیات ثبت‌نام",
+      "endingSoon": "نزدیک به پایان",
+      "emptyCourses": "هیچ کورسی ثبت‌نام نشده است.",
+      "emptyTitle": "هنوز شاگردی نیست",
+      "emptyDescription": "قراردادهای آکادمی ثبت‌نام شاگرد را ایجاد می‌کنند.",
+      "loadFailed": "شاگردان بارگذاری نشد.",
+      "financeTitle": "مالی",
+      "financeTotalReceived": "مجموع دریافت‌شده",
+      "financeEmpty": "برای این شاگرد پرداختی ثبت نشده است.",
+      "financeLoadFailed": "مالی شاگرد بارگذاری نشد.",
+      "saved": "ثبت‌نام به‌روز شد.",
+      "terminalHint": "این ثبت‌نام بسته و فقط‌خواندنی است."
+    },
+    "catalog": {
+      "title": "کاتالوگ",
+      "description": "برنامه‌ها، زمان‌ها، مدت‌ها و استادان.",
+      "add": "افزودن",
+      "programs": "برنامه‌ها",
+      "times": "زمان صنف",
+      "durations": "مدت‌ها",
+      "teachers": "استادان",
+      "saved": "کاتالوگ به‌روز شد.",
+      "removed": "مورد حذف شد.",
+      "removeConfirm": "این مورد کاتالوگ حذف شود؟",
+      "editMonths": "مدت به ماه",
+      "emptyTitle": "کاتالوگ خالی است",
+      "emptyDescription": "برنامه‌ها و مدت‌های آکادمی را اضافه کنید.",
+      "loadFailed": "کاتالوگ بارگذاری نشد."
+    },
+    "attendance": {
+      "title": "حاضری",
+      "description": "حاضری ماهانه شاگردان و استادان، جدا از حاضری منابع بشری.",
+      "studentsTab": "شاگردان",
+      "teachersTab": "استادان",
+      "print": "چاپ برگه",
+      "printSubtitle": "حاضری ماهانه آکادمی",
+      "printFooter": "سند حاضری آکادمی",
+      "saved": "حاضری ذخیره شد.",
+      "empty": "برای این انتخاب حاضری ثبت نشده است.",
+      "emptyCell": "ثبت نشده",
+      "loadFailed": "حاضری آکادمی بارگذاری نشد.",
+      "addTeacherRow": "افزودن ساعت استاد",
+      "legend": "کلید وضعیت",
+      "legendHint": "برای تغییر وضعیت، روی روز کلیک کنید.",
+      "totalRecorded": "ثبت‌شده",
+      "status": {
+        "present": "حاضر",
+        "absent": "غایب",
+        "late": "دیر",
+        "excused": "رخصت"
+      }
+    },
+    "certificates": {
+      "title": "تصدیق‌نامه‌ها",
+      "description": "صدور و چاپ تصدیق‌نامه برای ثبت‌نام‌های مکمل.",
+      "issue": "صدور تصدیق‌نامه",
+      "bulkIssue": "صدور گروهی",
+      "preview": "پیش‌نمایش",
+      "print": "چاپ",
+      "issued": "صادرشده",
+      "revoked": "لغوشده",
+      "issuedDone": "تصدیق‌نامه صادر شد.",
+      "revokedDone": "تصدیق‌نامه لغو شد.",
+      "revokedCannotPrint": "تصدیق‌نامه‌های لغوشده قابل چاپ نیستند.",
+      "revoke": "لغو",
+      "revokeReason": "دلیل لغو",
+      "bulkHint": "برای هر ثبت‌نام مکمل یک تصدیق‌نامه ایجاد می‌شود. تصدیق‌نامه‌های موجود نادیده گرفته می‌شوند.",
+      "bulkSaved": "صدور گروهی تکمیل شد.",
+      "completedEnrollment": "ثبت‌نام مکمل",
+      "completedEnrollments": "ثبت‌نام‌های مکمل",
+      "issueHint": "فقط ثبت‌نام‌های مکمل واجد شرایط هستند. تصدیق‌نامه از یک نسخه ثابت استفاده می‌کند.",
+      "editTemplate": "ویرایش قالب",
+      "templateSaved": "قالب ذخیره شد.",
+      "templateTitle": "عنوان تصدیق‌نامه",
+      "templateBody": "متن تصدیق‌نامه",
+      "tokens": "فیلدهای موجود: {tokens}",
+      "signatoryTitle": "عنوان امضاکننده",
+      "search": "جستجوی تصدیق‌نامه",
+      "number": "شماره تصدیق‌نامه",
+      "emptyTitle": "هنوز تصدیق‌نامه‌ای نیست",
+      "emptyDescription": "برای یک ثبت‌نام مکمل تصدیق‌نامه صادر کنید.",
+      "loadFailed": "تصدیق‌نامه‌ها بارگذاری نشد."
+    },
+    "status": {
+      "active": "فعال",
+      "completed": "مکمل",
+      "withdrawn": "انصراف",
+      "cancelled": "لغو"
+    },
+    "fields": {
+      "active": "فعال",
+      "balance": "باقی",
+      "capacity": "ظرفیت",
+      "class": "صنف",
+      "completedOn": "تاریخ تکمیل",
+      "contact": "تماس",
+      "contract": "قرارداد",
+      "date": "تاریخ",
+      "description": "توضیح",
+      "duration": "مدت",
+      "endsAt": "پایان",
+      "endsOn": "تا تاریخ",
+      "fee": "فیس",
+      "hours": "ساعت",
+      "minutes": "دقیقه",
+      "month": "ماه",
+      "months": "ماه",
+      "name": "نام",
+      "note": "یادداشت",
+      "notes": "یادداشت‌ها",
+      "program": "برنامه",
+      "schedule": "برنامه هفتگی",
+      "seats": "جای خالی",
+      "sortOrder": "ترتیب",
+      "startsAt": "شروع",
+      "startsOn": "از تاریخ",
+      "status": "وضعیت",
+      "student": "شاگرد",
+      "teacher": "استاد",
+      "teachers": "استادان",
+      "term": "دوره",
+      "time": "زمان",
+      "total": "مجموع",
+      "weekdays": "روزها",
+      "weekdaysShort": {
+        "mon": "دوشنبه",
+        "tue": "سه‌شنبه",
+        "wed": "چهارشنبه",
+        "thu": "پنجشنبه",
+        "fri": "جمعه",
+        "sat": "شنبه",
+        "sun": "یکشنبه"
+      }
+    },
+    "navigation": {
+      "overview": "مرور",
+      "classes": "صنوف",
+      "students": "شاگردان",
+      "catalog": "کاتالوگ",
+      "attendance": "حاضری",
+      "certificates": "تصدیق‌نامه‌ها",
+      "contracts": "قراردادهای آکادمی"
+    }
   }
 }

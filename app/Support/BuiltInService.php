@@ -24,6 +24,12 @@ final class BuiltInService
     /** @var list<string> */
     public const ALL = [self::SCHOLARSHIP, self::TEST_OFFER, self::ACADEMY, self::PRIVATE];
 
+    /** Services that own a stage workflow and an applicant case. */
+    public const CASE_BEARING = [self::SCHOLARSHIP, self::TEST_OFFER, self::PRIVATE];
+
+    /** Services sold as a direct agreement without a case or stage workflow. */
+    public const CASE_FREE = [self::ACADEMY];
+
     /** Human labels. The UI renders its own translations for these values. */
     private const LABELS = [
         self::SCHOLARSHIP => 'Scholarship',
@@ -48,9 +54,34 @@ final class BuiltInService
         self::PRIVATE => 'educational.builtInServices.private',
     ];
 
+    /** Services currently available under company settings. */
+    public static function enabled(): array
+    {
+        if (app(CompanyProfile::class)->academyEnabled()) {
+            return self::ALL;
+        }
+
+        return array_values(array_filter(self::ALL, fn (string $service) => $service !== self::ACADEMY));
+    }
+
+    public static function isEnabled(mixed $service): bool
+    {
+        return is_string($service) && in_array($service, self::enabled(), true);
+    }
+
     public static function isValid(mixed $service): bool
     {
         return is_string($service) && in_array($service, self::ALL, true);
+    }
+
+    public static function isCaseBearing(?string $service): bool
+    {
+        return in_array($service, self::CASE_BEARING, true);
+    }
+
+    public static function isCaseFree(?string $service): bool
+    {
+        return in_array($service, self::CASE_FREE, true);
     }
 
     public static function contractPermission(?string $service): ?string

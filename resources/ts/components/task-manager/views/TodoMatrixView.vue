@@ -11,6 +11,11 @@ import ErpField from '@/components/erp/ErpField.vue'
 
 const store = useTaskStore()
 const userData = useCookie<{ id?: string | number } | null>('userData')
+const createDialog = ref(false)
+const creatingTask = ref(false)
+const createForm = ref({ title: '', description: '', priority: 'medium' as TaskPriority, due_date: new Date().toISOString().slice(0, 10) })
+const personalBoard = computed(() => store.boards.find(board => board.is_personal && board.is_owned))
+const canCreatePersonalTask = computed(() => canAccess('create_personal_tasks') && Boolean(personalBoard.value))
 const newTaskTitle = ref('')
 const newTaskCategory = ref('General')
 const newTaskPriority = ref<'low' | 'medium' | 'high' | 'urgent'>('medium')
@@ -24,6 +29,36 @@ const priorityColorMap: Record<'low' | 'medium' | 'high' | 'urgent', string> = {
 
 const getBoardTitle = (boardId: string) => {
   return store.boards.find(board => board.id === boardId)?.title ?? 'Unknown board'
+}
+
+const openCreateTask = () => {
+  createForm.value = { title: '', description: '', priority: 'medium', due_date: new Date().toISOString().slice(0, 10) }
+  createDialog.value = true
+}
+
+const createTask = async () => {
+  if (!personalBoard.value || !createForm.value.title.trim())
+    return
+
+  creatingTask.value = true
+  try {
+    const task = await store.addTask({
+      title: createForm.value.title.trim(),
+      description: createForm.value.description,
+      priority: createForm.value.priority,
+      start_date: new Date().toISOString().slice(0, 10),
+      due_date: createForm.value.due_date,
+      boardId: String(personalBoard.value.id),
+    })
+
+    if (task) {
+      store.selectTask(task.id)
+      createDialog.value = false
+    }
+  }
+  finally {
+    creatingTask.value = false
+  }
 }
 
 const getSubtaskProgress = (task: Task) => {
@@ -164,7 +199,23 @@ const handleAddTodo = () => {
       cols="12"
       md="4"
     >
-      <VCard :title="$t('components.taskManager.todomatrixview.megaTasks')">
+      <VCard>
+        <VCardItem class="pb-2">
+          <template #title>
+            {{ $t('components.taskManager.todomatrixview.megaTasks') }}
+          </template>
+          <template #append>
+            <VBtn
+              v-if="canCreatePersonalTask"
+              color="primary"
+              size="small"
+              prepend-icon="tabler-plus"
+              @click="openCreateTask"
+            >
+              {{ $t('components.taskManager.todomatrixview.newTask') }}
+            </VBtn>
+          </template>
+        </VCardItem>
         <VCardText class="pa-0">
           <VList
             lines="two"
@@ -175,7 +226,7 @@ const handleAddTodo = () => {
               :key="task.id"
               :value="task.id"
               :active="store.selectedTaskId === task.id"
-              class="border-b"
+              class="mega-task-row"
               @click="store.selectTask(task.id)"
             >
               <template #prepend>
@@ -233,7 +284,7 @@ const handleAddTodo = () => {
         elevation="0"
         class="border"
       >
-        <VCardItem class="bg-light-primary rounded-t pa-5">
+        <VCardItem class="todo-matrix-selected-header rounded-t pa-5">
           <template #title>
             <div class="todo-matrix-task-title text-h5 font-weight-bold mb-1">
               {{ store.selectedTask.title }}
@@ -247,7 +298,7 @@ const handleAddTodo = () => {
                 :key="tag.id"
                 :color="tag.color"
                 size="small"
-                variant="elevated"
+                variant="tonal"
               >
                 {{ tag.name }}
               </VChip>
@@ -507,6 +558,60 @@ const handleAddTodo = () => {
       </VCard>
 
       <VDialog
+        v-model="createDialog"
+        max-width="560"
+      >
+        <VCard :title="$t('components.taskManager.todomatrixview.newTask')">
+          <VCardText>
+            <VTextField
+              v-model="createForm.title"
+              :label="$t('common.fields.title')"
+              class="mb-3"
+              autofocus
+            />
+            <VTextarea
+              v-model="createForm.description"
+              :label="$t('components.taskManager.todomatrixview.taskContent')"
+              rows="3"
+              class="mb-3"
+            />
+            <VSelect
+              v-model="createForm.priority"
+              :items="['low', 'medium', 'high', 'urgent']"
+              :item-title="translateBackendValue"
+              :label="$t('common.fields.priority')"
+              class="mb-3"
+            />
+            <VTextField
+              v-model="createForm.due_date"
+              :label="$t('components.taskManager.taskdetaildrawer.dueDate')"
+              type="date"
+            />
+            <p class="text-caption text-medium-emphasis mt-3 mb-0">
+              {{ $t('components.taskManager.todomatrixview.newTaskHint') }}
+            </p>
+          </VCardText>
+          <VCardActions>
+            <VSpacer />
+            <VBtn
+              variant="tonal"
+              @click="createDialog = false"
+            >
+              {{ $t('common.actions.cancel') }}
+            </VBtn>
+            <VBtn
+              color="primary"
+              :loading="creatingTask"
+              :disabled="!createForm.title.trim()"
+              @click="createTask"
+            >
+              {{ $t('common.actions.save') }}
+            </VBtn>
+          </VCardActions>
+        </VCard>
+      </VDialog>
+
+      <VDialog
         :model-value="Boolean(editingTodo)"
         max-width="520"
         @update:model-value="value => { if (!value) editingTodo = null }"
@@ -580,6 +685,14 @@ const handleAddTodo = () => {
 .todo-matrix-task-title {
   padding-block-start: 0.25rem;
 }
+
+/* Mega tasks use only neutral and primary tints, so the task matrix stays
+   calm in both themes while the selected task remains immediately obvious. */
+.mega-task-row { margin: 4px 8px; border-radius: 10px; background: rgba(var(--v-theme-on-surface), .025); transition: background-color .16s ease, transform .16s ease; }
+.mega-task-row:hover { background: rgba(var(--v-theme-primary), .055); }
+.mega-task-row:deep(.v-list-item__overlay) { opacity: 0 !important; }
+.mega-task-row.v-list-item--active { background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-on-surface)); }
+.todo-matrix-selected-header { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-primary)) 7%); }
 
 .task-attachment-picker { display: flex; flex: 1 1 16rem; align-items: center; gap: .75rem; min-inline-size: 0; padding: .625rem .75rem; border: 1px dashed rgba(var(--v-theme-primary), .45); border-radius: .75rem; background: rgba(var(--v-theme-primary), .045); }
 .task-attachment-picker--selected { border-style: solid; }

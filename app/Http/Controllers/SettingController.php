@@ -68,6 +68,9 @@ class SettingController extends Controller
                 'website_title' => $setting->website_title,
                 'short_company_name' => $setting->short_company_name,
                 'original_company_name' => $setting->original_company_name,
+                // Read by the shared register tables before they enrich rows.
+                // This is a display preference, not protected company data.
+                'audit_coloring_enabled' => (bool) ($setting->audit_coloring_enabled ?? false),
                 ...collect(ThemePalette::fields())
                     ->mapWithKeys(fn (string $field) => [$field => ThemePalette::value($field, $setting->{$field})])
                     ->all(),

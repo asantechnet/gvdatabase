@@ -486,6 +486,14 @@ const timeColor = (state: Attendance['check_in_state'] | Attendance['check_out_s
 const statusColor = (status: Attendance['status']) => ({ 'present': 'success', 'absent': 'error', 'off_day': 'info' }[status])
 const statusIcon = (status: Attendance['status']) => ({ 'present': 'tabler-circle-check', 'absent': 'tabler-circle-x', 'off_day': 'tabler-beach' }[status])
 
+// Company holidays and fully allowance-covered leave are attendance ledger
+// entries. The API rejects their deletion; only an actual worked portion of
+// an approved leave can be removed while preserving the leave claim.
+const canDeleteAttendance = (record: Attendance) => canAccess('delete_attendance')
+  && record.status !== 'off_day'
+  && !record.off_day_id
+  && (!record.leave_request_id || Boolean(record.checked_in_at || record.checked_out_at || record.check_in_time || record.check_out_time))
+
 const timeHints: Record<NonNullable<Attendance['check_in_state'] | Attendance['check_out_state']>, string> = {
   early: 'Early arrival',
   on_time: 'On time',
@@ -1068,7 +1076,7 @@ watch(logDate, async () => {
                     <td class="py-3 px-4 text-center">
                       <VChip
                         :color="record.is_off_day ? 'info' : statusColor(record.status)"
-                        variant="flat"
+                        variant="tonal"
                         size="small"
                         class="font-weight-bold text-uppercase px-3"
                         style="min-width: 90px; justify-content: center;"
@@ -1207,7 +1215,7 @@ watch(logDate, async () => {
                         @click="openCorrection(record)"
                       />
                       <VBtn
-                        v-if="!record.is_off_day && record.status !== 'off_day'"
+                        v-if="canDeleteAttendance(record)"
                         icon="tabler-trash"
                         variant="text"
                         color="error"
@@ -1242,7 +1250,7 @@ watch(logDate, async () => {
                       <strong>{{ record.name }}</strong>
                       <span>{{ record.role || record.office || '—' }}</span>
                     </div>
-                    <VChip :color="record.status === 'present' ? 'success' : record.status === 'absent' ? 'error' : 'secondary'" variant="tonal" size="small">
+                    <VChip :color="record.is_off_day ? 'info' : statusColor(record.status)" variant="tonal" size="small">
                       {{ record.is_off_day ? $t('pages.attendance.timesheet.timesheet.offDay') : translateBackendValue(record.status) }}
                     </VChip>
                   </div>
@@ -1256,7 +1264,7 @@ watch(logDate, async () => {
                     <VBtn v-if="record.daily_report_exists" icon="tabler-file-text" variant="text" color="primary" size="small" @click="viewDailyReport(record)" />
                     <VBtn v-if="!record.is_off_day && !record.leave_request_id && canAccess('record_attendance')" icon="tabler-edit" variant="text" color="primary" size="small" @click="openEditAttendance(record)" />
                     <VBtn v-if="record.status === 'present' && !record.checked_out_at && !record.check_out_time && (record.checked_in_at || record.check_in_time) && canAccess('record_attendance')" icon="tabler-clock-edit" variant="text" color="warning" size="small" @click="openCorrection(record)" />
-                    <VBtn icon="tabler-trash" variant="text" color="error" size="small" :aria-label="$t('pages.attendance.timesheet.timesheet.removeRecord')" @click="requestDelete(record)" />
+                    <VBtn v-if="canDeleteAttendance(record)" icon="tabler-trash" variant="text" color="error" size="small" :aria-label="$t('pages.attendance.timesheet.timesheet.removeRecord')" @click="requestDelete(record)" />
                   </div>
                 </article>
               </div>
@@ -1501,6 +1509,20 @@ watch(logDate, async () => {
   overflow: hidden;
   border-radius: .85rem !important;
   box-shadow: 0 3px 14px rgba(var(--v-theme-on-surface), .035) !important;
+}
+
+/* Keep the body neutral and readable in both themes. Semantic colour belongs
+   to the small status chips, not to an entire attendance row. */
+.timesheet-table-shell :deep(tbody > tr:nth-child(odd) > td) {
+  background: rgba(var(--v-theme-on-surface), .018);
+}
+
+.timesheet-table-shell :deep(tbody > tr:nth-child(even) > td) {
+  background: rgba(var(--v-theme-on-surface), .045);
+}
+
+.timesheet-table-shell :deep(tbody > tr:hover > td) {
+  background: rgba(var(--v-theme-primary), .07);
 }
 
 .timesheet-table-toolbar {

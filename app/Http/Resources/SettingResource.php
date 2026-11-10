@@ -77,9 +77,11 @@ class SettingResource extends JsonResource
             'office_close_time' => $this->office_close_time ? substr($this->office_close_time, 0, 5) : null,
             'default_break_minutes' => (int) $this->default_break_minutes,
             'automatic_attendance_enabled' => (bool) $this->automatic_attendance_enabled,
+            'academy_enabled' => (bool) ($this->academy_enabled ?? false),
             'missing_attendance_status' => in_array($this->missing_attendance_status, ['present', 'absent', 'off_day'], true)
                 ? $this->missing_attendance_status
                 : 'absent',
+            'audit_coloring_enabled' => (bool) ($this->audit_coloring_enabled ?? false),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

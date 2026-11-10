@@ -56,8 +56,8 @@ export function paymentEntryLimit(line: ApplicantContractPaymentOption, receiptR
 }
 
 export function changedIncomeFields(original: Income, edited: IncomeUpdateData): IncomeUpdateData {
-  const keys = ['applicant_id', 'applicant_contract_id', 'currency_id', 'type', 'description', 'amount', 'quantity', 'rate', 'date'] as const
-  const numericKeys = new Set<string>(['applicant_id', 'applicant_contract_id', 'currency_id', 'amount', 'quantity', 'rate'])
+  const keys = ['applicant_id', 'student_id', 'applicant_contract_id', 'currency_id', 'type', 'description', 'amount', 'quantity', 'rate', 'date'] as const
+  const numericKeys = new Set<string>(['applicant_id', 'student_id', 'applicant_contract_id', 'currency_id', 'amount', 'quantity', 'rate'])
 
   return Object.fromEntries(keys.filter(key => {
     if (edited[key] === undefined)

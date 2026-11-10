@@ -16,8 +16,10 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
+import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
 const toast = useToast()
+const { enabled: academyEnabled } = useAcademyEnabled()
 const { t, locale } = useI18n()
 const route = useRoute()
 
@@ -70,7 +72,7 @@ const canExport = computed(() => canAccess('export_reports'))
 const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.scholarship'), value: 'scholarship' },
   { title: t('educational.builtInServices.testOffer'), value: 'test_offer' },
-  { title: t('educational.builtInServices.academy'), value: 'academy' },
+  ...(academyEnabled.value ? [{ title: t('educational.builtInServices.academy'), value: 'academy' }] : []),
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, service.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
@@ -439,7 +441,7 @@ onBeforeUnmount(() => {
           </VCol>
         </VRow>
       </VCardText>
-      <ResponsiveDataTable v-if="loading" :headers="reportLoadingHeaders" :items="[]" :loading="true" :skeleton-rows="6" :sticky-key-column="false" :sticky-action-column="false" mobile-cards mobile-title-key="loading-0" :mobile-fields="['loading-1', 'loading-2']" class="education-report-loading-table" />
+      <ResponsiveDataTable v-if="loading" :headers="reportLoadingHeaders" :items="[]" :loading="true" :skeleton-rows="6" :sticky-key-column="false" :sticky-action-column="false" :show-scroll-affordance="false" mobile-cards mobile-title-key="loading-0" :mobile-fields="['loading-1', 'loading-2']" class="education-report-loading-table" />
       <TableEmptyState v-else-if="report && !filteredRows.length" icon="tabler-report-off" :title="emptyTitle" :description="emptyDescription" />
       <div v-else-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
         <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
@@ -555,26 +557,35 @@ onBeforeUnmount(() => {
 }
 
 .education-table-scroll {
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
+  overflow: hidden;
+  overflow-y: hidden;
 }
 
-.education-table-scroll::-webkit-scrollbar { display: none; }
+/* Keep the Applications report tabs horizontally usable without the stray
+   vertical scrollbar Vuetify's slide group otherwise reserves. */
+.report-tabs,
+.report-tabs :deep(.v-slide-group__container),
+.report-tabs :deep(.v-slide-group__content) { overflow-y: hidden !important; }
 
-/* Vuetify places the actual scrolling element one level inside VTable; the
-   skeleton has its own scroll host. Keep both scrollable, but never visible. */
+/* Keep report data in legible columns. Reports have different column sets, so
+   the browser sizes each column from its actual content while the table has a
+   CRM-like minimum width and can scroll horizontally on smaller desktops. */
 .education-table-scroll .v-table__wrapper,
 .education-report-loading-table :deep(.v-table__wrapper) {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 .education-table-scroll .v-table__wrapper::-webkit-scrollbar,
 .education-report-loading-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
 
-.report-table { min-inline-size: 70rem; }
-.report-table :is(th, td) { min-inline-size: 9rem; white-space: nowrap; }
-.report-table th:first-child, .report-table td:first-child { min-inline-size: 5rem; }
+.report-table { inline-size: max-content; min-inline-size: max(100%, 1180px); table-layout: auto; }
+.report-table :is(th, td) { min-inline-size: 9rem; padding: .8rem 1rem !important; overflow-wrap: normal; vertical-align: middle; white-space: nowrap; }
+.report-table :is(th, td):first-child { min-inline-size: 5.5rem; }
+.report-table :is(th, td):nth-child(2),
+.report-table :is(th, td):nth-child(3) { min-inline-size: 11rem; }
+.report-table th { color: rgb(var(--v-theme-on-surface)); font-size: .8125rem; font-weight: 750; letter-spacing: .025em; }
 .education-report-mobile-cards { display: none; }
 
 /* The report filter intentionally reuses the Applications dialog language so
