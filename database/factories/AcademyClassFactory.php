@@ -14,7 +14,6 @@ class AcademyClassFactory extends Factory
         return [
             'name' => fake()->unique()->words(3, true),
             'description' => fake()->sentence(),
-            'sort_order' => 0,
             'is_active' => true,
             'program_id' => Program::firstOrCreate(['name' => 'Foundation'], ['is_active' => true])->id,
             'starts_on' => $starts->format('Y-m-d'),

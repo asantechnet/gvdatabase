@@ -11,7 +11,7 @@ class Program extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['name', 'description', 'sort_order', 'is_active'];
+    protected $fillable = ['name', 'description', 'is_active'];
 
-    protected $casts = ['sort_order' => 'integer', 'is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean'];
 }

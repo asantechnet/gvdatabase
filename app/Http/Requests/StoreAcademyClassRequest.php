@@ -32,7 +32,6 @@ class StoreAcademyClassRequest extends FormRequest
             'capacity' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'fee' => ['nullable', 'numeric', 'min:0', 'max:9999999999999', 'decimal:0,2'],
             'is_active' => ['sometimes', 'boolean'],
-            'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];
     }
 }

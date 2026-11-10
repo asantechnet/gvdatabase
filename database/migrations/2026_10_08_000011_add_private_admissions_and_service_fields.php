@@ -9,11 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         foreach (['educational_scholarships', 'academy_classes'] as $name) {
-            Schema::create($name, function (Blueprint $table) {
+            Schema::create($name, function (Blueprint $table) use ($name) {
                 $table->id();
                 $table->string('name')->unique();
                 $table->text('description')->nullable();
-                $table->unsignedInteger('sort_order')->default(0);
+                if ($name === 'educational_scholarships') {
+                    $table->unsignedInteger('sort_order')->default(0);
+                }
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
                 $table->softDeletes();

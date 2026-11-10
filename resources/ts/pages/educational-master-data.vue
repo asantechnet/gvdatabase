@@ -38,7 +38,7 @@ const labels = computed<Record<Catalog, string>>(() => {
   return items
 })
 const hasCode = computed(() => ['countries', 'languages', 'semesters'].includes(catalog.value))
-const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'programs', 'scholarships', 'provinces', 'english-levels', 'acquisition-routes'].includes(catalog.value))
+const isSortedCatalog = computed(() => ['education-levels', 'subjects', 'tests', 'skills', 'scholarships', 'provinces', 'english-levels', 'acquisition-routes'].includes(catalog.value))
 // Countries and universities are the two catalogues a visa case contacts
 // directly, so they carry the optional phone, email and portal address.
 const hasContact = computed(() => ['countries', 'universities'].includes(catalog.value))

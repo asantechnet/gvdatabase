@@ -40,7 +40,6 @@ const pageComponents: Record<string, Component> = {
   expenseTypes: () => import("@/pages/options/expense-types.vue"),
   optionsCurrencies: () => import("@/pages/options/currencies.vue"),
   educationalMasterData: () => import("@/pages/educational-master-data.vue"),
-  academyOverview: () => import("@/pages/academy/overview.vue"),
   academyClasses: () => import("@/pages/academy/classes.vue"),
   academyStudents: () => import("@/pages/academy/students.vue"),
   academyCatalog: () => import("@/pages/academy/catalog.vue"),
@@ -352,8 +351,7 @@ const routeDefinitions: Array<{
   },
   {
     path: "/academy",
-    component: "academyOverview",
-    name: "academy-overview",
+    redirect: { name: "academy-classes" },
     meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
   },
   {

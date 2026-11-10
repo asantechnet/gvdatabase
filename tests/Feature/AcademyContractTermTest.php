@@ -168,7 +168,7 @@ class AcademyContractTermTest extends AcademyTestCase
         $this->assertNull($contract->contract_language_id);
         $this->assertSame('Academy applicant', $enrollment->student->name);
         $this->assertSame($enrollment->student->student_number, $contract->applicant->academyDetail->student_id);
-        $this->assertMatchesRegularExpression('/^STU-\d{6}$/', $enrollment->student->student_number);
+        $this->assertMatchesRegularExpression('/^STU-\d{2}-\d{3}(?:-\d+)?$/', $enrollment->student->student_number);
         $this->assertSame($enrollment->student->student_number, $contract->snapshot_data['entity']['academy']['student_id']);
     }
 

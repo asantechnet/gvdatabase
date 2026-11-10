@@ -24,7 +24,6 @@ class StoreAcademyStudentRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:5000'],
             'class_id' => ['required', 'integer', Rule::exists('academy_classes', 'id')->whereNull('deleted_at')],
             'started_on' => ['nullable', 'date_format:Y-m-d'],
-            'ends_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:started_on'],
         ];
     }
 }

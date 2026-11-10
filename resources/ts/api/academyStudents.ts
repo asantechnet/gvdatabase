@@ -11,7 +11,6 @@ export interface AcademyStudentPayload {
   notes?: string | null
   class_id: number
   started_on?: string | null
-  ends_on?: string | null
 }
 
 export interface AcademyStudentFinanceCurrency {

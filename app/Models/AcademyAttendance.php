@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AcademyAttendance extends Model
 {
-    public const STATUSES = ['present', 'absent', 'late', 'excused'];
+    public const STATUSES = ['present', 'absent', 'leave'];
 
-    protected $fillable = ['academy_enrollment_id', 'class_id', 'date', 'status', 'minutes', 'note', 'recorded_by'];
+    protected $fillable = ['academy_enrollment_id', 'class_id', 'date', 'status', 'check_in_time', 'check_out_time', 'recorded_by'];
 
-    protected $casts = ['date' => 'date:Y-m-d', 'minutes' => 'integer'];
+    protected $casts = ['date' => 'date:Y-m-d'];
 
     public function enrollment(): BelongsTo
     {

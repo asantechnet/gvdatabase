@@ -36,7 +36,7 @@ class AcademyClassController extends Controller
                 ->orWhere('description', 'like', "%{$search}%"));
         })->when($request->filled('program_id'), fn ($query) => $query->where('program_id', $request->integer('program_id')))
             ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->orderBy('sort_order')->orderBy('name');
+            ->orderBy('name');
 
         return response()->json([
             'success' => true,

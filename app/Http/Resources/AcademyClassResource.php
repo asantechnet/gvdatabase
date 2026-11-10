@@ -17,7 +17,6 @@ class AcademyClassResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'sort_order' => $this->sort_order,
             'is_active' => (bool) $this->is_active,
             'program' => $this->whenLoaded('program', fn () => $this->program ? [
                 'id' => $this->program->id, 'name' => $this->program->name,

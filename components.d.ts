@@ -135,7 +135,6 @@ declare module 'vue' {
     SlipPrintDialog: typeof import('./resources/ts/components/documents/SlipPrintDialog.vue')['default']
     StaffCommissionFields: typeof import('./resources/ts/components/StaffCommissionFields.vue')['default']
     StaffFormFields: typeof import('./resources/ts/components/hr/StaffFormFields.vue')['default']
-    StaffSupervisorDisclosureDialog: typeof import('./resources/ts/components/StaffSupervisorDisclosureDialog.vue')['default']
     TableEmptyState: typeof import('./resources/ts/components/TableEmptyState.vue')['default']
     TableLoadingSkeleton: typeof import('./resources/ts/components/TableLoadingSkeleton.vue')['default']
     TablePagination: typeof import('./resources/ts/@core/components/TablePagination.vue')['default']
