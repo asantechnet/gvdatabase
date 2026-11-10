@@ -19,13 +19,6 @@ const store = useTaskStore()
 
 const task = computed(() => store.selectedTask)
 
-const priorityColors: Record<string, string> = {
-  low: 'success',
-  medium: 'info',
-  high: 'warning',
-  urgent: 'error',
-}
-
 const boardTitle = computed(() => {
   return store.boards.find(board => board.id === task.value?.boardId)?.title ?? ''
 })
@@ -73,7 +66,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
     :model-value="props.isOpen"
     max-width="880"
     scrollable
-    class="task-view-dialog"
+    content-class="task-view-dialog"
     @update:model-value="handleModelValue"
   >
     <VCard
@@ -81,7 +74,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
       elevation="0"
       class="task-view-card"
     >
-      <VCardItem class="border-b pa-5">
+      <VCardItem class="task-view-dialog__header pa-5">
         <template #title>
           <div class="d-flex flex-wrap align-center gap-2">
             <span class="text-h5 font-weight-bold task-view-title">{{ task.title }}</span>
@@ -102,7 +95,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
             <VChip
               size="small"
               variant="tonal"
-              :color="priorityColors[task.priority]"
+              color="primary"
             >
               {{ $t(`components.taskManager.taskdetaildrawer.${task.priority}`) }}
             </VChip>
@@ -121,7 +114,8 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
         <template #append>
           <VBtn
             icon="tabler-x"
-            variant="text"
+            variant="tonal"
+            color="error"
             size="small"
             :aria-label="$t('common.actions.close')"
             :title="$t('common.actions.close')"
@@ -197,7 +191,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
               <VChip
                 v-for="tag in tags"
                 :key="tag.id"
-                :color="tag.color"
+                color="primary"
                 size="small"
                 variant="tonal"
               >
@@ -304,16 +298,12 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
         </VCardText>
       </PerfectScrollbar>
 
-      <VCardActions class="border-t pa-4">
-        <VSpacer />
-        <VBtn
-          variant="outlined"
-          color="secondary"
-          @click="close"
-        >
-          {{ $t('common.actions.close') }}
-        </VBtn>
-      </VCardActions>
+    </VCard>
+    <VCard v-else class="task-view-card pa-5" aria-busy="true">
+      <V-SkeletonLoader type="heading" class="mb-5" />
+      <V-SkeletonLoader type="list-item-three-line" class="mb-4" />
+      <V-SkeletonLoader type="paragraph" class="mb-4" />
+      <V-SkeletonLoader type="list-item-two-line" />
     </VCard>
   </VDialog>
 </template>
@@ -326,9 +316,13 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
   max-block-size: calc(100vh - 48px);
 }
 
+:global(.v-overlay:has(.task-view-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+.task-view-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-primary)) 6%); }
+
 .task-view-scroll {
   flex: 1 1 auto;
   min-block-size: 0;
+  overflow-y: hidden;
 }
 
 .task-view-title {
@@ -343,6 +337,8 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
   border-radius: 0.75rem;
   padding: 1rem;
 }
+.task-view-meta > div { padding: .75rem; border-radius: .6rem; background: rgba(var(--v-theme-on-surface), .045); }
+.task-view-meta > div:last-child { background: rgba(var(--v-theme-primary), .075); }
 
 .task-view-meta__label {
   display: block;
@@ -356,7 +352,13 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
 
 .task-view-section {
   margin-block-end: 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(var(--v-border-color), .42);
+  border-radius: .8rem;
+  background: rgba(var(--v-theme-on-surface), .03);
 }
+
+.task-view-section:nth-of-type(even) { background: rgba(var(--v-theme-primary), .045); }
 
 .task-view-section:last-child {
   margin-block-end: 0;
@@ -375,7 +377,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
 }
 
 .task-view-checklist__item--done {
-  background: rgba(var(--v-theme-success), 0.08);
+  background: rgba(var(--v-theme-primary), 0.08);
 }
 
 @media (max-width: 600px) {

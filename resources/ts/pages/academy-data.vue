@@ -3,152 +3,59 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useI18n } from 'vue-i18n'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterData'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 
-/**
- * Academy data extracted from Options → Contracts → Educational data.
- *
- * Times, durations, teachers and classes are the academy's own scheduling
- * records, so they live on this page under the contracts submenu while the
- * remaining shared catalogs stay in the educational data page.
- */
 type AcademyCatalog = 'times' | 'durations' | 'teachers' | 'classes'
-
 const toast = useToast()
 const { t } = useI18n()
 const route = useRoute()
-
 const catalogs: AcademyCatalog[] = ['times', 'durations', 'teachers', 'classes']
 const requested = String(route.query.catalog ?? '')
 const catalog = ref<AcademyCatalog>(catalogs.includes(requested as AcademyCatalog) ? requested as AcademyCatalog : 'times')
 const rows = ref<MasterDataRecord[]>([])
-const loading = ref(false)
 const dialog = ref(false)
 const editing = ref<MasterDataRecord | null>(null)
+const pendingDelete = ref<MasterDataRecord | null>(null)
+const deleteDialog = ref(false)
+const loading = ref(false)
+const saving = ref(false)
+const search = ref('')
 const form = ref<Partial<MasterDataRecord>>({ name: '', description: '', sort_order: 0, is_active: true })
-
-const labels = computed<Record<AcademyCatalog, string>>(() => ({
-  times: t('educational.masterData.times'),
-  durations: t('educational.masterData.durations'),
-  teachers: t('educational.masterData.teachers'),
-  classes: t('erp.class'),
-}))
-
+const initialForm = ref('')
+const labels = computed<Record<AcademyCatalog, string>>(() => ({ times: t('educational.masterData.times'), durations: t('educational.masterData.durations'), teachers: t('educational.masterData.teachers'), classes: t('erp.class') }))
 const isTeacherCatalog = computed(() => catalog.value === 'teachers')
-const detailFor = (row: MasterDataRecord) => row.contact || row.email || row.description || '—'
-
-async function load() {
-  loading.value = true
-  try {
-    rows.value = await MasterDataApi.list(catalog.value)
-  }
-  catch { toast.error(t('educational.masterData.loadFailed')) }
-  finally { loading.value = false }
-}
-
-function open(row?: MasterDataRecord) {
-  editing.value = row ?? null
-  form.value = row
-    ? { ...row }
-    : { name: '', description: '', sort_order: 0, is_active: true, contact: '', email: '' }
-  dialog.value = true
-}
-
-async function save() {
-  if (!form.value.name?.trim())
-    return
-
-  try {
-    const wasNew = !editing.value
-    const saved = editing.value
-      ? await MasterDataApi.update(catalog.value, editing.value.id, form.value)
-      : await MasterDataApi.create(catalog.value, form.value)
-    dialog.value = false
-    await load()
-    if (wasNew)
-      rows.value = moveCreatedRowFirst(rows.value, saved)
-    toast.success(t('educational.masterData.saved'))
-  }
-  catch { /* API failure feedback belongs to the global notifier (Task-018). */ }
-}
-
-async function remove(row: MasterDataRecord) {
-  if (!confirm(t('educational.masterData.removeConfirm', { name: row.name })))
-    return
-
-  try {
-    await MasterDataApi.remove(catalog.value, row.id)
-    await load()
-  }
-  catch { /* The server's specific conflict message is shown once by the notifier. */ }
-}
-
-watch(catalog, load)
+const filteredRows = computed(() => { const query = search.value.trim().toLocaleLowerCase(); return !query ? rows.value : rows.value.filter(row => [row.name, row.contact, row.email, row.description].filter(Boolean).some(value => String(value).toLocaleLowerCase().includes(query))) })
+const headers = computed(() => [{ title: t('educational.masterData.displayOrder'), key: 'sort_order' }, { title: t('common.fields.name'), key: 'name' }, { title: t('educational.masterData.details'), key: 'details' }, { title: t('common.fields.status'), key: 'status' }, { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const }])
+const snapshot = () => JSON.stringify(form.value)
+const isDirty = computed(() => snapshot() !== initialForm.value)
+const detailsFor = (row: MasterDataRecord) => row.contact || row.email || row.description || '—'
+async function load() { loading.value = true; try { rows.value = await MasterDataApi.list(catalog.value) } catch { toast.error(t('educational.masterData.loadFailed')) } finally { loading.value = false } }
+function open(row?: MasterDataRecord) { editing.value = row ?? null; form.value = row ? { ...row } : { name: '', description: '', sort_order: 0, is_active: true, contact: '', email: '' }; initialForm.value = snapshot(); dialog.value = true }
+async function requestClose() { if (isDirty.value && !await confirmActionWarning({ key: 'discard-form-changes', title: t('common.actionWarnings.discardTitle'), message: t('common.actionWarnings.discardMessage'), confirmText: t('common.actionWarnings.discardConfirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-file-alert', tone: 'primary' })) return; dialog.value = false }
+async function save() { if (!form.value.name?.trim()) return; saving.value = true; try { const wasNew = !editing.value; const saved = editing.value ? await MasterDataApi.update(catalog.value, editing.value.id, { ...form.value, name: form.value.name.trim() }) : await MasterDataApi.create(catalog.value, { ...form.value, name: form.value.name.trim() }); dialog.value = false; await load(); if (wasNew) rows.value = moveCreatedRowFirst(rows.value, saved); toast.success(t('educational.masterData.saved')) } catch (error: any) { toast.error(error.message ?? t('educational.masterData.saveFailed')) } finally { saving.value = false } }
+function requestDelete(row: MasterDataRecord) { pendingDelete.value = row; deleteDialog.value = true }
+async function remove() { if (!pendingDelete.value) return; saving.value = true; try { await MasterDataApi.remove(catalog.value, pendingDelete.value.id); await load(); deleteDialog.value = false; pendingDelete.value = null } catch (error: any) { toast.error(error.message ?? t('educational.masterData.inUse')) } finally { saving.value = false } }
+watch(catalog, async () => { search.value = ''; await load() })
 onMounted(load)
 </script>
 
 <template>
-  <div class="education-workspace">
-    <VCard class="education-panel">
-      <VCardTitle class="d-flex justify-space-between">
-        <span>{{ $t('educational.masterData.academyTitle', { catalog: labels[catalog] }) }}</span>
-        <VBtn prepend-icon="tabler-plus" @click="open()">{{ $t('common.actions.add') }}</VBtn>
-      </VCardTitle>
-      <VCardText>
-        <VTabs v-model="catalog" show-arrows>
-          <VTab v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</VTab>
-        </VTabs>
-        <VProgressLinear v-if="loading" indeterminate class="my-4" />
-        <div class="education-table-scroll">
-          <VTable density="compact" class="education-table">
-            <thead>
-              <tr>
-                <th>{{ $t('educational.masterData.displayOrder') }}</th>
-                <th>{{ $t('common.fields.name') }}</th>
-                <th>{{ $t('educational.masterData.details') }}</th>
-                <th>{{ $t('common.fields.status') }}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in rows" :key="row.id">
-                <td>{{ row.sort_order ?? 0 }}</td>
-                <td>{{ row.name }}</td>
-                <td>{{ detailFor(row) }}</td>
-                <td>
-                  <VChip :color="row.is_active ? 'success' : 'secondary'" size="small">
-                    {{ row.is_active ? $t('common.statuses.active') : $t('common.statuses.inactive') }}
-                  </VChip>
-                </td>
-                <td class="text-no-wrap">
-                  <VBtn icon="tabler-pencil" size="small" variant="text" @click="open(row)" />
-                  <VBtn icon="tabler-trash" size="small" variant="text" color="error" @click="remove(row)" />
-                </td>
-              </tr>
-            </tbody>
-          </VTable>
-        </div>
-      </VCardText>
+  <div class="academy-workspace">
+    <div class="academy-workspace__heading"><VBreadcrumbs :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t('common.navigation.options'), disabled: true }]" density="compact" class="pa-0" /><h1 class="text-h5 font-weight-bold mb-0">{{ t('common.navigation.academyData') }}</h1></div>
+    <VCard class="academy-panel"><VCardText class="academy-toolbar pa-4"><VRow align="center" class="ma-0"><VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="t('common.actions.search')" /></VCol><VCol cols="12" md="6" lg="7" class="d-flex justify-md-end"><VBtn color="primary" prepend-icon="tabler-plus" @click="open()">{{ t('common.actions.add') }}</VBtn></VCol></VRow></VCardText><VTabs v-model="catalog" show-arrows class="academy-tabs px-4"><VTab v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</VTab></VTabs><VDivider />
+      <ResponsiveDataTable :items="filteredRows" :headers="headers" item-value="id" class="academy-table" :loading="loading" :skeleton-rows="6" mobile-cards mobile-expand-all mobile-title-key="name" mobile-action-key="actions" :sticky-key-column="false" :sticky-action-column="false"><template #item.details="{ item }">{{ detailsFor(item) }}</template><template #item.status="{ item }"><VChip :color="item.is_active ? 'success' : 'secondary'" size="small" variant="tonal">{{ item.is_active ? t('common.statuses.active') : t('common.statuses.inactive') }}</VChip></template><template #item.actions="{ item }"><VMenu location="bottom end"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" size="small" variant="tonal" :aria-label="t('common.messages.actions')" /></template><VList density="compact"><VListItem prepend-icon="tabler-pencil" :title="t('common.actions.edit')" @click="open(item)" /><VListItem prepend-icon="tabler-trash" class="academy-table__delete" :title="t('common.actions.delete')" @click="requestDelete(item)" /></VList></VMenu></template><template #no-data><div class="academy-empty-state"><TableEmptyState icon="tabler-database-off" :min-height="0" :title="t('$vuetify.noDataText')" :description="search ? t('$vuetify.dataIterator.noResultsText') : labels[catalog]" /></div></template></ResponsiveDataTable>
     </VCard>
   </div>
-
-  <VDialog v-model="dialog" max-width="560">
-    <VCard>
-      <VCardTitle>{{ $t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: labels[catalog] }) }}</VCardTitle>
-      <VCardText>
-        <VTextField v-model="form.name" :label="$t('common.fields.name')" class="mb-3" />
-        <VTextField v-model.number="form.sort_order" type="number" min="0" :label="$t('educational.masterData.displayOrder')" :hint="$t('educational.masterData.displayOrderHint')" persistent-hint class="mb-3" />
-        <VTextField v-if="isTeacherCatalog" v-model="form.contact" :label="$t('educational.masterData.contact')" class="mb-3" />
-        <VTextField v-if="isTeacherCatalog" v-model="form.email" type="email" :label="$t('common.fields.email')" class="mb-3" />
-        <VTextarea v-model="form.description" :label="$t('common.fields.description')" />
-        <VSwitch v-model="form.is_active" :label="$t('common.statuses.active')" />
-      </VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn @click="dialog = false">{{ $t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :disabled="!form.name?.trim()" @click="save">{{ $t('common.actions.save') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
+  <VDialog :model-value="dialog" max-width="760" scrollable content-class="academy-editor-dialog" @update:model-value="value => { if (!value) void requestClose() }"><VCard class="academy-editor"><VCardTitle class="academy-editor__header px-5 py-4"><span>{{ t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: labels[catalog] }) }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="academy-editor__close" :disabled="saving" :aria-label="t('common.actions.close')" @click="requestClose" /></VCardTitle><VCardText class="academy-editor__body pa-5"><VForm @submit.prevent="save"><VRow><VCol cols="12" md="6"><ErpField v-model="form.name" required :label="t('common.fields.name')" :placeholder="t('common.fields.name')" /></VCol><VCol cols="12" md="6"><ErpField v-model.number="form.sort_order" type="number" min="0" :label="t('educational.masterData.displayOrder')" :placeholder="t('educational.masterData.displayOrder')" /></VCol><template v-if="isTeacherCatalog"><VCol cols="12" md="6"><ErpField v-model="form.contact" :label="t('educational.masterData.contact')" :placeholder="t('educational.masterData.contact')" /></VCol><VCol cols="12" md="6"><ErpField v-model="form.email" type="email" :label="t('common.fields.email')" :placeholder="t('common.fields.email')" /></VCol></template><VCol cols="12"><ErpField v-model="form.description" kind="textarea" :label="t('common.fields.description')" :placeholder="t('common.fields.description')" rows="3" /></VCol><VCol cols="12"><VSwitch v-model="form.is_active" color="success" inset :label="t('common.statuses.active')" hide-details /></VCol></VRow></VForm></VCardText><VCardActions class="academy-editor__footer justify-end px-5 py-4"><VBtn class="academy-editor__cancel" :disabled="saving" @click="requestClose">{{ t('common.actions.cancel') }}</VBtn><VBtn class="academy-editor__save" :loading="saving" :disabled="!form.name?.trim()" @click="save">{{ t('common.actions.save') }}</VBtn></VCardActions></VCard></VDialog>
+  <VDialog v-model="deleteDialog" max-width="480" content-class="academy-delete-overlay"><VCard class="academy-delete-dialog"><VCardText class="academy-delete-dialog__content"><div class="academy-delete-dialog__icon"><VIcon icon="tabler-trash" size="30" /></div><h2>{{ t('common.actions.delete') }}</h2><p>{{ t('educational.masterData.removeConfirm', { name: pendingDelete?.name ?? '' }) }} {{ t('common.confirmations.thisActionCannotBeUndone') }}</p></VCardText><VCardActions class="academy-delete-dialog__actions"><VBtn class="academy-editor__cancel" :disabled="saving" @click="deleteDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="academy-delete-dialog__confirm" color="error" :loading="saving" @click="remove">{{ t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
 </template>
+
+<style lang="scss">
+.academy-workspace { display: flex; flex-direction: column; gap: .75rem; }.academy-workspace__heading { display: flex; flex-direction: column; gap: .15rem; }.academy-workspace__heading h1 { line-height: 1.35; }.academy-panel { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: .9rem; }.academy-toolbar { border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }.academy-tabs { background: transparent; }.academy-table .v-table__wrapper > table > thead > tr > th { background: rgba(var(--v-theme-on-surface), .045); font-size: .82rem; font-weight: 700; letter-spacing: .025em; white-space: nowrap; }.academy-table .v-table__wrapper > table > tbody > tr > td { white-space: nowrap; }.academy-table .v-table__wrapper:has(.academy-empty-state) { overflow-x: hidden; }.academy-table .v-table__wrapper > table:has(.academy-empty-state) { min-inline-size: 100%; }.academy-table .v-table__wrapper > table:has(.academy-empty-state) > tbody > tr > td { padding: 0 !important; }.academy-empty-state { display: grid; min-block-size: 17rem; place-items: center; }.academy-table__delete { color: rgb(var(--v-theme-error)) !important; }
+.academy-editor, .academy-delete-dialog { overflow: hidden; background: rgb(var(--v-theme-surface)); }.academy-editor__header, .academy-editor__footer { display: flex; align-items: center; border-color: rgba(var(--v-border-color), .52); border-style: solid; border-width: 0; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }.academy-editor__header { border-block-end-width: 1px; font-size: 1.2rem; font-weight: 700; }.academy-editor__footer { gap: .75rem; border-block-start-width: 1px; }.academy-editor__body { background: rgba(var(--v-theme-on-surface), .018); }.academy-editor__close { border: 1px solid rgba(var(--v-theme-error), .4) !important; border-radius: 999px !important; }.academy-editor__save { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }.academy-editor__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.academy-delete-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; text-align: center; }.academy-delete-dialog__content h2 { margin: 0; font-size: 1.2rem; }.academy-delete-dialog__content p { max-inline-size: 22rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }.academy-delete-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); place-items: center; }.academy-delete-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }.academy-delete-dialog__actions .v-btn { min-block-size: 2.85rem; }.academy-delete-dialog__confirm { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }.v-overlay:has(.academy-editor-dialog) .v-overlay__scrim, .v-overlay:has(.academy-delete-overlay) .v-overlay__scrim { background: rgba(20, 25, 35, .3) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
+</style>

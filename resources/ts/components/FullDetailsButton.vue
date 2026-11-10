@@ -16,22 +16,36 @@ interface DisplayField extends DetailField {
 
 const props = withDefaults(defineProps<{
   item: object
+  modelValue?: boolean
   title?: string
   subtitle?: string
   fields?: DetailField[]
   exclude?: string[]
   mobileAction?: boolean
+  mobileIconOnly?: boolean
   menuAction?: boolean
+  hideActivator?: boolean
 }>(), {
+  modelValue: undefined,
   title: '',
   subtitle: '',
   fields: () => [],
   exclude: () => [],
   mobileAction: false,
+  mobileIconOnly: false,
   menuAction: false,
+  hideActivator: false,
 })
 
-const isOpen = ref(false)
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+const internalOpen = ref(false)
+const isOpen = computed({
+  get: () => props.modelValue ?? internalOpen.value,
+  set: value => {
+    internalOpen.value = value
+    emit('update:modelValue', value)
+  },
+})
 const activeTab = ref('overview')
 const { t, locale } = useI18n()
 const record = computed(() => props.item as DetailRecord)
@@ -274,11 +288,20 @@ const formatScalar = (value: unknown, key = '', source: DetailRecord = record.va
 }
 
 const objectTitle = (value: DetailRecord, fallback: string) => String(
-  value.name || value.title || value.legal_name || value.type || value.code || value.email || fallback,
+  value.name || value.title || value.legal_name || value.service_label || value.service || value.type || value.code || value.email || fallback,
 )
 
-const objectFields = (value: DetailRecord) => Object.entries(value)
-  .filter(([key, entry]) => !shouldHide(key) && !isObject(entry) && !Array.isArray(entry) && !isSystemField(key))
+const objectFields = (value: DetailRecord, collectionKey = '') => Object.entries(value)
+  .filter(([key, entry]) => {
+    const normalized = normalizedKey(key)
+    const isServiceLine = normalizedKey(collectionKey) === 'services'
+    const redundantServiceField = isServiceLine && [
+      'servicelabel', 'servicelabelkey', 'paymentstatuslabel', 'paymentstatuslabelkey',
+      'amountpaidoverride', 'paymentstatusoverride', 'contractnumber', 'status', 'isextension',
+    ].includes(normalized)
+
+    return !shouldHide(key) && !isEmpty(entry) && !isObject(entry) && !Array.isArray(entry) && !isSystemField(key) && !redundantServiceField
+  })
   .map(([key, entry]) => ({ key, label: labelFor(key), value: entry }))
 
 const nestedObjects = (value: DetailRecord) => Object.entries(value)
@@ -354,9 +377,9 @@ watch(isOpen, open => {
 </script>
 
 <template>
-  <template>
+  <template v-if="!hideActivator">
     <VBtn
-      v-if="mobileAction"
+      v-if="mobileAction && !mobileIconOnly"
       block
       class="responsive-data-table__action-button"
       color="info"
@@ -381,38 +404,35 @@ watch(isOpen, open => {
       :title="t('common.actions.viewFullDetails')"
       @click.stop="isOpen = true"
     />
+  </template>
 
-    <VDialog
-      v-model="isOpen"
-      max-width="1180"
-      scrollable
-      content-class="full-details-dialog"
-    >
+  <VDialog
+    v-model="isOpen"
+    max-width="1180"
+    scrollable
+    content-class="full-details-dialog"
+  >
       <VCard class="detail-viewer">
         <header class="detail-viewer__hero">
-          <div class="detail-viewer__hero-icon"><VIcon
-            :icon="iconFor(recordKind)"
-            size="26"
-          /></div>
           <div class="detail-viewer__identity">
             <div class="detail-viewer__eyebrow">{{ recordKind }}</div>
             <h2>{{ recordTitle }}</h2>
             <p v-if="subtitle">{{ subtitle }}</p>
           </div>
-          <VChip
+          <span
             v-if="recordStatus"
             class="detail-viewer__status"
-            :color="statusColor(recordStatus)"
-            variant="flat"
-            size="small"
           >
             {{ formatScalar(recordStatus, 'status') }}
-          </VChip>
-          <IconBtn
+          </span>
+          <VBtn
             class="detail-viewer__close"
+            icon="tabler-x"
+            variant="tonal"
+            color="error"
             :aria-label="t('common.actions.close')"
             @click="isOpen = false"
-          ><VIcon icon="tabler-x" /></IconBtn>
+          />
         </header>
 
         <VTabs
@@ -473,7 +493,10 @@ watch(isOpen, open => {
                     v-for="field in factFields"
                     :key="field.key"
                     class="detail-fact"
-                    :class="{ 'detail-fact--empty': isEmpty(field.value) }"
+                    :class="{
+                      'detail-fact--empty': isEmpty(field.value),
+                      'detail-fact--plain-meta': /status|condition|state|type$/i.test(field.key),
+                    }"
                   >
                     <VIcon
                       :icon="iconFor(field.key)"
@@ -486,12 +509,10 @@ watch(isOpen, open => {
                         target="_blank"
                         rel="noopener noreferrer"
                       >{{ formatScalar(field.value, field.key) }}</a>
-                      <VChip
+                      <span
                         v-else-if="/status|condition|state|type$/i.test(field.key) && !isEmpty(field.value)"
-                        :color="statusColor(field.value)"
-                        size="small"
-                        variant="tonal"
-                      >{{ formatScalar(field.value, field.key) }}</VChip>
+                        class="detail-fact__plain-value"
+                      >{{ formatScalar(field.value, field.key) }}</span>
                       <strong v-else>{{ formatScalar(field.value, field.key) }}</strong>
                     </div>
                   </article>
@@ -585,7 +606,7 @@ watch(isOpen, open => {
                       <h4>{{ objectTitle(entry, `${collection.label} ${index + 1}`) }}</h4>
                       <div class="collection-card__fields">
                         <div
-                          v-for="field in objectFields(entry)"
+                        v-for="field in objectFields(entry, collection.key)"
                           :key="field.key"
                         ><span>{{ field.label }}</span><strong>{{ formatScalar(field.value, field.key, entry) }}</strong></div>
                       </div>
@@ -628,76 +649,76 @@ watch(isOpen, open => {
         </VCardText>
 
       </VCard>
-    </VDialog>
-  </template>
+  </VDialog>
 </template>
 
 <style scoped lang="scss">
-.detail-viewer { display: grid; grid-template-rows: auto auto minmax(0, 1fr); max-block-size: min(92dvh, 900px); border-radius: 1rem !important; overflow: hidden; }
+.detail-viewer { display: grid; grid-template-rows: auto auto minmax(0, 1fr); max-block-size: min(92dvh, 900px); border: 1px solid rgba(var(--v-border-color), .2); border-radius: 1rem !important; overflow: hidden; }
 :global(.v-overlay:has(.full-details-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .26) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
-.detail-viewer__hero { display: flex; min-inline-size: 0; align-items: center; gap: 1rem; padding: 1.15rem 1.35rem; background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-info), .04) 52%, transparent); border-block-end: 1px solid rgba(var(--v-border-color), .12); }
-.detail-viewer__hero-icon { display: grid; flex: 0 0 48px; block-size: 48px; border-radius: .85rem; background: rgb(var(--v-theme-primary)); box-shadow: 0 8px 20px rgba(var(--v-theme-primary), .22); color: rgb(var(--v-theme-on-primary)); place-items: center; }
+.detail-viewer__hero { display: flex; min-inline-size: 0; align-items: center; gap: 1rem; padding: 1.35rem 1.5rem; background: linear-gradient(135deg, rgba(var(--v-theme-primary), .12), rgba(var(--v-theme-info), .04) 52%, transparent); border-block-end: 1px solid rgba(var(--v-border-color), .12); }
 .detail-viewer__identity { min-inline-size: 0; flex: 1; }
-.detail-viewer__eyebrow { color: rgb(var(--v-theme-primary)); font-size: .7rem; font-weight: 750; letter-spacing: .065em; text-transform: uppercase; }
-.detail-viewer__identity h2 { margin: .18rem 0 0; overflow: hidden; font-size: 1.35rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-.detail-viewer__identity p { margin: .2rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .82rem; }
-.detail-viewer__status { flex: 0 0 auto; font-weight: 700; text-transform: capitalize; }
-.detail-viewer__close { flex: 0 0 auto; }
-.detail-viewer__tabs { min-block-size: 48px; padding-inline: .65rem; border-block-end: 1px solid rgba(var(--v-border-color), .14); background: rgb(var(--v-theme-surface)); }
-.detail-viewer__body { min-block-size: 0; padding: 1.25rem 1.35rem 1.6rem !important; background: rgba(var(--v-theme-on-surface), .018); overflow-y: auto; overscroll-behavior: contain; }
-.detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin-block-end: 1.5rem; }
-.detail-metric { display: flex; min-inline-size: 0; align-items: center; gap: .75rem; padding: .9rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; background: rgb(var(--v-theme-surface)); box-shadow: 0 3px 14px rgba(20, 18, 50, .035); }
+.detail-viewer__eyebrow { color: rgb(var(--v-theme-primary)); font-size: .78rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.detail-viewer__identity h2 { margin: .22rem 0 0; overflow: hidden; font-size: 1.65rem; font-weight: 750; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.detail-viewer__identity p { margin: .3rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .95rem; }
+.detail-viewer__status { flex: 0 0 auto; color: rgb(var(--v-theme-on-surface)); font-size: .9rem; font-weight: 700; text-transform: capitalize; }
+.detail-viewer__close { flex: 0 0 auto; inline-size: 2.25rem !important; block-size: 2.25rem !important; border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .13) !important; color: rgb(var(--v-theme-error)) !important; cursor: pointer; }
+.detail-viewer__close:hover { background: rgba(var(--v-theme-error), .2) !important; }
+.detail-viewer__tabs { min-block-size: 54px; padding-inline: .85rem; border-block-end: 1px solid rgba(var(--v-border-color), .14); background: rgb(var(--v-theme-surface)); }
+.detail-viewer__body { min-block-size: 0; padding: 1.5rem !important; background: rgba(var(--v-theme-on-surface), .018); overflow-y: auto; overscroll-behavior: contain; }
+.detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-block-end: 1.75rem; }
+.detail-metric { display: flex; min-inline-size: 0; align-items: center; gap: .9rem; padding: 1.1rem; border: 1px solid rgba(var(--v-border-color), .15); border-radius: .9rem; background: rgb(var(--v-theme-surface)); box-shadow: 0 3px 14px rgba(20, 18, 50, .035); }
 .detail-metric__icon { display: grid; flex: 0 0 38px; block-size: 38px; border-radius: .7rem; background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-primary)); place-items: center; }
 .detail-metric div:last-child { min-inline-size: 0; display: grid; }
-.detail-metric span, .detail-fact span, .collection-card__fields span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .69rem; font-weight: 650; letter-spacing: .025em; }
-.detail-metric strong { overflow: hidden; font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; }
-.detail-section + .detail-section { margin-block-start: 1.65rem; }
+.detail-metric span, .detail-fact span, .collection-card__fields span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .78rem; font-weight: 700; letter-spacing: .025em; }
+.detail-metric strong { overflow: hidden; font-size: 1.15rem; text-overflow: ellipsis; white-space: nowrap; }
+.detail-section + .detail-section { margin-block-start: 2rem; }
 .detail-section--first { margin-block-start: 0; }
-.detail-section__title { display: flex; align-items: flex-start; gap: .6rem; margin-block-end: .8rem; color: rgb(var(--v-theme-primary)); }
-.detail-section__title h3 { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: .92rem; }
-.detail-section__title p { margin: .1rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .73rem; }
-.detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.1rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; background: rgb(var(--v-theme-surface)); padding: .3rem .85rem; }
-.detail-fact { display: grid; min-inline-size: 0; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: .55rem; padding: .68rem .25rem; border-block-end: 1px solid rgba(var(--v-border-color), .08); }
+.detail-section__title { display: flex; align-items: flex-start; gap: .7rem; margin-block-end: 1rem; color: rgb(var(--v-theme-primary)); }
+.detail-section__title h3 { margin: 0; color: rgb(var(--v-theme-on-surface)); font-size: 1.1rem; font-weight: 750; }
+.detail-section__title p { margin: .2rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .9rem; line-height: 1.5; }
+.detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .9rem; background: rgb(var(--v-theme-surface)); padding: 1rem; }
+.detail-fact { display: grid; min-inline-size: 0; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: .7rem; min-block-size: 64px; padding: .75rem; border: 1px solid rgba(var(--v-border-color), .1); border-radius: .65rem; background: rgba(var(--v-theme-on-surface), .018); }
 .detail-fact > .v-icon { color: rgb(var(--v-theme-primary)); }
 .detail-fact > div { min-inline-size: 0; display: grid; gap: .08rem; }
-.detail-fact strong, .detail-fact a { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: .86rem; font-weight: 550; text-decoration: none; }
+.detail-fact strong, .detail-fact a { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: 1rem; font-weight: 600; line-height: 1.45; text-decoration: none; }
 .detail-fact a { color: rgb(var(--v-theme-primary)); }
+.detail-fact--plain-meta { background: transparent; }
+.detail-fact__plain-value { overflow-wrap: anywhere; padding: 0; border: 0; border-radius: 0; background: transparent !important; color: rgb(var(--v-theme-on-surface)); font-size: 1rem; font-weight: 600; line-height: 1.45; }
 .detail-fact--empty { opacity: .55; }
-.detail-narratives { display: grid; gap: .7rem; }
-.detail-narratives article { padding: .85rem 1rem; border-inline-start: 3px solid rgb(var(--v-theme-primary)); border-radius: 0 .65rem .65rem 0; background: rgb(var(--v-theme-surface)); }
-.detail-narratives span { color: rgb(var(--v-theme-primary)); font-size: .7rem; font-weight: 700; text-transform: uppercase; }
-.detail-narratives p { margin: .3rem 0 0; font-size: .86rem; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
-.related-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
-.related-card { min-inline-size: 0; padding: 1rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; background: rgb(var(--v-theme-surface)); }
+.detail-narratives { display: grid; gap: 1rem; }
+.detail-narratives article { padding: 1.1rem 1.2rem; border-inline-start: 4px solid rgb(var(--v-theme-primary)); border-radius: 0 .75rem .75rem 0; background: rgb(var(--v-theme-surface)); }
+.detail-narratives span { color: rgb(var(--v-theme-primary)); font-size: .82rem; font-weight: 800; text-transform: uppercase; }
+.detail-narratives p { margin: .45rem 0 0; font-size: 1rem; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
+.related-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.related-card { min-inline-size: 0; padding: 1.2rem; border: 1px solid rgba(var(--v-border-color), .15); border-radius: .9rem; background: rgb(var(--v-theme-surface)); }
 .related-card header { display: flex; align-items: center; gap: .7rem; padding-block-end: .7rem; border-block-end: 1px solid rgba(var(--v-border-color), .1); }
 .related-card__icon { display: grid; flex: 0 0 36px; block-size: 36px; border-radius: 50%; background: rgba(var(--v-theme-info), .11); color: rgb(var(--v-theme-info)); place-items: center; }
-.related-card header span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .67rem; font-weight: 700; text-transform: uppercase; }
-.related-card h4, .collection-card h4 { margin: .08rem 0 0; font-size: .92rem; }
-.related-card dl { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr); gap: .42rem .75rem; margin: .75rem 0 0; font-size: .78rem; }
+.related-card header span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 750; text-transform: uppercase; }
+.related-card h4, .collection-card h4 { margin: .12rem 0 0; font-size: 1.05rem; }
+.related-card dl { display: grid; grid-template-columns: minmax(105px, .7fr) minmax(0, 1.3fr); gap: .65rem 1rem; margin: 1rem 0 0; font-size: .92rem; }
 .related-card dt { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
-.related-card dd { margin: 0; font-weight: 550; overflow-wrap: anywhere; }
-.related-card__nested { display: grid; gap: .18rem; margin-block-start: .7rem; padding: .55rem .65rem; border-radius: .5rem; background: rgba(var(--v-theme-primary), .05); font-size: .72rem; }
+.related-card dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.related-card__nested { display: grid; gap: .25rem; margin-block-start: .9rem; padding: .75rem .85rem; border-radius: .65rem; background: rgba(var(--v-theme-primary), .05); font-size: .86rem; }
 .related-card__nested strong { color: rgb(var(--v-theme-primary)); }
 .related-card__nested span { overflow-wrap: anywhere; }
-.collection-list { display: grid; gap: .7rem; }
-.collection-card { display: grid; min-inline-size: 0; grid-template-columns: 32px minmax(0, 1fr); gap: .8rem; padding: .9rem; border: 1px solid rgba(var(--v-border-color), .13); border-radius: .8rem; background: rgb(var(--v-theme-surface)); }
-.collection-card__number { display: grid; block-size: 28px; border-radius: .5rem; background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-primary)); font-size: .72rem; font-weight: 750; place-items: center; }
+.collection-list { display: grid; gap: 1rem; }
+.collection-card { display: grid; min-inline-size: 0; grid-template-columns: 36px minmax(0, 1fr); gap: 1rem; padding: 1.15rem; border: 1px solid rgba(var(--v-border-color), .15); border-radius: .9rem; background: rgb(var(--v-theme-surface)); }
+.collection-card__number { display: grid; block-size: 32px; border-radius: .6rem; background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-primary)); font-size: .84rem; font-weight: 800; place-items: center; }
 .collection-card__content { min-inline-size: 0; }
-.collection-card__fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem 1rem; margin-block-start: .65rem; }
+.collection-card__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem 1.25rem; margin-block-start: 1rem; }
 .collection-card__fields div { min-inline-size: 0; display: grid; }
-.collection-card__fields strong { overflow-wrap: anywhere; font-size: .8rem; font-weight: 550; }
+.collection-card__fields strong { overflow-wrap: anywhere; font-size: .95rem; font-weight: 600; }
 .detail-chip-list { display: flex; flex-wrap: wrap; gap: .5rem; }
-.activity-timeline { position: relative; display: grid; gap: 0; padding-inline-start: .4rem; }
+.activity-timeline { position: relative; display: grid; gap: .25rem; padding-inline-start: .5rem; }
 .activity-timeline::before { position: absolute; inset-block: 12px; inset-inline-start: 9px; inline-size: 2px; background: rgba(var(--v-theme-primary), .15); content: ''; }
-.activity-timeline article { position: relative; display: flex; align-items: center; gap: .8rem; min-block-size: 60px; }
-.activity-timeline__dot { z-index: 1; flex: 0 0 12px; block-size: 12px; border: 3px solid rgb(var(--v-theme-surface)); border-radius: 50%; background: rgb(var(--v-theme-primary)); box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), .2); }
+.activity-timeline article { position: relative; display: flex; align-items: center; gap: 1rem; min-block-size: 74px; padding: .75rem 1rem; border: 1px solid rgba(var(--v-border-color), .12); border-radius: .75rem; background: rgb(var(--v-theme-surface)); }
+.activity-timeline__dot { z-index: 1; flex: 0 0 14px; block-size: 14px; border: 3px solid rgb(var(--v-theme-surface)); border-radius: 50%; background: rgb(var(--v-theme-primary)); box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), .2); }
 .activity-timeline article > div:last-child { display: grid; }
-.activity-timeline span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .7rem; }
-.activity-timeline strong { font-size: .85rem; }
+.activity-timeline span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .8rem; font-weight: 700; }
+.activity-timeline strong { font-size: 1rem; }
 @media (max-width: 700px) {
   .detail-viewer { max-block-size: calc(100dvh - 1rem); border-radius: .8rem !important; }
   .detail-viewer__hero { gap: .7rem; padding: .9rem; }
-  .detail-viewer__hero-icon { flex-basis: 40px; block-size: 40px; }
   .detail-viewer__identity h2 { font-size: 1.05rem; }
   .detail-viewer__status { display: none; }
   .detail-viewer__body { padding: .9rem !important; }

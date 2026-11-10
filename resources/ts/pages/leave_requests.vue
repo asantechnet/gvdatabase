@@ -236,6 +236,7 @@ onMounted(load)
         </VRow>
       </VCardText>
       <ResponsiveDataTableServer
+        class="leave-requests-table"
         v-model="selected"
         show-select
         item-value="id"
@@ -247,6 +248,7 @@ onMounted(load)
         :items-per-page-options="[10, 25, 50, 100]"
         :loading="loading"
         :skeleton-rows="6"
+        :show-scroll-affordance="false"
         mobile-cards
         mobile-expand-all
         mobile-title-key="employee.name"
@@ -260,7 +262,6 @@ onMounted(load)
           { title: $t('common.fields.date'), key: 'date' },
           { title: $t('pages.leaveRequests.duration'), key: 'duration_days' },
           { title: $t('pages.leaveRequests.treatment'), key: 'treatment' },
-          { title: $t('common.fields.reason'), key: 'reason' },
           { title: $t('common.ui.approvedBy'), key: 'approvedBy.name' },
           { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
         ]"
@@ -288,6 +289,7 @@ onMounted(load)
             :title="item.employee?.name"
             :fields="detailFields"
             mobile-action
+            mobile-icon-only
           />
         </template>
         <template #no-data>
@@ -305,7 +307,7 @@ onMounted(load)
       <VCard class="leave-approval-dialog__card">
         <VCardTitle class="leave-approval-dialog__header d-flex align-center justify-space-between px-5 py-4">
           <span>{{ $t('common.leaveApproval.exceptionTitle') }}</span>
-          <VBtn icon="tabler-x" variant="tonal" color="error" size="small" :disabled="loading" @click="overrideDialog = false" />
+          <VBtn class="leave-approval-dialog__close" icon="tabler-x" variant="tonal" color="error" size="small" :aria-label="$t('common.actions.close')" :disabled="loading" @click="overrideDialog = false" />
         </VCardTitle>
         <VCardText class="pa-5">
           <VAlert
@@ -348,11 +350,7 @@ onMounted(load)
             autofocus
           />
         </VCardText><VCardActions class="leave-approval-dialog__footer px-5 py-4">
-          <VBtn class="leave-approval-dialog__cancel"
-            @click="overrideDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn><VBtn
+          <VBtn
             color="primary"
             variant="flat"
             :loading="loading"
@@ -373,13 +371,28 @@ onMounted(load)
 .leave-requests-toolbar { padding: 1.25rem 1.5rem !important; }
 .leave-requests-screen :deep(.v-data-table__thead > tr > th) { background: rgba(var(--v-theme-on-surface), .045) !important; }
 .leave-requests-screen :deep(.v-data-table__tbody > tr:hover > td) { background: rgba(var(--v-theme-on-surface), .035) !important; }
+.leave-requests-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
+.leave-requests-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+.leave-requests-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 132rem; table-layout: auto !important; }
+/* Keep the request register readable even when the select/action columns are
+   omitted by permissions. These widths therefore deliberately do not depend
+   on column position. */
+.leave-requests-table :deep(.v-table__wrapper > table > thead > tr > th),
+.leave-requests-table :deep(.v-table__wrapper > table > tbody > tr > td) { min-inline-size: 18rem !important; padding-inline: 1.25rem !important; white-space: nowrap !important; }
+.leave-requests-table :deep(.v-table__wrapper > table > thead > tr > th:nth-child(1)),
+.leave-requests-table :deep(.v-table__wrapper > table > tbody > tr > td:nth-child(1)) { min-inline-size: 22rem !important; }
+.leave-requests-table :deep(.v-table__wrapper > table > thead > tr > th:nth-child(2)),
+.leave-requests-table :deep(.v-table__wrapper > table > tbody > tr > td:nth-child(2)) { min-inline-size: 18rem !important; }
+.leave-requests-table :deep(.v-table__wrapper > table > thead > tr > th:nth-child(5)),
+.leave-requests-table :deep(.v-table__wrapper > table > tbody > tr > td:nth-child(5)) { min-inline-size: 26rem !important; }
 .leave-approval-dialog__card { overflow: hidden; }
 .leave-approval-dialog__header,
 .leave-approval-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
-.leave-approval-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
-.leave-approval-dialog__footer { display: flex; justify-content: flex-start; gap: .75rem; border-block-start: 1px solid rgba(var(--v-border-color), .5); }
-.leave-approval-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
-.leave-approval-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.leave-approval-dialog__header { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 91%, rgb(var(--v-theme-primary)) 9%); }
+.leave-approval-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); font-weight: 750; }
+.leave-approval-dialog__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .13) !important; color: rgb(var(--v-theme-error)) !important; }
+.leave-approval-dialog__close:hover:not(:disabled) { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
+.leave-approval-dialog__footer { display: flex; justify-content: flex-end; gap: .75rem; border-block-start: 1px solid rgba(var(--v-border-color), .5); }
 :global(.v-overlay:has(.leave-approval-dialog) .v-overlay__scrim) { background: rgba(20, 25, 35, .32) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
 @media (max-width: 959px) { .leave-requests-toolbar { padding-inline: 1rem !important; } .leave-requests-screen :deep(.v-data-table__tbody > tr:hover > td) { background: transparent !important; } }
 </style>

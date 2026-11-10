@@ -7,6 +7,7 @@ export interface FinanceType {
   value: string
   name: string
   is_system: boolean
+  created_at?: string | null
 }
 
 export const getFinanceTypes = async (kind: FinanceTypeKind): Promise<FinanceType[]> =>

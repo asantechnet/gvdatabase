@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { VDialog } from "vuetify/components";
 import { useToast } from "vue-toastification";
 import { type FinanceType, getFinanceTypes } from "@/api/financeTypes";
 import { financeTypeLabel } from "@/utils/financeTypes";
@@ -30,10 +29,12 @@ import { moveCreatedRowFirst } from "@/utils/createdFirst";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import ErpDateRange from "@/components/erp/ErpDateRange.vue";
+import ErpField from "@/components/erp/ErpField.vue";
+import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
+import ErpSearchField from "@/components/erp/ErpSearchField.vue";
 import TableEmptyState from "@/components/TableEmptyState.vue";
-import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
-import ApplicantSelect from "@/components/income/ApplicantSelect.vue";
 import ReceiptPrinter from "@/components/income/ReceiptPrinter.vue";
+import ConfirmDialog from "@/components/dialogs/ConfirmDialog.vue";
 import AttachmentsDialog from "@/components/attachments/AttachmentsDialog.vue";
 import PaymentOverridesDialog from "@/components/income/PaymentOverridesDialog.vue";
 import ServicePaymentsDialog from "@/components/income/ServicePaymentsDialog.vue";
@@ -228,6 +229,15 @@ const openReceiptPreview = (income: Income) => {
   isReceiptPreviewOpen.value = true;
 };
 
+const formatReceiptNumber = (income: Income) => {
+  const receipt = income.receipt_number;
+  const match = receipt?.match(/^RCPT-(\d{2,4})-(\d+)$/i);
+  if (match)
+    return `RCPT-${match[1].slice(-2)}-${String(Number(match[2])).padStart(3, "0")}`;
+
+  return receipt || `RCPT-${String(income.id).padStart(3, "0")}`;
+};
+
 const setDefaultCurrency = () => {
   if (selectedIncome.value.currency_id) return;
 
@@ -354,6 +364,19 @@ const handleCurrencyChange = (currencyId: number) => {
     selectedIncome.value.rate = currency.rate;
     calculateTotal();
   }
+};
+
+// Flatpickr renders at body level in dialogs. Keep its body popup docked to
+// the field and above the modal instead of allowing it to jump to page top.
+const dockDialogCalendar = (_selectedDates: Date[], _dateString: string, instance: any) => {
+  window.setTimeout(() => {
+    const calendar = instance?.calendarContainer as HTMLElement | undefined;
+    if (!calendar)
+      return;
+    calendar.style.transform = "translateY(0) scale(0.86)";
+    calendar.style.transformOrigin = "top left";
+    calendar.style.zIndex = "3100";
+  });
 };
 
 const formatSelectedLineAmount = (amount: number) =>
@@ -597,13 +620,26 @@ const calculateTotal = () => {
   );
 };
 
+const fieldError = (field: "type" | "currency" | "amount" | "quantity" | "rate" | "date") => {
+  if (!formError.value)
+    return [];
+
+  const matches = {
+    type: !selectedIncome.value.type,
+    currency: !selectedIncome.value.currency_id,
+    amount: !Number.isFinite(Number(selectedIncome.value.amount)) || selectedIncome.value.amount <= 0,
+    quantity: !Number.isInteger(Number(selectedIncome.value.quantity)) || selectedIncome.value.quantity < 1,
+    rate: !Number.isFinite(Number(selectedIncome.value.rate)) || selectedIncome.value.rate <= 0,
+    date: !/^\d{4}-\d{2}-\d{2}$/.test(selectedIncome.value.date),
+  }[field];
+
+  return matches ? [formError.value] : [];
+};
+
 const formatIncomeCurrency = (
   value: number | string,
   currency: Income["currency"] | undefined,
 ): string => formatActiveMoney(value, currency);
-
-const formatRate = (value: number | string): string =>
-  formatLocalizedNumber(value, { maximumFractionDigits: 4 });
 
 const incomeTypeColor = (type: string) =>
   ({
@@ -664,90 +700,27 @@ onMounted(() => {
   <PaymentOverridesDialog v-model="isPaymentOverridesOpen" />
   <ServicePaymentsDialog v-model="isServicePaymentsOpen" @created="reload" />
   <div class="income-page">
-    <div
-      class="income-page-head d-flex flex-wrap align-center justify-space-between gap-3 mb-6"
-    >
-      <div class="d-flex align-center ga-3">
-        <VAvatar
-          icon="tabler-receipt-2"
-          color="primary"
-          variant="tonal"
-          rounded="lg"
-        />
-        <div>
-          <h1 class="text-h5 font-weight-bold mb-0">
-            {{ $t("pages.finance.income.income.incomeLedger") }}
-          </h1>
-          <p class="text-body-2 text-medium-emphasis mb-0">
-            {{
-              $t(
-                "pages.finance.income.income.liveReceiptActivityAndCurrencyTotalsInOneView",
-              )
-            }}
-          </p>
-        </div>
-      </div>
-      <div class="d-flex flex-wrap align-center gap-2">
-        <VBtn
-          icon="tabler-printer"
-          variant="text"
-          :aria-label="$t('pages.finance.income.income.printIncomeRecords')"
-          @click="printTable"
-        >
-          <VIcon icon="tabler-printer" />
-          <VTooltip activator="parent" location="top">
-            {{ $t("pages.finance.income.income.printIncomeRecords") }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="canAccess('override_contract_payments')"
-          icon="tabler-settings"
-          variant="text"
-          @click="isPaymentOverridesOpen = true"
-        >
-          <VIcon icon="tabler-settings" />
-          <VTooltip activator="parent">{{
-            $t("finance.paymentOverrides.title")
-          }}</VTooltip>
-        </VBtn>
-        <VBtn
-          v-if="canAccess('create_incomes')"
-          prepend-icon="tabler-receipt"
-          variant="tonal"
-          @click="isServicePaymentsOpen = true"
-        >
-          {{ $t("finance.servicePayments.title") }}
-        </VBtn>
-        <VBtn
-          color="primary"
-          prepend-icon="tabler-plus"
-          @click="openAddIncomeDialog"
-        >
-          {{ $t("pages.finance.income.income.recordIncome") }}
-        </VBtn>
-      </div>
-    </div>
+    <ErpPageHeader
+      :title="$t('pages.finance.income.income.incomeLedger')"
+      section="finance"
+      class="mb-5"
+    />
 
-    <VCard class="mb-6 filter-deck" elevation="0">
+    <VCard class="ledger-card filter-deck ledger-workspace" elevation="0">
       <VCardText class="filter-deck__content">
         <VRow align="center">
-          <VCol cols="12" md="8">
-            <VTextField
+          <VCol cols="12" md="5">
+            <ErpSearchField
               v-model="searchQuery"
-              class="data-table-search"
-              prepend-inner-icon="tabler-search"
               :placeholder="$t('pages.finance.income.income.searchIncome')"
-              density="compact"
-              clearable
-              hide-details
               @keyup.enter="reload"
             />
           </VCol>
 
           <VCol
             cols="12"
-            md="4"
-            class="d-flex align-center justify-md-end ga-2"
+            md="7"
+            class="income-toolbar-actions d-flex flex-wrap align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
               :active="
@@ -768,8 +741,9 @@ onMounted(() => {
                 reload();
               "
             >
-              <VSelect
+              <ErpField
                 v-model="filterStatus"
+                kind="select"
                 :items="[
                   { title: translate('common.statuses.draft'), value: 'draft' },
                   {
@@ -782,56 +756,50 @@ onMounted(() => {
                   },
                 ]"
                 :label="$t('finance.drafts.filterByStatus')"
-                density="compact"
+                :placeholder="$t('finance.drafts.filterByStatus')"
                 clearable
-                hide-details
-                @update:model-value="reload"
               />
-              <VSelect
+              <ErpField
                 v-model="filterType"
+                kind="select"
                 :items="filterTypeOptions"
                 :label="$t('common.messages.filterByType')"
-                density="compact"
+                :placeholder="$t('common.messages.filterByType')"
                 clearable
-                hide-details
-                @update:model-value="reload"
-              /><VSelect
+              /><ErpField
                 v-model="filterCurrency"
+                kind="select"
                 :items="currencyOptions"
                 :label="$t('common.messages.filterByCurrency')"
-                density="compact"
+                :placeholder="$t('common.messages.filterByCurrency')"
                 clearable
-                hide-details
-                @update:model-value="reload"
               />
               <ErpDateRange
                 v-model:from="dateFrom"
                 v-model:to="dateTo"
+                :show-apply="false"
                 @apply="reload"
               />
+              <template #actions>
+                <VBtn
+                  variant="tonal"
+                  color="secondary"
+                  @click="filterType = null; filterStatus = null; filterCurrency = null; dateFrom = ''; dateTo = ''; reload()"
+                >{{ $t('common.messages.reset') }}</VBtn>
+                <VBtn color="primary" variant="flat" @click="reload">{{ $t('educational.apply') }}</VBtn>
+              </template>
             </DataTableFilterMenu>
-            <div class="text-caption text-medium-emphasis">
-              <strong class="text-high-emphasis">{{ total }}</strong>
-              {{ $t("pages.finance.income.income.recordsCurrentlyShown") }}
-            </div>
+            <VBtn icon="tabler-printer" size="small" variant="tonal" :aria-label="$t('pages.finance.income.income.printIncomeRecords')" @click="printTable">
+              <VIcon icon="tabler-printer" /><VTooltip activator="parent" location="top">{{ $t("pages.finance.income.income.printIncomeRecords") }}</VTooltip>
+            </VBtn>
+            <VBtn v-if="canAccess('override_contract_payments')" icon="tabler-settings" size="small" variant="tonal" :aria-label="$t('finance.paymentOverrides.title')" @click="isPaymentOverridesOpen = true">
+              <VIcon icon="tabler-settings" /><VTooltip activator="parent">{{ $t("finance.paymentOverrides.title") }}</VTooltip>
+            </VBtn>
+            <VBtn v-if="canAccess('create_incomes')" size="small" prepend-icon="tabler-receipt" variant="tonal" @click="isServicePaymentsOpen = true">{{ $t("finance.servicePayments.title") }}</VBtn>
+            <VBtn size="small" color="primary" prepend-icon="tabler-plus" @click="openAddIncomeDialog">{{ $t("pages.finance.income.income.recordIncome") }}</VBtn>
           </VCol>
         </VRow>
       </VCardText>
-    </VCard>
-
-    <VCard class="ledger-card" elevation="0">
-      <VCardItem class="ledger-card__header">
-        <VCardTitle class="ledger-card__title font-weight-bold">
-          <VIcon icon="tabler-receipt-2" size="20" />{{
-            $t("pages.finance.income.income.receiptStream")
-          }}
-        </VCardTitle>
-        <template #append>
-          <VChip size="small" color="primary" variant="tonal">
-            {{ $t("pages.finance.income.income.liveLedger") }}
-          </VChip>
-        </template>
-      </VCardItem>
       <div class="table-container">
         <ResponsiveDataTableServer
           :items="incomes"
@@ -846,18 +814,8 @@ onMounted(() => {
               align: 'start',
             },
             {
-              title: translate('common.fields.status'),
-              key: 'status',
-              align: 'start',
-            },
-            {
               title: translate('common.fields.type'),
               key: 'type',
-              align: 'start',
-            },
-            {
-              title: translate('common.messages.details'),
-              key: 'description',
               align: 'start',
             },
             {
@@ -871,14 +829,19 @@ onMounted(() => {
               align: 'end',
             },
             {
-              title: translate('common.fields.date'),
-              key: 'date',
+              title: translate('common.messages.quantity'),
+              key: 'quantity',
               align: 'center',
             },
             {
-              title: translate('common.messages.recordedBy'),
-              key: 'recordedBy.name',
+              title: translate('common.fields.status'),
+              key: 'status',
               align: 'start',
+            },
+            {
+              title: translate('common.fields.date'),
+              key: 'date',
+              align: 'center',
             },
             {
               title: translate('common.messages.actions'),
@@ -888,39 +851,37 @@ onMounted(() => {
             },
           ]"
           item-value="id"
-          class="text-no-wrap"
+          class="income-data-table"
           :loading="isLoading"
-          mobile-breakpoint="sm"
+          :skeleton-rows="5"
+          :sticky-first-column="false"
+          :sticky-last-column="false"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
           density="compact"
           @update:options="updateTableOptions"
         >
-          <template #loading>
-            <TableLoadingSkeleton
-              :columns="8"
-              :label="$t('common.messages.loading')"
-            />
-          </template>
           <template #no-data>
             <TableEmptyState
               icon="tabler-receipt-off"
+              :title="$t('common.messages.noRecordsFound')"
               :description="$t('common.messages.noMatchingRecords')"
             />
           </template>
           <template #item.receipt_number="{ item }">
             <div class="font-weight-bold">
               {{
-                item.receipt_number ||
-                `RCPT-${String(item.id).padStart(6, "0")}`
+                formatReceiptNumber(item)
               }}
             </div>
+            <!-- Removed duplicate currency and quantity detail from the receipt code. -->
+            <!--
             <div class="text-caption text-medium-emphasis">
               {{
-                $t("common.messages.currencyQuantity", {
                   currency: item.currency?.code ?? "—",
-                  quantity: item.quantity,
-                })
               }}
             </div>
+            -->
           </template>
 
           <template #item.status="{ item }">
@@ -947,12 +908,6 @@ onMounted(() => {
             >
               {{ typeLabel(item.type) }}
             </VChip>
-          </template>
-
-          <template #item.description="{ item }">
-            <div class="detail-copy">
-              {{ item.description || "No description added" }}
-            </div>
           </template>
 
           <template #item.contract_service="{ item }">
@@ -982,123 +937,64 @@ onMounted(() => {
                 formatIncomeCurrency(item.amount * item.quantity, item.currency)
               }}
             </div>
-            <div class="text-caption text-medium-emphasis">
-              {{
-                $t("common.messages.quantityExchangeRate", {
-                  quantity: item.quantity,
-                  rate: formatRate(item.rate),
-                })
-              }}
-            </div>
+          </template>
+
+          <template #item.quantity="{ item }">
+            <span>{{ formatLocalizedNumber(item.quantity) }}</span>
           </template>
 
           <template #item.date="{ item }">
             <span>{{ formatDate(item.date) }}</span>
           </template>
-          <template #item.recordedBy.name="{ item }">
-            <span>{{
-              item.recordedBy?.name || $t("common.messages.systemLegacy")
-            }}</span>
-          </template>
-
           <template #item.actions="{ item }">
-            <div class="d-flex gap-1">
-              <VBtn
+            <VMenu location="bottom end" content-class="income-actions-menu">
+              <template #activator="{ props }">
+                <VBtn v-bind="props" icon="tabler-dots-vertical" variant="text" size="small" class="ledger-action-trigger" :aria-label="$t('common.messages.actions')">
+                  <VIcon icon="tabler-dots-vertical" />
+                </VBtn>
+              </template>
+              <VList density="compact" min-width="200" class="income-actions-menu__list">
+              <VListItem
                 v-if="canApproveDrafts && item.status === 'draft'"
-                icon="tabler-check"
-                variant="text"
-                size="small"
                 color="success"
-                :aria-label="$t('finance.drafts.approve')"
+                prepend-icon="tabler-check"
+                :title="$t('finance.drafts.approve')"
                 @click="approveDraft(item)"
-              >
-                <VIcon icon="tabler-check" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("finance.drafts.approve") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
+              />
+              <VListItem
                 v-if="canApproveDrafts && item.status === 'draft'"
-                icon="tabler-x"
-                variant="text"
-                size="small"
                 color="error"
-                :aria-label="$t('finance.drafts.reject')"
+                prepend-icon="tabler-x"
+                :title="$t('finance.drafts.reject')"
                 @click="openRejectDraft(item)"
-              >
-                <VIcon icon="tabler-x" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("finance.drafts.reject") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon="tabler-paperclip"
-                variant="text"
-                size="small"
-                :aria-label="$t('common.attachments.title')"
+              />
+              <VListItem
+                prepend-icon="tabler-paperclip"
+                :title="$t('common.attachments.title')"
                 @click="openAttachments(item)"
-              >
-                <VIcon icon="tabler-paperclip" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("common.attachments.title") }}
-                </VTooltip>
-              </VBtn>
-              <FullDetailsButton :item="item" />
-              <VBtn
+              />
+              <FullDetailsButton :item="item" menu-action />
+              <VListItem
                 v-if="item.status === 'approved'"
-                icon="tabler-receipt"
-                variant="text"
-                size="small"
                 color="primary"
-                :aria-label="$t('documents.receipt.printReceipt')"
+                prepend-icon="tabler-printer"
+                :title="$t('documents.receipt.printReceipt')"
                 @click="openReceiptPreview(item)"
-              >
-                <VIcon icon="tabler-receipt" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("documents.receipt.printReceipt") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon="tabler-edit"
-                variant="text"
-                size="small"
+              />
+              <VListItem
                 color="medium-emphasis"
-                :aria-label="$t('pages.finance.income.income.editIncomeRecord')"
+                prepend-icon="tabler-edit"
+                :title="$t('pages.finance.income.income.editIncomeRecord')"
                 @click="openEditIncomeDialog(item)"
-              >
-                <VIcon icon="tabler-edit" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("pages.finance.income.income.editIncomeRecord") }}
-                </VTooltip>
-              </VBtn>
-              <VBtn
-                icon="tabler-trash"
-                variant="text"
-                size="small"
+              />
+              <VListItem
                 color="error"
-                :aria-label="
-                  $t('pages.finance.income.income.deleteIncomeRecord')
-                "
+                prepend-icon="tabler-trash"
+                :title="$t('pages.finance.income.income.deleteIncomeRecord')"
                 @click="openDeleteIncomeDialog(item)"
-              >
-                <VIcon icon="tabler-trash" /><VTooltip
-                  activator="parent"
-                  location="top"
-                >
-                  {{ $t("pages.finance.income.income.deleteIncomeRecord") }}
-                </VTooltip>
-              </VBtn>
-            </div>
+              />
+              </VList>
+            </VMenu>
           </template>
         </ResponsiveDataTableServer>
       </div>
@@ -1108,6 +1004,7 @@ onMounted(() => {
       v-model="isReceiptPreviewOpen"
       :record-id="activeReceiptIncomeId"
       :loader="ReceiptApi.getForIncome"
+      direct-print
     />
 
     <AttachmentsDialog
@@ -1134,45 +1031,42 @@ onMounted(() => {
     />
 
     <!-- Add Income Dialog -->
-    <VDialog v-model="isAddIncomeDialogVisible" max-width="900px">
+    <VDialog v-model="isAddIncomeDialogVisible" max-width="900px" class="income-form-overlay" content-class="income-form-dialog">
       <VCard class="income-dialog">
-        <VCardTitle class="pa-6 pb-2">
-          <div class="d-flex align-center gap-3">
-            <VAvatar color="primary" variant="tonal" icon="tabler-receipt" />
-            <div>
-              <div class="text-h5 font-weight-bold">
-                {{ $t("pages.finance.income.income.recordIncome2") }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{
-                  $t(
-                    "pages.finance.income.income.captureAStandaloneReceiptOrApplyPaymentToAContractLine",
-                  )
-                }}
-              </div>
-            </div>
+        <VCardTitle class="income-dialog__header">
+          <div class="d-flex align-center ga-3">
+            <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-receipt" /></VAvatar>
+            <span class="text-h5 font-weight-bold">{{ $t("pages.finance.income.income.recordIncome2") }}</span>
           </div>
+          <VBtn icon size="small" data-confirm-form-cancel class="income-dialog__close" :aria-label="$t('common.actions.close')" @click="isAddIncomeDialogVisible = false"><VIcon icon="tabler-x" /></VBtn>
         </VCardTitle>
 
-        <VCardText>
+        <VCardText class="pt-5">
           <VForm class="app-form">
             <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
               {{ formError }}
             </VAlert>
             <VRow>
               <VCol cols="12" md="6">
-                <ApplicantSelect
+                <ErpField
                   v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
+                  kind="autocomplete"
+                  :items="applicants"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.applicant')"
+                  :placeholder="$t('common.fields.applicant')"
                   :disabled="Boolean(selectedServiceLine)"
                   @update:model-value="handleApplicantChange"
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.applicant_contract_id"
+                  kind="select"
                   :items="serviceLineOptions"
                   :label="$t('pages.finance.income.income.service')"
+                  :placeholder="$t('pages.finance.income.income.service')"
                   :disabled="!selectedIncome.applicant_id"
                   clearable
                   :hint="
@@ -1264,46 +1158,20 @@ onMounted(() => {
                   }}
                 </VAlert>
               </VCol>
-              <VCol cols="12">
-                <div class="d-flex flex-wrap gap-4 mb-1">
-                  <VBtn
-                    v-if="canCreateDirect"
-                    :color="saveMode === 'direct' ? 'primary' : 'secondary'"
-                    :variant="saveMode === 'direct' ? 'flat' : 'outlined'"
-                    prepend-icon="tabler-device-floppy"
-                    @click="saveMode = 'direct'"
-                  >
-                    {{ $t("pages.finance.income.income.saveModeDirect") }}
-                  </VBtn>
-                  <VBtn
-                    v-if="canCreateDraft"
-                    :color="saveMode === 'draft' ? 'primary' : 'secondary'"
-                    :variant="saveMode === 'draft' ? 'flat' : 'outlined'"
-                    prepend-icon="tabler-send"
-                    @click="saveMode = 'draft'"
-                  >
-                    {{ $t("pages.finance.income.income.saveModeDraft") }}
-                  </VBtn>
-                </div>
-                <p class="text-caption text-medium-emphasis mb-0">
-                  {{
-                    saveMode === "draft"
-                      ? $t("pages.finance.income.income.saveModeDraftHint")
-                      : $t("pages.finance.income.income.saveModeDirectHint")
-                  }}
-                </p>
-              </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.type"
+                  kind="select"
                   :items="typeOptions"
                   :label="$t('common.fields.type')"
+                  :placeholder="$t('common.fields.type')"
+                  :error-messages="fieldError('type')"
                   :disabled="Boolean(selectedServiceLine)"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VTextField
+                <ErpField
                   v-model="selectedIncome.description"
                   :label="$t('common.messages.descriptionPaymentNoteOptional')"
                   :placeholder="
@@ -1314,75 +1182,95 @@ onMounted(() => {
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
+                  :placeholder="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
                   :max="selectedServiceLine ? selectedLineRemaining : undefined"
                   required
-                  @input="calculateTotal"
+                  :error-messages="fieldError('amount')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
+                  :placeholder="$t('common.messages.quantity')"
                   type="number"
                   :disabled="Boolean(selectedServiceLine)"
                   required
-                  @input="calculateTotal"
+                  :error-messages="fieldError('quantity')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.currency_id"
+                  kind="select"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
+                  :placeholder="$t('common.fields.currency')"
                   :disabled="Boolean(selectedServiceLine)"
                   required
+                  :error-messages="fieldError('currency')"
                   @update:model-value="handleCurrencyChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
+                  :placeholder="$t('common.messages.exchangeRate')"
                   type="number"
                   step="0.00000001"
                   required
+                  :error-messages="fieldError('rate')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
+                  :placeholder="$t('common.messages.totalAmount')"
                   type="number"
                   readonly
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <AppDateTimePicker
+                <ErpField
                   v-model="selectedIncome.date"
                   :label="$t('common.fields.date')"
+                  :placeholder="$t('common.fields.date')"
+                  kind="date"
                   required
-                  :config="{ dateFormat: 'Y-m-d' }"
+                  :error-messages="fieldError('date')"
+                  :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
                 />
+              </VCol>
+              <VCol cols="12">
+                <div class="income-save-mode">
+                  <VSwitch v-if="canCreateDirect && canCreateDraft" v-model="saveMode" true-value="direct" false-value="draft" color="primary" hide-details inset :label="saveMode === 'direct' ? $t('pages.finance.income.income.saveModeDirect') : $t('pages.finance.income.income.saveModeDraft')" />
+                  <p class="text-caption text-medium-emphasis mb-0">{{ saveMode === 'draft' ? $t('pages.finance.income.income.saveModeDraftHint') : $t('pages.finance.income.income.saveModeDirectHint') }}</p>
+                </div>
               </VCol>
             </VRow>
           </VForm>
         </VCardText>
 
-        <VCardActions class="pa-5">
+        <VCardActions class="income-dialog__footer">
           <VSpacer />
           <VBtn
-            color="secondary"
-            variant="tonal"
+            data-confirm-form-cancel
+            class="income-dialog__cancel"
             @click="isAddIncomeDialogVisible = false"
           >
             {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn color="primary" @click="addIncome">
+          <VBtn color="primary" variant="flat" @click="addIncome">
             {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
@@ -1390,45 +1278,42 @@ onMounted(() => {
     </VDialog>
 
     <!-- Edit Income Dialog -->
-    <VDialog v-model="isEditIncomeDialogVisible" max-width="900px">
+    <VDialog v-model="isEditIncomeDialogVisible" max-width="900px" class="income-form-overlay" content-class="income-form-dialog">
       <VCard class="income-dialog">
-        <VCardTitle class="pa-6 pb-2">
-          <div class="d-flex align-center gap-3">
-            <VAvatar color="primary" variant="tonal" icon="tabler-pencil" />
-            <div>
-              <div class="text-h5 font-weight-bold">
-                {{ $t("pages.finance.income.income.editIncome") }}
-              </div>
-              <div class="text-caption text-medium-emphasis">
-                {{
-                  $t(
-                    "pages.finance.income.income.updateReceiptDetailsOrItsContractAllocation",
-                  )
-                }}
-              </div>
-            </div>
+        <VCardTitle class="income-dialog__header">
+          <div class="d-flex align-center ga-3">
+            <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-pencil" /></VAvatar>
+            <span class="text-h5 font-weight-bold">{{ $t("pages.finance.income.income.editIncome") }}</span>
           </div>
+          <VBtn icon size="small" data-confirm-form-cancel class="income-dialog__close" :aria-label="$t('common.actions.close')" @click="isEditIncomeDialogVisible = false"><VIcon icon="tabler-x" /></VBtn>
         </VCardTitle>
 
-        <VCardText>
+        <VCardText class="pt-5">
           <VForm class="app-form">
             <VAlert v-if="formError" type="error" variant="tonal" class="mb-4">
               {{ formError }}
             </VAlert>
             <VRow>
               <VCol cols="12" md="6">
-                <ApplicantSelect
+                <ErpField
                   v-model="selectedIncome.applicant_id"
-                  :applicants="applicants"
+                  kind="autocomplete"
+                  :items="applicants"
+                  item-title="name"
+                  item-value="id"
+                  :label="$t('common.fields.applicant')"
+                  :placeholder="$t('common.fields.applicant')"
                   :disabled="Boolean(selectedServiceLine)"
                   @update:model-value="handleApplicantChange"
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.applicant_contract_id"
+                  kind="select"
                   :items="serviceLineOptions"
                   :label="$t('pages.finance.income.income.service')"
+                  :placeholder="$t('pages.finance.income.income.service')"
                   :disabled="!selectedIncome.applicant_id"
                   clearable
                   :hint="
@@ -1521,16 +1406,19 @@ onMounted(() => {
                 </VAlert>
               </VCol>
               <VCol cols="12" md="6">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.type"
+                  kind="select"
                   :items="typeOptions"
                   :label="$t('common.fields.type')"
+                  :placeholder="$t('common.fields.type')"
+                  :error-messages="fieldError('type')"
                   :disabled="Boolean(selectedServiceLine)"
                   required
                 />
               </VCol>
               <VCol cols="12" md="6">
-                <VTextField
+                <ErpField
                   v-model="selectedIncome.description"
                   :label="$t('common.messages.descriptionPaymentNoteOptional')"
                   :placeholder="
@@ -1541,75 +1429,89 @@ onMounted(() => {
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.amount"
                   :label="$t('common.fields.amount')"
+                  :placeholder="$t('common.fields.amount')"
                   type="number"
                   :step="selectedCurrencyStep"
                   :max="selectedServiceLine ? selectedLineRemaining : undefined"
                   required
-                  @input="calculateTotal"
+                  :error-messages="fieldError('amount')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.quantity"
                   :label="$t('common.messages.quantity')"
+                  :placeholder="$t('common.messages.quantity')"
                   type="number"
                   :disabled="Boolean(selectedServiceLine)"
                   required
-                  @input="calculateTotal"
+                  :error-messages="fieldError('quantity')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VSelect
+                <ErpField
                   v-model="selectedIncome.currency_id"
+                  kind="select"
                   :items="currencyOptions"
                   :label="$t('common.fields.currency')"
+                  :placeholder="$t('common.fields.currency')"
                   :disabled="Boolean(selectedServiceLine)"
                   required
+                  :error-messages="fieldError('currency')"
                   @update:model-value="handleCurrencyChange"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model.number="selectedIncome.rate"
                   :label="$t('common.messages.exchangeRate')"
+                  :placeholder="$t('common.messages.exchangeRate')"
                   type="number"
                   step="0.00000001"
                   required
+                  :error-messages="fieldError('rate')"
+                  @update:model-value="calculateTotal"
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <VTextField
+                <ErpField
                   v-model="selectedIncome.base_amount"
                   :label="$t('common.messages.totalAmount')"
+                  :placeholder="$t('common.messages.totalAmount')"
                   type="number"
                   readonly
                 />
               </VCol>
               <VCol cols="12" md="4">
-                <AppDateTimePicker
+                <ErpField
                   v-model="selectedIncome.date"
                   :label="$t('common.fields.date')"
+                  :placeholder="$t('common.fields.date')"
+                  kind="date"
                   required
-                  :config="{ dateFormat: 'Y-m-d' }"
+                  :error-messages="fieldError('date')"
+                  :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
                 />
               </VCol>
             </VRow>
           </VForm>
         </VCardText>
 
-        <VCardActions class="pa-5">
+        <VCardActions class="income-dialog__footer">
           <VSpacer />
           <VBtn
-            color="secondary"
-            variant="tonal"
+            data-confirm-form-cancel
+            class="income-dialog__cancel"
             @click="isEditIncomeDialogVisible = false"
           >
             {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn color="primary" @click="updateIncomeRecord">
+          <VBtn color="primary" variant="flat" @click="updateIncomeRecord">
             {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
@@ -1683,38 +1585,20 @@ onMounted(() => {
       </VCard>
     </VDialog>
 
-    <!-- Delete Income Dialog -->
-    <VDialog v-model="isDeleteIncomeDialogVisible" max-width="500px">
-      <VCard>
-        <VCardTitle class="pa-5">
-          <span class="headline">{{
-            $t("common.messages.confirmDelete")
-          }}</span>
-        </VCardTitle>
-
-        <VCardText>
-          {{
-            $t("common.confirmations.areYouSureYouWantToDeleteThisIncomeRecord")
-          }}
-          <br />
-          {{ $t("common.confirmations.thisActionCannotBeUndone") }}
-        </VCardText>
-
-        <VCardActions class="pa-5">
-          <VSpacer />
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            @click="isDeleteIncomeDialogVisible = false"
-          >
-            {{ $t("common.actions.cancel") }}
-          </VBtn>
-          <VBtn color="error" @click="deleteIncomeRecord">
-            {{ $t("common.actions.delete") }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <ConfirmDialog
+      v-model:is-dialog-visible="isDeleteIncomeDialogVisible"
+      tone="error"
+      icon="tabler-trash"
+      :confirmation-question="$t('common.messages.confirmDelete')"
+      :confirmation-message="`${$t('common.confirmations.areYouSureYouWantToDeleteThisIncomeRecord')} ${$t('common.confirmations.thisActionCannotBeUndone')}`"
+      :confirm-text="$t('common.actions.delete')"
+      :cancel-text="$t('common.actions.cancel')"
+      :confirm-title="$t('common.actions.delete')"
+      confirm-msg=""
+      :cancel-title="$t('common.actions.cancel')"
+      cancel-msg=""
+      @confirm="confirmed => { if (confirmed) deleteIncomeRecord() }"
+    />
   </div>
 </template>
 
@@ -1735,18 +1619,12 @@ onMounted(() => {
 .filter-deck__content {
   padding: 14px 18px !important;
 }
+.ledger-workspace .filter-deck__content {
+  border-bottom: 1px solid rgb(var(--v-border-color) / .7);
+}
 .filter-deck :deep(.v-field) {
   border-radius: 10px;
   background: rgb(var(--v-theme-on-surface) / 0.025);
-}
-.ledger-card__header {
-  min-height: 68px;
-  padding-inline: 20px;
-}
-.ledger-card__title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
 }
 .detail-copy {
   max-width: 250px;
@@ -1760,8 +1638,14 @@ onMounted(() => {
   align-items: center;
 }
 .table-container {
-  overflow-x: auto;
+  /* VDataTable owns its scroll surface. A second clipping container prevents
+     wide ledger columns from taking their intrinsic, data-based width. */
+  overflow: visible;
 }
+.income-data-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: thin; }
+.income-data-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 100% !important; table-layout: auto !important; }
+.income-data-table :deep(thead th),
+.income-data-table :deep(tbody td) { inline-size: max-content; min-inline-size: max-content; white-space: nowrap; }
 .ledger-card :deep(thead th) {
   height: 48px !important;
   color: rgb(var(--v-theme-on-surface) / 0.58) !important;
@@ -1769,11 +1653,14 @@ onMounted(() => {
   font-weight: 800 !important;
   letter-spacing: 0.075em;
   text-transform: uppercase;
-  background: rgb(var(--v-theme-on-surface) / 0.018);
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
 }
 .ledger-card :deep(tbody td) {
   height: 66px !important;
   border-bottom-color: rgb(var(--v-border-color) / 0.7) !important;
+}
+.ledger-card :deep(tbody td:last-child) {
+  background: rgb(var(--v-theme-on-surface) / .035);
 }
 .ledger-card :deep(tbody tr) {
   transition: background 0.16s ease;
@@ -1781,30 +1668,69 @@ onMounted(() => {
 .ledger-card :deep(tbody tr:hover) {
   background: rgb(var(--v-theme-primary) / 0.035) !important;
 }
-.ledger-empty {
+.filter-deck :deep(.v-btn) { min-block-size: 38px; padding-inline: .85rem; font-size: .88rem; }
+.income-dialog { overflow: hidden; }
+.income-dialog__header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 176px;
-  padding: 28px 32px;
-  text-align: start;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--v-theme-success) / 0.07),
-    transparent 58%
-  );
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: rgb(var(--v-theme-primary) / 0.07);
 }
-.ledger-empty :deep(.v-btn) {
-  margin-inline-start: auto;
+.income-dialog__close {
+  background: rgb(var(--v-theme-error) / 0.14) !important;
+  color: rgb(var(--v-theme-error)) !important;
 }
+.income-dialog__footer {
+  padding: 1rem 1.5rem;
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%);
+}
+.income-dialog__footer :deep(.v-btn--variant-flat) { color: rgb(var(--v-theme-on-primary)) !important; }
+.income-dialog__cancel {
+  background: rgb(var(--v-theme-secondary) / 0.13) !important;
+  color: rgb(var(--v-theme-secondary)) !important;
+}
+.income-dialog__cancel:hover {
+  background: rgb(var(--v-theme-secondary)) !important;
+  color: rgb(var(--v-theme-on-secondary)) !important;
+}
+.income-save-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem 1.5rem;
+  padding: .75rem 1rem;
+  border-radius: 10px;
+  background: rgb(var(--v-theme-primary) / 0.055);
+}
+:global(.income-form-overlay .v-overlay__scrim),
+:global(.v-overlay:has(.income-form-dialog) .v-overlay__scrim) {
+  background: rgba(var(--v-theme-on-surface), .3) !important;
+  backdrop-filter: blur(7px);
+  opacity: 1 !important;
+}
+:global(.income-form-dialog .income-dialog__header) { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .07); }
+:global(.income-form-dialog .income-dialog__footer) { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%) !important; border-block-start: 1px solid rgba(var(--v-theme-on-surface), .07); }
+:global(.income-form-dialog .income-dialog__close) { min-inline-size: 2.25rem !important; block-size: 2.25rem !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .14) !important; color: rgb(var(--v-theme-error)) !important; }
+:global(.income-form-dialog .income-dialog__close .v-icon) { color: inherit !important; }
+:global(.income-form-dialog .income-dialog__close .v-btn__overlay) { opacity: 0 !important; }
+:global(.income-form-dialog .income-dialog__cancel) { border: 1px solid rgba(var(--v-theme-secondary), .35) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; box-shadow: none !important; }
+:global(.income-form-dialog .income-dialog__cancel:hover) { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.income-form-dialog .income-dialog__footer .v-btn--variant-flat) { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
+:global(.income-actions-menu .income-actions-menu__list) {
+  display: flex;
+  flex-direction: column;
+  padding-block: .35rem;
+}
+:global(.income-actions-menu .v-list-item) { min-block-size: 2.65rem; }
+:global(.ledger-action-trigger) { background: rgba(var(--v-theme-on-surface), .07) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
+:global(.ledger-action-trigger:hover) { background: rgba(var(--v-theme-on-surface), .13) !important; }
 @media (max-width: 600px) {
-  .ledger-empty {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 24px;
-  }
-  .ledger-empty :deep(.v-btn) {
-    margin-inline-start: 0;
-  }
+  .filter-deck__content { padding: 12px !important; }
+  .income-toolbar-actions { justify-content: flex-start !important; }
+  .income-toolbar-actions :deep(.v-btn) { max-inline-size: 100%; }
+  .income-dialog__header, .income-dialog__footer { padding-inline: 1rem; }
 }
 </style>

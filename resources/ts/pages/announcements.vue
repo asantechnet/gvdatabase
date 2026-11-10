@@ -134,8 +134,8 @@ const audienceDescription = (announcement: Announcement): string => announcement
 const formatDate = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
 const headers = computed(() => [
-  { title: t('common.fields.title'), key: 'title', minWidth: '180px' },
-  { title: t('common.fields.description'), key: 'message', minWidth: '280px' },
+  { title: t('common.fields.title'), key: 'title' },
+  { title: t('common.fields.description'), key: 'message' },
   { title: t('pages.announcements.composer.audienceLabel'), key: 'audience', minWidth: '180px' },
   { title: t('common.messages.recordedBy'), key: 'sender', minWidth: '140px' },
   { title: t('common.fields.date'), key: 'created_at', minWidth: '160px' },
@@ -361,7 +361,7 @@ onMounted(async () => {
         <template #item.title="{ item }"><div class="announcement-table-title">{{ item.title || $t('pages.announcements.list.untitled') }}</div></template>
         <template #item.message="{ item }"><div class="announcement-table-message">{{ item.message }}</div></template>
         <template #item.audience="{ item }"><VChip size="small" color="primary" variant="tonal" prepend-icon="tabler-target">{{ audienceDescription(item) }}</VChip></template>
-        <template #item.sender="{ item }"><VChip size="small" variant="tonal" color="secondary" prepend-icon="tabler-user">{{ item.sender?.name || '—' }}</VChip></template>
+        <template #item.sender="{ item }"><span class="d-inline-flex align-center ga-1 text-medium-emphasis"><VIcon icon="tabler-user" size="16" />{{ item.sender?.name || '—' }}</span></template>
         <template #item.created_at="{ item }"><span class="text-no-wrap text-medium-emphasis">{{ formatDate(item.created_at) }}</span></template>
         <template #item.actions="{ item }"><div class="d-flex justify-end"><VMenu location="bottom end"><template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" variant="tonal" size="small" :aria-label="$t('common.messages.actions')" /></template><VList density="compact" min-width="190"><VListItem prepend-icon="tabler-pencil" :title="$t('common.actions.edit')" @click="openComposer(item)" /><VDivider class="my-1" /><VListItem prepend-icon="tabler-trash" class="announcement-actions-menu__delete" :title="$t('common.actions.delete')" @click="askDelete(item)" /></VList></VMenu></div></template>
         <template #no-data><TableEmptyState icon="tabler-speakerphone" :title="$t('pages.announcements.compose')" :description="$t('pages.announcements.list.emptyActionDescription')" :min-height="0" /></template>
@@ -397,8 +397,8 @@ onMounted(async () => {
 .announcement-delete-dialog__delete { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .announcements-toolbar-actions { display: flex; justify-content: flex-end; }
 :deep(.announcements-responsive-table .v-data-table__thead > tr > th) { background: rgba(var(--v-theme-primary), .1) !important; color: rgb(var(--v-theme-on-surface)); font-weight: 700; }
-.announcement-table-title { min-inline-size: 10rem; font-weight: 700; white-space: normal; }
-.announcement-table-message { max-inline-size: 38rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.55; overflow-wrap: anywhere; white-space: normal; }
+.announcement-table-title { max-inline-size: 18rem; font-weight: 700; overflow-wrap: anywhere; white-space: normal; }
+.announcement-table-message { max-inline-size: 28rem; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); line-height: 1.55; overflow-wrap: anywhere; white-space: normal; }
 @media (max-width: 599px) { .announcement-composer-dialog__header, .announcement-composer-dialog__footer { padding-inline: 1rem !important; } .announcements-toolbar-actions { justify-content: stretch; } .announcements-toolbar-actions .v-btn { inline-size: 100%; } }
 </style>
 <style>

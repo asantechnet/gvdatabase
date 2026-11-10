@@ -17,6 +17,7 @@ import ContractDocumentDesignApi, { type ContractDocumentDesign, type ContractDo
 import ContractTypeApi, { type ContractType } from '@/api/contractType'
 import type { BuiltInService } from '@/api/applicants'
 import ErpField from '@/components/erp/ErpField.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 import OfficeSettingsPanel from '@/components/setup/OfficeSettingsPanel.vue'
 import SupportPage from '@/pages/support.vue'
 
@@ -33,6 +34,7 @@ const route = useRoute()
 const router = useRouter()
 const canEditSettings = computed(() => canAccess('edit_settings'))
 const canViewOffices = computed(() => canAccess('view_offices'))
+const pendingUploadRemoval = ref<'website_logo' | 'website_dark_logo' | 'favicon' | 'company_signature' | null>(null)
 const settingsPageNames: SettingsPage[] = ['company', 'email', 'operations', 'appearance', 'documents', 'office', 'support']
 const validSettingsPage = (section: unknown): section is SettingsPage => settingsPageNames.includes(section as SettingsPage) && (section !== 'office' || canViewOffices.value)
 const activeSettingsPage = ref<SettingsPage>(validSettingsPage(route.params.section) ? route.params.section : 'company')
@@ -757,9 +759,11 @@ function removeArtwork(field: 'contract_letterhead' | 'contract_cover_design') {
  * stored file is removed server-side and the setting cleared; the caller is
  * always asked to confirm first.
  */
+function requestUploadRemoval(field: 'website_logo' | 'website_dark_logo' | 'favicon' | 'company_signature') {
+  pendingUploadRemoval.value = field
+}
+
 function removeUpload(field: 'website_logo' | 'website_dark_logo' | 'favicon' | 'company_signature') {
-  if (!confirm(translate('pages.settings.settings.confirmRemoveFile')))
-    return
   clearSettingErrors(field)
   clearSettingErrors(`remove_${field}`)
 
@@ -1211,7 +1215,7 @@ onBeforeUnmount(revokeObjectUrls)
                           @change="handleImageUpload($event, asset.field)"
                         >
                       </VBtn>
-                      <VBtn v-if="asset.preview" color="error" variant="text" size="small" :disabled="!canEditSettings" @click="removeUpload(asset.field)">
+                      <VBtn v-if="asset.preview" color="error" variant="text" size="small" :disabled="!canEditSettings" @click="requestUploadRemoval(asset.field)">
                         {{ $t('common.actions.remove') }}
                       </VBtn>
                     </div>
@@ -2006,6 +2010,21 @@ onBeforeUnmount(revokeObjectUrls)
       </VCol>
     </VRow>
   </VCard>
+  <ConfirmDialog
+    :is-dialog-visible="pendingUploadRemoval !== null"
+    tone="error"
+    icon="tabler-trash"
+    :confirmation-question="$t('common.messages.confirmDelete')"
+    :confirmation-message="$t('pages.settings.settings.confirmRemoveFile')"
+    :confirm-text="$t('common.actions.remove')"
+    :cancel-text="$t('common.actions.cancel')"
+    :confirm-title="$t('common.actions.remove')"
+    confirm-msg=""
+    :cancel-title="$t('common.actions.cancel')"
+    cancel-msg=""
+    @update:is-dialog-visible="visible => { if (!visible) pendingUploadRemoval = null }"
+    @confirm="confirmed => { const field = pendingUploadRemoval; pendingUploadRemoval = null; if (confirmed && field) removeUpload(field) }"
+  />
 </template>
 
 <style scoped>

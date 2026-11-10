@@ -2588,6 +2588,21 @@ onMounted(async () => {
 
 <style lang="scss">
 .staff-responsive-table tbody td { padding-block: .875rem; }
+.staff-responsive-table .v-table__wrapper { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
+.staff-responsive-table .v-table__wrapper::-webkit-scrollbar { display: none; }
+.staff-responsive-table .v-table__wrapper > table { inline-size: max-content !important; min-inline-size: 86rem; table-layout: auto !important; }
+.staff-responsive-table .v-table__wrapper > table > thead > tr > th,
+.staff-responsive-table .v-table__wrapper > table > tbody > tr > td { min-inline-size: 10rem; white-space: nowrap; }
+.staff-responsive-table .v-table__wrapper > table > thead > tr > :first-child,
+.staff-responsive-table .v-table__wrapper > table > tbody > tr > :first-child { min-inline-size: 16rem; }
+.staff-responsive-table .v-table__wrapper > table > thead > tr > :last-child,
+.staff-responsive-table .v-table__wrapper > table > tbody > tr > :last-child { min-inline-size: 7rem; }
+/* Separate directory rows just enough to scan people and their status without
+   affecting table measurements or the compact phone-card layout. */
+.staff-responsive-table .v-table__wrapper > table > tbody > tr {
+  border-block-end: 4px solid transparent;
+  background-clip: padding-box;
+}
 .staff-empty-state { display: grid; justify-items: center; padding-block: 1.25rem 2rem; }
 .staff-empty-state__action { margin-block-start: -.5rem; }
 .staff-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
@@ -2649,7 +2664,7 @@ onMounted(async () => {
 .staff-wizard-step-enter-from { opacity: 0; transform: translateY(8px); }
 .staff-wizard-step-leave-to { opacity: 0; transform: translateY(-6px); }
 
-.staff-details-dialog__eyebrow { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.staff-details-dialog__eyebrow { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .8125rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .staff-details-summary { display: flex; align-items: center; gap: 1rem; }
 .staff-details-skeleton { display: grid; gap: 1.25rem; }
 .staff-details-skeleton__summary { display: flex; align-items: center; gap: 1rem; }
@@ -2657,12 +2672,12 @@ onMounted(async () => {
 .staff-detail-tile--skeleton { display: block; min-block-size: 5.25rem; }
 .staff-detail-tile--skeleton .v-skeleton-loader__bone { margin: 0; }
 .staff-details-grid { display: grid; gap: .875rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.staff-detail-tile { display: flex; align-items: flex-start; gap: .75rem; min-block-size: 5.25rem; padding: 1rem; border: 1px solid rgba(var(--v-border-color), .42); border-radius: 12px; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); }
+.staff-detail-tile { display: flex; align-items: flex-start; gap: .875rem; min-block-size: 5.75rem; padding: 1.125rem; border: 1px solid rgba(var(--v-border-color), .42); border-radius: 12px; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); }
 .staff-detail-tile--wide { grid-column: 1 / -1; }
-.staff-detail-tile__icon { flex: none; margin-block-start: .15rem; color: rgb(var(--v-theme-primary)); }
+.staff-detail-tile__icon { flex: none; margin-block-start: .1rem; color: rgb(var(--v-theme-primary)); font-size: 22px !important; }
 .staff-detail-tile__content { display: grid; gap: .25rem; min-inline-size: 0; }
-.staff-detail-tile__label { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .75rem; font-weight: 600; }
-.staff-detail-tile__value { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: .9375rem; font-weight: 600; line-height: 1.45; }
+.staff-detail-tile__label { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .8125rem; font-weight: 700; }
+.staff-detail-tile__value { overflow-wrap: anywhere; color: rgb(var(--v-theme-on-surface)); font-size: 1rem; font-weight: 600; line-height: 1.5; }
 
 .staff-action-dialog { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .2) !important; border-radius: 16px !important; background: rgb(var(--v-theme-surface)) !important; box-shadow: 0 24px 48px rgba(0, 0, 0, .18) !important; text-align: center; }
 .staff-action-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import CommissionApi, { type CommissionSlipPayload } from '@/api/commission'
 import CommissionSlipTemplate, { type CommissionSlipPaperSize } from '@/pages/templates/commission_slip_template.vue'
 
-const props = defineProps<{ modelValue: boolean; settlementId: number | null }>()
+const props = withDefaults(defineProps<{ modelValue: boolean; settlementId: number | null; directPrint?: boolean }>(), {
+  directPrint: false,
+})
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const { t } = useI18n()
@@ -50,6 +52,12 @@ watch(() => [props.modelValue, props.settlementId] as const, async ([open, settl
     if (generation === requestGeneration)
       loading.value = false
   }
+
+  if (generation === requestGeneration && props.directPrint && slip.value) {
+    await nextTick()
+    await print()
+    emit('update:modelValue', false)
+  }
 }, { immediate: true })
 
 const print = async () => {
@@ -69,7 +77,11 @@ const print = async () => {
 </script>
 
 <template>
+  <div v-if="directPrint && slip" class="commission-slip-direct-print-host">
+    <CommissionSlipTemplate ref="templateRef" :slip="slip" :copies="copies" :paper-size="paperSize" />
+  </div>
   <VDialog
+    v-if="!directPrint"
     :model-value="modelValue"
     width="92vw"
     max-width="1100"
@@ -159,4 +171,6 @@ const print = async () => {
   width: 100%;
   transform-origin: top center;
 }
+
+.commission-slip-direct-print-host { display: none; }
 </style>

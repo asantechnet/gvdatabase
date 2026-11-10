@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { WhatsappPlaceholderField } from '@/api/whatsappTemplates'
+import ErpField from '@/components/erp/ErpField.vue'
 import {
   WHATSAPP_FORMAT_TOKENS,
   WHATSAPP_MESSAGE_LIMIT,
@@ -26,7 +27,8 @@ const props = withDefaults(defineProps<{
   fields?: WhatsappPlaceholderField[]
   disabled?: boolean
   label?: string
-}>(), { fields: () => [] })
+  errorMessages?: string | string[]
+}>(), { fields: () => [], errorMessages: undefined })
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
@@ -222,7 +224,7 @@ const openPlaceholderMenu = () => {
         v-model="placeholderMenu"
         :close-on-content-click="false"
         location="bottom start"
-        max-width="320"
+        max-width="420"
         @update:model-value="openPlaceholderMenu"
       >
         <template #activator="{ props: activatorProps }">
@@ -240,7 +242,7 @@ const openPlaceholderMenu = () => {
           </VBtn>
         </template>
 
-        <VCard>
+        <VCard class="whatsapp-editor__placeholder-menu">
           <VCardText class="pb-0">
             <VTextField
               v-model="placeholderSearch"
@@ -282,16 +284,16 @@ const openPlaceholderMenu = () => {
       </VChip>
     </div>
 
-    <VTextarea
+    <ErpField
       ref="textareaField"
       v-model="message"
+      kind="textarea"
       class="whatsapp-editor__input"
       rows="5"
       auto-grow
       :disabled="disabled"
       :label="label ?? t('pages.whatsapp.editor.message')"
-      :hint="t('pages.whatsapp.editor.supportedFormatting')"
-      persistent-hint
+      :error-messages="errorMessages"
       @paste="onPaste"
     />
 
@@ -355,6 +357,10 @@ const openPlaceholderMenu = () => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 0.75rem;
+  background: rgba(var(--v-theme-on-surface), 0.025);
 
   &__toolbar {
     display: flex;
@@ -383,6 +389,10 @@ const openPlaceholderMenu = () => {
      across the whole toolbar on wide screens. */
   &__placeholder-btn {
     text-transform: none;
+  }
+
+  &__placeholder-menu {
+    inline-size: min(420px, calc(100vw - 32px));
   }
 
   &__input :deep(textarea) {

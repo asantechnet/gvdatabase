@@ -95,6 +95,25 @@ const warningTone = computed(() => actionWarningState.request?.tone || 'warning'
     --warning-color: rgb(var(--v-theme-primary));
     --warning-on-color: rgb(var(--v-theme-on-primary));
     --warning-tint: rgba(var(--v-theme-primary), 0.14);
+
+    .action-warning-dialog__button--cancel {
+      border-color: rgba(var(--v-theme-primary), 0.5) !important;
+      background: rgba(var(--v-theme-primary), 0.13) !important;
+      color: rgb(var(--v-theme-primary)) !important;
+
+      .v-btn__content { color: rgb(var(--v-theme-primary)) !important; }
+
+      &:hover,
+      &:focus-visible,
+      &.v-btn--active,
+      &:active {
+        border-color: rgb(var(--v-theme-primary)) !important;
+        background: rgb(var(--v-theme-primary)) !important;
+        color: rgb(var(--v-theme-on-primary)) !important;
+
+        .v-btn__content { color: rgb(var(--v-theme-on-primary)) !important; }
+      }
+    }
   }
 }
 

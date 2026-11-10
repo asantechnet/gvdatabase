@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
-import { VAutocomplete, VSelect, VTextField, VTextarea } from 'vuetify/components'
+import { VAutocomplete, VCombobox, VSelect, VTextField, VTextarea } from 'vuetify/components'
 import { useI18n } from 'vue-i18n'
 
 defineOptions({ inheritAttrs: false })
 const props = withDefaults(defineProps<{
   label: string
-  kind?: 'text' | 'select' | 'autocomplete' | 'textarea' | 'date'
+  kind?: 'text' | 'select' | 'autocomplete' | 'combobox' | 'textarea' | 'date'
   required?: boolean
   rules?: Array<(value: unknown) => boolean | string>
   /**
@@ -33,6 +33,8 @@ const input = computed(() => {
     return VSelect
   if (props.kind === 'autocomplete')
     return VAutocomplete
+  if (props.kind === 'combobox')
+    return VCombobox
   if (props.kind === 'textarea')
     return VTextarea
 

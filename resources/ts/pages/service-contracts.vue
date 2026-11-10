@@ -104,6 +104,8 @@ const parent = ref<Contract | null>(null)
 const editing = ref<Contract | null>(null)
 const printing = ref(false)
 const printable = ref<Contract | null>(null)
+const detailContract = ref<Contract | null>(null)
+const detailsOpen = ref(false)
 const slipOpen = ref(false)
 const slipContractId = ref<number | null>(null)
 // Cancelling never deletes a contract: the record stays in this list with a
@@ -218,6 +220,12 @@ const openSlip = (row: Contract) => { slipContractId.value = row.id; slipOpen.va
 const canCancel = (row: Contract) => ability.can('read', 'cancel_contracts')
   && !row.is_cancelled && ['draft', 'active'].includes(row.status)
 const requestCancel = (row: Contract) => { cancelTarget.value = row; cancelOpen.value = true }
+const showDetails = (row: Contract) => {
+  detailContract.value = row
+  // Let the actions menu finish closing first. Otherwise its originating click
+  // can be treated as an outside click by the newly-mounted dialog.
+  window.setTimeout(() => { detailsOpen.value = true })
+}
 
 // A private application fee is a range. The displayed price is the whole
 // service (range + visa fee); the payable ceiling is the range maximum.
@@ -797,6 +805,9 @@ async function save() {
         class="service-contract-table text-no-wrap"
         @update:options="updateTableOptions"
       >
+      <template #item.contract_number="{ item }">
+        <VBtn variant="text" size="small" class="contract-number-link px-0 text-none" @click="showDetails(item)">{{ item.contract_number || '—' }}</VBtn>
+      </template>
       <template #item.version="{ item }">{{ item.snapshot_data?.template_version?.name ?? '—' }}<span v-if="item.snapshot_data?.template_version?.version_number"> · v{{ item.snapshot_data.template_version.version_number }}</span></template>
       <template #item.charges="{ item }"><span v-for="line in item.services" :key="line.id">{{ linePrice(line) }}</span></template>
       <template #item.status="{ item }"><VChip size="small" :color="item.is_cancelled ? 'error' : 'success'">{{ t(`serviceContracts.${item.status}`) }}</VChip></template>
@@ -824,7 +835,7 @@ async function save() {
             </template>
             <VList class="service-contract-actions-menu" density="compact" min-width="220">
               <template v-if="!item.is_cancelled">
-                <FullDetailsButton :item="item" :fields="contractDetailFields" :title="item.contract_number || item.counterparty || ''" menu-action />
+                <VListItem prepend-icon="tabler-eye" :title="t('common.actions.viewFullDetails')" @click="showDetails(item)" />
                 <VListItem v-if="ability.can('read', 'edit_contracts')" prepend-icon="tabler-edit" :title="t('serviceContracts.edit')" @click="edit(item)" />
                 <VListItem v-if="service === 'academy' && ability.can('read', 'create_contracts') && item.contract_role === 'primary' && ['active', 'completed'].includes(item.status)" prepend-icon="tabler-file-plus" :title="t('serviceContracts.extend')" @click="create(item)" />
                 <VListItem v-if="canMarkPaid(item)" prepend-icon="tabler-checks" :title="t('serviceContracts.markPaid')" :disabled="markingPaid === item.id" @click="markPaid(item)" />
@@ -846,6 +857,7 @@ async function save() {
       </template>
       </ResponsiveDataTableServer>
     </VCard>
+    <FullDetailsButton v-if="detailContract" v-model="detailsOpen" :item="detailContract" :fields="contractDetailFields" :title="detailContract.contract_number || detailContract.counterparty || ''" hide-activator />
     <VDialog :model-value="open" :persistent="saving" scrollable scroll-strategy="block" max-width="980" content-class="service-contract-form-dialog" @update:model-value="value => value ? open = true : requestFormClose()">
       <VCard class="service-contract-form-card">
         <VCardTitle class="service-contract-dialog-title px-5 py-5">
@@ -1069,6 +1081,8 @@ async function save() {
 </template>
 
 <style scoped>
+:deep(.contract-number-link) { cursor: pointer; }
+:deep(.contract-number-link .v-btn__overlay) { opacity: 0 !important; }
 .service-contract-form-card {
   max-block-size: calc(100vh - 32px);
   overflow: hidden;

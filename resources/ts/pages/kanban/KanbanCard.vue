@@ -97,19 +97,6 @@ const actionPayload = (): EditKanbanItem => ({
 
             <VListItem
               v-if="canEditTask"
-              @click="emit('editItem')"
-            >
-              <template #prepend>
-                <VIcon
-                  icon="tabler-pencil"
-                  size="18"
-                />
-              </template>
-              <VListItemTitle>{{ $t('common.messages.editTask') }}</VListItemTitle>
-            </VListItem>
-
-            <VListItem
-              v-if="canEditTask"
               @click="emit('editFullItem')"
             >
               <template #prepend>
@@ -118,7 +105,7 @@ const actionPayload = (): EditKanbanItem => ({
                   size="18"
                 />
               </template>
-              <VListItemTitle>{{ $t('common.actions.editFullDetails') }}</VListItemTitle>
+              <VListItemTitle>{{ $t('common.messages.editTask') }}</VListItemTitle>
             </VListItem>
 
             <VListItem

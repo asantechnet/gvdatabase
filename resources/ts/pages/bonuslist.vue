@@ -530,6 +530,7 @@ const getStatusColor = (isGranted: boolean) => {
               <ErpField v-model="reasonFilter" kind="select" :items="['All', ...bonusTypes]" :item-title="translateBackendValue" :label="$t('common.ui.bonusCategory')" />
               <ErpField v-model="statusFilter" kind="select" :items="['All', 'Eligible', 'Granted']" :item-title="translateBackendValue" :label="$t('common.fields.status')" />
               <ErpField v-model="monthFilter" kind="select" :items="monthOptions" item-title="title" item-value="value" :label="$t('common.messages.bonusMonth')" />
+              <template #actions><VBtn variant="tonal" color="primary" @click="departmentFilter = 'All'; reasonFilter = 'All'; statusFilter = 'All'; monthFilter = 'All'">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="filterMenuOpen = false">{{ $t('educational.apply') }}</VBtn></template>
             </DataTableFilterMenu>
             <VBtn v-if="canAccess('manage_bonus_rules')" size="small" variant="tonal" prepend-icon="tabler-adjustments" @click="isRulesDialogVisible = true">{{ $t('pages.bonuses.bonuslist.bonuslist.bonusRules') }}</VBtn>
             <VBtn color="primary" size="small" prepend-icon="tabler-user-plus" @click="isNominateDialogVisible = true">{{ $t('pages.bonuses.bonuslist.bonuslist.nominateEmployee') }}</VBtn>
@@ -557,7 +558,7 @@ const getStatusColor = (isGranted: boolean) => {
             >
               {{ $t('pages.bonuses.bonuslist.bonuslist.selectedPayout') }}
             </th>
-            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.ui.paymentCurrency') }}</th>
+            <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: '' }) }}</th>
             <th class="text-left font-weight-bold text-uppercase text-caption">{{ $t('common.ui.bookedRate') }}</th>
             <th class="text-left font-weight-bold text-uppercase text-caption">
               {{ $t('common.fields.status') }}
@@ -599,7 +600,7 @@ const getStatusColor = (isGranted: boolean) => {
 
             <!-- Achievements & Reason -->
             <td class="py-4">
-              <div class="mb-1">
+              <div class="d-flex align-center ga-1">
                 <VChip
                   :color="getReasonColor(employee.selectedType)"
                   size="small"
@@ -608,20 +609,8 @@ const getStatusColor = (isGranted: boolean) => {
                 >
                   {{ translateBackendValue(employee.selectedType) }}
                 </VChip>
+                <VTooltip :text="employee.achievementDetails" location="top"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-info-circle" size="x-small" variant="text" color="secondary" :aria-label="$t('common.actions.viewFullDetails')" /></template></VTooltip>
               </div>
-              <VTooltip
-                :text="employee.achievementDetails"
-                location="top"
-              >
-                <template #activator="{ props }">
-                  <div
-                    v-bind="props"
-                    class="text-caption text-medium-emphasis achievement-text"
-                  >
-                    {{ employee.achievementDetails }}
-                  </div>
-                </template>
-              </VTooltip>
             </td>
 
             <!-- Bonus Month -->
@@ -645,14 +634,11 @@ const getStatusColor = (isGranted: boolean) => {
                 :disabled="employee.isGranted"
                 @update:model-value="!employee.isGranted && updateEmployee(employee)"
               />
-              <div class="text-caption text-medium-emphasis mt-1">
-                {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}
-                <span class="d-block">{{ $t('common.ui.paymentCurrency') }}: {{ employee.currencySymbol || '' }} {{ employee.currencyCode || $t('common.ui.legacyRecord') }} · {{ $t('common.ui.bookedRate') }} {{ employee.rate ?? '—' }}</span>
-              </div>
             </td>
 
-            <td class="py-4 text-medium-emphasis">
-              {{ employee.currencySymbol || '' }} {{ employee.currencyCode || $t('common.ui.legacyRecord') }}
+            <td class="py-4 text-caption text-medium-emphasis">
+              {{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}
+              <span class="ms-1">{{ employee.currencyCode || $t('common.ui.legacyRecord') }}</span>
             </td>
             <td class="py-4 text-medium-emphasis">{{ employee.rate ?? '—' }}</td>
 
@@ -777,10 +763,10 @@ const getStatusColor = (isGranted: boolean) => {
               </VList>
             </VMenu>
           </div>
-          <div class="bonus-mobile-card__field"><span>{{ $t('pages.bonuses.bonuslist.bonuslist.eligibilityAchievements') }}</span><div><VChip :color="getReasonColor(employee.selectedType)" size="small" variant="tonal">{{ translateBackendValue(employee.selectedType) }}</VChip><p class="text-caption text-medium-emphasis mt-1 mb-0">{{ employee.achievementDetails }}</p></div></div>
+          <div class="bonus-mobile-card__field"><span>{{ $t('pages.bonuses.bonuslist.bonuslist.eligibilityAchievements') }}</span><div class="d-flex align-center ga-1"><VChip :color="getReasonColor(employee.selectedType)" size="small" variant="tonal">{{ translateBackendValue(employee.selectedType) }}</VChip><VTooltip :text="employee.achievementDetails" location="top"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-info-circle" size="x-small" variant="text" color="secondary" /></template></VTooltip></div></div>
           <div class="bonus-mobile-card__field"><span>{{ $t('common.messages.bonusMonth') }}</span><strong>{{ formatMonth(employee.bonusMonth) }}</strong></div>
-          <div class="bonus-mobile-card__field bonus-mobile-card__field--amount"><span>{{ $t('pages.bonuses.bonuslist.bonuslist.selectedPayout') }}</span><div><VCombobox v-model.number="employee.selectedAmount" :items="quickAmounts" density="compact" variant="outlined" hide-details type="number" step="100" class="amount-selector font-weight-bold text-primary" :disabled="employee.isGranted" @update:model-value="!employee.isGranted && updateEmployee(employee)" /><p class="text-caption text-medium-emphasis mt-1 mb-0">{{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: formatBonusAmount(employee, employee.suggestedAmount) }) }}</p></div></div>
-          <div class="bonus-mobile-card__field"><span>{{ $t('common.ui.paymentCurrency') }}</span><strong>{{ employee.currencySymbol || '' }} {{ employee.currencyCode || $t('common.ui.legacyRecord') }}</strong></div>
+          <div class="bonus-mobile-card__field bonus-mobile-card__field--amount"><span>{{ $t('pages.bonuses.bonuslist.bonuslist.selectedPayout') }}</span><VCombobox v-model.number="employee.selectedAmount" :items="quickAmounts" density="compact" variant="outlined" hide-details type="number" step="100" class="amount-selector font-weight-bold text-primary" :disabled="employee.isGranted" @update:model-value="!employee.isGranted && updateEmployee(employee)" /></div>
+          <div class="bonus-mobile-card__field"><span>{{ $t('pages.bonuses.bonuslist.suggestedAmount', { amount: '' }) }}</span><strong class="text-caption">{{ formatBonusAmount(employee, employee.suggestedAmount) }} {{ employee.currencyCode || $t('common.ui.legacyRecord') }}</strong></div>
           <div class="bonus-mobile-card__field"><span>{{ $t('common.ui.bookedRate') }}</span><strong>{{ employee.rate ?? '—' }}</strong></div>
           <div class="bonus-mobile-card__field"><span>{{ $t('common.fields.status') }}</span><VChip :color="getStatusColor(employee.isGranted)" size="small" variant="tonal">{{ employee.isGranted ? 'Granted' : 'Eligible' }}</VChip></div>
         </article>

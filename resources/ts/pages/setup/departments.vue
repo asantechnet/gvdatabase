@@ -222,7 +222,7 @@ onMounted(load)
         </VMenu>
       </template>
       <template #no-data>
-        <div class="departments-empty-state"><TableEmptyState icon="tabler-sitemap" :title="$t('common.navigation.departments')" :description="$t('common.ui.noDepartments')" :min-height="0" /><VBtn color="primary" variant="tonal" @click="create"><VIcon icon="tabler-plus" class="me-1" />{{ $t('common.ui.createDepartment') }}</VBtn></div>
+        <div class="departments-empty-state"><TableEmptyState icon="tabler-sitemap" :title="$t('common.navigation.departments')" :description="$t('common.ui.noDepartments')" :min-height="0" /><VBtn color="primary" variant="tonal" class="departments-empty-state__action" @click="create"><VIcon icon="tabler-plus" class="me-1" />{{ $t('common.ui.createDepartment') }}</VBtn></div>
       </template>
     </ResponsiveDataTable>
   </VCard>
@@ -284,6 +284,7 @@ onMounted(load)
 
 <style scoped lang="scss">
 .departments-empty-state { display: grid; justify-items: center; padding-block: 1.25rem 2rem; }
+.departments-empty-state__action { margin-block-start: -.75rem; }
 .departments-delete-action { color: rgb(var(--v-theme-error)) !important; }
 
 :global(.department-form-dialog .v-overlay__scrim),

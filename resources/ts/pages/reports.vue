@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import ReportApi, { type GeneratedReport, type ReportCatalog, type ReportFilters, type ReportSection, type ReportType } from '@/api/report'
 import DataTableFilterMenu from '@/components/responsive-data-table/DataTableFilterMenu.vue'
+import ResponsiveDataTable from '@/components/responsive-data-table/ResponsiveDataTable.vue'
+import TableEmptyState from '@/components/TableEmptyState.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
@@ -27,6 +33,7 @@ const profiles: Record<ReportType, ReportProfile> = {
 }
 
 const { locale } = useI18n()
+const route = useRoute()
 const rt = (key: string, values?: Record<string, unknown>) => translate(`pages.reports.studio.${key}`, values)
 const profileText = (profile: ReportProfile) => rt(`profiles.${profile.key}.label`)
 const now = new Date()
@@ -38,8 +45,8 @@ const report = ref<GeneratedReport | null>(null)
 const loading = ref(false)
 const exporting = ref(false)
 const error = ref('')
-const datePreset = ref('month')
 const filtersOpen = ref(false)
+const tableSearch = ref('')
 const filters = reactive<ReportFilters>({ start_date: dateKey(startOfMonth), end_date: dateKey(now) })
 
 const availableTypes = computed(() => catalog.value?.types.map(item => item.value) ?? [])
@@ -50,22 +57,6 @@ const baseCurrency = computed(() => catalog.value?.currencies.find(currency => c
 const resetContextFilters = () => {
   filters.employee_id = null; filters.office_id = null; filters.applicant_id = null; filters.currency_id = null
   filters.board_id = null; filters.status = null; filters.contract_type = null; filters.attendance_state = null
-}
-
-const applyPreset = (preset: string) => {
-  const end = new Date()
-  let start = new Date(end.getFullYear(), end.getMonth(), 1)
-  if (preset === '30days')
-    start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 29)
-  if (preset === 'quarter')
-    start = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1)
-  if (preset === 'year')
-    start = new Date(end.getFullYear(), 0, 1)
-  if (preset === 'all')
-    start = new Date(2020, 0, 1)
-  filters.start_date = dateKey(start)
-  filters.end_date = dateKey(end)
-  datePreset.value = preset
 }
 
 const generate = async () => {
@@ -82,8 +73,6 @@ const generate = async () => {
 }
 
 const changeType = async (nextType: ReportType) => {
-  if (type.value === nextType && report.value)
-    return
   type.value = nextType
   resetContextFilters()
   await generate()
@@ -91,7 +80,8 @@ const changeType = async (nextType: ReportType) => {
 
 const resetFilters = async () => {
   resetContextFilters()
-  applyPreset('month')
+  filters.start_date = dateKey(startOfMonth)
+  filters.end_date = dateKey(now)
   await generate()
 }
 
@@ -115,16 +105,7 @@ const exportCsv = async () => {
 }
 
 const openPrintReport = async () => {
-  exporting.value = true; error.value = ''
-  try {
-    const blob = await ReportApi.export(type.value, filters, 'print')
-    const url = URL.createObjectURL(blob)
-
-    window.open(url, '_blank', 'noopener,noreferrer')
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  }
-  catch (caught) { error.value = apiErrorMessage(caught, rt('errors.print')) }
-  finally { exporting.value = false }
+  window.print()
 }
 
 const section = (key: string) => report.value?.sections.find(item => item.key === key)
@@ -147,10 +128,37 @@ const currency = (value: number, code = baseCurrency.value, compact = false) => 
 }
 
 const duration = (minutes: number) => minutes < 60 ? rt('common.minutesShort', { value: number(minutes) }) : rt('common.hoursShort', { value: number(minutes / 60, 1) })
+const columnTitle = (column: string) => {
+  const translated = translate(`pages.reports.columns.${column}`)
+
+  return translated.startsWith('[missing:') || translated === `pages.reports.columns.${column}`
+    ? column.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+    : translated
+}
+const sectionHeaders = (reportSection: ReportSection) => reportSection.columns.map(column => ({ title: columnTitle(column), key: column }))
+const matchingRows = (reportSection: ReportSection) => {
+  const query = tableSearch.value.trim().toLocaleLowerCase()
+  if (!query)
+    return reportSection.rows
+
+  return reportSection.rows.filter(row => Object.values(row).some(value => String(value ?? '').toLocaleLowerCase().includes(query)))
+}
+const tableValue = (value: unknown) => {
+  if (value === null || value === undefined || value === '')
+    return '—'
+  if (typeof value === 'object')
+    return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${key}: ${number(Number(item) || 0, 2)}`).join(' · ')
+
+  return String(value)
+}
+const loadingHeaders = Array.from({ length: 6 }, (_, index) => ({ title: '', key: `loading-${index}` }))
+const activeSection = computed(() => {
+  const preferred: Record<ReportType, string> = { financial: 'income', payroll: 'salary_payments', attendance: 'attendance', educational: 'applicants', crm: 'visitors' }
+
+  return report.value?.sections.find(item => item.key === preferred[type.value]) ?? report.value?.sections[0] ?? null
+})
 
 const metrics = computed<Metric[]>(() => {
-  if (!report.value)
-    return []
   if (type.value === 'financial') {
     const income = numericTotal(section('income'), 'base_amount_by_base')
     const expenses = numericTotal(section('expenses'), 'base_amount_by_base')
@@ -159,6 +167,7 @@ const metrics = computed<Metric[]>(() => {
       { label: rt('metrics.cashCollected'), value: currency(income, baseCurrency.value, true), detail: rt('metrics.recordsInPeriod', { count: number(numericTotal(section('income'), 'count')) }), icon: 'tabler-cash', color: 'success' },
       { label: rt('metrics.expenses'), value: currency(expenses, baseCurrency.value, true), detail: rt('metrics.recordsInPeriod', { count: number(numericTotal(section('expenses'), 'count')) }), icon: 'tabler-receipt-2', color: 'warning' },
       { label: rt('metrics.netCashFlow'), value: currency(income - expenses, baseCurrency.value, true), detail: rt('metrics.spent', { amount: currency(expenses, baseCurrency.value, true) }), icon: 'tabler-chart-arrows-vertical', color: income - expenses >= 0 ? 'success' : 'error' },
+      { label: rt('metrics.recordsInPeriod', { count: number(numericTotal(section('income'), 'count') + numericTotal(section('expenses'), 'count')) }), value: number(numericTotal(section('asset_assets'), 'records')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('asset_assets'), 'units')) }), icon: 'tabler-building-warehouse', color: 'info' },
     ]
   }
   if (type.value === 'payroll') {
@@ -190,6 +199,7 @@ const metrics = computed<Metric[]>(() => {
       { label: rt('metrics.newApplicants'), value: number(numericTotal(section('applicants'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-user-plus', color: 'primary' },
       { label: rt('metrics.serviceCommitments'), value: number(numericTotal(section('applicant_contracts'), 'commitments')), detail: rt('metrics.activeCount', { count: number(numericTotal(section('applicant_contracts'), 'active')) }), icon: 'tabler-heart-handshake', color: 'success' },
       { label: rt('metrics.contractsInPeriod'), value: number(numericTotal(section('contracts'), 'count')), detail: rt('metrics.addedInPeriod'), icon: 'tabler-file-text', color: 'info' },
+      { label: rt('metrics.activeCount', { count: number(numericTotal(section('applicant_contracts'), 'active')) }), value: number(numericTotal(section('applicant_contracts'), 'active')), detail: rt('metrics.serviceCommitments'), icon: 'tabler-chart-bar', color: 'warning' },
     ]
   }
 
@@ -197,6 +207,7 @@ const metrics = computed<Metric[]>(() => {
     { label: rt('metrics.visitors'), value: number(numericTotal(section('visitors'), 'count')), detail: rt('metrics.commercialInterest'), icon: 'tabler-walk', color: 'info' },
     { label: rt('metrics.taskDeadlines'), value: number(numericTotal(section('tasks'), 'count')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-checklist', color: 'primary' },
     { label: rt('metrics.deliveryRisk'), value: number(numericTotal(section('tasks'), 'overdue')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-calendar-exclamation', color: numericTotal(section('tasks'), 'overdue') ? 'error' : 'success' },
+    { label: rt('metrics.activeCount', { count: number(numericTotal(section('tasks'), 'completed')) }), value: number(numericTotal(section('tasks'), 'completed')), detail: rt('metrics.tasksInReport', { count: number(numericTotal(section('tasks'), 'count')) }), icon: 'tabler-circle-check', color: 'success' },
   ]
 })
 
@@ -207,7 +218,9 @@ onMounted(async () => {
   try {
     catalog.value = await ReportApi.catalog()
     if (catalog.value.types.length)
-      type.value = catalog.value.types[0].value
+      type.value = route.query.report === 'financial' && catalog.value.types.some(item => item.value === 'financial')
+        ? 'financial'
+        : catalog.value.types[0].value
     await generate()
   }
   catch (caught) { error.value = apiErrorMessage(caught, rt('errors.catalog')) }
@@ -216,39 +229,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="reporting-studio pa-4 pa-md-6">
-    <header class="d-flex flex-wrap align-end justify-space-between ga-4 mb-6 no-print">
-      <div>
-        <div class="eyebrow mb-2">
-          {{ rt('header.eyebrow') }}
-        </div><h1 class="text-h3 font-weight-bold tracking-tight mb-1">
-          {{ rt('header.title') }}
-        </h1><p class="text-body-1 text-medium-emphasis mb-0">
-          {{ rt('header.subtitle') }}
-        </p>
-      </div>
-      <div class="d-flex ga-2">
-        <VBtn
-          v-if="canExport"
-          variant="outlined"
-          prepend-icon="tabler-file-spreadsheet"
-          :loading="exporting"
-          :disabled="!report"
-          @click="exportCsv"
-        >
-          {{ rt('header.exportCsv') }}
-        </VBtn><VBtn
-          v-if="canExport"
-          color="primary"
-          prepend-icon="tabler-printer"
-          :loading="exporting"
-          :disabled="!report"
-          @click="openPrintReport"
-        >
-          {{ rt('header.printReport') }}
-        </VBtn>
-      </div>
-    </header>
+  <main class="reporting-studio">
+    <ErpPageHeader :title="$t('common.navigation.reports')" section="finance" class="mb-5" />
 
     <VAlert
       v-if="error"
@@ -261,65 +243,16 @@ onMounted(async () => {
       {{ error }}
     </VAlert>
 
-    <section class="report-library no-print mb-5">
-      <button
-        v-for="reportType in availableTypes"
-        :key="reportType"
-        class="report-type-card"
-        :class="{ active: type === reportType }"
-        type="button"
-        @click="changeType(reportType)"
-      >
-        {{ profileText(profiles[reportType]) }}
-      </button>
-    </section>
-
-    <div class="d-flex justify-end mb-6 no-print">
+    <VCard class="report-toolbar mb-5 no-print" elevation="0">
+      <VCardText>
+        <VRow align="center">
+          <VCol cols="12" md="5"><ErpSearchField v-model="tableSearch" :placeholder="$t('common.actions.search')" /></VCol>
+          <VCol cols="12" md="7" class="report-toolbar__actions d-flex flex-wrap align-center justify-md-end ga-2">
       <DataTableFilterMenu
         v-model="filtersOpen"
-        :active="filteredChipCount > 0 || datePreset !== 'month'"
+        :active="filteredChipCount > 0"
         @reset="resetFilters"
       >
-        <VBtnToggle
-          v-model="datePreset"
-          mandatory
-          density="compact"
-          color="primary"
-          variant="outlined"
-          divided
-          class="date-preset-toggle"
-        >
-          <VBtn
-            value="month"
-            @click="applyPreset('month')"
-          >
-            {{ rt('filters.thisMonth') }}
-          </VBtn>
-          <VBtn
-            value="30days"
-            @click="applyPreset('30days')"
-          >
-            {{ rt('filters.thirtyDays') }}
-          </VBtn>
-          <VBtn
-            value="quarter"
-            @click="applyPreset('quarter')"
-          >
-            {{ rt('filters.quarter') }}
-          </VBtn>
-          <VBtn
-            value="year"
-            @click="applyPreset('year')"
-          >
-            {{ rt('filters.year') }}
-          </VBtn>
-          <VBtn
-            value="all"
-            @click="applyPreset('all')"
-          >
-            {{ rt('filters.allTime') }}
-          </VBtn>
-        </VBtnToggle>
         <VRow
           class="align-end"
           dense
@@ -329,11 +262,12 @@ onMounted(async () => {
             sm="6"
             md="6"
           >
-            <AppDateTimePicker
+            <ErpField
               v-model="filters.start_date"
+              kind="date"
               :label="rt('filters.startDate')"
+              :placeholder="rt('filters.startDate')"
               :config="{ dateFormat: 'Y-m-d' }"
-              @update:model-value="datePreset = 'custom'"
             />
           </VCol>
           <VCol
@@ -341,11 +275,12 @@ onMounted(async () => {
             sm="6"
             md="6"
           >
-            <AppDateTimePicker
+            <ErpField
               v-model="filters.end_date"
+              kind="date"
               :label="rt('filters.endDate')"
+              :placeholder="rt('filters.endDate')"
               :config="{ dateFormat: 'Y-m-d' }"
-              @update:model-value="datePreset = 'custom'"
             />
           </VCol>
           <VCol
@@ -353,8 +288,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.employee_id"
+              kind="select"
               :items="catalog?.employees ?? []"
               item-title="name"
               item-value="id"
@@ -367,8 +303,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.office_id"
+              kind="select"
               :items="catalog?.offices ?? []"
               item-title="name"
               item-value="id"
@@ -381,8 +318,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.applicant_id"
+              kind="select"
               :items="catalog?.applicants ?? []"
               item-title="name"
               item-value="id"
@@ -395,8 +333,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.currency_id"
+              kind="select"
               :items="catalog?.currencies ?? []"
               item-title="code"
               item-value="id"
@@ -409,8 +348,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.board_id"
+              kind="select"
               :items="catalog?.boards ?? []"
               item-title="title"
               item-value="id"
@@ -423,8 +363,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.contract_type"
+              kind="select"
               :items="catalog?.contract_types ?? []"
               :label="rt('filters.contractType')"
               clearable
@@ -435,8 +376,9 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VSelect
+            <ErpField
               v-model="filters.attendance_state"
+              kind="select"
                   :items="['present', 'absent', 'off_day', 'complete', 'incomplete']"
               :item-title="translateBackendValue"
               :label="rt('filters.attendanceState')"
@@ -448,58 +390,63 @@ onMounted(async () => {
             cols="12"
             md="6"
           >
-            <VCombobox
+            <ErpField
               v-model="filters.status"
+              kind="select"
               :items="type === 'financial' ? ['Issued', 'Draft', 'Paid', 'Cancelled'] : ['granted', 'pending']"
               :label="rt('filters.status')"
               clearable
             />
           </VCol>
         </VRow>
-        <VBtn
-          color="primary"
-          prepend-icon="tabler-player-play"
-          :loading="loading"
-          block
-          @click="runAnalysis"
-        >
-          {{ rt('filters.runAnalysis') }}
-        </VBtn>
+        <template #actions>
+          <VBtn variant="tonal" color="secondary" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn>
+          <VBtn color="primary" variant="flat" :loading="loading" @click="runAnalysis">{{ $t('educational.apply') }}</VBtn>
+        </template>
       </DataTableFilterMenu>
-    </div>
+            <VBtn v-if="canExport" size="small" variant="tonal" prepend-icon="tabler-file-spreadsheet" :loading="exporting" :disabled="!report" @click="exportCsv">{{ rt('header.exportCsv') }}</VBtn>
+            <VBtn v-if="canExport" icon="tabler-printer" size="small" variant="tonal" :loading="exporting" :disabled="!report" :aria-label="$t('common.actions.print')" @click="openPrintReport"><VIcon icon="tabler-printer" /></VBtn>
+          </VCol>
+        </VRow>
+      </VCardText>
+      <ResponsiveDataTable v-if="loading && !report" class="report-data-table report-data-table--loading" :headers="loadingHeaders" :items="[]" :loading="true" :skeleton-rows="6" :show-scroll-affordance="false" :mobile-cards="true" :sticky-key-column="false" :sticky-action-column="false" />
+      <section v-if="activeSection" class="report-sections">
+        <VTabs v-model="type" show-arrows class="report-tabs" @update:model-value="changeType"><VTab v-for="reportType in availableTypes" :key="reportType" :value="reportType">{{ profileText(profiles[reportType]) }}</VTab></VTabs>
+        <ResponsiveDataTable
+          :headers="loading ? loadingHeaders : sectionHeaders(activeSection)"
+          :items="matchingRows(activeSection)"
+          :loading="loading"
+          :skeleton-rows="5"
+          :show-scroll-affordance="false"
+          :mobile-cards="true"
+          :mobile-fields="activeSection.columns.slice(1, 4)"
+          :sticky-first-column="false"
+          :sticky-last-column="false"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
+          :class="['report-data-table', `report-data-table--${type}`, loading && 'report-data-table--loading']"
+        >
+          <template #no-data><TableEmptyState icon="tabler-report-off" :title="$t('common.messages.noRecordsFound')" :description="$t('common.messages.noMatchingRecords')" /></template>
+          <template v-for="column in activeSection.columns" :key="column" #[`item.${column}`]="{ item }">{{ tableValue(item[column]) }}</template>
+        </ResponsiveDataTable>
+      </section>
+    </VCard>
 
-    <div
-      v-if="loading && !report"
-      class="text-center py-16"
-    >
-      <VProgressCircular
-        indeterminate
-        color="primary"
-        size="48"
-      />
-    </div>
-
-    <article
-      v-if="report"
-      class="report-result"
-    >
-      <VRow
-        g="4"
-        class="mb-1"
-      >
-        <VCol
+    <article class="report-result">
+      <div class="report-kpis mb-5">
+        <VCard
           v-for="metric in metrics"
           :key="metric.label"
-          cols="12"
-          sm="6"
-          lg="3"
+          class="report-kpi"
+          border
+          variant="flat"
         >
-          <VCard class="metric-card h-100 pa-5">
+          <VCard class="pa-4" variant="flat">
             <div class="d-flex justify-space-between ga-3">
               <div class="min-w-0">
-                <p class="metric-label mb-2">
+                <p class="metric-label mb-1">
                   {{ metric.label }}
-                </p><h3 class="text-h5 font-weight-bold text-truncate mb-1">
+                </p><h3 class="text-h4 font-weight-bold text-truncate mb-1">
                   {{ metric.value }}
                 </h3><p class="text-caption text-medium-emphasis text-truncate mb-0">
                   {{ metric.detail }}
@@ -508,38 +455,89 @@ onMounted(async () => {
                 :color="metric.color"
                 variant="tonal"
                 rounded="lg"
-                size="40"
+                size="48"
               >
                 <VIcon
                   :icon="metric.icon"
-                  size="21"
+                  size="24"
                 />
               </VAvatar>
             </div>
           </VCard>
-        </VCol>
-      </VRow>
+        </VCard>
+      </div>
     </article>
   </main>
 </template>
 
 <style scoped>
-.reporting-studio { margin-inline: auto; }
-.tracking-tight { letter-spacing: -.035em !important; }
-.eyebrow,
+.reporting-studio { display: flex; flex-direction: column; margin-inline: auto; }
+.reporting-studio > :deep(.erp-page-header) { order: 1; }
+.reporting-studio > .v-alert { order: 2; }
+.report-result { display: contents; }
+.report-result > .report-kpis { order: 4; }
+.report-toolbar { order: 5; }
+.report-sections { order: 6; }
+.report-table-card--loading { order: 6; }
 .metric-label { color: rgba(var(--v-theme-on-surface), .56); font-size: .69rem; font-weight: 700; letter-spacing: .105em; text-transform: uppercase; }
-.report-library { display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding-block-end: 2px; scrollbar-width: none; }
-.report-library::-webkit-scrollbar,
-.date-preset-toggle::-webkit-scrollbar { display: none; }
-.report-type-card { flex: 0 0 auto; min-inline-size: 13rem; padding: 14px; color: inherit; text-align: start; border: 1px solid rgba(var(--v-theme-on-surface), .08); border-radius: 12px; background: rgb(var(--v-theme-surface)); transition: .18s ease; }
-.report-type-card:hover { border-color: rgba(var(--v-theme-primary), .35); transform: translateY(-1px); }
-.report-type-card.active { border-color: rgba(var(--v-theme-primary), .65); box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), .08); }
-.metric-card { border: 1px solid rgba(var(--v-theme-on-surface), .065); box-shadow: 0 3px 16px rgba(20, 24, 40, .035) !important; }
-.date-preset-toggle { display: flex; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding-block-end: 2px; scrollbar-width: none; }
-.date-preset-toggle :deep(.v-btn) { flex: 0 0 auto !important; min-width: max-content !important; padding-inline: 12px !important; white-space: nowrap; }
+.report-toolbar { overflow: hidden; border: 0; border-radius: 16px; background: rgb(var(--v-theme-surface)); box-shadow: 0 10px 28px rgb(15 23 42 / .08); }
+.report-tabs :deep(.v-slide-group__content) { flex-wrap: wrap; }
+.report-toolbar :deep(.v-field) { border-radius: 10px; background: rgb(var(--v-theme-on-surface) / .025); }
+.report-toolbar__actions :deep(.v-btn) { min-block-size: 38px; padding-inline: .85rem; font-size: .88rem; }
+.report-kpis { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(220px, 1fr)); }
+.report-kpis::-webkit-scrollbar { display: none; }
+.report-kpi { min-inline-size: 0; border-radius: 12px !important; }
+.report-kpi > .v-card { box-shadow: none !important; }
+.report-kpi :deep(.text-h4) { font-size: 1.15rem !important; line-height: 1.3; }
+.report-data-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
+.report-data-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+.report-data-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 100% !important; table-layout: auto !important; }
+.report-toolbar :deep(thead th), .report-data-table :deep(.v-table__wrapper > table th) { min-block-size: 3rem; padding-block: .9rem !important; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.report-data-table--loading :deep(thead th) { position: relative; color: transparent !important; }
+.report-data-table--loading :deep(thead th::after) { position: absolute; inset-block-start: 50%; inline-size: 58%; block-size: .72rem; border-radius: 999px; background: linear-gradient(90deg, rgb(var(--v-theme-on-surface) / .07), rgb(var(--v-theme-on-surface) / .15), rgb(var(--v-theme-on-surface) / .07)); content: ''; transform: translateY(-50%); animation: report-table-skeleton-wave 1.45s ease-in-out infinite; }
+.report-data-table--loading :deep(thead th:nth-child(odd)::after) { inline-size: 72%; }
+.report-data-table :deep(.v-table__wrapper > table th), .report-data-table :deep(.v-table__wrapper > table td) { inline-size: max-content; min-inline-size: max-content !important; white-space: nowrap !important; }
 .min-w-0 { min-width: 0; }
 
-@media (max-width: 599px) {
-  .report-type-card { min-inline-size: 11rem; }
+@keyframes report-table-skeleton-wave {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 959px) {
+  .report-kpis { display: flex; overflow-x: auto; padding-block-end: .25rem; scrollbar-width: none; }
+  .report-kpi { flex: 0 0 17rem; }
+}
+</style>
+
+<!-- The responsive table is rendered by a child component.  Keep the wide
+ finance report table sizing global so the real table is targeted. -->
+<style>
+.report-data-table--financial .v-table__wrapper,
+.report-data-table--payroll .v-table__wrapper,
+.report-data-table--attendance .v-table__wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.report-data-table--financial .v-table__wrapper::-webkit-scrollbar,
+.report-data-table--payroll .v-table__wrapper::-webkit-scrollbar,
+.report-data-table--attendance .v-table__wrapper::-webkit-scrollbar { display: none; }
+.report-data-table--financial .v-table__wrapper > table,
+.report-data-table--payroll .v-table__wrapper > table,
+.report-data-table--attendance .v-table__wrapper > table {
+  inline-size: max-content !important;
+  min-inline-size: 92rem !important;
+  table-layout: auto !important;
+}
+.report-data-table--financial .v-table__wrapper > table > thead > tr > th,
+.report-data-table--financial .v-table__wrapper > table > tbody > tr > td,
+.report-data-table--payroll .v-table__wrapper > table > thead > tr > th,
+.report-data-table--payroll .v-table__wrapper > table > tbody > tr > td,
+.report-data-table--attendance .v-table__wrapper > table > thead > tr > th,
+.report-data-table--attendance .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 10rem !important;
+  padding-inline: 1rem !important;
+  white-space: nowrap !important;
 }
 </style>

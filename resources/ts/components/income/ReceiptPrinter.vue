@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import type { ReceiptPayload } from '@/api/receipts'
 import ReceiptTemplate, { type ReceiptPaperSize } from '@/pages/templates/receipt_template.vue'
@@ -10,6 +10,8 @@ const props = defineProps<{
   modelValue: boolean
   recordId: number | null
   loader: (id: number) => Promise<ReceiptPayload>
+  /** Print straight from a hidden document host rather than opening a preview. */
+  directPrint?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -60,6 +62,12 @@ watch(() => [props.modelValue, props.recordId] as const, async ([open, recordId]
     if (generation === requestGeneration)
       loading.value = false
   }
+
+  if (generation === requestGeneration && props.directPrint && receipt.value) {
+    await nextTick()
+    await print()
+    emit('update:modelValue', false)
+  }
 }, { immediate: true })
 
 const print = async () => {
@@ -80,7 +88,19 @@ const print = async () => {
 </script>
 
 <template>
+  <div
+    v-if="directPrint && receipt"
+    class="receipt-direct-print-host"
+  >
+    <ReceiptTemplate
+      ref="templateRef"
+      :receipt="receipt"
+      :copies="copies"
+      :paper-size="paperSize"
+    />
+  </div>
   <VDialog
+    v-if="!directPrint"
     :model-value="modelValue"
     width="92vw"
     max-width="1200"
@@ -193,4 +213,6 @@ const print = async () => {
   width: 100%;
   transform-origin: top center;
 }
+
+.receipt-direct-print-host { display: none; }
 </style>

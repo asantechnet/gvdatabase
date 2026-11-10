@@ -36,9 +36,20 @@ import ErpField from "@/components/erp/ErpField.vue";
 import ErpSearchField from "@/components/erp/ErpSearchField.vue";
 import TableEmptyState from "@/components/TableEmptyState.vue";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog.vue";
+import DataTableFilterMenu from "@/components/responsive-data-table/DataTableFilterMenu.vue";
 
 const toast = useToast();
-const { t: $t, locale } = useI18n();
+const { t: $t } = useI18n();
+
+// Flatpickr must remain body-mounted in dialogs. Reapply the compact,
+// zero-offset transform after open so its popup stays docked to the field.
+const dockDialogCalendar = (_selectedDates: Date[], _dateString: string, instance: { calendarContainer: HTMLElement }) => {
+  requestAnimationFrame(() => {
+    instance.calendarContainer.style.setProperty("transform", "translateY(0) scale(0.86)", "important");
+    instance.calendarContainer.style.setProperty("transform-origin", "top left", "important");
+    instance.calendarContainer.style.setProperty("z-index", "3100", "important");
+  });
+};
 
 interface PayrollRow {
   [key: string]: unknown;
@@ -59,31 +70,12 @@ interface PayrollRow {
 }
 
 const today = new Date();
-const selectedYear = ref(today.getFullYear());
-const selectedMonth = ref(today.getMonth() + 1);
-const month = computed(
-  () => `${selectedYear.value}-${String(selectedMonth.value).padStart(2, "0")}`,
-);
-const yearOptions = computed(() => {
-  const currentYear = new Date().getFullYear();
-
-  return Array.from({ length: 11 }, (_, index) => {
-    const year = currentYear - index;
-
-    return {
-      title: new Intl.NumberFormat(locale.value, { useGrouping: false }).format(year),
-      value: year,
-    };
-  });
-});
-const monthOptions = computed(() =>
-  Array.from({ length: 12 }, (_, index) => ({
-    title: new Intl.DateTimeFormat(locale.value, { month: "long" }).format(
-      new Date(2020, index, 1),
-    ),
-    value: index + 1,
-  })),
-);
+const currentPeriod = today.toISOString().slice(0, 7);
+const selectedPeriod = ref(currentPeriod);
+const periodDraft = ref(currentPeriod);
+const filterMenuOpen = ref(false);
+const month = computed(() => selectedPeriod.value);
+const hasActivePeriodFilter = computed(() => selectedPeriod.value !== currentPeriod);
 const activeTab = ref<"payslips" | "advances">("payslips");
 const search = ref("");
 const employees = ref<Employee[]>([]);
@@ -116,6 +108,8 @@ const saving = ref(false);
 const generateDialog = ref(false);
 const deleteSalaryDialog = ref(false);
 const selectedSalary = ref<Salary | null>(null);
+const advanceRecoveryDialog = ref(false);
+const advanceRecoveryRow = ref<PayrollRow | null>(null);
 
 const createDialog = ref(false);
 const createForm = ref({
@@ -551,7 +545,7 @@ async function openPayslip(row: PayrollRow) {
     advanceRecovery: Number(salary.advanceRecovery ?? 0),
     reimbursements: [],
   };
-  // The template owns the complete A4 composition, including the letterhead.
+  // The template owns the A4 composition and always uses the company logo.
   await nextTick();
   await payslipRef.value?.print();
 }
@@ -715,6 +709,30 @@ async function toggleAdvanceRecovery(row: PayrollRow) {
   }
 }
 
+// Applying a recovery changes this month's net pay. Keep the API call in the
+// existing toggle function, but make the opt-in an explicit, standard
+// confirmation instead of a one-click menu action.
+function requestAdvanceRecovery(row: PayrollRow) {
+  if (!row.salary)
+    return;
+
+  if (Number(row.salary.advanceRecovery ?? 0) > 0) {
+    void toggleAdvanceRecovery(row);
+    return;
+  }
+
+  advanceRecoveryRow.value = row;
+  advanceRecoveryDialog.value = true;
+}
+
+function confirmAdvanceRecovery(confirmed: boolean) {
+  const row = advanceRecoveryRow.value;
+  advanceRecoveryRow.value = null;
+
+  if (confirmed && row)
+    void toggleAdvanceRecovery(row);
+}
+
 function advanceStatusLabel(status: EmployeeAdvance["status"]) {
   return {
     settled: $t("pages.payrolls.settledAdvance"),
@@ -744,7 +762,7 @@ function formatAdvanceNumber(advanceNumber: string | null | undefined) {
   if (!match)
     return advanceNumber;
 
-  return `ADV-${match[1].slice(-2)}-${match[2].padStart(3, "0")}`;
+  return `ADV-${match[1].slice(-2)}-${String(Number(match[2])).padStart(3, "0")}`;
 }
 
 async function deleteAdvance() {
@@ -806,6 +824,23 @@ function updateMonth() {
   void load();
 }
 
+function applyPeriodFilter() {
+  const changed = selectedPeriod.value !== periodDraft.value;
+  selectedPeriod.value = periodDraft.value;
+  filterMenuOpen.value = false;
+  if (!changed)
+    updateMonth();
+}
+
+function resetPeriodFilter() {
+  periodDraft.value = currentPeriod;
+  const changed = selectedPeriod.value !== currentPeriod;
+  selectedPeriod.value = currentPeriod;
+  filterMenuOpen.value = false;
+  if (!changed)
+    updateMonth();
+}
+
 watch(month, updateMonth);
 onMounted(load);
 </script>
@@ -826,22 +861,10 @@ onMounted(load);
         <VRow align="center">
           <VCol cols="12" md="5"><ErpSearchField v-model="search" :placeholder="$t('pages.payrolls.searchPayslips')" @update:model-value="debouncedRegisterSearch" /></VCol>
           <VCol cols="12" md="7" class="d-flex align-end justify-md-end ga-2 flex-wrap">
-            <VSelect
-              v-model="selectedYear"
-              :items="yearOptions"
-              :label="$t('common.fields.year')"
-              density="compact"
-              hide-details
-              style="max-width: 120px"
-            />
-            <VSelect
-              v-model="selectedMonth"
-              :items="monthOptions"
-              :label="$t('common.fields.month')"
-              density="compact"
-              hide-details
-              style="max-width: 160px"
-            />
+            <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActivePeriodFilter" :show-reset="false">
+              <ErpField v-model="periodDraft" kind="date" :label="$t('pages.payrolls.payPeriod')" :config="{ dateFormat: 'Y-m', altInput: true, altFormat: 'F Y', static: false }" />
+              <template #actions><VBtn variant="tonal" color="primary" @click="resetPeriodFilter">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="applyPeriodFilter">{{ $t('educational.apply') }}</VBtn></template>
+            </DataTableFilterMenu>
             <VBtn
           icon="tabler-printer"
           variant="tonal"
@@ -895,6 +918,7 @@ onMounted(load);
               :items-per-page-options="[10, 25, 50, 100]"
               :loading="loading"
               :skeleton-rows="6"
+              :show-scroll-affordance="false"
               mobile-cards
               mobile-expand-all
               mobile-title-key="name"
@@ -993,7 +1017,7 @@ onMounted(load);
                           prepend-icon="tabler-arrow-back-up"
                           :title="Number(item.salary.advanceRecovery ?? 0) > 0 ? $t('pages.payrolls.removeAdvanceRecovery') : $t('pages.payrolls.applyAdvanceRecovery')"
                           :disabled="Number(item.salary.advanceRecovery ?? 0) > 0 && (item.salary.payments?.length ?? 0) > 0"
-                          @click="toggleAdvanceRecovery(item)"
+                          @click="requestAdvanceRecovery(item)"
                         />
                         <VListItem prepend-icon="tabler-receipt-refund" :title="$t('pages.payrolls.addDeduction')" @click="openDeductions(item.salary!)" />
                         <VListItem prepend-icon="tabler-cash-plus" :title="$t('pages.payrolls.addPayment')" @click="openPayment(item.salary!)" />
@@ -1028,6 +1052,7 @@ onMounted(load);
               :items-per-page-options="[10, 25, 50, 100]"
               :loading="loading"
               :skeleton-rows="6"
+              :show-scroll-affordance="false"
               mobile-cards
               mobile-expand-all
               mobile-title-key="employeeName"
@@ -1094,33 +1119,15 @@ onMounted(load);
                     :aria-label="$t('pages.payrolls.printReceipt')"
                     @click="openAdvanceReceipt(item)"
                   />
-                  <VBtn
-                    icon="tabler-receipt-refund"
-                    size="small"
-                    variant="text"
-                    color="success"
-                    :disabled="item.status === 'settled'"
-                    :title="$t('pages.payrolls.recordRepayment')"
-                    :aria-label="$t('pages.payrolls.recordRepayment')"
-                    @click="openSettle(item)"
-                  />
-                  <VBtn
-                    icon="tabler-pencil"
-                    size="small"
-                    variant="text"
-                    :title="$t('pages.payrolls.editAdvance')"
-                    :aria-label="$t('pages.payrolls.editAdvance')"
-                    @click="openEditAdvance(item)"
-                  />
-                  <VBtn
-                    icon="tabler-trash"
-                    size="small"
-                    variant="text"
-                    color="error"
-                    :title="$t('common.actions.delete')"
-                    :aria-label="$t('common.actions.delete')"
-                    @click="confirmDeleteAdvance(item)"
-                  />
+                  <VMenu location="bottom end" origin="top end">
+                    <template #activator="{ props }"><VBtn v-bind="props" class="payroll-actions-menu" icon="tabler-dots-vertical" size="small" variant="tonal" :aria-label="$t('common.messages.actions')" /></template>
+                    <VList density="compact" min-width="210">
+                      <VListItem prepend-icon="tabler-receipt-refund" base-color="success" :title="$t('pages.payrolls.recordRepayment')" :disabled="item.status === 'settled'" @click="openSettle(item)" />
+                      <VListItem prepend-icon="tabler-pencil" :title="$t('pages.payrolls.editAdvance')" @click="openEditAdvance(item)" />
+                      <VDivider class="my-1" />
+                      <VListItem prepend-icon="tabler-trash" base-color="error" :title="$t('common.actions.delete')" @click="confirmDeleteAdvance(item)" />
+                    </VList>
+                  </VMenu>
                 </div>
               </template>
               <template #no-data><TableEmptyState class="payroll-advances-empty" icon="tabler-cash-off" :title="$t('pages.payrolls.noAdvancesTitle')" :description="$t('pages.payrolls.noAdvances')" /></template>
@@ -1161,19 +1168,36 @@ onMounted(load);
           <VBtn class="payroll-dialog__cancel" @click="generateDialog = false">
             {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn color="primary" :loading="saving" @click="generateMissing">
+          <VBtn class="payroll-dialog__generate" color="primary" variant="flat" :loading="saving" @click="generateMissing">
             {{ $t("pages.payrolls.generate") }}
           </VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
 
+    <ConfirmDialog
+      v-model:is-dialog-visible="advanceRecoveryDialog"
+      tone="warning"
+      icon="tabler-arrow-back-up"
+      :confirmation-question="$t('pages.payrolls.applyAdvanceRecovery')"
+      :confirmation-message="$t('pages.payrolls.advanceRecoveryUpdated')"
+      :confirm-text="$t('pages.payrolls.applyAdvanceRecovery')"
+      :cancel-text="$t('common.actions.cancel')"
+      :confirm-title="$t('pages.payrolls.applyAdvanceRecovery')"
+      :confirm-msg="$t('pages.payrolls.advanceRecoveryUpdated')"
+      :cancel-title="$t('common.actions.cancel')"
+      cancel-msg=""
+      @confirm="confirmAdvanceRecovery"
+    />
+
     <!-- Create one payslip -->
-    <VDialog v-model="createDialog" max-width="600">
-      <VCard :title="$t('pages.payrolls.createPayslip')">
-        <VCardText class="d-flex flex-column ga-4">
-          <VSelect
+    <VDialog v-model="createDialog" max-width="680" :persistent="saving" content-class="payroll-dialog">
+      <VCard class="payroll-dialog__card">
+        <VCardTitle class="payroll-dialog__header d-flex align-center justify-space-between px-5 py-4"><span>{{ $t('pages.payrolls.createPayslip') }}</span><VBtn class="payroll-dialog__close" icon="tabler-x" variant="tonal" size="small" :disabled="saving" @click="createDialog = false" /></VCardTitle>
+        <VCardText class="pa-5"><VRow>
+          <VCol cols="12" sm="6"><ErpField
             v-model="createForm.employee_id"
+            kind="select"
             :items="
               employees.map((employee) => ({
                 title: employee.name,
@@ -1182,29 +1206,29 @@ onMounted(load);
             "
             :label="$t('common.fields.employee')"
             disabled
-          />
-          <VTextField
+          /></VCol>
+          <VCol cols="12" sm="6"><ErpField
             v-model.number="createForm.amountPaid"
             type="number"
             min="0"
             :label="$t('pages.payrolls.baseSalary')"
-          />
-          <VTextField
+          /></VCol>
+          <VCol cols="12" sm="6"><ErpField
             v-model="createForm.date"
-            type="date"
+            kind="date"
             :label="$t('pages.payrolls.paymentDate')"
-          />
-          <VTextField
+            :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
+          /></VCol>
+          <VCol cols="12" sm="6"><ErpField
             v-model="createForm.remarks"
             :label="$t('pages.payrolls.remarks')"
-          />
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="createDialog = false">
+          /></VCol>
+        </VRow></VCardText>
+        <VCardActions class="payroll-dialog__footer px-5 py-4">
+          <VBtn class="payroll-dialog__cancel" :disabled="saving" @click="createDialog = false">
             {{ $t("common.actions.cancel") }}
           </VBtn>
-          <VBtn color="primary" :loading="saving" @click="saveCreate">
+          <VBtn color="primary" variant="flat" :loading="saving" @click="saveCreate">
             {{ $t("common.actions.save") }}
           </VBtn>
         </VCardActions>
@@ -1306,7 +1330,7 @@ onMounted(load);
           <AppDateTimePicker
             v-model="paymentForm.date"
             :label="$t('pages.payrolls.paymentDate')"
-            :config="{ dateFormat: 'Y-m-d' }"
+            :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
           />
           <ErpField
             v-model="paymentForm.remarks"
@@ -1405,37 +1429,41 @@ onMounted(load);
     />
 
     <!-- Advance repayment -->
-    <VDialog v-model="settleDialog" max-width="520">
-      <VCard :title="$t('pages.payrolls.repaymentTitle')">
-        <VCardText class="d-flex flex-column ga-4">
-          <VAlert v-if="selectedAdvance" variant="tonal" color="info">
-            {{ selectedAdvance.advanceNumber }} ·
+    <VDialog v-model="settleDialog" max-width="680" :persistent="saving" content-class="payroll-dialog">
+      <VCard class="payroll-dialog__card">
+        <VCardTitle class="payroll-dialog__header d-flex align-center justify-space-between px-5 py-4"><span>{{ $t('pages.payrolls.repaymentTitle') }}</span><VBtn class="payroll-dialog__close" icon="tabler-x" variant="tonal" size="small" :disabled="saving" @click="settleDialog = false" /></VCardTitle>
+        <VCardText class="pa-5"><VRow>
+          <VCol cols="12" class="pt-0"><VAlert v-if="selectedAdvance" variant="tonal" color="info" class="w-100">
+            {{ formatAdvanceNumber(selectedAdvance.advanceNumber) }} ·
             {{ formatAmount(selectedAdvance.remainingAmount) }}
             {{ $t("pages.payrolls.remainingAdvance") }}
-          </VAlert>
-          <VTextField
+          </VAlert></VCol>
+          <VCol cols="12" sm="6"><ErpField
             v-model.number="settleForm.amount"
             type="number"
             min="0"
             :label="$t('pages.payrolls.amount')"
-          />
-          <VTextField
+          /></VCol>
+          <VCol cols="12" sm="6"><ErpField
             v-model="settleForm.date"
-            type="date"
+            kind="date"
             :label="$t('pages.payrolls.date')"
-          />
-          <VTextField
+            :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }"
+          /></VCol>
+          <VCol cols="12"><ErpField
             v-model="settleForm.remarks"
+            kind="textarea"
+            rows="3"
             :label="$t('pages.payrolls.remarks')"
-          />
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="settleDialog = false">
+          /></VCol>
+        </VRow></VCardText>
+        <VCardActions class="payroll-dialog__footer px-5 py-4">
+          <VBtn class="payroll-dialog__cancel" :disabled="saving" @click="settleDialog = false">
             {{ $t("common.actions.cancel") }}
           </VBtn>
           <VBtn
             color="success"
+            variant="flat"
             :loading="saving"
             :disabled="settleForm.amount <= 0"
             @click="saveSettlement"
@@ -1447,39 +1475,15 @@ onMounted(load);
     </VDialog>
 
     <!-- Edit advance -->
-    <VDialog v-model="editAdvanceDialog" max-width="520">
-      <VCard :title="$t('pages.payrolls.editAdvance')">
-        <VCardText class="d-flex flex-column ga-4">
-          <VTextField
-            v-model.number="editAdvanceForm.amount"
-            type="number"
-            min="0"
-            :label="$t('pages.payrolls.amount')"
-          />
-          <VTextField
-            v-model="editAdvanceForm.date"
-            type="date"
-            :label="$t('pages.payrolls.date')"
-          />
-          <VTextField
-            v-model="editAdvanceForm.remarks"
-            :label="$t('pages.payrolls.remarks')"
-          />
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="editAdvanceDialog = false">
-            {{ $t("common.actions.cancel") }}
-          </VBtn>
-          <VBtn
-            color="primary"
-            :loading="saving"
-            :disabled="editAdvanceForm.amount <= 0"
-            @click="saveAdvanceEdit"
-          >
-            {{ $t("common.actions.save") }}
-          </VBtn>
-        </VCardActions>
+    <VDialog v-model="editAdvanceDialog" max-width="680" :persistent="saving" content-class="payroll-dialog">
+      <VCard class="payroll-dialog__card">
+        <VCardTitle class="payroll-dialog__header d-flex align-center justify-space-between px-5 py-4"><span>{{ $t('pages.payrolls.editAdvance') }}</span><VBtn class="payroll-dialog__close" icon="tabler-x" variant="tonal" size="small" :disabled="saving" :aria-label="$t('common.actions.close')" @click="editAdvanceDialog = false" /></VCardTitle>
+        <VCardText class="pa-5"><VRow>
+          <VCol cols="12" sm="6"><ErpField v-model.number="editAdvanceForm.amount" type="number" min="0" :label="$t('pages.payrolls.amount')" :placeholder="$t('pages.payrolls.amount')" /></VCol>
+          <VCol cols="12" sm="6"><ErpField v-model="editAdvanceForm.date" kind="date" :label="$t('pages.payrolls.date')" :placeholder="$t('pages.payrolls.date')" :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockDialogCalendar }" /></VCol>
+          <VCol cols="12"><ErpField v-model="editAdvanceForm.remarks" kind="textarea" rows="3" :label="$t('pages.payrolls.remarks')" :placeholder="$t('pages.payrolls.remarks')" /></VCol>
+        </VRow></VCardText>
+        <VCardActions class="payroll-dialog__footer justify-end px-5 py-4"><VBtn class="payroll-dialog__cancel" :disabled="saving" @click="editAdvanceDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn class="payroll-dialog__generate" :loading="saving" :disabled="editAdvanceForm.amount <= 0" @click="saveAdvanceEdit">{{ $t('common.actions.save') }}</VBtn></VCardActions>
       </VCard>
     </VDialog>
 
@@ -1509,28 +1513,45 @@ onMounted(load);
 }
 .payrolls-screen :deep(.v-data-table__thead > tr > th) { background: rgba(var(--v-theme-on-surface), 0.045) !important; }
 .payrolls-screen :deep(.v-data-table__tbody > tr:hover > td) { background: rgba(var(--v-theme-on-surface), 0.035) !important; }
-.payrolls-screen :deep(.v-data-table__tbody > tr) { border-block-end: 7px solid transparent; background-clip: padding-box; }
-.payroll-payslips-table :deep(.v-table__wrapper) { overflow-x: auto; scrollbar-width: none; }
+.payrolls-screen :deep(.v-data-table__tbody > tr) { background-clip: padding-box; border-block-end: 2px solid transparent; }
+.payroll-payslips-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
 .payroll-payslips-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
-.payroll-payslips-table :deep(.v-table__wrapper > table) { min-inline-size: 104rem; }
-.payroll-payslips-table :deep(th), .payroll-payslips-table :deep(td) { min-inline-size: 8.5rem; padding: 1rem 1.15rem !important; white-space: nowrap; }
-.payroll-payslips-table :deep(th:first-child), .payroll-payslips-table :deep(td:first-child) { min-inline-size: 17rem; }
-.payroll-payslips-table :deep(th:nth-child(2)), .payroll-payslips-table :deep(td:nth-child(2)) { min-inline-size: 14rem; }
-.payroll-payslips-table :deep(th:last-child), .payroll-payslips-table :deep(td:last-child) { min-inline-size: 5.5rem; }
+.payroll-payslips-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 104rem; table-layout: auto !important; }
+
+.payroll-payslips-table :deep(th),
+.payroll-payslips-table :deep(td) { min-inline-size: 8.5rem; padding-block: .65rem !important; padding-inline: 1.15rem !important; white-space: nowrap; }
+
+.payroll-payslips-table :deep(th:first-child),
+.payroll-payslips-table :deep(td:first-child) { min-inline-size: 17rem; }
+
+.payroll-payslips-table :deep(th:nth-child(2)),
+.payroll-payslips-table :deep(td:nth-child(2)) { min-inline-size: 14rem; }
+
+.payroll-payslips-table :deep(th:nth-child(3)),
+.payroll-payslips-table :deep(td:nth-child(3)) { min-inline-size: 12rem; }
+
+.payroll-payslips-table :deep(th:last-child),
+.payroll-payslips-table :deep(td:last-child) { min-inline-size: 5.5rem; }
 .payroll-progress-icon :deep(.v-icon) { color: rgb(var(--v-theme-info)) !important; opacity: 1 !important; }
 .payroll-legacy-position { display: none; }
 .payroll-advances-table :deep(.v-table__wrapper > table) { min-inline-size: 58rem; }
-.payroll-actions-menu { background: rgba(var(--v-theme-on-surface), .07) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
-.payroll-actions-menu:hover { background: rgba(var(--v-theme-on-surface), .12) !important; }
+.payroll-actions-menu { background: rgba(var(--v-theme-on-surface), 0.07) !important; color: rgba(var(--v-theme-on-surface), 0.72) !important; }
+.payroll-actions-menu:hover { background: rgba(var(--v-theme-on-surface), 0.12) !important; }
 .payroll-advances-empty :deep(.table-empty-state__icon) { background: transparent; color: rgb(var(--v-theme-primary)); }
 .payroll-dialog__card { overflow: hidden; }
 
 .payroll-dialog__header,
- .payroll-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.payroll-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
 .payroll-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), 0.5); }
+.payroll-dialog__close { background: rgba(var(--v-theme-error), 0.13) !important; color: rgb(var(--v-theme-error)) !important; }
+.payroll-dialog__close:hover:not(:disabled) { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 .payroll-dialog__footer { display: flex; justify-content: flex-start; border-block-start: 1px solid rgba(var(--v-border-color), 0.5); gap: 0.75rem; }
 .payroll-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), 0.5) !important; background: rgba(var(--v-theme-secondary), 0.13) !important; color: rgb(var(--v-theme-secondary)) !important; }
 .payroll-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.payroll-dialog__generate { background: rgb(var(--v-theme-primary)) !important; box-shadow: 0 5px 14px rgba(var(--v-theme-primary), 0.24); color: rgb(var(--v-theme-on-primary)) !important; }
+
+.payroll-dialog__generate :deep(.v-btn__content),
+.payroll-dialog__generate :deep(.v-icon) { color: rgb(var(--v-theme-on-primary)) !important; }
 .payroll-confirmation { display: flex; flex-direction: column; align-items: center; }
 .payroll-payslip-print-host { position: fixed; overflow: hidden; inset: 0; pointer-events: none; visibility: hidden; }
 .payroll-advance-print-host { display: none; }
@@ -1551,4 +1572,49 @@ onMounted(load);
   max-block-size: 88vh;
 }
 
+</style>
+
+<!-- The child table needs global selectors for reliable desktop sizing. -->
+<style>
+.payroll-payslips-table .v-table__wrapper,
+.payroll-advances-table .v-table__wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.payroll-payslips-table .v-table__wrapper::-webkit-scrollbar,
+.payroll-advances-table .v-table__wrapper::-webkit-scrollbar { display: none; }
+.payroll-payslips-table .v-table__wrapper > table {
+  inline-size: max-content !important;
+  min-inline-size: 104rem !important;
+  table-layout: auto !important;
+}
+.payroll-payslips-table .v-table__wrapper > table > thead > tr > th,
+.payroll-payslips-table .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 8.5rem !important;
+  padding: .65rem 1.15rem !important;
+  white-space: nowrap !important;
+}
+.payroll-payslips-table .v-table__wrapper > table > thead > tr > :first-child,
+.payroll-payslips-table .v-table__wrapper > table > tbody > tr > :first-child { min-inline-size: 17rem !important; }
+.payroll-payslips-table .v-table__wrapper > table > thead > tr > :nth-child(2),
+.payroll-payslips-table .v-table__wrapper > table > tbody > tr > :nth-child(2) { min-inline-size: 14rem !important; }
+.payroll-payslips-table .v-table__wrapper > table > thead > tr > :nth-child(3),
+.payroll-payslips-table .v-table__wrapper > table > tbody > tr > :nth-child(3) { min-inline-size: 12rem !important; }
+.payroll-payslips-table .v-table__wrapper > table > thead > tr > :last-child,
+.payroll-payslips-table .v-table__wrapper > table > tbody > tr > :last-child { min-inline-size: 5.5rem !important; }
+.payroll-advances-table .v-table__wrapper > table {
+  inline-size: max(100%, 58rem) !important;
+  min-inline-size: 58rem !important;
+  table-layout: auto !important;
+}
+.payroll-advances-table .v-table__wrapper > table > thead > tr > th,
+.payroll-advances-table .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 9rem !important;
+  white-space: nowrap !important;
+}
+.payroll-advances-table .v-table__wrapper > table > thead > tr > :nth-child(2),
+.payroll-advances-table .v-table__wrapper > table > tbody > tr > :nth-child(2) { min-inline-size: 14rem !important; }
+.payroll-advances-table .v-table__wrapper > table > thead > tr > :last-child,
+.payroll-advances-table .v-table__wrapper > table > tbody > tr > :last-child { min-inline-size: 7rem !important; }
 </style>

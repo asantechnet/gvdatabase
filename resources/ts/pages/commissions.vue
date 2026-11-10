@@ -50,6 +50,7 @@ const selectedAccrualIds = ref<number[]>([]);
 const paymentDate = ref(new Date().toISOString().slice(0, 10));
 const slipDialog = ref(false);
 const printSettlementId = ref<number | null>(null);
+const directPrintSlip = ref(false);
 
 const form = ref({
   employee_id: null as number | null,
@@ -94,7 +95,18 @@ const pendingCurrencies = computed(() => {
 });
 
 const summaryCards = computed(() =>
-  summary.value.filter((row) => row.status !== "void"),
+  (["pending", "approved", "paid"] as const).map((status, index) =>
+    summary.value.find((row) => row.status === status) ?? {
+      base_currency_id: -(index + 1),
+      currency: { id: 0, code: "", symbol: "", decimal_places: 2 },
+      status,
+      count: 0,
+      amount: 0,
+    },
+  ),
+);
+const totalAccrualCount = computed(() =>
+  summaryCards.value.reduce((total, row) => total + row.count, 0),
 );
 
 const settlementCandidates = computed(() =>
@@ -219,6 +231,13 @@ const serviceLabel = (service: string | null) =>
         `educational.builtInServices.${service === "test_offer" ? "testOffer" : service}`,
       )
     : "—";
+
+const formatSettlementNumber = (number: string) => {
+  const match = number.match(/^COM-(\d{4})-(\d+)$/i);
+  if (!match) return number;
+
+  return `COM-${match[1].slice(-2)}-${match[2].slice(-3).padStart(3, "0")}`;
+};
 
 const load = async () => {
   loading.value = true;
@@ -370,8 +389,9 @@ const approve = async (row: CommissionSettlement) => {
   }
 };
 
-const openSlip = (row: CommissionSettlement) => {
+const printSlip = (row: CommissionSettlement) => {
   printSettlementId.value = row.id;
+  directPrintSlip.value = true;
   slipDialog.value = true;
 };
 
@@ -410,37 +430,37 @@ onMounted(load);
   <div class="erp-workspace">
     <ErpPageHeader :title="tr('title')" section="finance" class="mb-5" />
 
-    <VRow class="mb-3">
-      <VCol
+    <div class="commission-kpis mb-5">
+      <VCard
         v-for="row in summaryCards"
         :key="`${row.base_currency_id}-${row.status}`"
-        cols="12"
-        sm="6"
-        lg="3"
+        class="commission-kpi"
+        border
+        variant="flat"
       >
-        <VCard>
-          <VCardText>
-            <div class="d-flex align-center justify-space-between mb-2">
-              <span class="text-capitalize text-medium-emphasis">{{
+        <VCard class="pa-4" variant="flat">
+          <div class="d-flex align-center justify-space-between">
+            <div>
+              <span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">{{
                 statusLabel(row.status)
               }}</span>
-              <VChip :color="statusColor(row.status)" size="small">
-                {{ tr("accrualCount", { count: row.count }) }}
-              </VChip>
+              <h3 class="text-h4 font-weight-bold mt-1">{{ money(row.amount, row.currency) }}</h3>
+              <span class="text-caption text-medium-emphasis">{{ tr("accrualCount", { count: row.count }) }}</span>
             </div>
-            <div class="text-h5 font-weight-bold">
-              {{ money(row.amount, row.currency) }}
-            </div>
-          </VCardText>
+            <VAvatar :color="statusColor(row.status)" variant="tonal" size="48" rounded="lg"><VIcon icon="tabler-coin" size="24" /></VAvatar>
+          </div>
         </VCard>
-      </VCol>
-    </VRow>
+      </VCard>
+      <VCard class="commission-kpi" border variant="flat">
+        <VCard class="pa-4" variant="flat"><div class="d-flex align-center justify-space-between"><div><span class="text-caption text-uppercase text-medium-emphasis font-weight-medium">{{ tr('accruals') }}</span><h3 class="text-h4 font-weight-bold mt-1">{{ totalAccrualCount }}</h3><span class="text-caption text-medium-emphasis">{{ tr('accrualCount', { count: totalAccrualCount }) }}</span></div><VAvatar color="primary" variant="tonal" size="48" rounded="lg"><VIcon icon="tabler-list-check" size="24" /></VAvatar></div></VCard>
+      </VCard>
+    </div>
 
     <VCard>
       <VCardText>
         <VRow align="center" class="ga-y-3">
           <VCol cols="12" md="5"><ErpSearchField v-model="search" :placeholder="$t('common.actions.search')" :disabled="loading" /></VCol>
-          <VCol cols="12" md="7" class="d-flex flex-wrap align-center justify-md-end ga-2">
+          <VCol cols="12" md="7" class="commission-toolbar-actions d-flex flex-wrap align-center justify-md-end ga-2">
             <DataTableFilterMenu :active="Boolean(employeeFilter || statusFilter || startDateFilter || endDateFilter)" @reset="resetFilters">
               <ErpField v-model="employeeFilter" kind="select" :items="commissionEmployees" item-title="name" item-value="id" :label="tr('employee')" :placeholder="tr('employee')" clearable />
               <ErpField v-model="statusFilter" kind="select" :items="(activeTab === 'accruals' ? ['pending', 'approved', 'paid', 'void'] : ['draft', 'approved', 'paid', 'cancelled']).map(value => ({ title: statusLabel(value), value }))" :label="tr('settlementStatus')" :placeholder="tr('settlementStatus')" clearable />
@@ -466,18 +486,13 @@ onMounted(load);
             pagination
             :skeleton-rows="5"
             class="commission-table"
+            :show-scroll-affordance="false"
             mobile-cards
-            mobile-title-key="employee"
+            mobile-title-key="contract_number"
+            :mobile-fields="['employee', 'commission_base_amount', 'status']"
             :sticky-first-column="false"
             :sticky-last-column="false"
             :sticky-key-column="false"
-            :mobile-fields="[
-              'earned_at',
-              'entry_type',
-              'employee',
-              'commission_base_amount',
-              'status',
-            ]"
             :headers="[
               {
                 title: t('common.crmUi.commissionHeaders.date'),
@@ -486,6 +501,10 @@ onMounted(load);
               {
                 title: t('common.crmUi.commissionHeaders.type'),
                 key: 'entry_type',
+              },
+              {
+                title: $t('common.messages.details'),
+                key: 'details',
               },
               {
                 title: t('common.crmUi.commissionHeaders.employee'),
@@ -537,13 +556,8 @@ onMounted(load);
                     : tr("entryTypes.adjustment")
                 }}
               </VChip>
-              <div
-                v-if="item.adjustment_reason"
-                class="text-caption text-medium-emphasis"
-              >
-                {{ item.adjustment_reason }}
-              </div>
             </template>
+            <template #item.details="{ item }">{{ item.adjustment_reason || '—' }}</template>
             <template #item.contract_number="{ item }">{{
               item.contract_number ?? "—"
             }}</template>
@@ -602,15 +616,16 @@ onMounted(load);
             pagination
             :skeleton-rows="5"
             class="commission-table"
+            :show-scroll-affordance="false"
             mobile-cards
             mobile-title-key="settlement_number"
             mobile-action-key="actions"
+            :mobile-fields="['employee', 'gross_base_amount', 'status']"
             mobile-actions-as-menu
             :sticky-first-column="false"
             :sticky-last-column="false"
             :sticky-key-column="false"
             :sticky-action-column="false"
-            :mobile-fields="['employee', 'period', 'gross_base_amount', 'status']"
             :headers="[
               {
                 title: t('common.crmUi.commissionHeaders.settlement'),
@@ -657,6 +672,7 @@ onMounted(load);
             <template #item.period="{ item }"
               >{{ item.period_start }} — {{ item.period_end }}</template
             >
+            <template #item.settlement_number="{ item }"><strong>{{ formatSettlementNumber(item.settlement_number) }}</strong></template>
             <template #item.gross_base_amount="{ item }"
               ><strong>{{
                 money(item.gross_base_amount, item.base_currency)
@@ -677,7 +693,7 @@ onMounted(load);
               <VMenu location="bottom end" content-class="commission-actions-menu">
                 <template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="text" size="small" class="commission-action-trigger" :aria-label="$t('common.messages.actions')"><VIcon icon="tabler-dots-vertical" /></VBtn></template>
                 <VList density="compact" min-width="190" class="commission-actions-menu__list">
-                  <VListItem prepend-icon="tabler-printer" @click="openSlip(item)">{{ tr("printSlip") }}</VListItem>
+                  <VListItem prepend-icon="tabler-printer" @click="printSlip(item)">{{ tr("printSlip") }}</VListItem>
                   <VListItem v-if="item.status === 'draft' && canAccess('approve_commissions')" color="primary" prepend-icon="tabler-check" @click="approve(item)">{{ tr("approve") }}</VListItem>
                   <VListItem v-if="(item.status === 'approved' || (isSuperAdmin && item.status === 'draft')) && canAccess('pay_commissions')" color="success" prepend-icon="tabler-cash" @click="openPayment(item)">{{ tr("pay") }}</VListItem>
                   <VListItem v-if="['draft', 'approved'].includes(item.status) && canAccess('manage_commission_settlements')" color="error" prepend-icon="tabler-x" @click="cancel(item)">{{ tr("cancel") }}</VListItem>
@@ -777,6 +793,7 @@ onMounted(load);
                 :loading="loadingSettlementAccruals"
                 :skeleton-rows="4"
                 class="commission-selection-table"
+                :show-scroll-affordance="false"
                 :headers="[
                   {
                     title: t('common.crmUi.commissionHeaders.date'),
@@ -797,9 +814,6 @@ onMounted(load);
                 ]"
                 item-value="id"
                 show-select
-                mobile-cards
-                mobile-title-key="contract_number"
-                :mobile-fields="['earned_at', 'service', 'commission_base_amount']"
                 density="compact"
               >
                 <template #loading><span /></template>
@@ -941,12 +955,18 @@ onMounted(load);
     <CommissionSlipPrinter
       v-model="slipDialog"
       :settlement-id="printSettlementId"
+      :direct-print="directPrintSlip"
     />
   </div>
 </template>
 
 <style scoped>
 .commission-tabs :deep(.v-slide-group__content) { flex-wrap: wrap; }
+.commission-kpis { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(220px, 1fr)); }
+.commission-kpis::-webkit-scrollbar { display: none; }
+.commission-kpi { min-inline-size: 0; border-radius: 12px !important; }
+.commission-kpi > .v-card { box-shadow: none !important; }
+.commission-kpi :deep(.text-h4) { font-size: 1.15rem !important; line-height: 1.3; }
 .commission-table :deep(thead th),
 .commission-selection-table :deep(thead th) {
   height: 48px !important;
@@ -959,6 +979,26 @@ onMounted(load);
 }
 .commission-table :deep(tbody td) { min-block-size: 66px; }
 .commission-table :deep(tbody td:last-child) { background: rgba(var(--v-theme-on-surface), .035); }
+.commission-table :deep(.v-table__wrapper), .commission-table :deep(.v-data-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
+.commission-table :deep(.v-table__wrapper::-webkit-scrollbar), .commission-table :deep(.v-data-table__wrapper::-webkit-scrollbar) { display: none; }
+.commission-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 100% !important; table-layout: auto !important; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > th), .commission-table :deep(.v-table__wrapper > table > tbody > tr > td) { inline-size: max-content; min-inline-size: max-content !important; white-space: nowrap !important; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(1)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(1)) { min-inline-size: 9rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(2)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(2)) { min-inline-size: 11rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(3)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(3)) { min-inline-size: 17rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(4)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(4)) { min-inline-size: 14rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(5)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(5)) { min-inline-size: 13rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(6)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(6)) { min-inline-size: 17rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(7)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(7)) { min-inline-size: 12rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(8)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(8)) { min-inline-size: 13rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(9)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(9)) { min-inline-size: 8rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(10)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(10)) { min-inline-size: 14rem; }
+.commission-table :deep(.v-table__wrapper > table > thead > tr > :nth-child(11)), .commission-table :deep(.v-table__wrapper > table > tbody > tr > :nth-child(11)) { min-inline-size: 10rem; }
+.commission-selection-table :deep(.v-table__wrapper) { scrollbar-width: none; }
+.commission-selection-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+.commission-selection-table :deep(table) { min-inline-size: 42rem; }
+.commission-selection-table :deep(thead th), .commission-selection-table :deep(tbody td) { white-space: nowrap; }
+.commission-toolbar-actions :deep(.v-btn) { min-block-size: 38px; padding-inline: .85rem; font-size: .88rem; }
 .commission-dialog { overflow: hidden; }
 .commission-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-block-end: 1px solid rgba(var(--v-theme-on-surface), .07); }
 .commission-dialog__footer { padding: 1rem 1.5rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); border-block-start: 1px solid rgba(var(--v-theme-on-surface), .07); }
@@ -972,7 +1012,41 @@ onMounted(load);
 :global(.commission-actions-menu .v-list-item) { min-block-size: 2.65rem; }
 :global(.commission-action-trigger) { background: rgba(var(--v-theme-on-surface), .07) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
 :global(.commission-action-trigger:hover) { background: rgba(var(--v-theme-on-surface), .13) !important; }
+@media (max-width: 959px) {
+  .commission-kpis { display: flex; overflow-x: auto; padding-block-end: .25rem; scrollbar-width: none; }
+  .commission-kpi { flex: 0 0 17rem; }
+}
 @media (max-width: 600px) {
   .commission-dialog__header, .commission-dialog__footer { padding-inline: 1rem; }
 }
+</style>
+
+<!-- Keep these table rules global: ResponsiveDataTable renders Vuetify's table
+ through a render function, as do the CRM visitor/follow-up tables. -->
+<style>
+.commission-table .v-table__wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.commission-table .v-table__wrapper::-webkit-scrollbar { display: none; }
+.commission-table .v-table__wrapper > table {
+  inline-size: max-content !important;
+  min-inline-size: 96rem !important;
+  table-layout: auto !important;
+}
+.commission-table .v-table__wrapper > table > thead > tr > th,
+.commission-table .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 12rem !important;
+  padding-inline: 1.15rem !important;
+  white-space: nowrap !important;
+}
+.commission-table .v-table__wrapper > table > thead > tr > :nth-child(1),
+.commission-table .v-table__wrapper > table > tbody > tr > :nth-child(1) { min-inline-size: 14rem !important; }
+.commission-table .v-table__wrapper > table > thead > tr > :nth-child(2),
+.commission-table .v-table__wrapper > table > tbody > tr > :nth-child(2) { min-inline-size: 17rem !important; }
+.commission-table .v-table__wrapper > table > thead > tr > :nth-child(3),
+.commission-table .v-table__wrapper > table > tbody > tr > :nth-child(3) { min-inline-size: 21rem !important; }
+.commission-table .v-table__wrapper > table > thead > tr > :nth-child(4),
+.commission-table .v-table__wrapper > table > tbody > tr > :nth-child(4) { min-inline-size: 15rem !important; }
 </style>

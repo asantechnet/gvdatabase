@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { type FinanceType, type FinanceTypeKind, deleteFinanceType, getFinanceTypes, saveFinanceType } from '@/api/financeTypes'
-import { financeTypeLabel } from '@/utils/financeTypes'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
 import { moveCreatedRowFirst } from '@/utils/createdFirst'
+import { financeTypeLabel } from '@/utils/financeTypes'
 
 const props = defineProps<{ kind: FinanceTypeKind }>()
 const { t } = useI18n()
@@ -17,111 +22,35 @@ const dialog = ref(false)
 const editing = ref<FinanceType | null>(null)
 const deleting = ref<FinanceType | null>(null)
 const name = ref('')
+const initialName = ref('')
 const nameError = ref('')
 const canManage = computed(() => canAccess('edit_settings'))
 const title = computed(() => t(props.kind === 'income' ? 'common.navigation.incomeTypes' : 'common.navigation.expenseTypes'))
 const singular = computed(() => t(props.kind === 'income' ? 'pages.finance.types.incomeType' : 'pages.finance.types.expenseType'))
-const headers = computed(() => [
-  { title: t('common.fields.name'), key: 'name' },
-  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
-])
-const filtered = computed(() => records.value.filter(record => financeTypeLabel(record).toLowerCase().includes(search.value.trim().toLowerCase())))
+const filtered = computed(() => { const query = search.value.trim().toLocaleLowerCase(); return !query ? records.value : records.value.filter(record => financeTypeLabel(record).toLocaleLowerCase().includes(query)) })
+const headers = computed(() => [{ title: t('common.fields.name'), key: 'name', minWidth: '260px' }, { title: t('serviceContracts.createdAt'), key: 'created_at', minWidth: '170px' }, { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const, minWidth: '92px' }])
+const isDirty = computed(() => name.value !== initialName.value)
 
-async function load() {
-  loading.value = true
-  try { records.value = await getFinanceTypes(props.kind) }
-  catch (error) { toast.error(apiErrorMessage(error, t('pages.finance.types.loadFailed'))) }
-  finally { loading.value = false }
-}
-
-function open(record: FinanceType | null = null) {
-  editing.value = record
-  name.value = record?.name ?? ''
-  nameError.value = ''
-  dialog.value = true
-}
-
-async function save() {
-  if (saving.value) return
-  nameError.value = ''
-  if (!name.value.trim()) {
-    nameError.value = t('pages.finance.types.nameRequired')
-    return
-  }
-  saving.value = true
-  try {
-    const wasNew = !editing.value
-    const saved = await saveFinanceType(props.kind, name.value.trim(), editing.value?.id)
-    dialog.value = false
-    toast.success(t('pages.finance.types.saved'))
-    await load()
-    if (wasNew)
-      records.value = moveCreatedRowFirst(records.value, saved)
-  }
-  catch (error) {
-    nameError.value = apiFieldErrors(error).name ?? ''
-    toast.error(apiErrorMessage(error, t('pages.finance.types.saveFailed')))
-  }
-  finally { saving.value = false }
-}
-
-async function remove() {
-  if (!deleting.value || saving.value) return
-  saving.value = true
-  try {
-    await deleteFinanceType(props.kind, deleting.value.id)
-    deleting.value = null
-    toast.success(t('pages.finance.types.deleted'))
-    await load()
-  }
-  catch (error) { toast.error(apiErrorMessage(error, t('pages.finance.types.deleteFailed'))) }
-  finally { saving.value = false }
-}
-
+async function load() { loading.value = true; try { records.value = await getFinanceTypes(props.kind) } catch (error) { toast.error(apiErrorMessage(error, t('pages.finance.types.loadFailed'))) } finally { loading.value = false } }
+function open(record: FinanceType | null = null) { editing.value = record; name.value = record?.name ?? ''; initialName.value = name.value; nameError.value = ''; dialog.value = true }
+async function requestClose() { if (isDirty.value && !await confirmActionWarning({ key: 'discard-form-changes', title: t('common.actionWarnings.discardTitle'), message: t('common.actionWarnings.discardMessage'), confirmText: t('common.actionWarnings.discardConfirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-file-alert', tone: 'primary' })) return; dialog.value = false }
+async function save() { if (saving.value) return; nameError.value = ''; if (!name.value.trim()) { nameError.value = t('pages.finance.types.nameRequired'); return }; saving.value = true; try { const wasNew = !editing.value; const saved = await saveFinanceType(props.kind, name.value.trim(), editing.value?.id); dialog.value = false; await load(); if (wasNew) records.value = moveCreatedRowFirst(records.value, saved); toast.success(t('pages.finance.types.saved')) } catch (error) { nameError.value = apiFieldErrors(error).name ?? ''; toast.error(apiErrorMessage(error, t('pages.finance.types.saveFailed'))) } finally { saving.value = false } }
+async function remove() { if (!deleting.value || saving.value) return; saving.value = true; try { await deleteFinanceType(props.kind, deleting.value.id); deleting.value = null; await load(); toast.success(t('pages.finance.types.deleted')) } catch (error) { toast.error(apiErrorMessage(error, t('pages.finance.types.deleteFailed'))) } finally { saving.value = false } }
 onMounted(load)
 </script>
 
 <template>
-  <VCard :title="title" :loading="loading">
-    <VCardText>
-      <p>{{ t('pages.finance.types.description') }}</p>
-      <div class="d-flex flex-wrap ga-4 align-center">
-        <VTextField v-model="search" :label="t('common.actions.search')" prepend-inner-icon="tabler-search" class="data-table-search flex-grow-1" hide-details clearable />
-        <VBtn v-if="canManage" prepend-icon="tabler-plus" @click="open()">
-          {{ t('common.actions.addItem', { item: singular }) }}
-        </VBtn>
-      </div>
-    </VCardText>
-    <ResponsiveDataTable :headers="headers" :items="filtered" :loading="loading" item-value="id">
-      <template #item.name="{ item }">{{ financeTypeLabel(item) }}</template>
-      <template #item.actions="{ item }">
-        <IconBtn v-if="canManage" :aria-label="t('common.actions.editItem', { item: singular })" @click="open(item)"><VIcon icon="tabler-pencil" /></IconBtn>
-        <IconBtn v-if="canManage && !item.is_system" color="error" :aria-label="t('common.actions.deleteItem', { item: singular })" @click="deleting = item"><VIcon icon="tabler-trash" /></IconBtn>
-      </template>
-      <template #no-data>{{ t('common.messages.noMatchingRecords') }}</template>
-    </ResponsiveDataTable>
-  </VCard>
-  <VDialog v-model="dialog" max-width="500" :persistent="saving">
-    <VCard :title="t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: singular })">
-      <VCardText>
-        <VForm @submit.prevent="save">
-          <VTextField v-model="name" :label="t('common.fields.name')" :error-messages="nameError" maxlength="255" autofocus />
-          <div class="d-flex justify-end ga-3 mt-4">
-            <VBtn variant="tonal" :disabled="saving" @click="dialog = false">{{ t('common.actions.cancel') }}</VBtn>
-            <VBtn type="submit" :loading="saving">{{ t('common.actions.save') }}</VBtn>
-          </div>
-        </VForm>
-      </VCardText>
+  <div class="finance-types-workspace">
+    <div class="finance-types-workspace__heading"><VBreadcrumbs :items="[{ title: t('erp.home'), to: { name: 'home' } }, { title: t('common.navigation.options'), disabled: true }, { title: t('common.navigation.finance'), disabled: true }]" density="compact" class="pa-0" /><h1 class="text-h5 font-weight-bold mb-0">{{ title }}</h1></div>
+    <VCard class="finance-types-panel"><VCardText class="finance-types-toolbar pa-4"><VRow align="center" class="ma-0"><VCol cols="12" md="6" lg="5" class="pa-0"><ErpSearchField v-model="search" :placeholder="t('common.actions.search')" /></VCol><VCol cols="12" md="6" lg="7" class="d-flex justify-md-end pa-0 pt-3 pt-md-0"><VBtn v-if="canManage" class="finance-types-add" prepend-icon="tabler-plus" @click="open()">{{ t('common.actions.addItem', { item: singular }) }}</VBtn></VCol></VRow></VCardText>
+      <ResponsiveDataTable :headers="headers" :items="filtered" :loading="loading" :skeleton-rows="6" item-value="id" class="finance-types-table" mobile-cards mobile-expand-all mobile-title-key="name" mobile-action-key="actions" :sticky-key-column="false" :sticky-action-column="false"><template #item.name="{ item }">{{ financeTypeLabel(item) }}</template><template #item.created_at="{ item }">{{ item.created_at ? new Date(item.created_at).toLocaleString() : '—' }}</template><template #item.actions="{ item }"><VMenu v-if="canManage" location="bottom end"><template #activator="{ props: menuProps }"><VBtn v-bind="menuProps" icon="tabler-dots-vertical" size="small" variant="tonal" :aria-label="t('common.messages.actions')" /></template><VList density="compact"><VListItem prepend-icon="tabler-pencil" :title="t('common.actions.edit')" @click="open(item)" /><VListItem v-if="!item.is_system" prepend-icon="tabler-trash" class="finance-types-table__delete" :title="t('common.actions.delete')" @click="deleting = item" /></VList></VMenu></template><template #no-data><div class="finance-types-empty"><TableEmptyState icon="tabler-database-off" :min-height="0" :title="t('$vuetify.noDataText')" :description="search ? t('$vuetify.dataIterator.noResultsText') : title" /></div></template></ResponsiveDataTable>
     </VCard>
-  </VDialog>
-  <VDialog :model-value="Boolean(deleting)" max-width="500" :persistent="saving" @update:model-value="!$event && (deleting = null)">
-    <VCard :title="t('common.actions.deleteItem', { item: singular })">
-      <VCardText>{{ t('pages.finance.types.confirmDelete', { name: deleting?.name }) }}</VCardText>
-      <VCardActions>
-        <VSpacer />
-        <VBtn :disabled="saving" @click="deleting = null">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="error" :loading="saving" @click="remove">{{ t('common.actions.delete') }}</VBtn>
-      </VCardActions>
-    </VCard>
-  </VDialog>
+  </div>
+  <VDialog :model-value="dialog" max-width="640" scrollable content-class="finance-types-editor-overlay" @update:model-value="value => { if (!value) void requestClose() }"><VCard class="finance-types-editor"><VCardTitle class="finance-types-editor__header px-5 py-4"><span>{{ t(editing ? 'common.actions.editItem' : 'common.actions.addItem', { item: singular }) }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="finance-types-editor__close" :disabled="saving" :aria-label="t('common.actions.close')" @click="requestClose" /></VCardTitle><VCardText class="finance-types-editor__body pa-5"><VForm @submit.prevent="save"><ErpField v-model="name" required :label="t('common.fields.name')" :placeholder="t('common.fields.name')" :error-messages="nameError" maxlength="255" autofocus /></VForm></VCardText><VCardActions class="finance-types-editor__footer justify-end px-5 py-4"><VBtn class="finance-types-editor__cancel" :disabled="saving" @click="requestClose">{{ t('common.actions.cancel') }}</VBtn><VBtn class="finance-types-editor__save" :loading="saving" :disabled="!name.trim()" @click="save">{{ t('common.actions.save') }}</VBtn></VCardActions></VCard></VDialog>
+  <VDialog :model-value="Boolean(deleting)" max-width="480" content-class="finance-types-delete-overlay" @update:model-value="value => { if (!value) deleting = null }"><VCard class="finance-types-delete"><VCardText class="finance-types-delete__content"><div class="finance-types-delete__icon"><VIcon icon="tabler-trash" size="30" /></div><h2>{{ t('common.actions.delete') }}</h2><p>{{ t('pages.finance.types.confirmDelete', { name: deleting?.name ?? '' }) }} {{ t('common.confirmations.thisActionCannotBeUndone') }}</p></VCardText><VCardActions class="finance-types-delete__actions"><VBtn class="finance-types-editor__cancel" :disabled="saving" @click="deleting = null">{{ t('common.actions.cancel') }}</VBtn><VBtn class="finance-types-delete__confirm" :loading="saving" @click="remove">{{ t('common.actions.delete') }}</VBtn></VCardActions></VCard></VDialog>
 </template>
+
+<style lang="scss">
+.finance-types-workspace { display: flex; flex-direction: column; gap: .75rem; }.finance-types-workspace__heading { display: flex; flex-direction: column; gap: .15rem; }.finance-types-workspace__heading h1 { line-height: 1.35; }.finance-types-panel { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: .9rem; }.finance-types-toolbar { border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }.finance-types-add, .finance-types-editor__save { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }.finance-types-table .v-table__wrapper > table > thead > tr > th { background: rgba(var(--v-theme-on-surface), .045); font-size: .82rem; font-weight: 700; letter-spacing: .025em; white-space: nowrap; }.finance-types-table .v-table__wrapper > table > tbody > tr > td { white-space: nowrap; }.finance-types-table .v-table__wrapper:has(.finance-types-empty) { overflow-x: hidden; }.finance-types-table .v-table__wrapper > table:has(.finance-types-empty) { min-inline-size: 100%; }.finance-types-table .v-table__wrapper > table:has(.finance-types-empty) > tbody > tr > td { padding: 0 !important; }.finance-types-empty { display: grid; min-block-size: 17rem; place-items: center; }.finance-types-table__delete { color: rgb(var(--v-theme-error)) !important; }
+.finance-types-editor, .finance-types-delete { overflow: hidden; background: rgb(var(--v-theme-surface)); }.finance-types-editor__header, .finance-types-editor__footer { display: flex; align-items: center; border-color: rgba(var(--v-border-color), .52); border-style: solid; border-width: 0; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }.finance-types-editor__header { border-block-end-width: 1px; font-size: 1.2rem; font-weight: 700; }.finance-types-editor__footer { gap: .75rem; border-block-start-width: 1px; }.finance-types-editor__body { background: rgba(var(--v-theme-on-surface), .018); }.finance-types-editor__close { border: 1px solid rgba(var(--v-theme-error), .4) !important; border-radius: 999px !important; }.finance-types-editor__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }.finance-types-delete__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; text-align: center; }.finance-types-delete__content h2 { margin: 0; font-size: 1.2rem; }.finance-types-delete__content p { max-inline-size: 22rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }.finance-types-delete__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); place-items: center; }.finance-types-delete__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }.finance-types-delete__actions .v-btn { min-block-size: 2.85rem; }.finance-types-delete__confirm { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }.v-overlay:has(.finance-types-editor-overlay) .v-overlay__scrim, .v-overlay:has(.finance-types-delete-overlay) .v-overlay__scrim { background: rgba(20, 25, 35, .3) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
+</style>
