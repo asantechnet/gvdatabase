@@ -23,8 +23,9 @@ use Illuminate\Support\Carbon;
  * the point where the office considers the case finished and the contracted
  * services delivered. Every service line of every non-cancelled contract on
  * that case then earns at the employee's per-service rate, converted to the
- * base currency. Academy is the exception: its active contract is the earning
- * trigger because there is no case to complete.
+ * base currency. An employee earns when they are the contract/line seller or
+ * one of the case's responsible employees. Academy is the exception: its active
+ * contract is the earning trigger because there is no case to complete.
  *
  * A case that is anywhere else — still in the pipeline, or closed at one of the
  * exit stages (`cancelled`, `rejected`, `withdrawn`) — earns nothing, and any
@@ -73,6 +74,12 @@ class CommissionService
         $caseEarnedOn = $this->earnedOn($applicant, $earnedAt);
         $eligibleIds = [];
 
+        // Responsibility is assigned to the case, so every responsible employee
+        // earns on every contracted service line, alongside the seller.
+        $responsibleEmployeeIds = $applicant->responsibleEmployees()
+            ->pluck('employees.id')
+            ->all();
+
         foreach ($applicant->contracts as $contract) {
             if (! $this->earnsCommission($contract)) {
                 continue;
@@ -84,7 +91,7 @@ class CommissionService
                 ? $caseEarnedOn
                 : ($contract->start_date?->toDateString() ?? $contract->created_at?->toDateString() ?? now()->toDateString());
 
-            foreach ($this->lineAccruals($contract, $base, $earnedOn, $caseCompleted) as $id) {
+            foreach ($this->lineAccruals($contract, $base, $earnedOn, $caseCompleted, $responsibleEmployeeIds) as $id) {
                 $eligibleIds[] = $id;
             }
         }
@@ -158,17 +165,22 @@ class CommissionService
      * return the ids that are still eligible (the rest are voided by
      * `voidStale`).
      *
+     * @param  list<int>  $responsibleEmployeeIds  Employees attached to the case.
      * @return list<int>
      */
-    private function lineAccruals(Contract $contract, Currency $base, string $earnedOn, bool $caseCompleted): array
+    private function lineAccruals(Contract $contract, Currency $base, string $earnedOn, bool $caseCompleted, array $responsibleEmployeeIds): array
     {
         $eligibleIds = [];
 
         foreach ($contract->applicantContracts as $line) {
+            // Sellers and every responsible employee share the line's
+            // commission. Unique ids prevent a seller who is also responsible
+            // from being paid twice for the same line.
             $employeeIds = array_values(array_unique(array_filter([
                 $contract->employee_id,
                 $contract->sold_by_employee_id,
                 $line->sold_by_employee_id,
+                ...$responsibleEmployeeIds,
             ])));
 
             if ($employeeIds === []) {

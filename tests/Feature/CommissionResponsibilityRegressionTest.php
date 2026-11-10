@@ -2,26 +2,28 @@
 
 namespace Tests\Feature;
 
+use App\Models\Applicant;
+use App\Models\ApplicantContract;
+use App\Models\ApplicantStage;
 use App\Models\CommissionAccrual;
+use App\Models\Contract;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Position;
-use App\Models\Applicant;
-use App\Models\ApplicantContract;
-use App\Models\Contract;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\CommissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
-use Tests\Concerns\CreatesBuiltInContracts;
 use Tests\AcademyTestCase;
+use Tests\Concerns\CreatesBuiltInContracts;
 
 class CommissionResponsibilityRegressionTest extends AcademyTestCase
 {
     use CreatesBuiltInContracts, RefreshDatabase;
 
-    public function test_academy_accrual_is_not_voided_by_a_case_transition_or_assigned_to_responsible_employees(): void
+    public function test_academy_accrual_is_not_voided_by_a_case_transition(): void
     {
         $user = User::factory()->create(['acc_status' => 'active']);
         $user->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
@@ -45,7 +47,7 @@ class CommissionResponsibilityRegressionTest extends AcademyTestCase
         $this->assertSame('earned', $accrual->fresh()->status);
     }
 
-    public function test_responsible_employees_are_never_inserted_as_commission_recipients(): void
+    public function test_responsible_employees_earn_commission_when_commission_based(): void
     {
         $user = User::factory()->create(['acc_status' => 'active']);
         $user->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
@@ -55,6 +57,11 @@ class CommissionResponsibilityRegressionTest extends AcademyTestCase
         $responsible = Employee::factory()->create([
             'status' => 'active',
             'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+            'is_commission_based' => true,
+        ]);
+        $responsible->serviceCommissions()->create([
+            'service' => 'scholarship',
+            'percentage' => 10,
         ]);
         $created = $this->createBuiltInContract('scholarship', [
             'responsible_employee_ids' => [$responsible->id],
@@ -63,8 +70,83 @@ class CommissionResponsibilityRegressionTest extends AcademyTestCase
         $line = ApplicantContract::query()->where('contract_id', $contract->id)->sole();
         $line->update(['sold_by_employee_id' => null]);
         $contract->update(['employee_id' => null, 'sold_by_employee_id' => null]);
-        $completed = \App\Models\ApplicantStage::query()->where('service', 'scholarship')->where('key', 'completed')->firstOrFail();
-        \Illuminate\Support\Facades\DB::table('applicants')->where('id', $created['applicant_id'])->update([
+        $completed = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'completed')->firstOrFail();
+        DB::table('applicants')->where('id', $created['applicant_id'])->update([
+            'current_stage_id' => $completed->id, 'status' => 'closed',
+        ]);
+
+        app(CommissionService::class)->syncForApplicant(Applicant::query()->findOrFail($created['applicant_id']));
+
+        $accrual = CommissionAccrual::query()->where('employee_id', $responsible->id)->sole();
+        $this->assertSame('pending', $accrual->status);
+        $this->assertSame('scholarship', $accrual->service);
+        $this->assertSame(10.0, (float) $accrual->percentage);
+        $this->assertSame(10.0, (float) $accrual->commission_base_amount);
+    }
+
+    public function test_responsible_employee_who_is_also_the_seller_earns_one_accrual(): void
+    {
+        $user = User::factory()->create(['acc_status' => 'active']);
+        $user->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
+        Sanctum::actingAs($user, ['access']);
+
+        Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $employee = Employee::factory()->create([
+            'status' => 'active',
+            'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+            'is_commission_based' => true,
+        ]);
+        $employee->serviceCommissions()->create([
+            'service' => 'scholarship',
+            'percentage' => 10,
+        ]);
+        $created = $this->createBuiltInContract('scholarship', [
+            'responsible_employee_ids' => [$employee->id],
+        ]);
+        $contract = Contract::query()->findOrFail($created['id']);
+        $line = ApplicantContract::query()->where('contract_id', $contract->id)->sole();
+        $contract->update(['employee_id' => $employee->id, 'sold_by_employee_id' => $employee->id]);
+        $line->update(['sold_by_employee_id' => $employee->id]);
+        $completed = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'completed')->firstOrFail();
+        DB::table('applicants')->where('id', $created['applicant_id'])->update([
+            'current_stage_id' => $completed->id, 'status' => 'closed',
+        ]);
+
+        app(CommissionService::class)->syncForApplicant(Applicant::query()->findOrFail($created['applicant_id']));
+
+        $accruals = CommissionAccrual::query()
+            ->where('contract_id', $contract->id)
+            ->where('employee_id', $employee->id)
+            ->get();
+        $this->assertCount(1, $accruals);
+        $this->assertSame(10.0, (float) $accruals->first()->commission_base_amount);
+    }
+
+    public function test_non_commission_based_responsible_employees_do_not_earn(): void
+    {
+        $user = User::factory()->create(['acc_status' => 'active']);
+        $user->roles()->attach(Role::query()->where('name', 'super_admin')->firstOrFail());
+        Sanctum::actingAs($user, ['access']);
+
+        Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $responsible = Employee::factory()->create([
+            'status' => 'active',
+            'position_id' => Position::query()->where('system_key', 'admission')->value('id'),
+            'is_commission_based' => false,
+        ]);
+        $responsible->serviceCommissions()->create([
+            'service' => 'scholarship',
+            'percentage' => 10,
+        ]);
+        $created = $this->createBuiltInContract('scholarship', [
+            'responsible_employee_ids' => [$responsible->id],
+        ]);
+        $contract = Contract::query()->findOrFail($created['id']);
+        $line = ApplicantContract::query()->where('contract_id', $contract->id)->sole();
+        $line->update(['sold_by_employee_id' => null]);
+        $contract->update(['employee_id' => null, 'sold_by_employee_id' => null]);
+        $completed = ApplicantStage::query()->where('service', 'scholarship')->where('key', 'completed')->firstOrFail();
+        DB::table('applicants')->where('id', $created['applicant_id'])->update([
             'current_stage_id' => $completed->id, 'status' => 'closed',
         ]);
 

@@ -1,0 +1,18 @@
+Assignment evidence captured 2026-11-10:
+
+applicant 7 (CC Private Applicant / CTR-26-017):
+  pivot employee ids: [9]
+  singular responsible_employee_id: NULL
+
+applicant 8 (CC Scholarship Applicant / CTR-26-018):
+  pivot employee ids: [9]
+  singular responsible_employee_id: NULL
+
+applicant 9 (CC Test Offer Applicant / CTR-26-019):
+  pivot employee ids: [9]
+  singular responsible_employee_id: NULL
+
+Applications list after the super-admin assignment:
+  #7 CC Private Applicant — Unassigned
+  #8 CC Scholarship Applicant — Unassigned
+  #9 CC Test Offer Applicant — Unassigned

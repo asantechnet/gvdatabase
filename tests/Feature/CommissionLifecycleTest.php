@@ -12,6 +12,7 @@ use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\Position;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -350,6 +351,14 @@ class CommissionLifecycleTest extends TestCase
     public function test_employee_form_persists_commission_flag_and_per_service_rates(): void
     {
         $this->actingSuperAdmin();
+        Setting::create([
+            'academy_enabled' => true,
+            'website_title' => 'Commission Test Company',
+            'phone' => '0000000000',
+            'physical_address' => 'Test address',
+            'short_company_name' => 'Commission Test',
+            'original_company_name' => 'Commission Test Company',
+        ]);
 
         $id = $this->postJson('/api/employees', [
             'name' => 'Commission Person', 'father_name' => 'Father', 'contact' => '0700000000',

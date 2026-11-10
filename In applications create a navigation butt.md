@@ -8,10 +8,9 @@ in academy plans there need to be certificate number and certificate validation 
 
 currency GET requests, filter out the inactive currencies in GET requests. only show all currencies if the request comes from main finance -> currencies page
 
+some kind of hearbeat request (just like the notification heartbeat and the audits heartbeat) would be nice for the current active page. it would be better if we combine the notification hearbeat with this hearbeat and send them in a unified request. so a single hearbeat request checks if there are any changes to the table that the user is viewing (it only envolves main tables. e.g. if user is in commissions page only updates for commissions would be fetched and shown and 1 level of related tables)
 
-
-check if contract extending works for employment contracts and other-contracts
-
+icons are missing. my colleage updated icons but now they are missing (they do not appear for me)
 
 check if HR -> Payrolls works completely.
 
@@ -22,14 +21,16 @@ The most conflicts would exist in HR I suppose.
 
 
 check if 1 hour edit window is working properly by using the playwright cli and acting as a user and interacting with the system
-impersonate a real regular user and check if the one-hour edit window is working fine.
-
-see if the employement contracts are working completely. see if all the action buttons work and everything. they all need to work properly and SANELY.
+sign-in as real regular user and check if the one-hour edit window is working fine.
+there is a 1 hour edit window for employees. all edit actions must be disabled or give error if they are past 1 hour by default. one permission record can override this feature. the override edit window permission or something. check if this feature is correctly in place and is comperhensive and SANE.
 
 see if the bonuses is working completely
 see if automatic bonus is working completely.
 
 see if all cronjobs/schedules are working completely
+
+check if contract extending works for employment contracts and other-contracts
+
 
 see if commissions are working, case commissions and class comissions, accurals and settlements. check if it works end to end. you need to use playwright cli for this task. use your logic reviewer skill and go through the system as three users. sign in as super admin , create teacher employee and admission employee and counselor employee, all as commission-based employees. then sign in as the counselor employee you created. create a private contract, a scholarship contract, a test offer contract, and a academy contract. (select admission employee you created as responsible employee for the contracts). login as the admission employee you created. complete all the cases that are assigned to you and reach them all to completed stage. login as the super admin and create a class and select the teacher employee you created as the teacher. login as the teacher employee you created and reach the class to completed. then login as super admin and find all the commissions for all employees through finance -> commisions. after finding them out you are done. do not take further action and just report to me.
 do not remove your track record in the system I need your footprints to check if the system works correctly or not.
@@ -78,5 +79,65 @@ in applicants page there need to be a way to see the attached services for an ap
 Applicants page already exists
 
 Tasks
-no-one except the creator of a comment have the right to edit a a comment.
-global editability rule need to be in place that only allows editing a comment in a 30m timespan
+no-one except the creator of a comment have the right to edit a comment.
+global editability rule need to be in place that only allows editing a comment in a 30m timespan. after it comment is not editable
+
+
+
+brochure design. based on the feautres of this project. make a stylish brochure design. you need to use playwright cli + pure HTML + CSS + JS for this task. implement this task in /brochure. you can take screenshots from the impresive parts of the system for displaying in brochure. the term brochure may be a bit misleading, what I want is a 10-page-long comperhensive yet abstract and super stylish and visually pleasing demonstration of the system. final result will be printed with browser print feature. paper-size/page-size is A5. ensure each page is fully used and is in its best state. use retro-art lightly and use stylish designs to perfectly display the system's capabilities. use text but do not use it too much. a short up to 300 character description is good to use for each segment. the core feautres of the system is as follows:
+Feautre-Set (it is not up-to-date with latest features):
+
+Applicants:
+
+	Case work, Staging, Portal, Document Gathering, Taskification
+	Applicant Portal + Sign-in + Progress Demonstration
+
+HRM:
+	Salary Management
+	Attendance Management
+	Automatic attendance tracking (GEO-fencing)
+	Day-to-Day Reporting (Employee Reporting)
+	Leave day Management
+	Two payment tracking mechanisms, salary and comission
+
+CRM
+	Full Visitor, Lead, Customer pipelines
+	Conversation Tracking, Noting and Confidence tracking
+	Marketer Role with Comissions Management per Customer
+
+Contract Management
+
+	Contract Templates
+	Default + Customizable Cover page, Letterhead
+	Policy Management
+	
+Finance
+	Invoicing
+	Income/Expense tracking
+	Assets Management
+	Outsourcing
+
+Project Management
+	Task Managemnt, 3 Full pages to view tasks from different angles
+	Automatic Progress Tracking per Sub-Task Completion
+
+System
+	Support Section and Ticketing
+	Automatic Bonus Tracking - Task-based + Case-based
+	Recurring Events tracking
+	Notification System
+	Established Auditing System
+	Comperehensive RBAC and permission management
+	Pending Transactions (for value that is yet to be determined its fate)
+	Reporting System (in-page report printing + global reporting for finance, HRM and CRM)
+	Overall dashboard + Educational-Specific Dashboard
+	Office Management
+	Emailing
+	Dark/Light Theme
+	Dari/Pashto/English languages
+	
+Settings
+	Comperhensive Customization Accessability
+	User,Permission,Role Management with OTP and smooth onboarding
+	
+Et Cetera
