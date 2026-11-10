@@ -11,40 +11,30 @@ type ContractDocsSection = 'templates' | 'policies'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-
 const canViewTemplates = computed(() => canAccess('view_contract_templates'))
 const canViewPolicies = computed(() => canAccess('view_contract_policies'))
-
 const availableSections = computed<ContractDocsSection[]>(() => [
   ...(canViewTemplates.value ? ['templates' as const] : []),
   ...(canViewPolicies.value ? ['policies' as const] : []),
 ])
-
 const labels = computed<Record<ContractDocsSection, string>>(() => ({
   templates: t('pages.settings.policies.policies.contractTemplates'),
   policies: t('pages.settings.policies.policies.policyLibrary.title'),
 }))
+const breadcrumbs = computed(() => [
+  { title: t('erp.home'), to: { name: 'home' } },
+  { title: t('common.navigation.options'), disabled: true },
+  { title: t('common.navigation.contract'), disabled: true },
+])
 
-// A single page with in-page navigation (same pattern as educational-master-data).
-// The active tab stays in `?tab=` so each section remains deep-linkable and
-// old bookmarks keep working through the legacy route redirects.
 const section = ref<ContractDocsSection>('templates')
-const templatesView = ref<InstanceType<typeof ContractTemplatesView> | null>(null)
-const policiesView = ref<InstanceType<typeof PolicyLibraryView> | null>(null)
-
-const openEditor = () => {
-  if (section.value === 'templates') templatesView.value?.openEditor()
-  else policiesView.value?.openEditor()
-}
 
 function sectionFromQuery(): ContractDocsSection {
   const tab = String(route.query.tab ?? '')
-
   if (tab === 'policies' && canViewPolicies.value)
     return 'policies'
   if (tab === 'templates' && canViewTemplates.value)
     return 'templates'
-
   return availableSections.value[0] ?? 'templates'
 }
 
@@ -52,13 +42,11 @@ watch(section, value => {
   if (route.query.tab !== value)
     router.replace({ query: { ...route.query, tab: value } })
 })
-
 watch(() => route.query.tab, () => {
   const next = sectionFromQuery()
   if (next !== section.value)
     section.value = next
 })
-
 onMounted(() => {
   section.value = sectionFromQuery()
   if (route.query.tab !== section.value)
@@ -68,44 +56,31 @@ onMounted(() => {
 
 <template>
   <div class="contract-docs">
+    <VBreadcrumbs :items="breadcrumbs" density="compact" class="pa-0 mb-1" />
+    <h1 class="contract-docs__title text-h5 font-weight-bold mb-0">{{ t('common.navigation.contractDocuments') }}</h1>
     <VCard class="contract-docs__workspace">
-      <VCardItem>
-      <VCardTitle>
-        {{ t('common.navigation.contractDocuments') }} — {{ labels[section] }}
-      </VCardTitle>
-        <template #append><VBtn color="secondary" prepend-icon="tabler-plus" @click="openEditor">{{ t('common.actions.add') }}</VBtn></template>
-      </VCardItem>
-      <VCardText class="contract-docs__tabs-body pb-0">
-        <VTabs
-          v-model="section"
-          show-arrows
-        >
-          <VTab
-            v-for="key in availableSections"
-            :key="key"
-            :value="key"
-          >
-            {{ labels[key] }}
-          </VTab>
-        </VTabs>
-      </VCardText>
-    <VWindow
-      v-model="section"
-      class="contract-docs__window"
-    >
-      <VWindowItem
-        v-if="canViewTemplates"
-        value="templates"
-      >
-        <ContractTemplatesView ref="templatesView" embedded />
-      </VWindowItem>
-      <VWindowItem
-        v-if="canViewPolicies"
-        value="policies"
-      >
-        <PolicyLibraryView ref="policiesView" embedded />
-      </VWindowItem>
-    </VWindow>
+      <VWindow v-model="section" class="contract-docs__window">
+        <VWindowItem v-if="canViewTemplates" value="templates">
+          <ContractTemplatesView embedded>
+            <template #tabs>
+              <VTabs v-model="section" show-arrows class="contract-docs__tabs px-4">
+                <VTab v-for="key in availableSections" :key="key" :value="key">{{ labels[key] }}</VTab>
+              </VTabs>
+              <VDivider />
+            </template>
+          </ContractTemplatesView>
+        </VWindowItem>
+        <VWindowItem v-if="canViewPolicies" value="policies">
+          <PolicyLibraryView embedded>
+            <template #tabs>
+              <VTabs v-model="section" show-arrows class="contract-docs__tabs px-4">
+                <VTab v-for="key in availableSections" :key="key" :value="key">{{ labels[key] }}</VTab>
+              </VTabs>
+              <VDivider />
+            </template>
+          </PolicyLibraryView>
+        </VWindowItem>
+      </VWindow>
     </VCard>
   </div>
 </template>
@@ -114,20 +89,11 @@ onMounted(() => {
 .contract-docs {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: .15rem;
 
-  &__workspace {
-    overflow: hidden;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 0.9rem;
-  }
-
-  &__tabs-body {
-    padding-block-start: 0;
-  }
-
-  &__window {
-    overflow: visible;
-  }
+  &__title { line-height: 1.35; margin-block-end: .6rem !important; }
+  &__workspace { overflow: hidden; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: .9rem; }
+  &__tabs { background: transparent !important; box-shadow: none !important; }
+  &__window { overflow: visible; }
 }
 </style>

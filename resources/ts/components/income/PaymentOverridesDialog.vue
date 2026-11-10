@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'vue-toastification'
 import SearchableApplicantSelect from './SearchableApplicantSelect.vue'
+import ErpField from '@/components/erp/ErpField.vue'
 import { getApplicantContractPayments, setContractPaymentOverride, type ApplicantContractPaymentOption, type ContractPaymentOverrideData } from '@/api/incomes'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
@@ -111,27 +112,34 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <VDialog :model-value="modelValue" max-width="600" :persistent="saving" @update:model-value="emit('update:modelValue', $event)">
-    <VCard :title="t('finance.paymentOverrides.title')">
-      <VCardText>
+  <VDialog :model-value="modelValue" max-width="600" :persistent="saving" class="income-support-overlay" content-class="income-support-dialog" @update:model-value="emit('update:modelValue', $event)">
+    <VCard class="income-support-dialog__card">
+      <VCardTitle class="income-support-dialog__header">
+        <div class="d-flex align-center ga-3">
+          <VAvatar color="primary" variant="tonal" size="38"><VIcon icon="tabler-settings" /></VAvatar>
+          <span class="text-h5 font-weight-bold">{{ t('finance.paymentOverrides.title') }}</span>
+        </div>
+        <VBtn icon size="small" class="income-support-dialog__close" :disabled="saving" :aria-label="t('common.actions.close')" @click="emit('update:modelValue', false)"><VIcon icon="tabler-x" /></VBtn>
+      </VCardTitle>
+      <VCardText class="pt-5">
         <VAlert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</VAlert>
         <VAlert type="warning" variant="tonal" class="mb-4">{{ t('finance.paymentOverrides.warning') }}</VAlert>
         <SearchableApplicantSelect v-model="applicantId" :active="modelValue" :disabled="saving" class="mb-4" />
-        <VSelect v-model="lineId" :items="lineOptions" :label="t('finance.paymentOverrides.service')" :loading="loadingLines" :disabled="!applicantId || saving || loadingLines" />
+        <ErpField v-model="lineId" kind="select" :items="lineOptions" :label="t('finance.paymentOverrides.service')" :placeholder="t('finance.paymentOverrides.service')" :loading="loadingLines" :disabled="!applicantId || saving || loadingLines" />
         <template v-if="line">
           <dl class="payment-override-totals mt-4">
             <dt>{{ t('finance.paymentOverrides.recorded') }}</dt><dd>{{ line.recorded_amount_paid }} {{ line.currency?.code }}</dd>
             <dt>{{ t('finance.paymentOverrides.balance') }}</dt><dd>{{ line.remaining_total }} {{ line.currency?.code }}</dd>
           </dl>
           <VSwitch v-model="amountOverride" :label="t('finance.paymentOverrides.amountOverride')" :disabled="saving" />
-          <VTextField v-if="amountOverride" v-model="amount" type="number" min="0" max="9999999999999" :step="10 ** -(line.currency?.decimalPlaces ?? 2)" :suffix="line.currency?.code" :label="t('finance.paymentOverrides.amount')" :disabled="saving" />
+          <ErpField v-if="amountOverride" v-model="amount" type="number" min="0" max="9999999999999" :step="10 ** -(line.currency?.decimalPlaces ?? 2)" :suffix="line.currency?.code" :label="t('finance.paymentOverrides.amount')" :placeholder="t('finance.paymentOverrides.amount')" :disabled="saving" />
           <VSwitch v-model="statusOverride" :label="t('finance.paymentOverrides.statusOverride')" :disabled="saving" />
-          <VSelect v-if="statusOverride" v-model="status" :items="statusOptions" :label="t('finance.paymentOverrides.status')" :disabled="saving" />
+          <ErpField v-if="statusOverride" v-model="status" kind="select" :items="statusOptions" :label="t('finance.paymentOverrides.status')" :placeholder="t('finance.paymentOverrides.status')" :disabled="saving" />
         </template>
       </VCardText>
-      <VCardActions class="justify-end flex-wrap">
-        <VBtn :disabled="saving" @click="emit('update:modelValue', false)">{{ t('common.actions.cancel') }}</VBtn>
-        <VBtn color="primary" :loading="saving" :disabled="!canSave" @click="requestSave">{{ t('common.actions.save') }}</VBtn>
+      <VCardActions class="income-support-dialog__footer justify-end flex-wrap">
+        <VBtn class="income-support-dialog__cancel" :disabled="saving" @click="emit('update:modelValue', false)">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" variant="flat" :loading="saving" :disabled="!canSave" @click="requestSave">{{ t('common.actions.save') }}</VBtn>
       </VCardActions>
       <VDialog v-model="confirmOpen" max-width="420" :persistent="saving">
         <VCard :title="t('finance.paymentOverrides.confirmTitle')">
@@ -159,4 +167,21 @@ onBeforeUnmount(() => {
   margin: 0;
   text-align: end;
 }
+
+.income-support-dialog__card { overflow: hidden; }
+.income-support-dialog__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); }
+.income-support-dialog__close { background: rgb(var(--v-theme-error) / .14) !important; color: rgb(var(--v-theme-error)) !important; }
+.income-support-dialog__footer { padding: 1rem 1.25rem; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%); }
+.income-support-dialog__footer :deep(.v-btn--variant-flat) { color: rgb(var(--v-theme-on-primary)) !important; }
+.income-support-dialog__cancel { background: rgb(var(--v-theme-secondary) / .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.income-support-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.income-support-overlay .v-overlay__scrim), :global(.v-overlay:has(.income-support-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+:global(.income-support-dialog .income-support-dialog__header) { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%) !important; border-block-end: 1px solid rgba(var(--v-theme-on-surface), .07); }
+:global(.income-support-dialog .income-support-dialog__footer) { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 96%, rgb(var(--v-theme-on-surface)) 4%) !important; border-block-start: 1px solid rgba(var(--v-theme-on-surface), .07); }
+:global(.income-support-dialog .income-support-dialog__close) { min-inline-size: 2.25rem !important; block-size: 2.25rem !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .14) !important; color: rgb(var(--v-theme-error)) !important; }
+:global(.income-support-dialog .income-support-dialog__close .v-icon) { color: inherit !important; }
+:global(.income-support-dialog .income-support-dialog__close .v-btn__overlay) { opacity: 0 !important; }
+:global(.income-support-dialog .income-support-dialog__cancel) { border: 1px solid rgba(var(--v-theme-secondary), .35) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; box-shadow: none !important; }
+:global(.income-support-dialog .income-support-dialog__cancel:hover) { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+:global(.income-support-dialog .income-support-dialog__footer .v-btn--variant-flat) { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }
 </style>

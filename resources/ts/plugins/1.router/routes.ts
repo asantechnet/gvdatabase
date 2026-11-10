@@ -448,8 +448,8 @@ const routeDefinitions: Array<{
   },
   {
     path: "/finance/activity-report",
-    component: "educationalReports",
     name: "finance-activity-report",
+    redirect: { name: "reports", query: { report: "financial" } },
     meta: {
       reportWorkspace: "finance",
       requiresAuth: true,

@@ -178,17 +178,6 @@ const save = async () => {
           v-if="form"
           @submit.prevent="save"
         >
-          <VAlert
-            type="info"
-            variant="tonal"
-            class="mb-5"
-            icon="tabler-sparkles"
-          >
-            {{ $t('components.bonusRules.explanation') }}
-          </VAlert>
-          <div class="text-caption text-medium-emphasis mb-5">
-            {{ $t('components.bonusRules.example', { taskReward: form.amount_per_completed_task, caseReward: form.amount_per_case_won }) }}
-          </div>
           <VRow class="bonus-rules-fields">
             <VCol
               cols="12"

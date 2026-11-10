@@ -191,6 +191,7 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
     v-model="menuOpen"
     location="bottom start"
     transition="scale-transition"
+    content-class="contact-action-menu__popup"
     :open-delay="0"
   >
     <template #activator="{ props: activatorProps }">
@@ -222,6 +223,7 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
 
     <VList
       v-if="actions.length"
+      class="contact-action-menu__list"
       density="compact"
       min-width="220"
     >
@@ -231,13 +233,14 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
         :href="action.href"
         :target="action.external ? '_blank' : undefined"
         :rel="action.external ? 'noopener noreferrer' : undefined"
+        :class="['contact-action-menu__item', `contact-action-menu__item--${action.icon}`]"
         link
         @click.stop="begin(action, $event)"
       >
         <template #prepend>
           <VIcon
             :icon="action.icon"
-            size="18"
+            size="20"
           />
         </template>
         <VListItemTitle>{{ action.label }}</VListItemTitle>
@@ -256,17 +259,18 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
            the templates of this page's record type are ever offered. -->
       <template v-if="kind === 'phone' && whatsappTemplates.length">
         <VDivider class="my-1" />
-        <VListSubheader>{{ $t('pages.whatsapp.quickContactHeading') }}</VListSubheader>
+        <VListSubheader class="contact-action-menu__template-heading">{{ $t('pages.whatsapp.quickContactHeading') }}</VListSubheader>
         <VListItem
           v-for="template in whatsappTemplates"
           :key="template.id"
+          class="contact-action-menu__item contact-action-menu__item--template"
           link
           @click.stop="sendWhatsappTemplate(template, $event)"
         >
           <template #prepend>
             <VIcon
               icon="tabler-brand-whatsapp"
-              size="18"
+              size="20"
               color="success"
             />
           </template>
@@ -279,6 +283,7 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
     </VList>
     <VList
       v-else
+      class="contact-action-menu__list"
       density="compact"
       min-width="220"
     >
@@ -298,6 +303,15 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
         <VBtn icon="tabler-x" variant="tonal" color="error" class="contact-log-card__close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="dialog = false" />
       </VCardTitle>
       <VCardText class="contact-log-card__body pa-5 pa-sm-6">
+        <div v-if="pendingAction" class="contact-log-card__context">
+          <VAvatar color="primary" variant="tonal" size="40">
+            <VIcon :icon="pendingAction.icon" size="21" />
+          </VAvatar>
+          <div>
+            <span class="contact-log-card__context-label">{{ pendingAction.label }}</span>
+            <span class="contact-log-card__context-value">{{ contactValue }}</span>
+          </div>
+        </div>
         <div class="contact-log-card__fields">
           <div class="erp-field">
             <label class="erp-field-label">{{ $t('common.crmUi.followUp') }}</label>
@@ -357,6 +371,34 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
   opacity: 1 !important;
 }
 
+.contact-action-menu__popup {
+  margin-block-start: 6px;
+}
+
+.contact-action-menu__list {
+  overflow: hidden;
+  min-inline-size: 250px !important;
+  padding: 8px !important;
+  border: 1px solid rgba(var(--v-border-color), .45);
+  border-radius: 14px !important;
+  background: rgb(var(--v-theme-surface)) !important;
+  box-shadow: 0 14px 32px rgba(var(--v-theme-on-surface), .14);
+}
+
+.contact-action-menu__item {
+  min-block-size: 42px !important;
+  margin-block: 2px;
+  border-radius: 10px !important;
+  font-weight: 600;
+}
+
+.contact-action-menu__item--tabler-brand-whatsapp { color: #168a4a !important; background: rgba(37, 211, 102, .09); }
+.contact-action-menu__item--tabler-brand-telegram { color: #168dca !important; background: rgba(34, 158, 217, .09); }
+.contact-action-menu__item--tabler-phone { color: rgb(var(--v-theme-primary)) !important; background: rgba(var(--v-theme-primary), .09); }
+.contact-action-menu__item--template { color: rgb(var(--v-theme-on-surface)) !important; background: transparent !important; }
+.contact-action-menu__item:hover { background: rgba(var(--v-theme-primary), .1) !important; }
+.contact-action-menu__template-heading { padding-inline: 10px !important; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important; font-size: .7rem !important; font-weight: 800 !important; letter-spacing: .07em; text-transform: uppercase; }
+
 </style>
 
 <style scoped>
@@ -384,7 +426,7 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
   min-inline-size: 0;
 }
 
-.contact-log-card { overflow: hidden; }
+.contact-log-card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .35); border-radius: 16px !important; box-shadow: 0 20px 44px rgba(var(--v-theme-on-surface), .16); }
 .contact-log-card__title,
 .contact-log-card__actions {
   display: flex;
@@ -396,8 +438,12 @@ const copyEmail = async (event: MouseEvent | KeyboardEvent) => {
 }
 .contact-log-card__title { border-block-end-width: 1px; }
 .contact-log-card__actions { border-block-start-width: 1px; }
-.contact-log-card__heading { font-size: 1.35rem; font-weight: 700; }
-.contact-log-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
+.contact-log-card__heading { font-size: 1.4rem; font-weight: 750; }
+.contact-log-card__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .12) !important; }
+.contact-log-card__context { display: flex; align-items: center; gap: .75rem; margin-block-end: 1rem; padding: .75rem .875rem; border: 1px solid rgba(var(--v-theme-primary), .2); border-radius: 12px; background: rgba(var(--v-theme-primary), .06); }
+.contact-log-card__context > div { display: grid; min-inline-size: 0; }
+.contact-log-card__context-label { color: rgb(var(--v-theme-primary)); font-size: .75rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.contact-log-card__context-value { overflow: hidden; color: rgb(var(--v-theme-on-surface)); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .contact-log-card__fields { display: grid; gap: 12px; }
 .contact-log-card__cancel {
   border: 1px solid rgba(var(--v-theme-secondary), .62) !important;

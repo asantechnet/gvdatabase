@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { VDialog } from "vuetify/components";
 import { useToast } from "vue-toastification";
 import { type FinanceType, getFinanceTypes } from "@/api/financeTypes";
 import { financeTypeLabel } from "@/utils/financeTypes";
@@ -28,11 +27,13 @@ import { moveCreatedRowFirst } from "@/utils/createdFirst";
 import PrintableListReport from "@/components/PrintableListReport.vue";
 import ResponsiveDataTableServer from "@/components/responsive-data-table/ResponsiveDataTableServer.vue";
 import ErpDateRange from "@/components/erp/ErpDateRange.vue";
+import ErpField from "@/components/erp/ErpField.vue";
 import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
+import ErpSearchField from "@/components/erp/ErpSearchField.vue";
 import TableEmptyState from "@/components/TableEmptyState.vue";
-import TableLoadingSkeleton from "@/components/TableLoadingSkeleton.vue";
 import ExpenseFormDialog from "@/components/forms/ExpenseFormDialog.vue";
 import AttachmentsDialog from "@/components/attachments/AttachmentsDialog.vue";
+import ConfirmDialog from "@/components/dialogs/ConfirmDialog.vue";
 
 const expenses = ref<Expense[]>([]);
 // The ledger asks the server for one page at a time.
@@ -418,6 +419,8 @@ const expenseReportRow = (expense: Expense): string[] => [
   formatDate(expense.date),
 ];
 
+const formatExpenseNumber = (expense: Expense) => `EXP-${String(new Date(expense.date).getFullYear()).slice(-2)}-${String(expense.id).padStart(3, "0")}`;
+
 // Print is global: the report is filled from every matching row first.
 const printTable = async () => {
   try {
@@ -447,58 +450,28 @@ onMounted(() => {
   <div class="expense-page">
     <ErpPageHeader
       :title="$t('pages.finance.expenses.expenses.expenseLedger')"
-      :description="
-        $t('pages.finance.expenses.expenses.expensePageDescription')
-      "
       section="finance"
-    >
-      <template #actions>
-        <VBtn
-          icon="tabler-printer"
-          variant="text"
-          :aria-label="
-            $t('pages.finance.expenses.expenses.printExpenseRecords')
-          "
-          @click="printTable"
-        >
-          <VIcon icon="tabler-printer" />
-          <VTooltip activator="parent" location="top">
-            {{ $t("pages.finance.expenses.expenses.printExpenseRecords") }}
-          </VTooltip>
-        </VBtn>
-        <VBtn
-          color="primary"
-          prepend-icon="tabler-plus"
-          @click="openAddExpenseDialog"
-        >
-          {{ $t("pages.finance.expenses.expenses.recordExpense") }}
-        </VBtn>
-      </template>
-    </ErpPageHeader>
+      class="mb-5"
+    />
 
-    <VCard class="mb-6 filter-deck" elevation="0">
+    <VCard class="ledger-card filter-deck ledger-workspace" elevation="0">
       <VCardText class="filter-deck__content">
         <VRow align="center">
-          <VCol cols="12" md="8">
-            <VTextField
+          <VCol cols="12" md="5">
+            <ErpSearchField
               v-model="searchQuery"
-              class="data-table-search"
-              prepend-inner-icon="tabler-search"
               :placeholder="
                 $t(
                   'pages.finance.expenses.expenses.searchExpenseDescriptionsOrTypes',
                 )
               "
-              density="compact"
-              clearable
-              hide-details
               @keyup.enter="reload"
             />
           </VCol>
           <VCol
             cols="12"
-            md="4"
-            class="d-flex align-center justify-md-end ga-2"
+            md="7"
+            class="expense-toolbar-actions d-flex flex-wrap align-center justify-md-end ga-2"
           >
             <DataTableFilterMenu
               :active="
@@ -519,8 +492,9 @@ onMounted(() => {
                 reload();
               "
             >
-              <VSelect
+              <ErpField
                 v-model="filterStatus"
+                kind="select"
                 :items="[
                   { title: translate('common.statuses.draft'), value: 'draft' },
                   {
@@ -533,44 +507,39 @@ onMounted(() => {
                   },
                 ]"
                 :label="$t('finance.drafts.filterByStatus')"
-                density="compact"
+                :placeholder="$t('finance.drafts.filterByStatus')"
                 clearable
-                hide-details
-                @update:model-value="reload"
               />
-              <VSelect
+              <ErpField
                 v-model="filterType"
+                kind="select"
                 :items="filterTypeOptions"
                 :label="$t('pages.finance.expenses.expenses.filterByType')"
-                density="compact"
+                :placeholder="$t('pages.finance.expenses.expenses.filterByType')"
                 clearable
-                hide-details
-                @update:model-value="reload"
-              /><VSelect
+              /><ErpField
                 v-model="filterCurrency"
+                kind="select"
                 :items="currencyOptions"
                 :label="$t('common.messages.filterByCurrency')"
-                density="compact"
+                :placeholder="$t('common.messages.filterByCurrency')"
                 clearable
-                hide-details
-                @update:model-value="reload"
               />
               <ErpDateRange
                 v-model:from="dateFrom"
                 v-model:to="dateTo"
-                @apply="reload"
-              /> </DataTableFilterMenu
-            ><span class="text-caption text-medium-emphasis">{{
-              $t("pages.finance.expenses.expenses.expenseRecordCount", {
-                count: total,
-              })
-            }}</span>
+                :show-apply="false"
+              />
+              <template #actions>
+                <VBtn variant="tonal" color="secondary" @click="filterType = null; filterStatus = null; filterCurrency = null; dateFrom = ''; dateTo = ''; reload()">{{ $t('common.messages.reset') }}</VBtn>
+                <VBtn color="primary" variant="flat" @click="reload">{{ $t('educational.apply') }}</VBtn>
+              </template>
+            </DataTableFilterMenu>
+            <VBtn icon="tabler-printer" size="small" variant="tonal" :aria-label="$t('pages.finance.expenses.expenses.printExpenseRecords')" @click="printTable"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('pages.finance.expenses.expenses.printExpenseRecords') }}</VTooltip></VBtn>
+            <VBtn size="small" color="primary" prepend-icon="tabler-plus" @click="openAddExpenseDialog">{{ $t('pages.finance.expenses.expenses.recordExpense') }}</VBtn>
           </VCol>
         </VRow>
       </VCardText>
-    </VCard>
-
-    <VCard class="ledger-card" elevation="0">
       <div class="table-container">
         <ResponsiveDataTableServer
           :items="expenses"
@@ -585,24 +554,24 @@ onMounted(() => {
               align: 'start',
             },
             {
-              title: translate('common.fields.status'),
-              key: 'status',
-              align: 'start',
-            },
-            {
               title: translate('common.fields.type'),
               key: 'type',
               align: 'start',
             },
             {
-              title: translate('common.fields.currency'),
-              key: 'currency',
-              align: 'start',
+              title: translate('common.messages.quantity'),
+              key: 'quantity',
+              align: 'center',
             },
             {
               title: translate('common.fields.amount'),
               key: 'base_amount',
               align: 'end',
+            },
+            {
+              title: translate('common.fields.status'),
+              key: 'status',
+              align: 'start',
             },
             {
               title: translate('common.fields.date'),
@@ -617,32 +586,26 @@ onMounted(() => {
             },
           ]"
           item-value="id"
-          class="text-no-wrap"
+          class="expense-data-table"
           :loading="isLoading"
-          mobile-breakpoint="sm"
+          :skeleton-rows="5"
+          :sticky-first-column="false"
+          :sticky-last-column="false"
+          :sticky-key-column="false"
+          :sticky-action-column="false"
           density="compact"
           @update:options="updateTableOptions"
         >
-          <template #loading>
-            <TableLoadingSkeleton
-              :columns="6"
-              :label="$t('common.messages.loading')"
-            />
-          </template>
           <template #no-data>
             <TableEmptyState
               icon="tabler-receipt-off"
+              :title="$t('common.messages.noRecordsFound')"
               :description="$t('common.messages.noMatchingRecords')"
             />
           </template>
           <template #item.id="{ item }">
             <div class="font-weight-bold">
-              <bdi>{{ `EXP-${String(item.id).padStart(6, "0")}` }}</bdi>
-            </div>
-            <div class="text-caption text-medium-emphasis">
-              {{
-                $t("common.messages.quantityValue", { value: item.quantity })
-              }}
+              <bdi>{{ formatExpenseNumber(item) }}</bdi>
             </div>
           </template>
           <template #item.status="{ item }">
@@ -683,58 +646,51 @@ onMounted(() => {
                 )
               }}
             </div>
-            <div class="text-caption text-medium-emphasis">
+            <div v-if="false" class="text-caption text-medium-emphasis">
               {{ item.base_amount }} {{ item.base_curr_shrt }} ·
               {{ $t("serviceContracts.rate") }} {{ item.rate }}
             </div>
           </template>
+          <template #item.quantity="{ item }"><span>{{ formatLocalizedNumber(item.quantity) }}</span></template>
           <template #item.date="{ item }">
             {{ formatDate(item.date) }}
           </template>
           <template #item.actions="{ item }">
-            <div class="d-flex gap-1">
-              <VBtn
+            <VMenu location="bottom end" content-class="expense-actions-menu">
+              <template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="text" size="small" class="ledger-action-trigger" :aria-label="$t('common.messages.actions')"><VIcon icon="tabler-dots-vertical" /></VBtn></template>
+              <VList density="compact" min-width="200" class="expense-actions-menu__list">
+              <VListItem
                 v-if="canApproveDrafts && item.status === 'draft'"
-                icon="tabler-check"
-                variant="text"
-                size="small"
                 color="success"
-                :aria-label="$t('finance.drafts.approve')"
+                prepend-icon="tabler-check"
                 :title="$t('finance.drafts.approve')"
                 @click="approveDraft(item)"
               />
-              <VBtn
+              <VListItem
                 v-if="canApproveDrafts && item.status === 'draft'"
-                icon="tabler-x"
-                variant="text"
-                size="small"
                 color="error"
-                :aria-label="$t('finance.drafts.reject')"
+                prepend-icon="tabler-x"
                 :title="$t('finance.drafts.reject')"
                 @click="openRejectDraft(item)"
               />
-              <VBtn
-                icon="tabler-paperclip"
-                variant="text"
-                size="small"
-                :aria-label="$t('common.attachments.title')"
+              <VListItem
+                prepend-icon="tabler-paperclip"
                 :title="$t('common.attachments.title')"
                 @click="openAttachments(item)"
               />
-              <FullDetailsButton :item="item" /><VBtn
-                icon="tabler-edit"
-                variant="text"
-                size="small"
+              <FullDetailsButton :item="item" menu-action /><VListItem
                 color="medium-emphasis"
+                prepend-icon="tabler-edit"
+                :title="$t('common.actions.edit')"
                 @click="openEditExpenseDialog(item)"
-              /><VBtn
-                icon="tabler-trash"
-                variant="text"
-                size="small"
+              /><VListItem
                 color="error"
+                prepend-icon="tabler-trash"
+                :title="$t('common.actions.delete')"
                 @click="openDeleteExpenseDialog(item)"
               />
-            </div>
+              </VList>
+            </VMenu>
           </template>
         </ResponsiveDataTableServer>
       </div>
@@ -806,33 +762,20 @@ onMounted(() => {
       </VCard>
     </VDialog>
 
-    <VDialog v-model="isDeleteExpenseDialogVisible" max-width="500px">
-      <VCard>
-        <VCardTitle class="pa-5">
-          {{ $t("pages.finance.expenses.expenses.deleteExpense") }} </VCardTitle
-        ><VCardText>{{
-          $t(
-            "pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently",
-          )
-        }}</VCardText
-        ><VCardActions class="pa-5">
-          <VSpacer /><VBtn
-            color="secondary"
-            variant="text"
-            @click="isDeleteExpenseDialogVisible = false"
-          >
-            {{ $t("common.actions.cancel") }} </VBtn
-          ><VBtn
-            color="error"
-            variant="flat"
-            prepend-icon="tabler-trash"
-            @click="deleteExpenseRecord"
-          >
-            {{ $t("common.actions.delete") }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <ConfirmDialog
+      v-model:is-dialog-visible="isDeleteExpenseDialogVisible"
+      tone="error"
+      icon="tabler-trash"
+      :confirmation-question="$t('pages.finance.expenses.expenses.deleteExpense')"
+      :confirmation-message="$t('pages.finance.expenses.expenses.thisRemovesTheSelectedExpenseRecordPermanently')"
+      :confirm-text="$t('common.actions.delete')"
+      :cancel-text="$t('common.actions.cancel')"
+      :confirm-title="$t('common.actions.delete')"
+      confirm-msg=""
+      :cancel-title="$t('common.actions.cancel')"
+      cancel-msg=""
+      @confirm="confirmed => { if (confirmed) deleteExpenseRecord() }"
+    />
 
     <AttachmentsDialog
       v-model="isAttachmentsOpen"
@@ -860,25 +803,24 @@ onMounted(() => {
 .filter-deck__content {
   padding: 14px 18px !important;
 }
+.ledger-workspace .filter-deck__content {
+  border-bottom: 1px solid rgb(var(--v-border-color) / .7);
+}
 .filter-deck :deep(.v-field) {
   border-radius: 10px;
   background: rgb(var(--v-theme-on-surface) / 0.025);
-}
-.ledger-card__header {
-  min-height: 68px;
-  padding-inline: 20px;
-}
-.ledger-card__title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
 }
 .expense-dialog {
   overflow: visible;
 }
 .table-container {
-  overflow-x: auto;
+  /* Keep one horizontal scroll owner: the Vuetify table wrapper. */
+  overflow: visible;
 }
+.expense-data-table :deep(.v-table__wrapper) { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: thin; }
+.expense-data-table :deep(.v-table__wrapper > table) { inline-size: max-content !important; min-inline-size: 100% !important; table-layout: auto !important; }
+.expense-data-table :deep(thead th),
+.expense-data-table :deep(tbody td) { inline-size: max-content; min-inline-size: max-content; white-space: nowrap; }
 .ledger-card :deep(thead th) {
   height: 48px !important;
   color: rgb(var(--v-theme-on-surface) / 0.58) !important;
@@ -886,42 +828,26 @@ onMounted(() => {
   font-weight: 800 !important;
   letter-spacing: 0.075em;
   text-transform: uppercase;
-  background: rgb(var(--v-theme-on-surface) / 0.018);
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%);
 }
 .ledger-card :deep(tbody td) {
   height: 66px !important;
   border-bottom-color: rgb(var(--v-border-color) / 0.7) !important;
 }
+.ledger-card :deep(tbody td:last-child) { background: rgb(var(--v-theme-on-surface) / .035); }
 .ledger-card :deep(tbody tr) {
   transition: background 0.16s ease;
 }
 .ledger-card :deep(tbody tr:hover) {
   background: rgb(var(--v-theme-error) / 0.035) !important;
 }
-.ledger-empty {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 176px;
-  padding: 28px 32px;
-  text-align: start;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--v-theme-error) / 0.07),
-    transparent 58%
-  );
-}
-.ledger-empty :deep(.v-btn) {
-  margin-inline-start: auto;
-}
+.filter-deck :deep(.v-btn) { min-block-size: 38px; padding-inline: .85rem; font-size: .88rem; }
+:global(.expense-actions-menu .expense-actions-menu__list) { display: flex; flex-direction: column; padding-block: .35rem; }
+:global(.expense-actions-menu .v-list-item) { min-block-size: 2.65rem; }
+:global(.ledger-action-trigger) { background: rgba(var(--v-theme-on-surface), .07) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
+:global(.ledger-action-trigger:hover) { background: rgba(var(--v-theme-on-surface), .13) !important; }
 @media (max-width: 600px) {
-  .ledger-empty {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 24px;
-  }
-  .ledger-empty :deep(.v-btn) {
-    margin-inline-start: 0;
-  }
+  .filter-deck__content { padding: 12px !important; }
+  .expense-toolbar-actions { justify-content: flex-start !important; }
 }
 </style>

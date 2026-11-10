@@ -111,8 +111,6 @@ defineExpose({ element: printElement })
         </div>
       </header>
       <section class="official-contract-print__title-banner">
-        <span>{{ $t('pages.contracts.shared.officialPrint.officialDocument') }}</span>
-        <h1>{{ data.title }}</h1>
         <dl
           v-if="data.metadata.length"
           class="official-contract-print__metadata"
@@ -288,8 +286,7 @@ defineExpose({ element: printElement })
 }
 
 .official-contract-print__title-banner {
-  margin-block-end: 3mm;
-  padding-block-end: 2mm;
+  margin-block-end: 5mm;
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -438,8 +435,11 @@ defineExpose({ element: printElement })
 }
 
 .official-contract-print__signature {
-  margin-block-start: auto;
-  padding-block-start: 8mm;
+  /* Signatures belong after the agreement instead of being forced against the
+     printable edge. This leaves a reliable, professional signing area on
+     shorter employment agreements as well. */
+  margin-block-start: 10mm;
+  padding-block-start: 2mm;
   break-inside: avoid;
   page-break-inside: avoid;
 }

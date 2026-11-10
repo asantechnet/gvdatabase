@@ -723,11 +723,21 @@ const removeInteraction = async (interaction: Interaction) => {
   >
     <VCard class="relationship-interaction-card">
       <VCardTitle class="relationship-interaction-card__title px-5 py-5">
-        <span class="relationship-interaction-card__heading">{{ $t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation') }}</span>
+        <div class="d-flex align-center ga-3">
+          <VAvatar color="primary" variant="tonal" size="40">
+            <VIcon :icon="channelMeta(form.channel).icon" size="21" />
+          </VAvatar>
+          <span class="relationship-interaction-card__heading">{{ $t(editingInteractionId ? 'common.crmDetails.editConversation' : 'common.crmDetails.addConversation') }}</span>
+        </div>
         <VSpacer />
         <VBtn icon="tabler-x" variant="tonal" color="error" class="relationship-interaction-card__close" :aria-label="$t('common.actions.close')" :disabled="saving" @click="interactionDialog = false" />
       </VCardTitle>
       <VCardText class="relationship-interaction-card__body pa-5 pa-sm-6">
+        <div class="relationship-interaction-card__context">
+          <VIcon icon="tabler-bell" size="18" />
+          <span>{{ $t('common.crmUi.followUp') }}</span>
+          <strong>{{ record?.name || title }}</strong>
+        </div>
         <div class="relationship-interaction-card__fields">
           <ErpField
           v-model="form.channel"
@@ -876,7 +886,7 @@ const removeInteraction = async (interaction: Interaction) => {
 .crm-relationship-details__menu-action :deep(.v-list-item-title) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .min-w-0 { min-inline-size: 0; }
 
-.relationship-interaction-card { overflow: hidden; }
+.relationship-interaction-card { overflow: hidden; border: 1px solid rgba(var(--v-border-color), .35); border-radius: 16px !important; box-shadow: 0 20px 44px rgba(var(--v-theme-on-surface), .16); }
 
 .relationship-interaction-card__title,
 .relationship-interaction-card__actions {
@@ -889,8 +899,10 @@ const removeInteraction = async (interaction: Interaction) => {
 }
 .relationship-interaction-card__title { border-block-end-width: 1px; }
 .relationship-interaction-card__actions { border-block-start-width: 1px; }
-.relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 700; }
-.relationship-interaction-card__close { border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 50% !important; }
+.relationship-interaction-card__heading { font-size: 1.35rem; font-weight: 750; }
+.relationship-interaction-card__close { inline-size: 36px; block-size: 36px; border: 1px solid rgba(var(--v-theme-error), 0.34) !important; border-radius: 999px !important; background: rgba(var(--v-theme-error), .12) !important; }
+.relationship-interaction-card__context { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-block-end: 1rem; padding: .7rem .875rem; border: 1px solid rgba(var(--v-theme-primary), .2); border-radius: 11px; background: rgba(var(--v-theme-primary), .06); color: rgb(var(--v-theme-primary)); font-size: .8125rem; font-weight: 700; }
+.relationship-interaction-card__context strong { min-inline-size: 0; overflow: hidden; color: rgb(var(--v-theme-on-surface)); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .relationship-interaction-card__fields { display: grid; gap: 12px; }
 
 .relationship-interaction-card__cancel {

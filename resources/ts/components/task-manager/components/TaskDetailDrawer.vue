@@ -6,6 +6,8 @@ import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess, canManagePersonalTasks } from '@/utils/authorization'
 import type { TaskPriority } from '@/types/taskManager'
 import TaskBonusDialog from './TaskBonusDialog.vue'
+import ErpField from '@/components/erp/ErpField.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -127,14 +129,14 @@ const cancelDelete = () => {
     :model-value="props.isOpen"
     max-width="1000"
     scrollable
-    class="task-detail-dialog"
+    content-class="task-detail-dialog"
     @update:model-value="handleClose"
   >
     <VCard
       elevation="0"
       class="task-detail-card d-flex flex-column"
     >
-      <VCardItem class="border-b">
+      <VCardItem class="task-detail-dialog__header px-5 py-4">
         <template #title>
           <div class="d-flex align-center">
             <VIcon
@@ -156,7 +158,8 @@ const cancelDelete = () => {
           />
           <VBtn
             icon="tabler-x"
-            variant="text"
+            variant="tonal"
+            color="error"
             size="small"
             @click="handleClose"
           />
@@ -172,7 +175,7 @@ const cancelDelete = () => {
           <VRow>
             <!-- Title -->
             <VCol cols="12" md="6">
-              <VTextField
+              <ErpField
                 v-model="localTask.title"
                 :label="$t('common.fields.title')"
                 :rules="[v => !!v || $t('components.taskManager.taskdetaildrawer.titleRequired')]"
@@ -181,7 +184,44 @@ const cancelDelete = () => {
               />
             </VCol>
 
-            <!-- Priority -->
+            <VCol cols="12" md="6">
+              <ErpField
+                v-model="localTask.priority"
+                kind="select"
+                :items="priorityOptions"
+                :label="$t('common.fields.priority')"
+                item-title="title"
+                item-value="value"
+                :disabled="!canEditTask()"
+              />
+            </VCol>
+
+            <!-- Dates -->
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <ErpField
+                v-model="localTask.startDate"
+                :label="$t('common.fields.startDate')"
+                kind="date"
+                :config="{ dateFormat: 'Y-m-d', static: false }"
+                :disabled="!canEditTask()"
+              />
+            </VCol>
+            <VCol
+              cols="12"
+              md="6"
+            >
+              <ErpField
+                v-model="localTask.dueDate"
+                :label="$t('components.taskManager.taskdetaildrawer.dueDate')"
+                kind="date"
+                :config="{ dateFormat: 'Y-m-d', static: false }"
+                :disabled="!canEditTask()"
+              />
+            </VCol>
+
             <VCol
               v-if="store.selectedTask?.subtasks.length === 0"
               cols="12"
@@ -195,49 +235,15 @@ const cancelDelete = () => {
               />
             </VCol>
 
-            <VCol cols="12" md="4">
-              <VSelect
-                v-model="localTask.priority"
-                :items="priorityOptions"
-                :label="$t('common.fields.priority')"
-                item-title="title"
-                item-value="value"
-                :disabled="!canEditTask()"
-              />
-            </VCol>
-
-            <!-- Dates -->
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <VTextField
-                v-model="localTask.startDate"
-                :label="$t('common.fields.startDate')"
-                type="date"
-                :disabled="!canEditTask()"
-              />
-            </VCol>
-            <VCol
-              cols="12"
-              md="4"
-            >
-              <VTextField
-                v-model="localTask.dueDate"
-                :label="$t('components.taskManager.taskdetaildrawer.dueDate')"
-                type="date"
-                :disabled="!canEditTask()"
-              />
-            </VCol>
-
             <!-- Gantt relationships -->
             <VCol
               v-if="canManageDependencies()"
               cols="12"
-              md="6"
+              md="12"
             >
-              <VSelect
+              <ErpField
                 v-model="localTask.dependencies"
+                kind="select"
                 :items="dependencyOptions"
                 item-title="title"
                 item-value="value"
@@ -253,15 +259,17 @@ const cancelDelete = () => {
 
 
             <VCol cols="12">
-              <div class="mb-2 d-flex align-center gap-2">
+              <div class="mb-1 d-flex align-center gap-2">
                 <VIcon
                   icon="tabler-align-justified"
                   size="20"
                 />
                 <span class="text-subtitle-1 font-weight-bold">{{ $t('components.taskManager.taskdetaildrawer.taskContent') }}</span>
               </div>
-              <VTextarea
+              <ErpField
                 v-model="localTask.description"
+                kind="textarea"
+                :label="$t('components.taskManager.taskdetaildrawer.taskContent')"
                 auto-grow
                 rows="5"
                 :placeholder="$t('components.taskManager.taskdetaildrawer.noTaskContent')"
@@ -273,7 +281,7 @@ const cancelDelete = () => {
         </VForm>
       </PerfectScrollbar>
 
-      <VCardActions class="task-detail-actions border-t pa-5">
+      <VCardActions class="task-detail-actions task-detail-dialog__footer pa-5">
         <VBtn
           v-if="canDeleteTask()"
           color="error"
@@ -286,8 +294,7 @@ const cancelDelete = () => {
 
         <div class="task-detail-actions__primary">
           <VBtn
-            variant="outlined"
-            color="secondary"
+            class="task-detail-dialog__cancel"
             @click="handleClose"
           >
             {{ $t('common.actions.cancel') }}
@@ -295,6 +302,8 @@ const cancelDelete = () => {
           <VBtn
             v-if="canEditTask()"
             color="primary"
+            variant="flat"
+            class="task-detail-dialog__save"
             @click="updateTask"
           >
             {{ $t('common.actions.save') }}
@@ -303,37 +312,7 @@ const cancelDelete = () => {
       </VCardActions>
     </VCard>
 
-    <!-- Delete Confirmation Dialog -->
-    <VDialog
-      v-model="isDeleteConfirmOpen"
-      max-width="400"
-      persistent
-    >
-      <VCard>
-        <VCardTitle class="text-h6">
-          {{ $t('common.messages.confirmDeletion') }}
-        </VCardTitle>
-        <VCardText>
-          {{ $t('common.confirmations.areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone') }}
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn
-            variant="outlined"
-            color="secondary"
-            @click="cancelDelete"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="error"
-            @click="deleteTask"
-          >
-            {{ $t('common.actions.delete') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <ConfirmDialog v-model:is-dialog-visible="isDeleteConfirmOpen" tone="error" icon="tabler-trash" :confirmation-question="$t('common.messages.confirmDeletion')" :confirmation-message="$t('common.confirmations.areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone')" :confirm-text="$t('common.actions.delete')" :cancel-text="$t('common.actions.cancel')" :confirm-title="$t('common.actions.delete')" confirm-msg="" :cancel-title="$t('common.actions.cancel')" cancel-msg="" @confirm="confirmed => { if (confirmed) deleteTask(); else cancelDelete() }" />
   </VDialog>
 </template>
 
@@ -341,6 +320,14 @@ const cancelDelete = () => {
 .task-detail-card {
   max-height: calc(100vh - 48px);
 }
+
+:global(.v-overlay:has(.task-detail-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
+.task-detail-dialog__header, .task-detail-dialog__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }
+.task-detail-dialog__header { border-block-end: 1px solid rgba(var(--v-border-color), .5); }
+.task-detail-dialog__footer { border-block-start: 1px solid rgba(var(--v-border-color), .5) !important; }
+.task-detail-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.task-detail-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.task-detail-dialog__save { color: rgb(var(--v-theme-on-primary)) !important; }
 
 .task-detail-scroll {
   min-height: 0;

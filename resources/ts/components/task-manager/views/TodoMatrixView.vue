@@ -226,7 +226,7 @@ const handleAddTodo = () => {
               :key="task.id"
               :value="task.id"
               :active="store.selectedTaskId === task.id"
-              class="border-b"
+              class="mega-task-row"
               @click="store.selectTask(task.id)"
             >
               <template #prepend>
@@ -284,7 +284,7 @@ const handleAddTodo = () => {
         elevation="0"
         class="border"
       >
-        <VCardItem class="bg-light-primary rounded-t pa-5">
+        <VCardItem class="todo-matrix-selected-header rounded-t pa-5">
           <template #title>
             <div class="todo-matrix-task-title text-h5 font-weight-bold mb-1">
               {{ store.selectedTask.title }}
@@ -298,7 +298,7 @@ const handleAddTodo = () => {
                 :key="tag.id"
                 :color="tag.color"
                 size="small"
-                variant="elevated"
+                variant="tonal"
               >
                 {{ tag.name }}
               </VChip>
@@ -685,6 +685,14 @@ const handleAddTodo = () => {
 .todo-matrix-task-title {
   padding-block-start: 0.25rem;
 }
+
+/* Mega tasks use only neutral and primary tints, so the task matrix stays
+   calm in both themes while the selected task remains immediately obvious. */
+.mega-task-row { margin: 4px 8px; border-radius: 10px; background: rgba(var(--v-theme-on-surface), .025); transition: background-color .16s ease, transform .16s ease; }
+.mega-task-row:hover { background: rgba(var(--v-theme-primary), .055); }
+.mega-task-row:deep(.v-list-item__overlay) { opacity: 0 !important; }
+.mega-task-row.v-list-item--active { background: rgba(var(--v-theme-primary), .1); color: rgb(var(--v-theme-on-surface)); }
+.todo-matrix-selected-header { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-primary)) 7%); }
 
 .task-attachment-picker { display: flex; flex: 1 1 16rem; align-items: center; gap: .75rem; min-inline-size: 0; padding: .625rem .75rem; border: 1px dashed rgba(var(--v-theme-primary), .45); border-radius: .75rem; background: rgba(var(--v-theme-primary), .045); }
 .task-attachment-picker--selected { border-style: solid; }

@@ -40,6 +40,7 @@ declare module 'vue' {
     AppStepper: typeof import('./resources/ts/@core/components/AppStepper.vue')['default']
     AppTextarea: typeof import('./resources/ts/@core/components/app-form-elements/AppTextarea.vue')['default']
     AppTextField: typeof import('./resources/ts/@core/components/app-form-elements/AppTextField.vue')['default']
+    AssetFormDialog: typeof import('./resources/ts/components/forms/AssetFormDialog.vue')['default']
     AttachmentsDialog: typeof import('./resources/ts/components/attachments/AttachmentsDialog.vue')['default']
     AttachmentsPanel: typeof import('./resources/ts/components/attachments/AttachmentsPanel.vue')['default']
     AuditTrailButton: typeof import('./resources/ts/components/audit/AuditTrailButton.vue')['default']

@@ -613,8 +613,6 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       ])
     }
 
-    const skeletonColumns = (columns: DataTableColumn[]) => columns.filter(column => !isSpecialColumn(column))
-
     const skeletonPlaceholder = (secondary = false) => h('span', {
       class: [
         'responsive-data-table__skeleton-bar',
@@ -622,12 +620,16 @@ export const createResponsiveDataTable = (TableComponent: Component, tableCompon
       ],
     })
 
+    // Keep a cell for Vuetify's selection/expand columns too. Dropping those
+    // columns shifted every placeholder left, which made the Actions header
+    // look detached from its loading cells on selectable tables.
     const renderDesktopSkeleton = (body: TableBodySlotProps) => Array.from(
       { length: Math.max(1, props.skeletonRows) },
       (_, rowIndex) => h('tr', { class: 'responsive-data-table__skeleton-row', key: `skeleton-${rowIndex}` },
-        skeletonColumns(body.columns).map(column => h('td', { key: column.key }, [
-          skeletonPlaceholder(),
-        ])),
+        body.columns.map(column => h('td', { key: column.key }, isSpecialColumn(column)
+          ? [h('span', { class: 'responsive-data-table__skeleton-select' })]
+          : [skeletonPlaceholder()],
+        )),
       ),
     )
 

@@ -39,13 +39,6 @@ export default [
         action: 'read',
         subject: 'view_reports',
       },
-      {
-        title: 'common.navigation.financeActivityReport',
-        icon: { icon: 'tabler-report-money' },
-        to: 'finance-activity-report',
-        action: 'read',
-        subject: 'view_financial_reports',
-      },
     ],
   },
 ]

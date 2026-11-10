@@ -206,8 +206,8 @@ export default {
               <VBtn color="primary" variant="flat" data-filter-apply @click="reload">{{ $t('educational.apply') }}</VBtn>
             </template>
           </DataTableFilterMenu>
-          <VBtn icon="tabler-printer" color="primary" variant="tonal" size="small" class="cancelled-contract-print-button flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTable">
-            <VTooltip activator="parent" location="top">{{ $t('common.actions.print') }}</VTooltip>
+          <VBtn prepend-icon="tabler-printer" color="primary" variant="tonal" size="small" class="cancelled-contract-print-button flex-shrink-0" :aria-label="$t('common.actions.print')" @click="printTable">
+            {{ $t('common.actions.print') }}
           </VBtn>
         </VCol>
       </VRow>

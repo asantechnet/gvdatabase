@@ -12,12 +12,15 @@ some kind of hearbeat request (just like the notification heartbeat and the audi
 
 icons are missing. my colleage updated icons but now they are missing (they do not appear for me)
 
+stages page, remove the Locked label from data-table rows
+
 check if HR -> Payrolls works completely.
 
 resolve the remote conflicts with local main when a completely "Loss-less" option exists. where it is obvious which code is better for the system keep that code. for the rest YOU MUST REPORT TO ME with Natural language about the conflicts and ask ME explicitely to keep which one. here is a hint: my college mostly worked on HR. I did too. but his work mostly is oreinted on frontend and mine mostly covers the backend. I did some things with frontend as will (mostly on payrolls page). mine is more about the logic, his is most about UI or shallow logic like filteration system, frontend logic or things. mine mostly is about business logic.
 IF YOU HAVE SLIGHT DOUPT TO KEEP WHICH CODE JUST REACH OUT TO ME AND EXPLAIN THE CONFLICT IN NATURAL LANGUAGE AND I WILL DECIDE WHICH TO KEEP.
 
 The most conflicts would exist in HR I suppose.
+
 
 
 check if 1 hour edit window is working properly by using the playwright cli and acting as a user and interacting with the system

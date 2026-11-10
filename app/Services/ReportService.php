@@ -25,6 +25,7 @@ use App\Models\WorthyEmployee;
 use App\Support\CompanyProfile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 class ReportService
@@ -190,7 +191,7 @@ class ReportService
                     $deductions = (float) $salary->deductions->sum('amount');
 
                     return [
-                        'payslip' => $salary->payslip_number, 'payment_date' => $salary->payment_date?->format('Y-m-d'),
+                        'payslip' => $this->compactDocumentNumber($salary->payslip_number, 'PAY'), 'payment_date' => $salary->payment_date?->format('Y-m-d'),
                         'salary_month' => $salary->salary_month, 'employee' => $salary->employee?->name,
                         'office' => $salary->employee?->office?->name, 'amount' => (float) $salary->amount_paid,
                         'bonus' => (float) $salary->bonus, 'deductions' => $deductions,
@@ -281,7 +282,9 @@ class ReportService
             })->latest('date')->get()->map(fn (Attendance $row) => [
                 'date' => $row->date?->format('Y-m-d'), 'employee' => $row->staff?->name,
                 'office' => $row->office?->name ?? $row->staff?->office?->name, 'status' => $row->status,
-                'check_in_utc' => $row->checked_in_at?->utc()->toISOString(), 'check_out_utc' => $row->checked_out_at?->utc()->toISOString(),
+                // Attendance is already grouped by date, so show the local punch
+                // time only. UTC timestamps are both noisy and misleading here.
+                'check_in' => $this->localPunchTime($row->checked_in_at), 'check_out' => $this->localPunchTime($row->checked_out_at),
                 'gross_minutes' => $row->gross_minutes, 'break_minutes' => max(0, (int) $row->gross_minutes - (int) $row->net_worked_minutes),
                 'worked_minutes' => $row->net_worked_minutes, 'required_minutes' => $row->required_minutes,
                 'late_minutes' => (int) $row->late_arrival_minutes, 'early_minutes' => (int) $row->early_departure_minutes,
@@ -289,7 +292,7 @@ class ReportService
                 'overnight' => (bool) $row->is_overnight_shift,
             ]);
 
-        $sections = [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in_utc', 'check_out_utc', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
+        $sections = [$this->section('attendance', ['date', 'employee', 'office', 'status', 'check_in', 'check_out', 'gross_minutes', 'break_minutes', 'worked_minutes', 'required_minutes', 'late_minutes', 'early_minutes', 'overtime_minutes', 'punch_state', 'overnight'], $rows, [
             'records' => $rows->count(), 'present' => $rows->where('status', 'present')->count(),
             'absent' => $rows->where('status', 'absent')->count(), 'off_day' => $rows->where('status', 'off_day')->count(),
             'incomplete' => $rows->where('status', 'present')->where('punch_state', '!=', 'none')->count(),
@@ -401,7 +404,8 @@ class ReportService
         $currency = $row instanceof Income ? $row->incomeCurrency : $row->expenseCurrency;
 
         return [
-            'date' => $row->date?->format('Y-m-d'), 'reference' => $row instanceof Income ? $row->receipt_number : null,
+            'date' => $row->date?->format('Y-m-d'),
+            'reference' => $row instanceof Income ? $this->compactDocumentNumber($row->receipt_number, 'RCPT') : null,
             'applicant' => $row->applicant?->name, 'type' => $row->type, 'description' => $row->description,
             'amount' => (float) $row->amount, 'quantity' => (int) $row->quantity,
             'currency' => $currency?->code ?? $row->cnv_curr_shrt ?? 'UNK',
@@ -447,6 +451,22 @@ class ReportService
         $rate = (float) ($currency?->rate ?? 0);
 
         return $rate > 0 ? round($amount / $rate, 4) : 0.0;
+    }
+
+    /** Keep report identifiers concise without changing issued document numbers. */
+    private function compactDocumentNumber(?string $number, string $prefix): ?string
+    {
+        if (! $number || ! preg_match('/^'.preg_quote($prefix, '/').'-(\\d{2,4})-(\\d+)$/i', $number, $parts)) {
+            return $number;
+        }
+
+        return sprintf('%s-%s-%03d', strtoupper($prefix), substr($parts[1], -2), (int) $parts[2]);
+    }
+
+    /** Attendance rows are daily, so a local clock time is sufficient. */
+    private function localPunchTime(?CarbonInterface $timestamp): ?string
+    {
+        return $timestamp?->copy()->timezone($this->company->timezone())->format('H:i');
     }
 
     private function range(array $filters): array

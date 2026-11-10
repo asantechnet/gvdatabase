@@ -13,6 +13,7 @@ import TaskApi from '@/api/task'
 import TaskAssigneeApi, { type TaskAssigneeOption } from '@/api/taskAssignee'
 import KanbanTaskEditForm from '@/components/forms/KanbanTaskEditForm.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 import type { Task, TaskAttachment } from '@/api/kanban'
 import { canAccess } from '@/utils/authorization'
 
@@ -48,6 +49,9 @@ const imagePreviewUrls = ref<Record<string, string>>({})
 const previewAttachment = ref<TaskAttachment | null>(null)
 const previewUrl = ref('')
 const isAttachmentPreviewOpen = ref(false)
+const attachmentToDelete = ref<TaskAttachment | null>(null)
+const deleteAttachmentDialogOpen = ref(false)
+const uploadingAttachment = ref(false)
 let imageViewer: Viewer | null = null
 const canAssignMembers = () => canAccess('assign_task_members')
 const canManageTags = () => canAccess('manage_task_tags')
@@ -167,6 +171,41 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
   link.download = attachment.name
   link.click()
   URL.revokeObjectURL(url)
+}
+
+const uploadAttachment = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || !attachmentTask.value || uploadingAttachment.value)
+    return
+
+  uploadingAttachment.value = true
+  try {
+    const response = await TaskApi.uploadAttachment(attachmentTask.value.id, file)
+    attachmentTask.value.attachments.push(response.data.data)
+    await loadImagePreviews()
+    toast.success(translate('common.messages.saved'))
+  }
+  finally {
+    uploadingAttachment.value = false
+    ;(event.target as HTMLInputElement).value = ''
+  }
+}
+
+const requestAttachmentDelete = (attachment: TaskAttachment) => {
+  attachmentToDelete.value = attachment
+  deleteAttachmentDialogOpen.value = true
+}
+
+const deleteAttachment = async () => {
+  if (!attachmentTask.value || !attachmentToDelete.value)
+    return
+
+  const attachment = attachmentToDelete.value
+  await TaskApi.deleteAttachment(attachmentTask.value.id, attachment.id)
+  attachmentTask.value.attachments = attachmentTask.value.attachments.filter(item => item.id !== attachment.id)
+  attachmentToDelete.value = null
+  deleteAttachmentDialogOpen.value = false
+  await loadImagePreviews()
 }
 
 const previewAttachmentFile = async (attachment: TaskAttachment) => {
@@ -289,7 +328,7 @@ const confirmTaskDelete = async () => {
 
           <VCardText class="kanban-scroll-area bg-background">
             <div v-if="isLoading" class="kanban-skeleton" aria-busy="true">
-              <VCard v-for="column in 3" :key="column" class="kanban-skeleton__column pa-4" variant="outlined">
+              <VCard v-for="column in 4" :key="column" class="kanban-skeleton__column pa-4" variant="outlined">
                 <V-SkeletonLoader type="heading" class="mb-5" />
                 <V-SkeletonLoader v-for="card in 4" :key="card" type="card" class="mb-4" />
               </VCard>
@@ -326,12 +365,14 @@ const confirmTaskDelete = async () => {
     <VDialog
       v-model="isDeleteDialogOpen"
       max-width="440"
+      content-class="kanban-delete-dialog"
     >
-      <VCard>
-        <VCardTitle class="text-h6 pa-5 pb-2">
+      <VCard class="kanban-delete-dialog__card">
+        <VCardText class="kanban-delete-dialog__content">
+          <div class="kanban-delete-dialog__icon"><VIcon icon="tabler-trash" size="30" /></div>
+          <VCardTitle class="text-h6 pa-0 pb-2">
           {{ $t('common.messages.confirmDeletion') }}
-        </VCardTitle>
-        <VCardText class="pa-5 pt-2">
+          </VCardTitle>
           {{ $t('common.confirmations.areYouSureYouWantToDeleteThisTaskThisActionCannotBeUndone') }}
           <div
             v-if="pendingDeleteTitle"
@@ -340,17 +381,15 @@ const confirmTaskDelete = async () => {
             “{{ pendingDeleteTitle }}”
           </div>
         </VCardText>
-        <VCardActions class="pa-5 pt-0">
-          <VSpacer />
+        <VCardActions class="kanban-delete-dialog__actions px-5 pb-5">
           <VBtn
-            variant="outlined"
-            color="secondary"
+            class="kanban-delete-dialog__cancel"
             @click="cancelTaskDelete"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
-            color="error"
+            class="kanban-delete-dialog__confirm"
             @click="confirmTaskDelete"
           >
             {{ $t('common.actions.delete') }}
@@ -387,6 +426,11 @@ const confirmTaskDelete = async () => {
           v-if="attachmentTask"
           class="pa-5"
         >
+          <label class="task-attachment-upload mb-5">
+            <VIcon icon="tabler-upload" color="primary" size="22" />
+            <span><strong>{{ $t('common.actions.upload') }}</strong><small>{{ $t('components.taskManager.kanbanview.taskFiles') }}</small></span>
+            <input type="file" :disabled="uploadingAttachment" @change="uploadAttachment">
+          </label>
           <div
             v-if="attachmentTask.attachments.length"
             ref="attachmentImageContainer"
@@ -438,6 +482,15 @@ const confirmTaskDelete = async () => {
                 :title="$t('components.taskManager.kanbanview.downloadAttachment')"
                 @click="downloadAttachment(attachment)"
               />
+              <VBtn
+                v-if="canAccess('edit_assigned_tasks')"
+                icon="tabler-trash"
+                variant="text"
+                color="error"
+                :aria-label="$t('common.actions.delete')"
+                :title="$t('common.actions.delete')"
+                @click="requestAttachmentDelete(attachment)"
+              />
             </div>
           </div>
           <VAlert
@@ -450,6 +503,8 @@ const confirmTaskDelete = async () => {
         </VCardText>
       </VCard>
     </VDialog>
+
+    <ConfirmDialog v-model:is-dialog-visible="deleteAttachmentDialogOpen" tone="error" icon="tabler-trash" :confirmation-question="$t('common.messages.confirmDelete')" :confirmation-message="attachmentToDelete?.name ?? ''" :confirm-text="$t('common.actions.delete')" :cancel-text="$t('common.actions.cancel')" :confirm-title="$t('common.actions.delete')" confirm-msg="" :cancel-title="$t('common.actions.cancel')" cancel-msg="" @confirm="confirmed => { if (confirmed) deleteAttachment() }" />
 
     <VDialog v-model="isAttachmentPreviewOpen" max-width="900" content-class="kanban-attachment-preview-dialog" @update:model-value="open => { if (!open) previewAttachment = null }">
       <VCard class="kanban-attachment-preview-dialog__card">
@@ -500,6 +555,9 @@ const confirmTaskDelete = async () => {
   gap: 0.75rem;
 }
 
+.task-attachment-upload { display: flex; align-items: center; gap: .75rem; padding: .875rem 1rem; border: 1px dashed rgba(var(--v-theme-primary), .5); border-radius: .75rem; background: rgba(var(--v-theme-primary), .05); cursor: pointer; }
+.task-attachment-upload span { display: grid; gap: .1rem; }.task-attachment-upload small { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }.task-attachment-upload input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; }
+
 .attachment-preview {
   width: 72px;
   height: 56px;
@@ -509,6 +567,12 @@ const confirmTaskDelete = async () => {
 :global(.v-overlay:has(.kanban-attachments-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .24); backdrop-filter: blur(5px); opacity: 1 !important; }
 :global(.kanban-attachments-dialog__card) { overflow: hidden; }
 .kanban-attachments-dialog__header { background: rgba(var(--v-theme-on-surface), .025); }
+
+:global(.v-overlay:has(.kanban-delete-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .3); backdrop-filter: blur(7px); opacity: 1 !important; }
+.kanban-delete-dialog__card { overflow: hidden; border-radius: 1rem !important; text-align: center; }
+.kanban-delete-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; }
+.kanban-delete-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); place-items: center; }
+.kanban-delete-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }.kanban-delete-dialog__actions .v-btn { min-block-size: 2.85rem; }.kanban-delete-dialog__cancel { border: 1px solid rgba(var(--v-theme-secondary), .52) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }.kanban-delete-dialog__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }.kanban-delete-dialog__confirm { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
 
 :global(.viewer-container) {
   z-index: 3000 !important;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { printDocument } from '@/utils/printDocument'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatAmountInWords } from '@/utils/amountInWords'
 import { documentBrandStyle } from '@/utils/documentBranding'
@@ -41,8 +41,6 @@ export interface EarningDeduction {
 }
 
 export interface SalarySlipProps {
-  /** Optional official letterhead image used as the printed sheet background. */
-  letterheadUrl?: string
   documentTitle?: string
   documentNumber?: string
   payslipSubtitle?: string
@@ -69,21 +67,14 @@ const props = withDefaults(defineProps<SalarySlipProps>(), {
 
 const { locale } = useI18n()
 const payslipContainerRef = ref<HTMLElement | null>(null)
-const letterheadFailed = ref(false)
-const hasLetterhead = computed(() => Boolean(props.letterheadUrl) && !letterheadFailed.value)
 
 const brandStyle = computed(() => documentBrandStyle(
   props.company.primaryColor,
   props.company.secondaryColor,
 ))
 
-watch(() => props.letterheadUrl, () => {
-  letterheadFailed.value = false
-})
-
-// Payslips are a full A4 document. Unlike a short contract letter, their
-// ledger and signatures must use the whole sheet rather than a constrained
-// letterhead safe-zone.
+// A payslip is deliberately self-contained: it uses the company's logo rather
+// than a configurable letterhead so the A4 payroll layout stays predictable.
 const grossSalary = computed(() => props.earnings.reduce((sum, item) => sum + item.amount, 0))
 
 const totalDeductions = computed(() => props.deductions.reduce((sum, item) => sum + item.amount, 0))
@@ -136,35 +127,20 @@ defineExpose({ print: printSalarySlip })
   <div
     ref="payslipContainerRef"
     class="payslip-container print-document"
-    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale), 'payslip-container--letterhead': hasLetterhead }"
+    :class="{ 'persian-document': ['fa-AF', 'ps-AF'].includes($i18n.locale) }"
     :style="brandStyle"
     :dir="$i18n.locale === 'en' ? 'ltr' : 'rtl'"
   >
-    <img
-      v-if="hasLetterhead"
-      :src="letterheadUrl"
-      alt=""
-      class="payslip-letterhead-background"
-      aria-hidden="true"
-      @error="letterheadFailed = true"
-    >
-    <div
-      class="payslip-content"
-      :class="{ 'payslip-content--safe': hasLetterhead }"
-    >
+    <div class="payslip-content">
       <header class="doc-head">
         <div class="brand">
           <img
-            v-if="!hasLetterhead && company.logo"
+            v-if="company.logo"
             :src="company.logo"
             :alt="company.name"
             class="brand__logo"
           >
-          <div v-if="hasLetterhead" class="brand__payslip-title">
-            <span>OFFICIAL PAYSLIP</span>
-            <small>شقه معاش رسمی / رسمی د معاش شقه</small>
-          </div>
-          <div v-else class="brand__text">
+          <div class="brand__text">
             <h1 class="brand__name">
               {{ company.name }}
             </h1>
@@ -193,8 +169,8 @@ defineExpose({ print: printSalarySlip })
         </div>
 
         <div class="doc-title">
-          <span v-if="!hasLetterhead" class="doc-title__eyebrow">{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</span>
-          <span v-if="!hasLetterhead" class="doc-title__sub">شقه معاش رسمی / رسمی د معاش شقه</span>
+          <span class="doc-title__eyebrow">{{ $t('documents.payslip_template.payslipTemplate.officialPAYSLIP') }}</span>
+          <span class="doc-title__sub">شقه معاش رسمی / رسمی د معاش شقه</span>
           <dl class="doc-title__meta">
             <div>
               <dt>{{ $t('documents.payslip_template.payslipTemplate.docNo') }}</dt>
@@ -403,9 +379,6 @@ defineExpose({ print: printSalarySlip })
         </div>
       </footer>
 
-      <p class="compliance">
-        {{ $t('documents.payslip_template.payslipTemplate.thisDocumentIsGeneratedInComplianceWithTheAfghanistanLaborLawAndMinist') }}
-      </p>
     </div>
   </div>
 </template>
@@ -419,52 +392,23 @@ defineExpose({ print: printSalarySlip })
   --payslip-soft: var(--doc-primary-soft);
 
   box-sizing: border-box;
-  width: 100%;
+  width: 210mm;
+  min-height: 297mm;
   max-width: 210mm;
   margin: 0 auto;
-  padding: 9mm;
+  padding: 12mm;
   position: relative;
   background: #fff;
   color: var(--payslip-ink);
   font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 9.6pt;
+  font-size: 9pt;
   line-height: 1.35;
-}
-
-.payslip-container--letterhead {
-  width: 210mm;
-  height: 297mm;
-  min-height: 297mm;
-  padding: 0;
-}
-
-/* A dedicated document layer keeps the official artwork independent from the
- * payroll data layout. */
-.payslip-letterhead-background {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
 }
 .payslip-content {
   display: flex;
   flex-direction: column;
-  gap: 3mm;
+  gap: 4mm;
   min-height: 100%;
-}
-
-.payslip-content--safe {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  box-sizing: border-box;
-  width: auto;
-  height: auto;
-  padding: 26mm 18mm 24mm;
-  overflow: visible;
 }
 .payslip-container.persian-document {
   font-family: Vazirmatn, 'Public Sans', sans-serif;
@@ -475,7 +419,7 @@ defineExpose({ print: printSalarySlip })
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 6mm;
+  gap: 5mm;
   padding-block-end: 3mm;
   border-block-end: 2.5px solid var(--payslip-accent);
 }
@@ -483,13 +427,13 @@ defineExpose({ print: printSalarySlip })
 .brand {
   display: flex;
   align-items: flex-start;
-  gap: 3mm;
+  gap: 4mm;
   min-inline-size: 0;
 }
 
 .brand__logo {
-  inline-size: 22mm;
-  block-size: 22mm;
+  inline-size: 25mm;
+  block-size: 25mm;
   object-fit: contain;
   flex-shrink: 0;
 }
@@ -513,28 +457,28 @@ defineExpose({ print: printSalarySlip })
 
 .brand__name {
   margin: 0;
-  font-size: 15pt;
+  font-size: 13pt;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
 
 .brand__badge {
   display: inline-block;
-  margin-block: 1mm;
+  margin-block: 1.4mm;
   padding: 0.4mm 1.6mm;
   border-radius: 2px;
   background: var(--payslip-soft);
   color: var(--payslip-accent);
-  font-size: 6.8pt;
+  font-size: 7.4pt;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .brand__meta {
-  margin: 0.5mm 0 0;
+  margin: .8mm 0 0;
   color: var(--payslip-muted);
-  font-size: 6.6pt;
+  font-size: 7.2pt;
 }
 
 .doc-title {
@@ -554,7 +498,7 @@ defineExpose({ print: printSalarySlip })
 
 .doc-title__sub {
   display: block;
-  margin-block: 0.6mm 2mm;
+  margin-block: 1mm 3mm;
   color: var(--payslip-muted);
   font-size: 7pt;
   font-weight: 600;
@@ -562,15 +506,15 @@ defineExpose({ print: printSalarySlip })
 
 .doc-title__meta {
   display: grid;
-  gap: 0.6mm;
+  gap: 1mm;
   margin: 0;
 }
 
 .doc-title__meta > div {
   display: flex;
   justify-content: flex-end;
-  gap: 2mm;
-  font-size: 8pt;
+  gap: 3mm;
+  font-size: 9pt;
 }
 
 .doc-title__meta dt {
@@ -586,8 +530,8 @@ defineExpose({ print: printSalarySlip })
 .employee-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2mm 3mm;
-  padding: 2.5mm 3mm;
+  gap: 2.5mm 3mm;
+  padding: 3mm 3.5mm;
   border: 1px solid var(--payslip-line);
   border-radius: 1.5mm;
   background: var(--payslip-soft);
@@ -605,7 +549,7 @@ defineExpose({ print: printSalarySlip })
 
 .label {
   color: var(--payslip-muted);
-  font-size: 7pt;
+  font-size: 7.8pt;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -613,7 +557,7 @@ defineExpose({ print: printSalarySlip })
 
 .value {
   overflow: hidden;
-  font-size: 9.2pt;
+  font-size: 10.2pt;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -637,8 +581,8 @@ defineExpose({ print: printSalarySlip })
 .attendance-strip__item {
   display: flex;
   flex-direction: column;
-  gap: 0.5mm;
-  padding: 1.8mm 2mm;
+  gap: .8mm;
+  padding: 2mm 2.25mm;
   text-align: center;
   border-inline-end: 1px solid var(--payslip-line);
 }
@@ -653,14 +597,14 @@ defineExpose({ print: printSalarySlip })
 
 .attendance-strip__label {
   color: var(--payslip-muted);
-  font-size: 6.8pt;
+  font-size: 7.4pt;
   font-weight: 700;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .attendance-strip__value {
-  font-size: 10.5pt;
+  font-size: 12pt;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -669,13 +613,13 @@ defineExpose({ print: printSalarySlip })
 .ledger-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4mm;
+  gap: 5mm;
 }
 
 .ledger__title {
-  margin: 0 0 1.2mm;
+  margin: 0 0 2mm;
   color: var(--payslip-accent);
-  font-size: 8pt;
+  font-size: 9pt;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -688,9 +632,9 @@ defineExpose({ print: printSalarySlip })
 }
 
 .ledger__table td {
-  padding: 2mm 2.4mm;
+  padding: 2mm 2.5mm;
   border-block-end: 1px solid var(--payslip-line);
-  font-size: 8.8pt;
+  font-size: 9.5pt;
   overflow-wrap: anywhere;
 }
 
@@ -710,7 +654,7 @@ defineExpose({ print: printSalarySlip })
 }
 
 .ledger__table--compact td {
-  padding-block: 1mm;
+  padding-block: 1.5mm;
 }
 
 .muted {
@@ -728,7 +672,7 @@ defineExpose({ print: printSalarySlip })
   align-items: center;
   justify-content: space-between;
   gap: 5mm;
-  padding: 3mm 4mm;
+  padding: 3.5mm 4mm;
   border: 1px solid var(--doc-primary-tint);
   border-inline-start: 4px solid var(--payslip-accent);
   border-inline-end: 3px solid var(--doc-secondary);
@@ -744,7 +688,7 @@ defineExpose({ print: printSalarySlip })
 
 .net-banner__label {
   color: var(--payslip-accent);
-  font-size: 8pt;
+  font-size: 9pt;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -752,13 +696,13 @@ defineExpose({ print: printSalarySlip })
 
 .net-banner__words {
   color: var(--payslip-muted);
-  font-size: 7.6pt;
+  font-size: 8.2pt;
   font-style: italic;
 }
 
 .net-banner__amount {
   color: var(--payslip-accent);
-  font-size: 16pt;
+  font-size: 15pt;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -769,8 +713,8 @@ defineExpose({ print: printSalarySlip })
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5mm;
-  margin-block-start: auto;
-  padding-block-start: 10mm;
+  margin-block-start: 5mm;
+  padding-block-start: 8mm;
   border-block-start: 1px solid var(--payslip-line);
 }
 
@@ -778,7 +722,7 @@ defineExpose({ print: printSalarySlip })
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-block-size: 14mm;
+  min-block-size: 15mm;
   text-align: center;
 }
 
@@ -789,27 +733,18 @@ defineExpose({ print: printSalarySlip })
 
 .signature__image {
   display: block;
-  max-inline-size: 26mm;
-  max-block-size: 10mm;
-  margin: 0 auto 1mm;
+  max-inline-size: 32mm;
+  max-block-size: 13mm;
+  margin: 0 auto 1.5mm;
   object-fit: contain;
 }
 
 .signature span {
   color: var(--payslip-muted);
-  font-size: 7.2pt;
+  font-size: 8pt;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.compliance {
-  margin: 0;
-  padding-block-start: 2mm;
-  border-block-start: 1px dashed var(--payslip-line);
-  color: var(--payslip-muted);
-  font-size: 6.8pt;
-  text-align: center;
 }
 
 [dir='rtl'] .doc-title,
@@ -823,34 +758,10 @@ defineExpose({ print: printSalarySlip })
 
 @media print {
   :global(body.printing-payslip-document .payslip-container) {
-    box-shadow: none;
-  }
-
-  :global(body.printing-payslip-document .payslip-container--letterhead) {
     width: 210mm !important;
-    height: 297mm !important;
     min-height: 297mm !important;
     max-width: 210mm !important;
-    max-height: 297mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: relative !important;
-    box-sizing: border-box !important;
-  }
-
-  :global(body.printing-payslip-document .payslip-container--letterhead .payslip-letterhead-background) {
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-  }
-
-  :global(body.printing-payslip-document .payslip-container--letterhead .payslip-content--safe) {
-    inset: 0 !important;
-    width: auto !important;
-    height: auto !important;
-    padding: 26mm 18mm 24mm !important;
-    overflow: visible;
+    box-shadow: none;
   }
 }
 </style>
