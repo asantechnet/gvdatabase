@@ -1,0 +1,1 @@
+import{ac as o}from"./main-CL9QDlTk.js";const e={getOptions:async()=>(await o.get("/positions")).data.data,getAll:()=>o.get("/positions"),getById:t=>o.get(`/positions/${t}`),create:t=>o.post("/positions",t),update:(t,i)=>o.put(`/positions/${t}`,i),delete:t=>o.delete(`/positions/${t}`)};export{e as P};
