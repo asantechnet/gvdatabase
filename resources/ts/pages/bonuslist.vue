@@ -58,6 +58,9 @@ const departments = ['Engineering', 'Product Design', 'Sales & Marketing', 'Oper
 const bonusTypes: BonusType[] = ['Performance', 'Customer Appreciation', 'Task Completion', 'Work Anniversary', 'Manager Recognition']
 const quickAmounts = [500, 1000, 1500, 2500, 4000, 5000]
 
+// Bonus months are company-local calendar months, not UTC instants.
+const localMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
 // Generate month options for the last 12 months
 const monthOptions = computed(() => {
   const options = []
@@ -67,11 +70,9 @@ const monthOptions = computed(() => {
   options.push({ value: 'All', title: translate('common.messages.allMonths') })
 
   for (let i = 0; i < 12; i++) {
-    const date = new Date(currentDate)
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
 
-    date.setMonth(currentDate.getMonth() - i)
-
-    const yearMonth = date.toISOString().slice(0, 7)
+    const yearMonth = localMonthKey(date)
     const displayText = formatLocalizedDate(date, { month: 'long', year: 'numeric' })
 
     options.push({ value: yearMonth, title: displayText })
@@ -86,7 +87,7 @@ const defaultNomination = {
   suggestedAmount: 1000,
   selectedAmount: 1000,
   selectedType: 'Manager Recognition' as BonusType,
-  bonusMonth: new Date().toISOString().slice(0, 7), // Current month in YYYY-MM format
+  bonusMonth: localMonthKey(new Date()), // Current local month in YYYY-MM format
 }
 
 const nominationForm = ref({ ...defaultNomination })

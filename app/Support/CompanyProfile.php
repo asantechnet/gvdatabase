@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Exceptions\EmailDeliveryNotConfiguredException;
 use App\Models\Setting;
 use DateTimeZone;
 use Illuminate\Support\Facades\Schema;
@@ -17,10 +18,18 @@ class CompanyProfile
         return Setting::query()->latest('id')->first();
     }
 
-    /** Whether the company's own SMTP/from settings should be used at all. */
+    /** Whether outgoing email is enabled for the company. */
     public function emailDeliveryEnabled(): bool
     {
         return (bool) ($this->current()?->email_delivery_enabled ?? false);
+    }
+
+    /** Stop an outbound-mail action before a transport is contacted. */
+    public function assertEmailDeliveryEnabled(): void
+    {
+        if (! $this->emailDeliveryEnabled()) {
+            throw new EmailDeliveryNotConfiguredException;
+        }
     }
 
     /** @return array{address: string, name: string}|null */
@@ -43,11 +52,8 @@ class CompanyProfile
     /** Configure and return the company SMTP mailer, or null when .env should be used. */
     public function configureMailer(): ?string
     {
+        $this->assertEmailDeliveryEnabled();
         $setting = $this->current();
-
-        if (! $this->emailDeliveryEnabled()) {
-            return null;
-        }
 
         if (! $setting?->mail_host || ! $setting->mail_port || ! $setting->mail_username || ! $setting->mail_password) {
             return null;

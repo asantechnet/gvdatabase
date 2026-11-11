@@ -97,7 +97,6 @@ class PlaceholderRegistry
                     ['key' => 'customer.phone', 'label' => 'Phone'],
                     ['key' => 'customer.email', 'label' => 'Email'],
                     ['key' => 'customer.address', 'label' => 'Address'],
-                    ['key' => 'customer.tax_number', 'label' => 'Tax Number'],
                 ],
             ],
             [

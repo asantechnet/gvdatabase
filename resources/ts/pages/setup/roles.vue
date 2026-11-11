@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import PermissionApi, { type Permission } from '@/api/permission'
 import RoleApi from '@/api/role'
+import ErpField from '@/components/erp/ErpField.vue'
+import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import { confirmActionWarning } from '@/composables/useActionWarning'
 import { apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
 
@@ -41,6 +44,7 @@ const seniorityError = ref('')
 const selectedPermissions = ref<string[]>([])
 const deleteRoleDialog = ref(false)
 const deletingRole = ref<AppRole | null>(null)
+const initialRoleForm = ref('')
 
 // Avatar generation helpers
 const getInitials = (name: string) => {
@@ -71,6 +75,18 @@ const permissionLabel = (permission: Permission) => {
   const raw = permission.name.startsWith(prefix) ? permission.name.slice(prefix.length) : permission.name
 
   return raw.replaceAll('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+// System role keys are stored in English for authorization. Present their
+// localized role-option label when one exists, while keeping custom roles
+// readable instead of exposing a missing-translation marker.
+const roleDisplayName = (name: string) => {
+  const key = `pages.settings.users.roleOptions.${name}`
+  const translated = t(key)
+
+  return translated.startsWith('[missing:') || translated === key
+    ? name.replaceAll('_', ' ')
+    : translated
 }
 
 const permissionSearch = ref('')
@@ -201,6 +217,8 @@ const seniorityDisabledReason = computed(() => {
 
   return ''
 })
+const isDirty = computed(() => JSON.stringify({ role: roleForm.value, permissions: selectedPermissions.value }) !== initialRoleForm.value)
+const snapshot = () => JSON.stringify({ role: roleForm.value, permissions: selectedPermissions.value })
 
 const loadAll = async () => {
   loading.value = true
@@ -227,6 +245,7 @@ const openCreateRole = () => {
   seniorityError.value = ''
   selectedPermissions.value = []
   permissionSearch.value = ''
+  initialRoleForm.value = snapshot()
   roleDialog.value = true
 }
 
@@ -236,7 +255,13 @@ const openEditRole = (role: AppRole) => {
   seniorityError.value = ''
   selectedPermissions.value = role.permissions?.map((p: any) => p.name || p) || []
   permissionSearch.value = ''
+  initialRoleForm.value = snapshot()
   roleDialog.value = true
+}
+
+const closeRoleDialog = async () => {
+  if (isDirty.value && !await confirmActionWarning({ key: 'discard-form-changes', title: t('common.actionWarnings.discardTitle'), message: t('common.actionWarnings.discardMessage'), confirmText: t('common.actionWarnings.discardConfirm'), cancelText: t('common.actions.cancel'), icon: 'tabler-file-alert', tone: 'primary' })) return
+  roleDialog.value = false
 }
 
 const saveRole = async () => {
@@ -320,23 +345,12 @@ onMounted(loadAll)
 </script>
 
 <template>
-  <div>
-    <VAlert
-      type="info"
-      variant="tonal"
-      class="mb-6"
-    >
-      {{ $t('pages.settings.rolecards.rolecards.rolesGrantPermissionsPositionsRemainHRJobTitlesChangesTakeEffectWhenAf')
-      }}
-    </VAlert>
+  <div class="roles-workspace">
+    <VRow v-if="loading" class="role-cards">
+      <VCol v-for="index in 6" :key="index" cols="12" sm="6" lg="4"><VCard class="role-card role-card--skeleton" elevation="0"><VCardText><VSkeletonLoader type="heading, text, text, actions" /></VCardText></VCard></VCol>
+    </VRow>
 
-    <VProgressLinear
-      v-if="loading"
-      indeterminate
-      class="mb-4"
-    />
-
-    <VRow v-else>
+    <VRow v-else class="role-cards">
       <!-- Existing Roles Cards -->
       <VCol
         v-for="role in roles"
@@ -345,7 +359,7 @@ onMounted(loadAll)
         sm="6"
         lg="4"
       >
-        <VCard>
+        <VCard class="role-card h-100">
           <VCardText class="d-flex align-center pb-4">
             <span class="text-subtitle-1">{{ tr('totalUsers', { count: role.users_count || 0 }) }}</span>
             <VSpacer />
@@ -385,7 +399,7 @@ onMounted(loadAll)
           <VCardText>
             <div class="d-flex align-center flex-wrap gap-2 mb-1">
               <h4 class="text-h4 mb-0 text-capitalize">
-                {{ role.name.replace('_', ' ') }}
+                {{ roleDisplayName(role.name) }}
               </h4>
               <VChip
                 size="small"
@@ -449,7 +463,7 @@ onMounted(loadAll)
         lg="4"
       >
         <VCard
-          class="h-100 cursor-pointer"
+          class="role-card h-100 cursor-pointer"
           @click="openCreateRole"
         >
           <VRow
@@ -484,30 +498,16 @@ onMounted(loadAll)
 
     <!-- Create/Edit Role Dialog -->
     <VDialog
-      v-model="roleDialog"
+      :model-value="roleDialog"
       max-width="860"
       scrollable
+      content-class="role-editor-overlay"
+      @update:model-value="value => { if (!value) void closeRoleDialog() }"
     >
-      <VCard>
-        <VCardItem class="pb-2">
-          <VCardTitle class="text-h5 font-weight-bold">
-            {{ editingRole ? tr('editRole') : tr('createRole') }}
-          </VCardTitle>
-          <template #append>
-            <IconBtn
-              size="small"
-              @click="roleDialog = false"
-            >
-              <VIcon
-                icon="tabler-x"
-                size="20"
-              />
-            </IconBtn>
-          </template>
-        </VCardItem>
-        <VDivider />
+      <VCard class="role-editor">
+        <VCardTitle class="role-editor__header px-5 py-4"><span>{{ editingRole ? tr('editRole') : tr('createRole') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="role-editor__close" :disabled="savingRole" :aria-label="$t('common.actions.close')" @click="closeRoleDialog" /></VCardTitle>
         <VCardText
-          class="pt-6"
+          class="role-editor__body pa-5"
           style="max-height: 75vh; overflow-y: auto;"
         >
           <VForm
@@ -515,19 +515,13 @@ onMounted(loadAll)
             @submit.prevent="saveRole"
           >
             <VRow>
-              <VCol
-                cols="12"
-                class="mb-1"
-              >
-                <VTextField
+              <VCol cols="12" md="6" class="mb-1">
+                <ErpField
                   v-model="roleForm.name"
+                  required
                   :label="tr('roleName')"
                   :placeholder="tr('roleNamePlaceholder')"
-                  required
                   :disabled="isIdentityProtected"
-                  hide-details="auto"
-                  density="comfortable"
-                  variant="outlined"
                 />
                 <p
                   v-if="isPermissionProtected"
@@ -601,29 +595,13 @@ onMounted(loadAll)
                         class="flex-grow-1"
                         style="min-width: 240px;"
                       >
-                        <VTextField
+                        <ErpSearchField
                           v-model="permissionSearch"
                           :placeholder="tr('searchPermissions')"
-                          prepend-inner-icon="tabler-search"
-                          density="compact"
-                          variant="outlined"
-                          hide-details
                           clearable
                           :disabled="isPermissionProtected"
                           @click:clear="clearSearch"
-                        >
-                          <template
-                            v-if="permissionSearch"
-                            #append-inner
-                          >
-                            <VBtn
-                              size="x-small"
-                              variant="text"
-                              icon="tabler-x"
-                              @click="clearSearch"
-                            />
-                          </template>
-                        </VTextField>
+                        />
                       </div>
                       <div class="d-flex align-center gap-2 ms-auto">
                         <span class="text-body-2 text-medium-emphasis d-none d-sm-inline">
@@ -820,18 +798,16 @@ onMounted(loadAll)
             </VRow>
           </VForm>
         </VCardText>
-        <VDivider />
-        <VCardActions class="px-6 py-4">
-          <VSpacer />
+        <VCardActions class="role-editor__footer justify-end px-5 py-4">
           <VBtn
-            variant="tonal"
-            color="secondary"
-            @click="roleDialog = false"
+            class="role-editor__cancel"
+            :disabled="savingRole"
+            @click="closeRoleDialog"
           >
             {{ $t('common.actions.cancel') }}
           </VBtn>
           <VBtn
-            color="primary"
+            class="role-editor__save"
             :loading="savingRole"
             :disabled="isPermissionProtected"
             @click="saveRole"
@@ -843,36 +819,16 @@ onMounted(loadAll)
     </VDialog>
 
     <!-- Delete Confirmation -->
-    <VDialog
-      v-model="deleteRoleDialog"
-      max-width="420"
-    >
-      <VCard :title="tr('deleteRole')">
-        <VCardText>
-          {{ tr('deleteConfirmation', { role: deletingRole?.name.replace('_', ' ') ?? '' }) }}
-        </VCardText>
-        <VDivider />
-        <VCardActions>
-          <VSpacer />
-          <VBtn
-            variant="tonal"
-            @click="deleteRoleDialog = false"
-          >
-            {{ $t('common.actions.cancel') }}
-          </VBtn>
-          <VBtn
-            color="error"
-            @click="confirmDeleteRole"
-          >
-            {{ $t('common.actions.delete') }}
-          </VBtn>
-        </VCardActions>
-      </VCard>
+    <VDialog :model-value="deleteRoleDialog" max-width="480" content-class="role-delete-overlay" @update:model-value="value => { if (!value) deleteRoleDialog = false }">
+      <VCard class="role-delete-dialog"><VCardText class="role-delete-dialog__content"><div class="role-delete-dialog__icon"><VIcon icon="tabler-trash" size="30" /></div><h2>{{ tr('deleteRole') }}</h2><p>{{ tr('deleteConfirmation', { role: deletingRole?.name.replace('_', ' ') ?? '' }) }}</p></VCardText><VCardActions class="role-delete-dialog__actions"><VBtn class="role-editor__cancel" @click="deleteRoleDialog = false">{{ $t('common.actions.cancel') }}</VBtn><VBtn class="role-delete-dialog__confirm" @click="confirmDeleteRole">{{ $t('common.actions.delete') }}</VBtn></VCardActions></VCard>
     </VDialog>
   </div>
 </template>
 
 <style scoped>
+.role-cards > :deep(.v-col) { display: flex; }.role-card { flex: 1 1 auto; min-block-size: 13rem; border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-radius: .85rem; }.role-card--skeleton { min-block-size: 13rem; }.role-card--skeleton :deep(.v-skeleton-loader__bone) { animation: role-card-wave 1.45s ease-in-out infinite; background: linear-gradient(100deg, rgba(var(--v-theme-on-surface), .055) 25%, rgba(var(--v-theme-on-surface), .11) 45%, rgba(var(--v-theme-on-surface), .055) 65%); background-size: 240% 100%; } @keyframes role-card-wave { to { background-position: -160% 0; } }
+.role-editor, .role-delete-dialog { overflow: hidden; background: rgb(var(--v-theme-surface)); }.role-editor__header, .role-editor__footer { display: flex; align-items: center; border-color: rgba(var(--v-border-color), .52); border-style: solid; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 93%, rgb(var(--v-theme-on-surface)) 7%); }.role-editor__header { border-width: 0 0 1px; color: rgb(var(--v-theme-on-surface)); font-size: 1.2rem; font-weight: 700; }.role-editor__footer { gap: .75rem; border-width: 1px 0 0; }.role-editor__body { background: rgba(var(--v-theme-on-surface), .018); }.role-editor__close { border: 1px solid rgba(var(--v-theme-error), .4) !important; border-radius: 999px !important; }.role-editor__cancel { border: 1px solid rgba(var(--v-theme-secondary), .5) !important; background: rgba(var(--v-theme-secondary), .13) !important; color: rgb(var(--v-theme-secondary)) !important; }.role-editor__save { background: rgb(var(--v-theme-primary)) !important; color: rgb(var(--v-theme-on-primary)) !important; }.role-delete-dialog__content { display: flex; flex-direction: column; align-items: center; padding: 2rem 2rem 1.25rem !important; text-align: center; }.role-delete-dialog__content h2 { margin: 0; font-size: 1.2rem; }.role-delete-dialog__content p { max-inline-size: 23rem; margin: .65rem 0 0; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }.role-delete-dialog__icon { display: grid; inline-size: 4.25rem; block-size: 4.25rem; margin-block-end: 1.25rem; border-radius: 50%; background: rgba(var(--v-theme-error), .14); color: rgb(var(--v-theme-error)); place-items: center; }.role-delete-dialog__actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0 2rem 2rem !important; }.role-delete-dialog__actions .v-btn { min-block-size: 2.85rem; }.role-delete-dialog__confirm { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }.role-editor-overlay :deep(.v-overlay__scrim), .role-delete-overlay :deep(.v-overlay__scrim) { background: rgba(20, 25, 35, .3) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
+:global(.v-overlay:has(.role-editor-overlay) .v-overlay__scrim), :global(.v-overlay:has(.role-delete-overlay) .v-overlay__scrim) { background: rgba(20, 25, 35, .3) !important; backdrop-filter: blur(6px); opacity: 1 !important; }
 /* Vuexy Avatar Stack Styling */
 .v-avatar-group {
   display: flex;

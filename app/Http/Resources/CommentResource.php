@@ -11,10 +11,10 @@ class CommentResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $editableUntil = app(EditWindow::class)->editableUntil($this->resource);
+        $editableUntil = app(EditWindow::class)->editableUntil($this->resource, EditWindow::COMMENT_MINUTES);
         $canEdit = $request->user()
             && app(CommentPolicy::class)->update($request->user(), $this->resource)
-            && app(EditWindow::class)->canEdit($request->user(), $this->resource);
+            && app(EditWindow::class)->isOpen($this->resource, EditWindow::COMMENT_MINUTES);
 
         return [
             'id' => (string) $this->id,
@@ -32,7 +32,7 @@ class CommentResource extends JsonResource
             'createdAt' => $this->created_at ? $this->created_at->toIso8601String() : null,
             'editableUntil' => $editableUntil->toISOString(),
             'canEdit' => (bool) $canEdit,
-            'editWindowExpired' => ! app(EditWindow::class)->isOpen($this->resource),
+            'editWindowExpired' => ! app(EditWindow::class)->isOpen($this->resource, EditWindow::COMMENT_MINUTES),
         ];
     }
 }

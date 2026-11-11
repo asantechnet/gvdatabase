@@ -7,6 +7,7 @@ use App\Http\Resources\WorthyEmployeeResource;
 use App\Models\Employee;
 use App\Models\WorthyEmployee;
 use App\Services\CurrencyConversionService;
+use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,7 +20,10 @@ class WorthyEmployeeController extends Controller
     use PaginatesLists;
     private const BONUS_CATEGORIES = ['Performance', 'Customer Appreciation', 'Task Completion', 'Work Anniversary', 'Manager Recognition'];
 
-    public function __construct(private readonly CurrencyConversionService $currencies) {}
+    public function __construct(
+        private readonly CurrencyConversionService $currencies,
+        private readonly CompanyProfile $company,
+    ) {}
 
     public function index(Request $request): AnonymousResourceCollection|JsonResponse
     {
@@ -59,7 +63,7 @@ class WorthyEmployeeController extends Controller
             'employee_id' => $data['employeeId'], 'performance_score' => $data['performanceScore'] ?? 3,
             'achievement_details' => $data['achievementDetails'],
             'suggested_amount' => $suggested, 'selected_amount' => $selected, 'selected_type' => $category,
-            'is_granted' => false, 'bonus_month' => ($data['bonusMonth'] ?? now()->format('Y-m')).'-01',
+            'is_granted' => false, 'bonus_month' => ($data['bonusMonth'] ?? now($this->company->timezone())->format('Y-m')).'-01',
             'currency_id' => $base->id, 'base_currency_id' => $base->id, 'currency_code' => $base->code,
             'currency_name' => $base->name, 'currency_symbol' => $base->symbol, 'currency_decimal_places' => $base->decimal_places,
             'base_currency_code' => $base->code, 'rate' => 1, 'base_amount' => $selected,

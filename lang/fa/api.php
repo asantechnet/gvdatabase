@@ -175,6 +175,7 @@ return [
             'unresolved_placeholders' => 'قالب دارای جای‌نگهدار پشتیبانی‌نشده است.',
             'missing_placeholder_values' => 'مقادیر الزامی قالب موجود نیست.',
             'contract_extension_invalid' => 'برای تمدید، قرارداد اصلی معتبر همین خدمت را انتخاب کنید.',
+            'contract_extension_party_mismatch' => 'تمدید باید همان کارمند یا متقاضی قرارداد اصلی را داشته باشد.',
             'contract_template_unresolved_placeholders' => 'قالب فعال قرارداد دارای جای‌نگهدار پشتیبانی‌نشده است.',
             'invalid_currency_rate' => 'نرخ تبادله مثبت و معتبر وارد کنید.',
             'contract_not_renewable' => 'تنها قراردادهای فعال یا منقضی‌شده می‌توانند به‌عنوان تمدید ادامه یابند.',

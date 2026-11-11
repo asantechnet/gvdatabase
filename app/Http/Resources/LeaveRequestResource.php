@@ -11,6 +11,7 @@ class LeaveRequestResource extends JsonResource
     {
         $duration = (float) $this->duration_days;
         $offDays = (float) ($this->off_day_days ?? 0);
+        $rejected = $this->rejected_at !== null;
 
         return [
             'id' => $this->id,
@@ -20,16 +21,26 @@ class LeaveRequestResource extends JsonResource
             'duration_days' => $duration,
             'reason' => $this->reason,
             'is_granted' => $this->is_granted,
+            'status' => $rejected ? 'rejected' : ($this->is_granted ? 'approved' : 'pending'),
             'off_day_days' => $offDays,
             'absent_days' => $this->is_granted ? max(0, $duration - $offDays) : 0,
             'off_day_override' => (bool) $this->off_day_override,
             // What the request means for pay once it is approved.
-            'treatment' => ! $this->is_granted
-                ? 'pending'
-                : ($offDays >= $duration ? 'off_day' : ($offDays > 0 ? 'partial' : 'absent')),
+            'treatment' => $rejected
+                ? 'rejected'
+                : (! $this->is_granted
+                    ? 'pending'
+                    : ($offDays >= $duration ? 'off_day' : ($offDays > 0 ? 'partial' : 'absent'))),
             'approval_note' => $this->approval_note,
             'granted_at' => $this->granted_at?->toISOString(),
             'approved_by' => $this->granted_by,
+            'rejected_at' => $this->rejected_at?->toISOString(),
+            'rejected_by' => $this->rejected_by,
+            'rejection_note' => $this->rejection_note,
+            'rejectedBy' => $this->whenLoaded('rejector', fn () => $this->rejector ? [
+                'id' => $this->rejector->id,
+                'name' => $this->rejector->name,
+            ] : null),
             'approvedBy' => $this->whenLoaded('grantor', fn () => $this->grantor ? [
                 'id' => $this->grantor->id,
                 'name' => $this->grantor->name,

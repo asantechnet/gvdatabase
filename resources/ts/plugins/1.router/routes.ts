@@ -360,7 +360,7 @@ const routeDefinitions: Array<{
     path: "/academy/classes",
     component: "academyClasses",
     name: "academy-classes",
-    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_contracts" },
+    meta: { feature: "academy", requiresAuth: true, action: "read", subject: "view_academy_attendance" },
   },
   {
     path: "/academy/students",

@@ -50,7 +50,7 @@ class PhaseNineBonusAutomationTest extends TestCase
         Carbon::setTestNow('2026-08-13 08:00:00 UTC');
         $reviewer = $this->superAdmin();
         $worker = User::factory()->create();
-        $employee = Employee::factory()->create(['user_id' => $worker->id, 'department' => 'Engineering']);
+        $employee = Employee::factory()->create(['user_id' => $worker->id]);
         $applicant = Applicant::factory()->create(['responsible_employee_id' => $employee->id]);
         $currency = Currency::factory()->create(['code' => 'AFN', 'name' => 'Afghani', 'symbol' => '؋', 'is_base' => true, 'rate' => 1]);
         $task = Task::factory()->create([

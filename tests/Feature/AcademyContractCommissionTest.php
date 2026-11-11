@@ -42,7 +42,7 @@ class AcademyContractCommissionTest extends AcademyTestCase
         return $contract->fresh();
     }
 
-    public function test_an_academy_contract_earns_commission_without_a_case(): void
+    public function test_an_academy_contract_does_not_earn_counselor_commission(): void
     {
         $employee = $this->commissionEmployee('academy', 10);
         $contract = $this->soldBy(
@@ -56,15 +56,7 @@ class AcademyContractCommissionTest extends AcademyTestCase
 
         app(CommissionService::class)->syncForContract($contract);
 
-        $accrual = CommissionAccrual::query()
-            ->where('contract_id', $contract->id)
-            ->where('employee_id', $employee->id)
-            ->firstOrFail();
-
-        $this->assertSame('pending', $accrual->status);
-        $this->assertSame('academy', $accrual->service);
-        $this->assertSame(100.0, (float) $accrual->eligible_base_amount);
-        $this->assertSame(10.0, (float) $accrual->commission_base_amount);
+        $this->assertSame(0, CommissionAccrual::query()->where('contract_id', $contract->id)->count());
     }
 
     public function test_a_test_offer_contract_earns_only_after_its_case_completes(): void

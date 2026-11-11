@@ -35,7 +35,7 @@ const search = ref('')
 const service = ref<BuiltInService | ''>('')
 const dialog = ref(false)
 const editing = ref<Applicant | null>(null)
-const form = ref({ name: '', contact: '', email: '', address: '', tax_number: '', father_name: '', father_phone: '' })
+const form = ref({ name: '', contact: '', email: '', address: '', father_name: '', father_phone: '' })
 const canEdit = computed(() => canAccess('edit_applicants'))
 const canDelete = computed(() => canAccess('delete_applicants'))
 const serviceOptions = computed(() => [
@@ -49,6 +49,7 @@ const headers = computed(() => [
   { title: t('common.fields.name'), key: 'name' },
   { title: t('common.messages.contact'), key: 'contact' },
   { title: t('common.fields.email'), key: 'email' },
+  { title: t('common.navigation.services'), key: 'services' },
   { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
 ])
 async function load() {
@@ -86,7 +87,7 @@ function updateOptions(options: { page: number; itemsPerPage: number }) {
 }
 function openEdit(row: Applicant) {
   editing.value = row
-  form.value = { name: row.name, contact: row.contact ?? '', email: row.email ?? '', address: row.address ?? '', tax_number: row.tax_number ?? '', father_name: row.father_name ?? '', father_phone: row.father_phone ?? '' }
+  form.value = { name: row.name, contact: row.contact ?? '', email: row.email ?? '', address: row.address ?? '', father_name: row.father_name ?? '', father_phone: row.father_phone ?? '' }
   dialog.value = true
 }
 async function save() {
@@ -107,12 +108,12 @@ onMounted(load)
 
 <template>
   <div class="erp-workspace">
-  <ErpPageHeader :title="$t('common.navigation.applicants')" section="crm" />
+  <ErpPageHeader :title="$t('common.navigation.applicants')" section="applications" />
   <VCard>
     <VCardText class="crm-applicants-toolbar">
       <ErpSearchField v-model="search" :placeholder="$t('educational.searchApplicant')" @keyup.enter="applyFilters" />
       <div class="crm-applicants-toolbar__actions">
-<VMenu v-model="filterMenu" location="bottom start" origin="top start" :close-on-content-click="false"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-filter" size="small" :variant="hasFilters ? 'flat' : 'tonal'" :color="hasFilters ? 'primary' : undefined" :aria-label="$t('common.messages.filters')"><VIcon icon="tabler-filter" /><VTooltip activator="parent">{{ t('common.messages.filters') }}</VTooltip></VBtn></template><VCard class="crm-customers-filter-card"><VCardText class="pa-4"><VRow><VCol cols="12"><ErpField v-model="service" kind="select" :items="serviceOptions" :label="$t('educational.service')" :placeholder="$t('educational.service')" clearable /></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.startDate') }}</label><AppDateTimePicker v-model="dateFrom" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.endDate') }}</label><AppDateTimePicker v-model="dateTo" class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol></VRow></VCardText><VCardActions class="px-4 py-3 d-flex ga-2"><VBtn color="primary" variant="tonal" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="filterMenu = false; applyFilters()">{{ $t('educational.apply') }}</VBtn></VCardActions></VCard></VMenu>
+<VMenu v-model="filterMenu" location="bottom start" origin="top start" :close-on-content-click="false"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-filter" size="small" :variant="hasFilters ? 'flat' : 'tonal'" :color="hasFilters ? 'primary' : undefined" :aria-label="$t('common.messages.filters')"><VIcon icon="tabler-filter" /><VTooltip activator="parent">{{ t('common.messages.filters') }}</VTooltip></VBtn></template><VCard class="crm-customers-filter-card"><VCardText class="pa-4"><VRow><VCol cols="12"><ErpField v-model="service" kind="select" :items="serviceOptions" :label="$t('educational.service')" :placeholder="$t('educational.service')" clearable /></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.startDate') }}</label><AppDateTimePicker v-model="dateFrom" class="erp-field-control" :placeholder="$t('common.fields.startDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol><VCol cols="12" sm="6"><div class="erp-field"><label class="erp-field-label">{{ $t('common.fields.endDate') }}</label><AppDateTimePicker v-model="dateTo" class="erp-field-control" :placeholder="$t('common.fields.endDate')" persistent-placeholder :config="{ dateFormat: 'Y-m-d', static: false, onOpen: dockFilterCalendar }" /></div></VCol></VRow></VCardText><VCardActions class="px-4 py-3 d-flex justify-end ga-2"><VBtn color="primary" variant="tonal" @click="resetFilters">{{ $t('common.messages.reset') }}</VBtn><VBtn color="primary" variant="flat" @click="filterMenu = false; applyFilters()">{{ $t('educational.apply') }}</VBtn></VCardActions></VCard></VMenu>
         <VBtn icon="tabler-printer" variant="tonal" size="small" class="flex-shrink-0" :loading="loading" @click="printDocument({ bodyClass: 'printing-table-crm-applicants', pageStyle: 'size: A4 landscape; margin: 12mm;' })"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ t('common.actions.print') }}</VTooltip></VBtn>
       </div>
     </VCardText>
@@ -124,10 +125,11 @@ onMounted(load)
       <template #item.name="{ item }"><span class="crm-applicant-name" :class="{ 'crm-applicant-name--focused': String(item.id) === deepLinkContactId }">{{ item.name }}</span></template>
       <template #item.contact="{ item }"><ContactActionMenu kind="phone" :value="item.contact" contactable-type="applicant" :contactable-id="item.id" audience="applicant" :context="item" :auto-open="String(item.id) === deepLinkContactId" /></template>
       <template #item.email="{ item }"><ContactActionMenu kind="email" :value="item.email" contactable-type="applicant" :contactable-id="item.id" /></template>
+      <template #item.services="{ item }"><div class="d-flex flex-wrap ga-1"><VChip v-for="line in item.attached_services ?? []" :key="line.id" size="x-small" variant="tonal">{{ line.service_label }}<span v-if="line.contract_number"> · {{ line.contract_number }}</span></VChip><span v-if="!item.attached_services?.length" class="text-medium-emphasis">—</span></div></template>
       <template #item.actions="{ item }"><div class="d-flex justify-end" @click.stop><VMenu location="bottom end"><template #activator="{ props }"><VBtn v-bind="props" icon="tabler-dots-vertical" variant="tonal" size="small" :aria-label="$t('common.messages.actions')" /></template><VList density="compact" min-width="210"><CrmRelationshipDetails type="applicant" :id="item.id" :title="item.name" menu-action /><VListItem v-if="canEdit" prepend-icon="tabler-edit" :title="$t('common.actions.edit')" @click="openEdit(item)" /><VListItem v-if="canDelete" prepend-icon="tabler-trash" base-color="error" :title="$t('common.actions.delete')" @click="remove(item)" /></VList></VMenu></div></template>
     </ResponsiveDataTableServer>
   </VCard>
-  <PrintableListReport :title="t('common.navigation.applicants')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="applicants.map(row => [row.name, row.contact, row.email])" />
+  <PrintableListReport :title="t('common.navigation.applicants')" :subtitle="t('agencyStaff.currentPageReport')" :columns="headers.slice(0, -1).map(column => column.title)" :rows="applicants.map(row => [row.name, row.contact, row.email, (row.attached_services ?? []).map(line => line.service_label).join(', ') || '—'])" />
   <VDialog v-model="dialog" max-width="900" content-class="crm-customer-form-dialog" scrollable>
     <VCard class="crm-customer-form-card">
       <VForm class="app-form" @submit.prevent="save">
@@ -137,9 +139,8 @@ onMounted(load)
           <VCol cols="12" md="4"><ErpField v-model="form.name" required :label="$t('common.fields.name')" :placeholder="$t('common.fields.name')" /></VCol>
           <VCol cols="12" md="4"><ErpField v-model="form.contact" :label="$t('common.messages.contact')" :placeholder="$t('common.messages.contact')" /></VCol>
           <VCol cols="12" md="4"><ErpField v-model="form.email" type="email" :label="$t('common.fields.email')" :placeholder="$t('common.fields.email')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.father_name" :label="$t('serviceContracts.fatherName')" :placeholder="$t('serviceContracts.fatherName')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.father_phone" :label="$t('serviceContracts.fatherPhone')" :placeholder="$t('serviceContracts.fatherPhone')" /></VCol>
-          <VCol cols="12" md="6"><ErpField v-model="form.tax_number" :label="$t('common.fields.taxNumber')" :placeholder="$t('common.fields.taxNumber')" /></VCol>
+          <VCol cols="6"><ErpField v-model="form.father_name" :label="$t('serviceContracts.fatherName')" :placeholder="$t('serviceContracts.fatherName')" /></VCol>
+          <VCol cols="6"><ErpField v-model="form.father_phone" :label="$t('serviceContracts.fatherPhone')" :placeholder="$t('serviceContracts.fatherPhone')" /></VCol>
           <VCol cols="12"><ErpField kind="textarea" rows="2" v-model="form.address" :label="$t('common.fields.address')" :placeholder="$t('common.fields.address')" /></VCol>
         </VRow>
       </VCardText>
@@ -202,6 +203,5 @@ onMounted(load)
 
 <style lang="scss">
 .crm-customers-filter-card { border: 1px solid rgb(var(--v-border-color) / .42); border-radius: 12px; inline-size: min(28rem, calc(100vw - 24px)); overflow: hidden; }.crm-customers-filter-card .v-card-actions { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-block-start: 1px solid rgb(var(--v-border-color) / .3); }
-.v-overlay:has(.crm-customer-form-dialog) .v-overlay__scrim { background: rgba(var(--v-theme-on-surface), .26) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
 .crm-customer-form-card { overflow: hidden; }.crm-customer-form-dialog__title, .crm-customer-form-dialog__actions { display: flex; align-items: center; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); border-color: rgba(var(--v-theme-on-surface), .06); border-style: solid; border-width: 0; }.crm-customer-form-dialog__title { border-block-end-width: 1px; font-size: 1.35rem; font-weight: 700; }.crm-customer-form-dialog__actions { border-block-start-width: 1px; }.crm-customer-form-dialog__body { background: rgb(var(--v-theme-surface)); }.crm-customer-form-dialog__close { border: 1px solid rgba(var(--v-theme-error), .34) !important; border-radius: 50% !important; }.crm-customer-form-dialog__cancel { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }.crm-customer-form-dialog__cancel:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }.crm-customer-form-dialog__save { color: rgb(var(--v-theme-on-primary)) !important; }
 </style>

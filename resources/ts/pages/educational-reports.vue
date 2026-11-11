@@ -613,7 +613,6 @@ onBeforeUnmount(() => {
 .applications-filter-dialog__apply:hover { filter: brightness(.9); }
 .education-filter-reset { border: 1px solid rgba(var(--v-theme-error), .62) !important; background: rgba(var(--v-theme-error), .12) !important; color: rgb(var(--v-theme-error)) !important; }
 .education-filter-reset:hover { background: rgb(var(--v-theme-error)) !important; color: rgb(var(--v-theme-on-error)) !important; }
-.v-overlay:has(.applications-filter-dialog) .v-overlay__scrim { backdrop-filter: blur(4px); background-color: rgba(var(--v-theme-on-surface), .24); }
 
 @media (max-width: 959px) {
   .education-table-scroll { overflow: visible; }

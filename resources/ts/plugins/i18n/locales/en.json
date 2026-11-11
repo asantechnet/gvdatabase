@@ -261,7 +261,6 @@
       "applicant": "Applicant",
       "student": "Student",
       "applicantOrStudent": "Applicant or student",
-      "taxNumber": "Tax number",
       "service": "Service",
       "position": "Position",
       "actions": "Actions",
@@ -1087,7 +1086,6 @@
           "contact": "Phone",
           "email": "Email",
           "address": "Address",
-          "tax_number": "Tax number",
           "service": "Service",
           "stage": "Current stage",
           "responsible_employee": "Responsible employee",
@@ -1658,8 +1656,7 @@
                   "company_name": "Company",
                   "phone": "Phone",
                   "email": "Email",
-                  "address": "Address",
-                  "tax_number": "Tax Number"
+                  "address": "Address"
                 }
               },
               "company": {
@@ -1878,7 +1875,7 @@
         "manageCompanyPreferences": "Manage company preferences and system defaults.",
         "companyPageDescription": "Identity, contact details, and branding.",
         "emailDeliveryPage": "Email delivery",
-        "emailDeliveryPageDescription": "Sender identity and SMTP connection.",
+        "emailDeliveryPageDescription": "Sender identity and outgoing-email availability.",
         "operationsPageDescription": "Working hours and leave defaults.",
         "appearancePageDescription": "Application colour preferences.",
         "documentsPageDescription": "Artwork used on contract documents.",
@@ -1886,9 +1883,9 @@
         "officePageDescription": "Company location, contact details, and attendance geofence.",
         "attendanceLocationPage": "Attendance location",
         "attendanceLocationPageDescription": "Set the location used to verify attendance.",
-        "emailDeliveryHint": "SMTP credentials are stored securely and used for verification and password-reset emails. Leave the SMTP fields empty to use the server mail configuration.",
-        "emailDeliveryEnabled": "Enable company email delivery",
-        "emailDeliveryEnabledHint": "When off, the company SMTP settings below are ignored and the server's default mail configuration is used.",
+        "emailDeliveryHint": "SMTP credentials are stored securely and used for verification, password-reset and support emails when outgoing email is enabled. Leave the SMTP fields empty to use the server mail configuration.",
+        "emailDeliveryEnabled": "Enable outgoing email",
+        "emailDeliveryEnabledHint": "When off, no email is sent at all. Verification, password-reset and support actions return an email-delivery setup error until this is enabled.",
         "removeFile": "Remove file",
         "confirmRemoveFile": "Remove this file? The stored file will be deleted.",
         "fromEmailAddress": "From email address",
@@ -2044,6 +2041,7 @@
           "counselor": "Counselor",
           "case_officer": "Case officer",
           "staff": "Staff",
+          "teacher": "Teacher",
           "document_officer": "Document officer",
           "viewer": "Viewer",
           "applicant": "Applicant"
@@ -4939,6 +4937,28 @@
     "reloadNow": "Reload now",
     "offlineReady": "The app is ready to work offline."
   },
+  "contractSettings": {
+    "title": "Responsible roles",
+    "description": "Choose the employee positions that can be assigned as responsible employees to applicant cases and service contracts.",
+    "selectLabel": "Eligible employee positions",
+    "hint": "Only active employees in these positions appear in responsible-employee selects. Saving an empty list removes the option for every case.",
+    "empty": "No active positions are available. Create a position under Setup → Positions first.",
+    "selectedCount": "{count} positions selected",
+    "save": "Save responsible roles",
+    "saved": "Responsible roles saved.",
+    "loadFailed": "Unable to load responsible roles.",
+    "saveFailed": "Unable to save responsible roles."
+  },
+  "leaveRejection": {
+    "title": "Reject leave request",
+    "rejectSelected": "Reject selected ({count})",
+    "hint": "Reject {count} selected request(s)? They remain in the ledger and cannot be approved. The employee can submit a new request for the same dates.",
+    "note": "Rejection note (optional)",
+    "noteHint": "Add a short reason for the employee or HR record.",
+    "rejectedBy": "Rejected by",
+    "requestsRejected": "{count} leave request(s) rejected.",
+    "confirm": "Reject {count} request(s)"
+  },
   "backend": {
     "values": {
       "general": "General",
@@ -5045,6 +5065,8 @@
         "reviewer_rank_insufficient": "Your authority level is not high enough to review this account.",
         "use_account_reactivation_workflow": "Use the audited account reactivation workflow for this user.",
         "edit_window_expired": "This item can only be edited during the first hour after creation.",
+        "comment_edit_window_expired": "This comment can only be edited during the first 30 minutes after it was posted.",
+        "email_delivery_not_configured": "Email delivery is not set up. Ask an administrator to enable it in Settings → Email delivery.",
         "salary_currency_immutable": "A salary currency cannot be changed after the payment record is created.",
         "granted_bonus_immutable": "A granted bonus is an immutable financial record.",
         "granted_bonus_cannot_be_reversed": "A granted bonus cannot be returned to pending status.",
@@ -5704,7 +5726,7 @@
       "addApplication": "Add application",
       "primaryChoice": "Primary choice: {university}",
       "universityNumber": "University #{id}",
-      "applicationSummary": "{status} · intake {intake} · {notes}",
+      "applicationSummary": "{status} · intake {intake}",
       "primary": "Primary",
       "noApplications": "No applications tracked yet. Add every university the student applies to; each keeps its own outcome.",
       "finance": "Finance",

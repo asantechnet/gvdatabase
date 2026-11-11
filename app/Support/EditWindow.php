@@ -11,14 +11,17 @@ class EditWindow
 {
     public const MINUTES = 60;
 
-    public function editableUntil(Model $record): Carbon
+    /** Comments are deliberately stricter than the general employee window. */
+    public const COMMENT_MINUTES = 30;
+
+    public function editableUntil(Model $record, int $minutes = self::MINUTES): Carbon
     {
-        return $record->created_at->copy()->utc()->addMinutes(self::MINUTES);
+        return $record->created_at->copy()->utc()->addMinutes($minutes);
     }
 
-    public function isOpen(Model $record): bool
+    public function isOpen(Model $record, int $minutes = self::MINUTES): bool
     {
-        return now('UTC')->lessThanOrEqualTo($this->editableUntil($record));
+        return now('UTC')->lessThanOrEqualTo($this->editableUntil($record, $minutes));
     }
 
     public function canEdit(User $user, Model $record): bool

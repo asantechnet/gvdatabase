@@ -64,6 +64,7 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
   ],
   applications: [
     { name: 'applications', label: 'educational.applications', icon: 'tabler-clipboard-list', color: 'primary', permission: 'view_applicants' },
+    { name: 'all-customers', label: 'common.navigation.applicants', icon: 'tabler-users', color: 'success', permission: 'view_applicants' },
     { name: 'application-reports', label: 'common.navigation.applicationReports', icon: 'tabler-report-analytics', color: 'tertiary', permission: 'view_visa_reports' },
   ],
   dashboard: [],

@@ -23,6 +23,10 @@ class CrmRelationshipController extends Controller
         $record = $this->findRecord($type, $id);
         $applicant = $this->caseApplicant($request);
 
+        if ($applicant && $type === 'country') {
+            $this->authorizeCountryCaseRead($request);
+        }
+
         if ($applicant) {
             $this->assertLinkedTarget($applicant, $record, $type);
             $record->load([
@@ -74,6 +78,9 @@ class CrmRelationshipController extends Controller
         unset($data['applicant_id']);
 
         if ($applicantId) {
+            if ($type === 'country') {
+                $this->authorizeCountryCaseRead($request);
+            }
             $applicant = $this->authorizeCaseManage($request, (int) $applicantId);
             $this->assertLinkedTarget($applicant, $record, $type);
         } else {
@@ -109,8 +116,11 @@ class CrmRelationshipController extends Controller
             'universities.university',
         ]);
 
+        $canViewCountryContacts = $request->user()?->hasPermission('view_case_country_contacts') ?? false;
         $detail = $applicant->detail();
-        $country = $detail?->country;
+        // Without the opt-in grant the aggregate keeps the university
+        // relationships but never exposes the country contact/relationship.
+        $country = $canViewCountryContacts ? $detail?->country : null;
         $attached = $applicant->universities
             ->filter(fn ($row) => $row->university !== null)
             ->values();
@@ -126,6 +136,9 @@ class CrmRelationshipController extends Controller
         $records = CrmInteraction::query()
             ->where('applicant_id', $applicant->id)
             ->where(function ($query) use ($country, $universityIds, $typeCountry, $typeUniversity): void {
+                // This closure uses OR branches only, so an empty scope must be
+                // explicitly false rather than accidentally matching everything.
+                $query->whereRaw('1 = 0');
                 if ($country) {
                     $query->orWhere(fn ($scope) => $scope
                         ->where('contactable_type', $typeCountry)
@@ -228,6 +241,11 @@ class CrmRelationshipController extends Controller
         };
 
         abort_unless($linked, 422, 'business.relationship_not_linked_to_case');
+    }
+
+    private function authorizeCountryCaseRead(Request $request): void
+    {
+        abort_unless($request->user()?->hasPermission('view_case_country_contacts'), 403, 'auth.forbidden');
     }
 
     private function authorizeRead(Request $request, string $type): void

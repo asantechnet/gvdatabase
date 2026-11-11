@@ -26,6 +26,10 @@ const rosterLoading = ref(false)
 const roster = ref<NonNullable<AcademyClassRecord['roster']>>([])
 const selectedClass = ref<AcademyClassRecord | null>(null)
 const canManage = computed(() => canAccess('manage_academy_classes'))
+const userData = useCookie<{ employee?: { id?: number } | null } | null>('userData')
+const ownEmployeeId = computed(() => userData.value?.employee?.id ?? null)
+const canComplete = (row: AcademyClassRecord) => canManage.value
+  || (ownEmployeeId.value !== null && row.teachers.some(teacher => teacher.id === ownEmployeeId.value))
 const weekdays = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 async function load() {
@@ -34,8 +38,8 @@ async function load() {
   try {
     const [classRows, programRows, teacherRows] = await Promise.all([
       AcademyClassesApi.list(),
-      MasterDataApi.list('programs'),
-      AcademyTeachersApi.list(),
+      canManage.value ? MasterDataApi.list('programs') : Promise.resolve<AcademyOption[]>([]),
+      canManage.value ? AcademyTeachersApi.list() : Promise.resolve<AcademyTeacher[]>([]),
     ])
     classes.value = classRows
     programs.value = programRows
@@ -153,7 +157,7 @@ onMounted(load)
                 </td>
                 <td class="text-end">
                   <VBtn icon="tabler-list-details" size="small" variant="text" :aria-label="t('academy.classes.roster')" @click="viewRoster(row)" />
-                  <VBtn v-if="canManage && !row.completed_at" icon="tabler-check" size="small" variant="text" color="success" :aria-label="t('academy.classes.complete')" @click="complete(row)" />
+                  <VBtn v-if="canComplete(row) && !row.completed_at" icon="tabler-check" size="small" variant="text" color="success" :aria-label="t('academy.classes.complete')" @click="complete(row)" />
                   <VBtn v-if="canManage" icon="tabler-pencil" size="small" variant="text" :aria-label="t('common.actions.edit')" @click="openEdit(row)" />
                   <VBtn v-if="canManage" icon="tabler-trash" size="small" variant="text" color="error" :aria-label="t('common.actions.delete')" @click="remove(row)" />
                 </td>

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\EmailDeliveryNotConfiguredException;
 use App\Http\Resources\SupportTicketResource;
 use App\Mail\SupportTicketCreated;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketAttachment;
+use App\Support\CompanyProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,8 +30,11 @@ class SupportTicketController extends Controller
         return response()->json(['success' => true, 'data' => SupportTicketResource::collection($tickets)]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, CompanyProfile $company): JsonResponse
     {
+        // Disabled delivery is a setup error, not a transport failure: no
+        // transport is contacted and the client receives one stable code.
+        $company->assertEmailDeliveryEnabled();
         $recipient = trim((string) config('support.ticket_recipient'));
         abort_unless(filter_var($recipient, FILTER_VALIDATE_EMAIL), 503, 'business.support_recipient_not_configured');
 
@@ -53,7 +58,7 @@ class SupportTicketController extends Controller
         $storedPaths = [];
 
         try {
-            $ticket = DB::transaction(function () use ($data, $recipient, $request, $files, &$storedPaths): SupportTicket {
+            $ticket = DB::transaction(function () use ($data, $recipient, $request, $files, $company, &$storedPaths): SupportTicket {
                 $ticket = SupportTicket::create([
                     ...$data,
                     'user_id' => $request->user()->id,
@@ -79,10 +84,18 @@ class SupportTicketController extends Controller
                 }
                 $ticket->load(['user', 'attachments']);
 
-                Mail::to($recipient)->send(new SupportTicketCreated($ticket));
+                $mailer = $company->configureMailer();
+                $mail = $mailer ? Mail::mailer($mailer) : Mail::mailer(config('mail.default'));
+                $mail->to($recipient)->send(new SupportTicketCreated($ticket));
 
                 return $ticket;
             });
+        } catch (EmailDeliveryNotConfiguredException $exception) {
+            foreach ($storedPaths as $storedPath) {
+                Storage::disk($storedPath['disk'])->delete($storedPath['path']);
+            }
+
+            throw $exception;
         } catch (Throwable $exception) {
             foreach ($storedPaths as $storedPath) {
                 Storage::disk($storedPath['disk'])->delete($storedPath['path']);

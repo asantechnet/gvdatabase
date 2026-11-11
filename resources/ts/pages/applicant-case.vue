@@ -230,14 +230,9 @@ const employees = ref<Employee[]>([])
 const responsibleEmployees = ref<Employee[]>([])
 const uniDialog = ref(false)
 const savingUni = ref(false)
-const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '', notes: '' })
+const uniForm = ref({ university_id: null as number | null, semester_id: null as number | null, status: 'pending', intake: '' })
 const uniStatuses = ['pending', 'applied', 'admitted', 'rejected', 'withdrawn']
 const statusColor = (status: string) => ({ pending: 'secondary', applied: 'info', admitted: 'success', rejected: 'error', withdrawn: 'warning' }[status] ?? 'secondary')
-type CaseUniversityApplication = NonNullable<Applicant['universities']>[number]
-const uniNotesDialog = ref(false)
-const uniNotesTarget = ref<CaseUniversityApplication | null>(null)
-const uniNotesDraft = ref('')
-const savingUniNotes = ref(false)
 // The case's destination country carries the embassy contact details used by
 // the quick-contact block. It comes from the same catalogue the form edits.
 const caseCountry = computed(() => {
@@ -245,35 +240,12 @@ const caseCountry = computed(() => {
 
   return countryId ? countries.value.find(row => row.id === countryId) ?? null : null
 })
+// Embassy contact details are a case-work aid, not part of the country
+// catalogue. The grant is off for normal roles and inherited by super admins.
+const canViewCountryContacts = computed(() => canAccess('view_case_country_contacts'))
 const universityById = computed(() => new Map<number, MasterDataRecord>(universities.value.map(row => [row.id, row] as const)))
 const universityContactFor = (id: number) => universityById.value.get(id) ?? null
 const portalHref = (value?: string | null) => externalUrl(value)
-
-function openUniNotes(app: CaseUniversityApplication) {
-  uniNotesTarget.value = app
-  uniNotesDraft.value = app.notes ?? ''
-  uniNotesDialog.value = true
-}
-
-async function saveUniNotes() {
-  if (!applicant.value || !uniNotesTarget.value)
-    return
-
-  savingUniNotes.value = true
-  try {
-    await ApplicantUniversityApi.update(applicant.value.id, uniNotesTarget.value.id, { notes: uniNotesDraft.value.trim() || null })
-    uniNotesDialog.value = false
-    uniNotesTarget.value = null
-    await load()
-    toast.success(t('educational.caseUi.universityNotesSaved'))
-  }
-  catch {
-    toast.error(t('educational.caseUi.universityNotesSaveFailed'))
-  }
-  finally {
-    savingUniNotes.value = false
-  }
-}
 
 const editDialog = ref(false)
 const savingCase = ref(false)
@@ -732,7 +704,7 @@ async function saveCase() {
 }
 
 function openUniDialog() {
-  uniForm.value = { university_id: null, semester_id: applicant.value?.details?.semester_id ?? null, status: 'pending', intake: '', notes: '' }
+  uniForm.value = { university_id: null, semester_id: applicant.value?.details?.semester_id ?? null, status: 'pending', intake: '' }
   uniDialog.value = true
 }
 
@@ -747,7 +719,6 @@ async function saveUni() {
       semester_id: uniForm.value.semester_id,
       status: uniForm.value.status,
       intake: uniForm.value.intake.trim() || undefined,
-      notes: uniForm.value.notes.trim() || undefined,
     })
     uniDialog.value = false
     await load()
@@ -1090,7 +1061,7 @@ onBeforeUnmount(() => {
         <section v-if="['scholarship', 'private'].includes(applicant.service)" class="case-section case-section--universities">
           <div class="case-section__heading"><h3>{{ t('educational.caseUi.universityApplications') }}</h3><VBtn v-if="canEditCase" size="small" color="primary" variant="flat" prepend-icon="tabler-plus" @click="openUniDialog">{{ t('educational.caseUi.addApplication') }}</VBtn></div>
           <p class="text-caption text-medium-emphasis mb-0">{{ t('educational.caseUi.primaryChoiceHint') }}</p>
-          <div v-if="caseCountry" class="university-quick-contact my-2">
+          <div v-if="caseCountry && canViewCountryContacts" class="university-quick-contact my-2">
             <span class="font-weight-medium">{{ caseCountry.name }}</span>
             <ContactActionMenu v-if="caseCountry.phone" kind="phone" :value="caseCountry.phone" :contactable-type="canEditCase ? 'country' : undefined" :contactable-id="caseCountry.id" :case-applicant-id="applicant.id" />
             <ContactActionMenu v-if="caseCountry.email" kind="email" :value="caseCountry.email" :contactable-type="canEditCase ? 'country' : undefined" :contactable-id="caseCountry.id" :case-applicant-id="applicant.id" />
@@ -1115,7 +1086,7 @@ onBeforeUnmount(() => {
                 <VChip size="small" :color="statusColor(app.status)">{{ translateBackendValue(app.status) }}</VChip>
               </template>
               <template #subtitle>
-                <span>{{ t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable'), notes: app.notes || t('common.messages.notAvailable') }) }}</span>
+                <span>{{ t('educational.caseUi.applicationSummary', { status: translateBackendValue(app.status), intake: app.intake || t('common.messages.notAvailable') }) }}</span>
                 <div v-if="universityContactFor(app.university_id)" class="university-quick-contact">
                   <ContactActionMenu v-if="universityContactFor(app.university_id)?.phone" kind="phone" :value="universityContactFor(app.university_id)?.phone" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="app.university_id" :case-applicant-id="applicant.id" />
                   <ContactActionMenu v-if="universityContactFor(app.university_id)?.email" kind="email" :value="universityContactFor(app.university_id)?.email" :contactable-type="canEditCase ? 'university' : undefined" :contactable-id="app.university_id" :case-applicant-id="applicant.id" />
@@ -1128,7 +1099,6 @@ onBeforeUnmount(() => {
               </template>
               <template #append>
                 <template v-if="canEditCase">
-                <VBtn size="small" variant="text" prepend-icon="tabler-notes" @click="openUniNotes(app)">{{ t('educational.caseUi.universityNotes') }}</VBtn>
                 <VMenu>
                   <template #activator="{ props }">
                     <VBtn size="small" variant="text" v-bind="props">{{ t('common.fields.status') }}</VBtn>
@@ -1201,7 +1171,6 @@ onBeforeUnmount(() => {
         <VCardTitle class="case-form-dialog__title px-5 py-4"><span>{{ t('educational.caseUi.addUniversityApplication') }}</span><VSpacer /><VBtn icon="tabler-x" variant="tonal" color="error" class="case-form-dialog__close" :aria-label="t('common.actions.close')" :disabled="savingUni" @click="uniDialog = false" /></VCardTitle>
         <VCardText class="case-dialog-body case-form-dialog__body pa-5">
           <VRow><VCol cols="12" sm="6"><ErpField v-model="uniForm.university_id" kind="select" :items="universities.filter(university => university.is_active && university.country_id === applicant?.details?.country_id).map(university => ({ title: university.name, value: university.id }))" :label="t('educational.university')" :placeholder="t('educational.university')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.semester_id" kind="select" :items="semesters.filter(semester => semester.is_active).map(semester => ({ title: semester.name, value: semester.id }))" :label="t('educational.semester')" :placeholder="t('educational.semester')" clearable /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.status" kind="select" :items="uniStatuses.map(value => ({ value, title: translateBackendValue(value) }))" :label="t('educational.caseUi.outcome')" :placeholder="t('educational.caseUi.outcome')" /></VCol><VCol cols="12" sm="6"><ErpField v-model="uniForm.intake" :label="t('educational.caseUi.intake')" :placeholder="t('educational.caseUi.intakeExample')" clearable /></VCol></VRow>
-          <ErpField v-model="uniForm.notes" kind="textarea" :label="t('common.fields.notes')" :placeholder="t('common.fields.notes')" rows="3" />
         </VCardText>
         <VCardActions class="case-form-dialog__actions px-5 py-4"><VSpacer /><VBtn class="case-form-dialog__cancel" variant="flat" color="error" :disabled="savingUni" @click="uniDialog = false">{{ t('common.actions.cancel') }}</VBtn><VBtn class="case-form-dialog__submit" color="primary" variant="flat" type="submit" :loading="savingUni" :disabled="!uniForm.university_id">{{ t('common.actions.add') }}</VBtn></VCardActions>
       </VForm>
@@ -1603,14 +1572,6 @@ onBeforeUnmount(() => {
 </style>
 
 <style lang="scss">
-.v-overlay:has(.case-form-dialog) .v-overlay__scrim,
-.case-confirm-overlay .v-overlay__scrim,
-.v-overlay:has(.case-preview-dialog) .v-overlay__scrim {
-  backdrop-filter: blur(7px);
-  background: rgba(var(--v-theme-on-surface), 0.28) !important;
-  opacity: 1 !important;
-}
-
 .case-form-card { overflow: hidden; }
 .case-edit-wizard { display: grid; background: color-mix(in srgb, rgb(var(--v-theme-surface)) 95%, rgb(var(--v-theme-primary)) 5%); border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.06); gap: 0.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-block: 0.9rem; padding-inline: 1.25rem; }
 .case-edit-wizard__step { display: flex; align-items: center; padding: 0.35rem; border: 0; border-radius: 8px; background: transparent; color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); cursor: pointer; font: inherit; font-size: 0.8rem; font-weight: 600; gap: 0.5rem; min-inline-size: 0; text-align: start; }

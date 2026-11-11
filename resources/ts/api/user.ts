@@ -1,6 +1,6 @@
 import api from './axios'
 
-export type UserRole = 'super_admin' | 'admin' | 'manager' | 'team_lead' | 'senior_counselor' | 'finance_officer' | 'counselor' | 'case_officer' | 'staff' | 'document_officer' | 'viewer' | 'applicant'
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'team_lead' | 'senior_counselor' | 'finance_officer' | 'counselor' | 'case_officer' | 'staff' | 'teacher' | 'document_officer' | 'viewer' | 'applicant'
 export type UserStatus = 'active' | 'inactive' | 'deactivated'
 
 export interface ManagedUser {

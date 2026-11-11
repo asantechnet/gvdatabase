@@ -25,8 +25,8 @@ const userData = useCookie<{ id?: string | number } | null>('userData')
 const { t, locale } = useI18n()
 const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
 
-const canManageComment = (comment: { senderId: string }) => canAccess('edit_all_comments')
-  || (canAccess('edit_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
+const canManageComment = (comment: { senderId: string }) => canAccess('edit_own_comments')
+  && comment.senderId === String(userData.value?.id ?? '')
 
 const canDeleteComment = (comment: { senderId: string }) => canAccess('delete_all_comments')
   || (canAccess('delete_own_comments') && comment.senderId === String(userData.value?.id ?? ''))

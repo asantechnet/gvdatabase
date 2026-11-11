@@ -377,34 +377,32 @@ watch(isOpen, open => {
 </script>
 
 <template>
-  <template v-if="!hideActivator">
-    <VBtn
-      v-if="mobileAction && !mobileIconOnly"
-      block
-      class="responsive-data-table__action-button"
-      color="info"
-      variant="text"
-      prepend-icon="tabler-eye"
-      @click.stop="isOpen = true"
-    >
-      {{ t('common.actions.viewFullDetails') }}
-    </VBtn>
-    <IconBtn
-      v-else-if="!menuAction"
-      color="info"
-      :aria-label="t('common.actions.viewFullDetails')"
-      @click.stop="isOpen = true"
-    >
-      <VIcon icon="tabler-eye" />
-      <VTooltip activator="parent">{{ t('common.actions.viewFullDetails') }}</VTooltip>
-    </IconBtn>
-    <VListItem
-      v-else
-      prepend-icon="tabler-eye"
-      :title="t('common.actions.viewFullDetails')"
-      @click.stop="isOpen = true"
-    />
-  </template>
+  <VBtn
+    v-if="!hideActivator && mobileAction && !mobileIconOnly"
+    block
+    class="responsive-data-table__action-button"
+    color="info"
+    variant="text"
+    prepend-icon="tabler-eye"
+    @click.stop="isOpen = true"
+  >
+    {{ t('common.actions.viewFullDetails') }}
+  </VBtn>
+  <IconBtn
+    v-else-if="!hideActivator && !menuAction"
+    color="info"
+    :aria-label="t('common.actions.viewFullDetails')"
+    @click.stop="isOpen = true"
+  >
+    <VIcon icon="tabler-eye" />
+    <VTooltip activator="parent">{{ t('common.actions.viewFullDetails') }}</VTooltip>
+  </IconBtn>
+  <VListItem
+    v-else-if="!hideActivator"
+    prepend-icon="tabler-eye"
+    :title="t('common.actions.viewFullDetails')"
+    @click.stop="isOpen = true"
+  />
 
   <VDialog
     v-model="isOpen"

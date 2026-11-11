@@ -165,6 +165,7 @@ return [
             'unresolved_placeholders' => 'قالب نه ملاتړ کېدونکي ځای نیوونکي لري.',
             'missing_placeholder_values' => 'د قالب اړین ارزښتونه نشته.',
             'contract_extension_invalid' => 'د غځولو لپاره د همدې خدمت معتبر اصلي قرارداد وټاکئ.',
+            'contract_extension_party_mismatch' => 'غځونه باید د اصلي قرارداد ورته کارکوونکی یا غوښتونکی ولري.',
             'contract_template_unresolved_placeholders' => 'د قرارداد فعال قالب نه ملاتړ کېدونکي ځای نیوونکي لري.',
             'invalid_currency_rate' => 'د تبادلې معتبر مثبت نرخ ولیکئ.',
             'contract_not_renewable' => 'یوازې فعال یا منقضی شوي قراردادونه د نوي کولو په توګه دوام کېدای شي.',

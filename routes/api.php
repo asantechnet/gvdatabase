@@ -100,7 +100,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Protected routes (require authentication)
-Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])->group(function () {
+Route::middleware(['auth:sanctum', 'abilities:access', 'active'])->group(function () {
     Route::prefix('workday')->middleware(AttendanceBrowser::class)->group(function () {
         Route::get('/status', [WorkdayController::class, 'status'])->middleware('permission:manage_own_workday');
         Route::post('/start', [WorkdayController::class, 'start'])->middleware(['permission:manage_own_workday', 'throttle:10,1']);
@@ -206,6 +206,7 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::get('my-leave-requests', [LeaveRequestController::class, 'mine'])->middleware('permission:request_own_leave');
     Route::post('my-leave-requests', [LeaveRequestController::class, 'requestRange'])->middleware('permission:request_own_leave');
     Route::patch('leave-requests/grant', [LeaveRequestController::class, 'grant'])->middleware('permission:grant_leave_requests');
+    Route::patch('leave-requests/reject', [LeaveRequestController::class, 'reject'])->middleware('permission:grant_leave_requests');
     Route::get('employees/{employee}/leave-requests', [LeaveRequestController::class, 'index'])->middleware('permission:view_leave_requests');
     Route::post('employees/{employee}/leave-requests', [LeaveRequestController::class, 'store'])->middleware('permission:create_leave_requests');
     Route::put('employees/{employee}/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->middleware('permission:edit_leave_requests');
@@ -232,9 +233,11 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::apiResource('employees', EmployeeController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_employees')
         ->middlewareFor('store', 'permission:create_employees')
-        // A self-editor may only update their own profile and only the fields
-        // the controller allows; see EmployeeController::update.
-        ->middlewareFor('update', 'permission:edit_employees,edit_own_employee_profile')
+        // The approved one-hour window is mounted only on employee updates;
+        // every other module stays exempt. A self-editor may only update their
+        // own profile and only the fields the controller allows; see
+        // EmployeeController::update.
+        ->middlewareFor('update', ['permission:edit_employees,edit_own_employee_profile', 'edit-window'])
         ->middlewareFor('destroy', 'permission:delete_employees');
     Route::post('employees/{employee}/document', [EmployeeController::class, 'uploadDocument'])->middleware('permission:edit_employees');
     Route::get('employees/{employee}/document', [EmployeeController::class, 'downloadDocument'])->middleware('permission:view_employees');
@@ -476,6 +479,12 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::apiResource('contract-templates', ContractTemplateController::class)
         ->middlewareFor(['index', 'show'], 'permission:view_contract_templates')
         ->middlewareFor(['store', 'update', 'destroy'], 'permission:manage_contract_templates');
+    // Responsible-employee eligibility is contract configuration, not an HR
+    // position edit. It lives with the contract template administration.
+    Route::get('contract-settings/responsible-roles', [ContractController::class, 'responsibleRoles'])
+        ->middleware('permission:view_contract_templates');
+    Route::put('contract-settings/responsible-roles', [ContractController::class, 'updateResponsibleRoles'])
+        ->middleware('permission:manage_contract_templates');
     Route::get('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'index'])->middleware('permission:view_contract_templates');
     Route::post('contract-templates/{template}/versions', [ContractTemplateVersionController::class, 'store'])->middleware('permission:create_contract_template_versions');
     Route::get('contract-templates/{template}/versions/{version}', [ContractTemplateVersionController::class, 'show'])->middleware('permission:view_contract_templates');

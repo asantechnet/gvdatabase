@@ -10,6 +10,7 @@ import { printDocument } from '@/utils/printDocument'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import { canAccess } from '@/utils/authorization'
 
 const toast = useToast()
 const { t: $t } = useI18n()
@@ -24,6 +25,9 @@ const draftYear = ref(year.value)
 const draftStatus = ref<LeaveRequestStatus | null>(null)
 const overrideDialog = ref(false)
 const approvalNote = ref('')
+const rejectDialog = ref(false)
+const rejectionNote = ref('')
+const canReview = computed(() => canAccess('grant_leave_requests'))
 const allowance = ref(0)
 // The ledger asks the server for one page at a time.
 const page = ref(1)
@@ -47,6 +51,8 @@ const detailFields = computed(() => [
   { key: 'reason', label: $t('common.fields.reason') },
   { key: 'approvedBy.name', label: $t('common.ui.approvedBy') },
   { key: 'approval_note', label: $t('common.leaveApproval.justification') },
+  { key: 'rejectedBy.name', label: $t('leaveRejection.rejectedBy') },
+  { key: 'rejection_note', label: $t('leaveRejection.note') },
   { key: 'allowance', label: $t('pages.leaveRequests.allowance') },
   { key: 'used', label: $t('pages.leaveRequests.paidDaysGranted') },
   { key: 'remaining', label: $t('pages.leaveRequests.daysRemaining') },
@@ -54,17 +60,18 @@ const detailFields = computed(() => [
 
 const statusOptions = computed(() => [
   { title: $t('common.statuses.pending'), value: 'pending' },
+  { title: $t('common.statuses.rejected'), value: 'rejected' },
   { title: $t('common.attendanceStatuses.offDay'), value: 'off_day' },
   { title: $t('pages.leaveRequests.partial'), value: 'partial' },
   { title: $t('common.attendanceStatuses.absent'), value: 'absent' },
 ])
 
-const isSelectable = (row: LeaveRequest) => !row.is_granted
+const isSelectable = (row: LeaveRequest) => !row.is_granted && row.status !== 'rejected'
 
 const selectedRows = computed(() => {
   const ids = new Set(selected.value)
 
-  return rows.value.filter(row => ids.has(row.id) && !row.is_granted)
+  return rows.value.filter(row => ids.has(row.id) && !row.is_granted && row.status !== 'rejected')
 })
 
 const allowanceRisks = computed(() => {
@@ -150,6 +157,23 @@ async function resetFilters() {
   await load()
 }
 
+async function rejectSelected() {
+  if (!selected.value.length)
+    return
+
+  loading.value = true
+  try {
+    await LeaveRequestApi.reject(selected.value, rejectionNote.value.trim() || undefined)
+    toast.success($t('leaveRejection.requestsRejected', { count: selected.value.length }))
+    selected.value = []
+    rejectDialog.value = false
+    rejectionNote.value = ''
+    await load()
+  }
+  catch { /* API failure feedback belongs to the global notifier. */ }
+  finally { loading.value = false }
+}
+
 async function grantSelected(forceOffDay = false) {
   if (!selected.value.length)
     return
@@ -170,6 +194,8 @@ async function grantSelected(forceOffDay = false) {
 }
 
 function treatmentLabel(row: LeaveRequest) {
+  if (row.status === 'rejected' || row.treatment === 'rejected')
+    return $t('common.statuses.rejected')
   if (!row.is_granted)
     return $t('common.statuses.pending')
   if (row.treatment === 'partial')
@@ -216,7 +242,17 @@ onMounted(load)
             </DataTableFilterMenu>
             <VBtn icon="tabler-printer" variant="tonal" :aria-label="$t('common.actions.print')" @click="printReport"><VIcon icon="tabler-printer" /><VTooltip activator="parent">{{ $t('common.actions.print') }}</VTooltip></VBtn>
             <VBtn
-          v-if="selectionExceedsAllowance"
+          v-if="canReview"
+          color="error"
+          variant="tonal"
+          prepend-icon="tabler-x"
+          :disabled="!selected.length"
+          :loading="loading"
+          @click="rejectDialog = true"
+        >
+          {{ $t('leaveRejection.rejectSelected', { count: selected.length }) }}
+        </VBtn><VBtn
+          v-if="canReview && selectionExceedsAllowance"
           color="warning"
           variant="flat"
           prepend-icon="tabler-shield-check"
@@ -225,7 +261,7 @@ onMounted(load)
         >
           {{ $t('common.leaveApproval.offDayException', { count: selected.length }) }}
         </VBtn><VBtn
-          v-else
+          v-else-if="canReview"
           prepend-icon="tabler-checks"
           :disabled="!selected.length"
           :loading="loading"
@@ -271,14 +307,14 @@ onMounted(load)
         </template>
         <template #item.treatment="{ item }">
           <VChip
-            :color="!item.is_granted ? 'warning' : item.treatment === 'off_day' ? 'success' : item.treatment === 'partial' ? 'info' : 'error'"
+            :color="item.status === 'rejected' ? 'error' : !item.is_granted ? 'warning' : item.treatment === 'off_day' ? 'success' : item.treatment === 'partial' ? 'info' : 'error'"
             size="small"
           >
             {{ treatmentLabel(item) }}
           </VChip>
         </template>
         <template #item.approvedBy.name="{ item }">
-          <span v-if="item.approvedBy">{{ item.approvedBy.name }}</span><span
+          <span v-if="item.status === 'rejected'" class="text-medium-emphasis">{{ $t('common.statuses.rejected') }}</span><span v-else-if="item.approvedBy">{{ item.approvedBy.name }}</span><span
             v-else
             class="text-medium-emphasis"
           >{{ $t('common.statuses.pending') }}</span>
@@ -358,6 +394,33 @@ onMounted(load)
             @click="grantSelected(true)"
           >
             {{ $t('common.leaveApproval.approveOffDay') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+    <VDialog v-model="rejectDialog" :persistent="loading" max-width="560" content-class="leave-approval-dialog">
+      <VCard class="leave-approval-dialog__card">
+        <VCardTitle class="leave-approval-dialog__header d-flex align-center justify-space-between px-5 py-4">
+          <span>{{ $t('leaveRejection.title') }}</span>
+          <VBtn class="leave-approval-dialog__close" icon="tabler-x" variant="tonal" color="error" size="small" :aria-label="$t('common.actions.close')" :disabled="loading" @click="rejectDialog = false" />
+        </VCardTitle>
+        <VCardText class="pa-5">
+          <VAlert color="error" variant="tonal" class="mb-4">
+            {{ $t('leaveRejection.hint', { count: selected.length }) }}
+          </VAlert>
+          <ErpField
+            v-model="rejectionNote"
+            :label="$t('leaveRejection.note')"
+            kind="textarea"
+            rows="4"
+            :hint="$t('leaveRejection.noteHint')"
+            persistent-hint
+          />
+        </VCardText>
+        <VCardActions class="leave-approval-dialog__footer px-5 py-4">
+          <VBtn color="secondary" variant="tonal" :disabled="loading" @click="rejectDialog = false">{{ $t('common.actions.cancel') }}</VBtn>
+          <VBtn color="error" variant="flat" :loading="loading" @click="rejectSelected">
+            {{ $t('leaveRejection.confirm', { count: selected.length }) }}
           </VBtn>
         </VCardActions>
       </VCard>

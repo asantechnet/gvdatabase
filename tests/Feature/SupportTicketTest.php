@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\SupportTicketCreated;
+use App\Models\Setting;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +21,7 @@ class SupportTicketTest extends TestCase
     {
         Mail::fake();
         config()->set('support.ticket_recipient', 'owner@example.test');
+        $this->enableEmailDelivery();
         $user = User::factory()->create(['acc_status' => 'active']);
         Sanctum::actingAs($user, ['access']);
 
@@ -46,6 +48,7 @@ class SupportTicketTest extends TestCase
 
     public function test_ticket_submission_is_rejected_without_a_configured_support_recipient(): void
     {
+        $this->enableEmailDelivery();
         config()->set('support.ticket_recipient', null);
         $user = User::factory()->create(['acc_status' => 'active']);
         Sanctum::actingAs($user, ['access']);
@@ -66,6 +69,7 @@ class SupportTicketTest extends TestCase
         Mail::fake();
         Storage::fake('local');
         config()->set('support.ticket_recipient', 'owner@example.test');
+        $this->enableEmailDelivery();
         $user = User::factory()->create(['acc_status' => 'active']);
         Sanctum::actingAs($user, ['access']);
 
@@ -81,6 +85,23 @@ class SupportTicketTest extends TestCase
         $this->assertCount(1, $ticket->attachments);
         Storage::disk('local')->assertExists($ticket->attachments->first()->path);
         $this->get($response->json('data.attachments.0.download_url'))->assertOk();
+    }
+
+    public function test_ticket_submission_is_rejected_when_outgoing_email_is_disabled(): void
+    {
+        config()->set('support.ticket_recipient', 'owner@example.test');
+        $user = User::factory()->create(['acc_status' => 'active']);
+        Sanctum::actingAs($user, ['access']);
+
+        $this->postJson('/api/support-tickets', [
+            'category' => 'technical',
+            'severity' => 'normal',
+            'subject' => 'Cannot reach the support mailbox',
+            'description' => 'The company has not configured outgoing email delivery yet.',
+        ])->assertStatus(422)
+            ->assertJsonPath('code', 'business.email_delivery_not_configured');
+
+        $this->assertSame(0, SupportTicket::query()->count());
     }
 
     public function test_ticket_history_is_limited_to_the_authenticated_reporter(): void
@@ -113,5 +134,19 @@ class SupportTicketTest extends TestCase
         $this->getJson('/api/support-tickets')->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.ticket_number', 'SUP-000101');
+    }
+
+    private function enableEmailDelivery(): void
+    {
+        Setting::create([
+            'website_title' => 'Support Test Company',
+            'timezone' => 'Asia/Kabul',
+            'phone' => '0000000000',
+            'physical_address' => 'Test address',
+            'short_company_name' => 'Support Test',
+            'original_company_name' => 'Support Test Company',
+            'off_day_allowance_days_per_year' => 20,
+            'email_delivery_enabled' => true,
+        ]);
     }
 }

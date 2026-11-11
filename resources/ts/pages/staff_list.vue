@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatActiveMoney, translate } from '@/utils/localization'
+import { formatActiveMoney, formatLocalizedDate, translate } from '@/utils/localization'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { VDialog } from 'vuetify/components'
 import { useToast } from 'vue-toastification'
@@ -52,6 +52,8 @@ interface Staff {
   total_worked_hours: number
   addr: string
   join_date: string
+  editable_until: string | null
+  can_edit: boolean
   off_day_allowance_days: number | null
   is_commission_based: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
@@ -442,6 +444,8 @@ const openAddStaffDialog = () => {
     salary: 0,
     total_worked_hours: 0,
     join_date: new Date().toISOString().split("T")[0],
+    editable_until: null,
+    can_edit: true,
     off_day_allowance_days: null,
     guarantor_name: null,
     is_commission_based: false,
@@ -482,8 +486,25 @@ const ownEmployeeId = computed(() => userData.value?.employee?.id ?? null)
 const canEditStaff = (staff: Staff) => canManageEmployees.value || (canEditOwnProfile.value && staff.id === ownEmployeeId.value)
 // A self-editor never sees payroll, hierarchy or account fields they cannot change.
 const isSelfOnlyEdit = computed(() => !canManageEmployees.value);
+const staffEditWindowClosed = (staff: Staff) => canEditStaff(staff) && staff.can_edit === false
+const staffEditWindowMessage = (staff: Staff) => {
+  const message = translate('common.messages.editWindowExpired')
+  if (!staff.editable_until)
+    return message
+
+  return `${message} ${formatLocalizedDate(staff.editable_until, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })}`
+}
 
 const openEditStaffDialog = (staff: Staff) => {
+  if (staff.can_edit === false) {
+    toast.warning(staffEditWindowMessage(staff))
+
+    return
+  }
+
   if (!canManageEmployees.value) {
     // A self-editor maintains personal, contact, guarantor and bank details
     // only. Payroll, position, office, hierarchy and account linkage stay HR.
@@ -1223,7 +1244,16 @@ onMounted(async () => {
                   <VListItem prepend-icon="tabler-calendar-time" :title="$t('pages.settings.staffList.staffList.managePaidOffDays')" @click="openLeaveDialog(item)" />
                   <VListItem prepend-icon="tabler-paperclip" :title="$t('common.attachments.title')" @click="openAttachments(item)" />
                   <VDivider class="my-1" />
-                  <VListItem v-if="canEditStaff(item)" prepend-icon="tabler-edit" :title="$t('pages.settings.staffList.staffList.editStaffRecord')" @click="openEditStaffDialog(item)" />
+                  <VListItem
+                    v-if="canEditStaff(item)"
+                    :prepend-icon="staffEditWindowClosed(item) ? 'tabler-lock' : 'tabler-edit'"
+                    :title="$t('pages.settings.staffList.staffList.editStaffRecord')"
+                    :subtitle="staffEditWindowClosed(item) ? staffEditWindowMessage(item) : undefined"
+                    :lines="staffEditWindowClosed(item) ? 'three' : undefined"
+                    :color="staffEditWindowClosed(item) ? 'warning' : undefined"
+                    class="staff-actions-menu__edit"
+                    @click="openEditStaffDialog(item)"
+                  />
                   <VListItem :prepend-icon="(item.status ?? 'active') === 'active' ? 'tabler-user-cancel' : 'tabler-user-check'" :title="$t((item.status ?? 'active') === 'active' ? 'pages.settings.staffList.staffList.deactivateStaffRecord' : 'pages.settings.staffList.staffList.activateStaffRecord')" @click="requestStaffAction(item, 'status')" />
                   <VListItem prepend-icon="tabler-trash" class="staff-actions-menu__delete" :title="$t('pages.settings.staffList.staffList.deleteStaffRecord')" @click="requestStaffAction(item, 'delete')" />
                 </VList>
@@ -2446,6 +2476,9 @@ onMounted(async () => {
 .staff-empty-state { display: grid; justify-items: center; padding-block: 1.25rem 2rem; }
 .staff-empty-state__action { margin-block-start: -.5rem; }
 .staff-actions-menu__delete { color: rgb(var(--v-theme-error)) !important; }
+.staff-actions-menu__edit { block-size: auto !important; min-block-size: 68px; }
+.staff-actions-menu__edit .v-list-item__content { overflow: visible; block-size: auto; }
+.staff-actions-menu__edit .v-list-item-subtitle { overflow: visible; text-overflow: clip; white-space: normal; }
 
 .staff-form-dialog .staff-form-card { overflow: hidden; }
 .staff-form-dialog .staff-form-card--wizard { max-block-size: calc(100vh - 32px); }

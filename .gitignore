@@ -26,6 +26,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
+
 # Logs
 logs
 *.log
@@ -82,3 +83,6 @@ public/mockServiceWorker.js
 .aider*
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+
+# Generated A5 brochure
+/brochure/

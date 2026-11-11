@@ -296,6 +296,9 @@ class PermissionSeeder extends Seeder
         ['name' => 'issue_academy_certificates', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_financials', 'category' => 'educational_visa'],
         ['name' => 'view_applicant_contracts', 'category' => 'educational_visa'],
+        // Case-scoped embassy contacts are opt-in. This controls the country
+        // quick-contact and relationship surface, not the country catalogue.
+        ['name' => 'view_case_country_contacts', 'category' => 'educational_visa'],
         ['name' => 'invite_applicant_portal', 'category' => 'educational_visa'],
         ['name' => 'manage_educational_bonuses', 'category' => 'educational_visa'],
         ['name' => 'view_visa_reports', 'category' => 'educational_visa'],

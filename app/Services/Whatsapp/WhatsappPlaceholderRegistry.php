@@ -40,7 +40,6 @@ final class WhatsappPlaceholderRegistry
             ['token' => 'contact', 'label' => 'Phone', 'label_key' => 'pages.whatsapp.placeholders.applicant.contact', 'source' => 'contact', 'sample' => '0700 123 456'],
             ['token' => 'email', 'label' => 'Email', 'label_key' => 'pages.whatsapp.placeholders.applicant.email', 'source' => 'email', 'sample' => 'applicant@example.com'],
             ['token' => 'address', 'label' => 'Address', 'label_key' => 'pages.whatsapp.placeholders.applicant.address', 'source' => 'address', 'sample' => 'Kabul, Afghanistan'],
-            ['token' => 'tax_number', 'label' => 'Tax Number', 'label_key' => 'pages.whatsapp.placeholders.applicant.tax_number', 'source' => 'tax_number', 'sample' => '100200300'],
             ['token' => 'service', 'label' => 'Service', 'label_key' => 'pages.whatsapp.placeholders.applicant.service', 'source' => 'service', 'sample' => 'Scholarship'],
             ['token' => 'stage', 'label' => 'Current Stage', 'label_key' => 'pages.whatsapp.placeholders.applicant.stage', 'source' => 'current_stage.name', 'sample' => 'Consultation'],
             ['token' => 'responsible_employee', 'label' => 'Responsible Employee', 'label_key' => 'pages.whatsapp.placeholders.applicant.responsible_employee', 'source' => 'responsible_employee.name', 'sample' => 'Sara Noori'],

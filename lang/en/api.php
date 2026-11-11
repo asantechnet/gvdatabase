@@ -174,6 +174,7 @@ return [
             'unresolved_placeholders' => 'The template contains unsupported placeholders.',
             'missing_placeholder_values' => 'Required template values are missing.',
             'contract_extension_invalid' => 'Choose a live primary contract for the same service to create an extension.',
+            'contract_extension_party_mismatch' => 'The extension must use the same employee or applicant as the contract it renews.',
             'contract_template_unresolved_placeholders' => 'The active contract template contains unsupported placeholders.',
             'invalid_currency_rate' => 'Enter a valid positive exchange rate.',
             'contract_not_renewable' => 'Only active or expired contracts can be continued as a renewal.',

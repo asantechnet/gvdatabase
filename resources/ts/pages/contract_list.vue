@@ -15,6 +15,7 @@ import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import { useContracts } from '@/composables/useContracts'
+import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
 
 const props = withDefaults(defineProps<{
@@ -369,6 +370,7 @@ const contractName = (contract: Contract) => contract.contract || contract.contr
 const canExtend = (contract: Contract) => ability.can('read', 'create_contracts')
   && !contract.is_cancelled
   && contract.contract_role !== 'extension'
+  && !contract.has_live_extension
   && ['active', 'completed'].includes(contract.status)
 
 const extendContract = (contract: Contract) => {
@@ -452,7 +454,9 @@ const handleFormSubmit = async (contractData: ContractFormPayload) => {
     await load()
   }
   catch (err) {
-    toast.error(translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain'))
+    // Preserve the server's specific business code (duplicate renewal,
+    // template/party validation) instead of replacing it with a generic toast.
+    toast.error(apiErrorMessage(err, translate('pages.contracts.allContracts.allContracts.failedToSaveContractPleaseTryAgain')))
   }
 }
 

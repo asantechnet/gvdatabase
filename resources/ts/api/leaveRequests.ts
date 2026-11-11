@@ -15,14 +15,19 @@ export interface LeaveRequest {
   duration_days: 0.5 | 1
   reason: string
   is_granted: boolean
+  status: 'pending' | 'approved' | 'rejected'
   off_day_days: number
   absent_days: number
   off_day_override: boolean
-  treatment: 'pending' | 'off_day' | 'partial' | 'absent'
+  treatment: 'pending' | 'rejected' | 'off_day' | 'partial' | 'absent'
   approval_note: string | null
   granted_at: string | null
   approved_by?: number | null
   approvedBy?: { id: number; name: string } | null
+  rejected_at: string | null
+  rejected_by: number | null
+  rejection_note: string | null
+  rejectedBy?: { id: number; name: string } | null
   employee?: { id: number; name: string; position: string | null }
 }
 
@@ -44,7 +49,7 @@ export interface LeaveRequestPage extends ListPage<LeaveRequest> {
   usage: Record<number, number>
 }
 
-export type LeaveRequestStatus = 'pending' | 'off_day' | 'partial' | 'absent'
+export type LeaveRequestStatus = 'pending' | 'rejected' | 'off_day' | 'partial' | 'absent'
 
 export interface CompanyLeaveRequestParams {
   year?: number
@@ -121,6 +126,11 @@ const LeaveRequestApi = {
     const response = await api.patch('/leave-requests/grant', { ids, force_off_day: forceOffDay, approval_note: approvalNote })
 
     return response.data
+  },
+  async reject(ids: number[], rejectionNote?: string): Promise<LeaveRequest[]> {
+    const response = await api.patch('/leave-requests/reject', { ids, rejection_note: rejectionNote })
+
+    return response.data.data as LeaveRequest[]
   },
 }
 
