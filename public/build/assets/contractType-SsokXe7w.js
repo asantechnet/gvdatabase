@@ -1,1 +1,0 @@
-import{ac as r}from"./main-CL9QDlTk.js";const s={async getAll(a){const t=await r.get("/contract-types",{params:a});return Array.isArray(t.data.data)?t.data.data:[]},async getById(a){return(await r.get(`/contract-types/${a}`)).data.data}};export{s as C};
