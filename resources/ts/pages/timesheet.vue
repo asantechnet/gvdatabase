@@ -1227,7 +1227,6 @@ watch(logDate, async () => {
                 <article v-for="record in displayedRecords" :key="`mobile-${record.id}-${record.date}`" class="timesheet-mobile-card">
                   <div class="timesheet-mobile-card__header">
                     <div class="timesheet-mobile-card__identity">
-                      <EmployeeAvatar :name="record.name" :src="record.avatar ?? employeeFor(record.staff_id)?.avatar" size="36" class="flex-shrink-0" />
                       <div>
                         <strong>{{ record.name }}</strong>
                         <span>{{ record.role || record.office || '—' }}</span>
@@ -1908,6 +1907,13 @@ watch(logDate, async () => {
 }
 
 .incomplete-session { background: rgba(var(--v-theme-warning), 0.1); }
+
+/* Dark registers keep the same neutral surface language as the other tables.
+   The status chip still identifies incomplete rows; the row itself must not
+   carry the warning/secondary tint. */
+:global(.v-theme--dark .timesheet-table-shell tbody > tr) {
+  background-color: transparent !important;
+}
 
 .table-row-hover:hover {
   background-color: rgba(var(--v-theme-on-surface), .035);
