@@ -20,6 +20,7 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ApplicantPipeline from '@/pages/applicant-pipeline.vue'
 import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -637,7 +638,7 @@ onMounted(async () => {
       </template>
       <template #item.id="{ item }">#{{ item.id }}</template>
       <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
-      <template #item.employee="{ item }">{{ item.service === 'academy' ? '—' : (item.responsible_employee?.name ?? $t('educational.unassigned')) }}</template>
+      <template #item.employee="{ item }"><div v-if="item.service !== 'academy' && item.responsible_employee" class="d-flex align-center ga-2"><EmployeeAvatar :name="item.responsible_employee.name" :src="item.responsible_employee.avatar" size="28" /><span>{{ item.responsible_employee.name }}</span></div><span v-else>{{ item.service === 'academy' ? '—' : $t('educational.unassigned') }}</span></template>
       <template #item.service="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip></template>
       <template #item.country="{ item }"><span class="text-medium-emphasis">{{ countryLabel(item) }}</span></template>
       <template #item.university="{ item }"><span class="text-medium-emphasis">{{ universityLabel(item) }}</span></template>

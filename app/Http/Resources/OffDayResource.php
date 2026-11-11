@@ -24,6 +24,7 @@ class OffDayResource extends JsonResource
             'approvedBy' => $this->whenLoaded('approver', fn () => $this->approver ? [
                 'id' => $this->approver->id,
                 'name' => $this->approver->name,
+                'avatar' => $this->approver->employee?->avatar,
             ] : null),
             'approved_at' => $this->approved_at?->toISOString(),
             'createdBy' => $this->whenLoaded('creator', fn () => $this->creator ? [

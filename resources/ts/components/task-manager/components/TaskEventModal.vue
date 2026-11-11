@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import type { Task } from '@/types/taskManager'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -154,15 +155,13 @@ const confirmAndDelete = () => {
                 {{ $t('components.taskManager.taskeventmodal.assignedTO') }}
               </div>
               <div class="d-flex align-center gap-2">
-                <VAvatar
+                <EmployeeAvatar
                   v-for="user in task.assignees"
                   :key="user.id"
+                  :name="user.name"
+                  :src="user.avatar"
                   size="30"
-                  color="primary"
-                  variant="tonal"
-                >
-                  <span class="text-caption font-weight-bold">{{ user.name.charAt(0) }}</span>
-                </VAvatar>
+                />
               </div>
             </VCol>
           </VRow>

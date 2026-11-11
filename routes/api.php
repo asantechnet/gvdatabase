@@ -239,6 +239,8 @@ Route::middleware(['auth:sanctum', 'abilities:access', 'active', 'edit-window'])
     Route::post('employees/{employee}/document', [EmployeeController::class, 'uploadDocument'])->middleware('permission:edit_employees');
     Route::get('employees/{employee}/document', [EmployeeController::class, 'downloadDocument'])->middleware('permission:view_employees');
     Route::delete('employees/{employee}/document', [EmployeeController::class, 'removeDocument'])->middleware('permission:edit_employees');
+    Route::post('employees/{employee}/avatar', [EmployeeController::class, 'uploadAvatar'])->middleware('permission:edit_employees');
+    Route::delete('employees/{employee}/avatar', [EmployeeController::class, 'removeAvatar'])->middleware('permission:edit_employees');
 
     // Position routes
     Route::apiResource('positions', PositionController::class)

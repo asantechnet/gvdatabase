@@ -11,6 +11,9 @@ export interface AcademyEnrollmentRecord {
     id: number
     student_number: string | null
     name: string
+    father_name: string | null
+    address: string | null
+    notes: string | null
     contact: string | null
     email: string | null
     father_phone: string | null

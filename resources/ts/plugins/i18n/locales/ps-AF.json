@@ -990,10 +990,9 @@
       "expenseTypes": "د لګښت ډولونه",
       "payrolls": "معاشونه",
       "academy": "اکاډمي",
-      "academyOverview": "د اکاډمۍ کتنه",
       "academyClasses": "ټولګي",
       "academyStudents": "زده‌کوونکي",
-      "academyCatalog": "کتلاګ",
+      "academyCatalog": "پروګرامونه",
       "academyAttendance": "حاضری",
       "academyCertificates": "سندونه",
       "academyContracts": "د اکاډمۍ قراردادونه"
@@ -5350,9 +5349,9 @@
       "terminalHint": "دا ثبت‌نام بند او یوازې لوستل کیږي."
     },
     "catalog": {
-      "title": "کټلاګ",
+      "title": "پروګرامونه",
       "description": "پروګرامونه، وختونه، مودې او استادان.",
-      "add": "زیاتول",
+      "add": "پروګرام زیاتول",
       "programs": "پروګرامونه",
       "times": "د ټولګي وختونه",
       "durations": "مودې",
@@ -5374,6 +5373,14 @@
       "printSubtitle": "د اکاډمۍ میاشتنی حاضری",
       "printFooter": "د اکاډمۍ د حاضری سند",
       "saved": "حاضري خوندي شوه.",
+      "alreadyRecorded": "د دې ټولګي او نېټې حاضري مخکې ثبت شوې ده. تاسو یې لاندې کتلی یا بدلولی شئ.",
+      "lateMinutes": "د ځنډ دقیقې",
+      "markAttendance": "حاضري ثبتول",
+      "checkIn": "ننوتل",
+      "checkOut": "وتل",
+      "selectTitle": "میاشت او ټولګی وټاکئ",
+      "selectDescription": "د زده‌کوونکو د حاضرۍ لپاره میاشت او ټولګی وټاکئ.",
+      "emptyDescription": "د حاضرۍ ثبتونه به له ثبتولو وروسته دلته ښکاره شي.",
       "empty": "د دې انتخاب لپاره حاضري نشته.",
       "emptyCell": "نه ثبت شوی",
       "loadFailed": "د اکاډمۍ حاضري پورته نه شوه.",
@@ -5385,7 +5392,8 @@
         "present": "حاضر",
         "absent": "غایب",
         "late": "ناوخته",
-        "excused": "رخصتي"
+        "excused": "رخصتي",
+        "leave": "رخصتي"
       }
     },
     "certificates": {
@@ -5440,6 +5448,8 @@
       "endsOn": "تر نېټې",
       "fee": "فېس",
       "hours": "ساعتونه",
+      "id": "پېژند",
+      "joiningDate": "د شاملېدو نېټه",
       "minutes": "دقیقې",
       "month": "میاشت",
       "months": "میاشتې",
@@ -5469,6 +5479,11 @@
         "sat": "شنبه",
         "sun": "یکشنبه"
       }
+    },
+    "placeholders": {
+      "date": "YYYY-MM-DD",
+      "endTime": "۱۰:۳۰ غ.م.",
+      "startTime": "۰۹:۰۰ غ.م."
     },
     "navigation": {
       "overview": "کتنه",

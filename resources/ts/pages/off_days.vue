@@ -14,6 +14,7 @@ import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -291,7 +292,7 @@ onMounted(load)
             </VChip>
           </template>
           <template #item.approvedBy.name="{ item }">
-            <span v-if="item.approvedBy">{{ item.approvedBy.name }}</span>
+            <div v-if="item.approvedBy" class="d-flex align-center ga-2"><EmployeeAvatar :name="item.approvedBy.name" :src="item.approvedBy.avatar" size="28" /><span>{{ item.approvedBy.name }}</span></div>
             <span v-else class="text-medium-emphasis">—</span>
           </template>
           <template #item.actions="{ item }">

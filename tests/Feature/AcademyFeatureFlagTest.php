@@ -39,7 +39,7 @@ class AcademyFeatureFlagTest extends TestCase
         $this->setting(false);
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
 
-        $this->getJson('/api/academy/overview')->assertNotFound();
+        $this->getJson('/api/academy/classes')->assertNotFound();
         $this->postJson('/api/contracts/academy', [])->assertNotFound();
         $this->getJson('/api/contracts/academy/options')->assertNotFound();
     }
@@ -49,7 +49,7 @@ class AcademyFeatureFlagTest extends TestCase
         $this->setting(true);
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
 
-        $this->getJson('/api/academy/overview')->assertOk();
+        $this->getJson('/api/academy/classes')->assertOk();
         $this->getJson('/api/contracts/academy/options')->assertOk();
     }
 }

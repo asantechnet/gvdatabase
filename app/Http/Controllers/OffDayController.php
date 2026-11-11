@@ -34,7 +34,7 @@ class OffDayController extends Controller
             'status' => ['nullable', Rule::in([OffDay::STATUS_PENDING, OffDay::STATUS_APPROVED, OffDay::STATUS_REJECTED])],
         ]);
 
-        $query = OffDay::query()->with(['approver:id,name', 'creator:id,name']);
+        $query = OffDay::query()->with(['approver:id,name', 'approver.employee:id,user_id,avatar', 'creator:id,name']);
         if (! empty($data['year'])) {
             $query->where(function ($nested) use ($data): void {
                 $nested->whereYear('start_date', $data['year'])
@@ -81,7 +81,7 @@ class OffDayController extends Controller
         return response()->json([
             'success' => true,
             'message' => $canApprove ? 'Off day announced.' : 'Off day submitted for approval.',
-            'data' => new OffDayResource($offDay->load(['approver:id,name', 'creator:id,name'])),
+            'data' => new OffDayResource($offDay->load(['approver:id,name', 'approver.employee:id,user_id,avatar', 'creator:id,name'])),
         ], 201);
     }
 
@@ -127,7 +127,7 @@ class OffDayController extends Controller
         if ($offDay->isApproved()) {
             return response()->json([
                 'success' => true,
-                'data' => new OffDayResource($offDay->load(['approver:id,name', 'creator:id,name'])),
+                'data' => new OffDayResource($offDay->load(['approver:id,name', 'approver.employee:id,user_id,avatar', 'creator:id,name'])),
             ]);
         }
 

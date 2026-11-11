@@ -17,6 +17,7 @@ import { canAccess } from '@/utils/authorization'
 import { formatLocalizedDate } from '@/utils/localization'
 import { printDocument } from '@/utils/printDocument'
 import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 const { enabled: academyEnabled } = useAcademyEnabled()
@@ -76,6 +77,8 @@ const serviceOptions = computed(() => [
   { title: t('educational.builtInServices.private'), value: 'private' },
 ])
 const activeFilterCount = computed(() => [countryId.value, universityId.value, levelId.value, employeeId.value, service.value, stage.value, status.value, dateFrom.value, dateTo.value].filter(Boolean).length)
+const isEmployeeColumn = (column: string) => column === 'employee'
+const employeeAvatar = (value: unknown) => employees.value.find(employee => employee.name === String(value))?.avatar ?? null
 const tabs: Array<{ value: EducationalReportType; title: string; workspace: ReportWorkspace }> = [
   { value: 'applicants', title: t('educational.applicants'), workspace: 'applications' },
   { value: 'contracts', title: t('educational.contractsReport'), workspace: 'applications' },
@@ -419,12 +422,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="education-workspace erp-workspace">
+  <div :class="['education-workspace', 'erp-workspace', { 'education-workspace--hrm': workspace === 'hrm' }]">
     <ErpPageHeader :title="pageTitle" :description="pageDescription" :section="pageSection" />
 
     <VCard class="education-panel">
-      <VTabs v-if="visibleTabs.length > 1" v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
-      <VDivider v-if="visibleTabs.length > 1" />
       <VCardText>
         <VRow align="center" class="table-toolbar">
           <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="$t('educational.searchReports')" /></VCol>
@@ -441,17 +442,20 @@ onBeforeUnmount(() => {
           </VCol>
         </VRow>
       </VCardText>
+      <VTabs v-if="visibleTabs.length > 1" v-model="tab" show-arrows class="px-3 report-tabs" @update:model-value="onTabChange"><VTab v-for="item in visibleTabs" :key="item.value" :value="item.value">{{ item.title }}</VTab></VTabs>
+      <VDivider v-if="visibleTabs.length > 1" />
       <ResponsiveDataTable v-if="loading" :headers="reportLoadingHeaders" :items="[]" :loading="true" :skeleton-rows="6" :sticky-key-column="false" :sticky-action-column="false" :show-scroll-affordance="false" mobile-cards mobile-title-key="loading-0" :mobile-fields="['loading-1', 'loading-2']" class="education-report-loading-table" />
       <TableEmptyState v-else-if="report && !filteredRows.length" icon="tabler-report-off" :title="emptyTitle" :description="emptyDescription" />
-      <div v-else-if="report" class="education-table-scroll"><VTable density="compact" class="education-table report-table">
+      <div v-else-if="report" :class="['education-table-scroll', { 'education-table-scroll--visa-outcomes': tab === 'visa-outcomes' }]"><VTable density="compact" :class="['education-table', 'report-table', { 'report-table--visa-outcomes': tab === 'visa-outcomes' }]">
         <thead><tr><th v-for="column in report.columns" :key="column">{{ columnLabel(column) }}</th></tr></thead>
-        <tbody><tr v-for="(row, index) in filteredRows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="column === 'status'" size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
+        <tbody><tr v-for="(row, index) in filteredRows" :key="index"><td v-for="column in report.columns" :key="column"><VChip v-if="column === 'status'" size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip><div v-else-if="isEmployeeColumn(column)" class="d-flex align-center ga-2"><EmployeeAvatar :name="displayValue(column, row[column])" :src="employeeAvatar(row[column])" size="28" /><span>{{ displayValue(column, row[column]) }}</span></div><template v-else>{{ displayValue(column, row[column]) }}</template></td></tr></tbody>
       </VTable>
         <div class="education-report-mobile-cards">
           <article v-for="(row, index) in filteredRows" :key="index" class="education-report-mobile-card">
             <div v-for="column in report.columns" :key="column" class="education-report-mobile-card__field">
               <span>{{ columnLabel(column) }}</span>
-              <strong v-if="column !== 'status'">{{ displayValue(column, row[column]) }}</strong>
+              <strong v-if="column !== 'status' && !isEmployeeColumn(column)">{{ displayValue(column, row[column]) }}</strong>
+              <div v-else-if="isEmployeeColumn(column)" class="d-flex align-center justify-end ga-2"><EmployeeAvatar :name="displayValue(column, row[column])" :src="employeeAvatar(row[column])" size="28" /><strong>{{ displayValue(column, row[column]) }}</strong></div>
               <VChip v-else size="small" variant="tonal" :color="applicantStatusColor(row[column])">{{ statusLabel(row[column]) }}</VChip>
             </div>
           </article>
@@ -567,24 +571,28 @@ onBeforeUnmount(() => {
 .report-tabs :deep(.v-slide-group__container),
 .report-tabs :deep(.v-slide-group__content) { overflow-y: hidden !important; }
 
-/* Keep report data in legible columns. Reports have different column sets, so
-   the browser sizes each column from its actual content while the table has a
-   CRM-like minimum width and can scroll horizontally on smaller desktops. */
+/* Most report tabs retain their wide, horizontally scrollable data layout.
+   Visa Outcomes has only a compact result set, so it gets a dedicated
+   full-width layout below. */
 .education-table-scroll .v-table__wrapper,
-.education-report-loading-table :deep(.v-table__wrapper) {
+.education-report-loading-table .v-table__wrapper {
   overflow-x: auto !important;
   overflow-y: hidden !important;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .education-table-scroll .v-table__wrapper::-webkit-scrollbar,
-.education-report-loading-table :deep(.v-table__wrapper::-webkit-scrollbar) { display: none; }
+.education-report-loading-table .v-table__wrapper::-webkit-scrollbar { display: none; }
 
 .report-table { inline-size: max-content; min-inline-size: max(100%, 1180px); table-layout: auto; }
 .report-table :is(th, td) { min-inline-size: 9rem; padding: .8rem 1rem !important; overflow-wrap: normal; vertical-align: middle; white-space: nowrap; }
 .report-table :is(th, td):first-child { min-inline-size: 5.5rem; }
 .report-table :is(th, td):nth-child(2),
 .report-table :is(th, td):nth-child(3) { min-inline-size: 11rem; }
+.education-table-scroll--visa-outcomes,
+.education-table-scroll--visa-outcomes .v-table__wrapper { inline-size: 100%; overflow: visible !important; }
+.report-table--visa-outcomes { inline-size: 100%; min-inline-size: 100%; }
+.report-table--visa-outcomes :is(th, td) { min-inline-size: 0; overflow-wrap: anywhere; white-space: normal; }
 .report-table th { color: rgb(var(--v-theme-on-surface)); font-size: .8125rem; font-weight: 750; letter-spacing: .025em; }
 .education-report-mobile-cards { display: none; }
 

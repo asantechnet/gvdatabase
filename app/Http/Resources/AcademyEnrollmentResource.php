@@ -20,9 +20,12 @@ class AcademyEnrollmentResource extends JsonResource
                 'id' => $this->student->id,
                 'student_number' => $this->student->student_number,
                 'name' => $this->student->name,
+                'father_name' => $this->student->father_name,
                 'contact' => $this->student->contact,
                 'email' => $this->student->email,
                 'father_phone' => $this->student->father_phone,
+                'address' => $this->student->address,
+                'notes' => $this->student->notes,
                 'applicant_id' => $this->student->applicant_id,
             ] : null),
             'applicant' => $this->whenLoaded('applicant', fn () => $this->applicant ? [

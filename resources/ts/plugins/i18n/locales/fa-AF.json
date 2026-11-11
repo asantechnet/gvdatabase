@@ -593,10 +593,9 @@
       "expenseTypes": "انواع هزینه",
       "payrolls": "معاش‌ها",
       "academy": "آکادمی",
-      "academyOverview": "مرور آکادمی",
       "academyClasses": "صنوف",
       "academyStudents": "شاگردان",
-      "academyCatalog": "کاتالوگ",
+      "academyCatalog": "برنامه‌ها",
       "academyAttendance": "حاضری",
       "academyCertificates": "تصدیق‌نامه‌ها",
       "academyContracts": "قراردادهای آکادمی"
@@ -6349,9 +6348,9 @@
       "terminalHint": "این ثبت‌نام بسته و فقط‌خواندنی است."
     },
     "catalog": {
-      "title": "کاتالوگ",
+      "title": "برنامه‌ها",
       "description": "برنامه‌ها، زمان‌ها، مدت‌ها و استادان.",
-      "add": "افزودن",
+      "add": "افزودن برنامه",
       "programs": "برنامه‌ها",
       "times": "زمان صنف",
       "durations": "مدت‌ها",
@@ -6373,6 +6372,14 @@
       "printSubtitle": "حاضری ماهانه آکادمی",
       "printFooter": "سند حاضری آکادمی",
       "saved": "حاضری ذخیره شد.",
+      "alreadyRecorded": "حاضری برای این صنف و تاریخ از قبل ثبت شده است. می‌توانید آن را در پایین بررسی یا ویرایش کنید.",
+      "lateMinutes": "دقایق تأخیر",
+      "markAttendance": "ثبت حاضری",
+      "checkIn": "ورود",
+      "checkOut": "خروج",
+      "selectTitle": "ماه و صنف را انتخاب کنید",
+      "selectDescription": "برای بارگیری حاضری شاگردان، ماه و صنف را انتخاب کنید.",
+      "emptyDescription": "پس از ثبت حاضری، سوابق اینجا نمایش داده می‌شوند.",
       "empty": "برای این انتخاب حاضری ثبت نشده است.",
       "emptyCell": "ثبت نشده",
       "loadFailed": "حاضری آکادمی بارگذاری نشد.",
@@ -6384,7 +6391,8 @@
         "present": "حاضر",
         "absent": "غایب",
         "late": "دیر",
-        "excused": "رخصت"
+        "excused": "رخصت",
+        "leave": "رخصت"
       }
     },
     "certificates": {
@@ -6439,6 +6447,8 @@
       "endsOn": "تا تاریخ",
       "fee": "فیس",
       "hours": "ساعت",
+      "id": "شناسه",
+      "joiningDate": "تاریخ پیوستن",
       "minutes": "دقیقه",
       "month": "ماه",
       "months": "ماه",
@@ -6468,6 +6478,11 @@
         "sat": "شنبه",
         "sun": "یکشنبه"
       }
+    },
+    "placeholders": {
+      "date": "YYYY-MM-DD",
+      "endTime": "۱۰:۳۰ قبل از ظهر",
+      "startTime": "۰۹:۰۰ قبل از ظهر"
     },
     "navigation": {
       "overview": "مرور",
