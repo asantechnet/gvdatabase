@@ -37,7 +37,7 @@ Fix: keep the **entire** selector inside `:global(...)`.
 :global([dir='rtl'] .table-scroll-affordance__control .v-icon) { transform: scaleX(-1); }
 ```
 
-This is a recurring failure mode: it reappeared in newer components, so treat it as a live risk rather than history.
+This is a recurring failure mode: it reappeared in newer components, so treat it as a live risk rather than history. The theme-class variant of the same defect (a bare `:global(.v-theme--dark)` painting full-viewport overlay roots) is recorded in [dark-theme-overlay-covers-page.md](../known-issues/dark-theme-overlay-covers-page.md).
 
 ## Diagnose a mirrored UI in under five minutes
 

@@ -25,7 +25,7 @@ build
 Homestead.json
 Homestead.yaml
 Thumbs.db
-
+/docs
 
 # Logs
 logs
