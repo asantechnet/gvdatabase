@@ -8,6 +8,7 @@ use App\Services\CommissionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contract extends Model
@@ -22,8 +23,30 @@ class Contract extends Model
     /** A later sale of the same service, linked back at the primary contract. */
     public const ROLE_EXTENSION = 'extension';
 
+    /** A draft or active renewal is live; completed, terminated and cancelled are closed. */
+    public const LIVE_EXTENSION_STATUSES = ['draft', 'active'];
+
     protected static function booted(): void
     {
+        // A new row may only be an extension when it names its parent, and a
+        // primary agreement can never inherit a parent. Existing orphan rows
+        // are left for the audit/manual-repair path rather than being guessed.
+        static::creating(function (Contract $contract): void {
+            $contract->assertExtensionInvariant();
+        });
+
+        static::updating(function (Contract $contract): void {
+            if ($contract->isDirty('parent_contract_id')) {
+                throw ValidationException::withMessages([
+                    'parent_contract_id' => ['business.contract_extension_invalid'],
+                ]);
+            }
+
+            if ($contract->isDirty('contract_role')) {
+                $contract->assertExtensionInvariant();
+            }
+        });
+
         // Commission is normally earned by the *case*: a service line pays out
         // once its applicant reaches the terminal `completed` stage. Academy is
         // the exception and accrues from its live agreement (see
@@ -125,6 +148,40 @@ class Contract extends Model
     public function isExtension(): bool
     {
         return $this->contract_role === self::ROLE_EXTENSION;
+    }
+
+    /** The current renewal of this primary agreement, if one is still live. */
+    public function liveExtension()
+    {
+        return $this->hasOne(self::class, 'parent_contract_id')
+            ->whereIn('status', self::LIVE_EXTENSION_STATUSES)
+            ->where('is_cancelled', false);
+    }
+
+    public function hasLiveExtension(): bool
+    {
+        return $this->relationLoaded('liveExtension')
+            ? $this->liveExtension !== null
+            : $this->liveExtension()->exists();
+    }
+
+    public function isLiveExtension(): bool
+    {
+        return $this->isExtension()
+            && ! $this->is_cancelled
+            && in_array($this->status, self::LIVE_EXTENSION_STATUSES, true);
+    }
+
+    private function assertExtensionInvariant(): void
+    {
+        $hasParent = $this->parent_contract_id !== null;
+        $valid = $this->isExtension() ? $hasParent : ! $hasParent;
+
+        if (! $valid) {
+            throw ValidationException::withMessages([
+                'parent_contract_id' => ['business.contract_extension_invalid'],
+            ]);
+        }
     }
 
     public function contractType()

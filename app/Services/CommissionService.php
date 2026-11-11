@@ -15,8 +15,8 @@ use App\Support\BuiltInService;
 use Illuminate\Support\Carbon;
 
 /**
- * Turns completed cases into employee commission accruals, plus live Academy
- * agreements, which are sold without a case.
+ * Turns completed cases into employee commission accruals, plus completed
+ * Academy class teacher commission.
  *
  * The trigger is the applicant workflow itself: commission is earned when a
  * case reaches the terminal `completed` stage (see `ApplicantStage`), which is
@@ -24,14 +24,15 @@ use Illuminate\Support\Carbon;
  * services delivered. Every service line of every non-cancelled contract on
  * that case then earns at the employee's per-service rate, converted to the
  * base currency. An employee earns when they are the contract/line seller or
- * one of the case's responsible employees. Academy is the exception: its active
- * contract is the earning trigger because there is no case to complete.
+ * one of the case's responsible employees. Academy counselor commission is
+ * retired: Academy contract lines never earn here; only completed class
+ * teachers earn Academy commission, through `syncForAcademyClass()`.
  *
  * A case that is anywhere else — still in the pipeline, or closed at one of the
  * exit stages (`cancelled`, `rejected`, `withdrawn`) — earns nothing, and any
- * case-bearing accrual that is still unsettled is voided. Academy accruals are
- * never voided by a stage change. Money already settled or paid is never
- * reversed.
+ * case-bearing accrual that is still unsettled is voided. Historical Academy
+ * accruals are not voided by a case stage change. Money already settled or paid
+ * is never reversed.
  *
  * The former `CommissionAccrualService` synced from invoices and income
  * receipts, neither of which exists any more; the pre-2026 ledger also keyed on
@@ -68,8 +69,9 @@ class CommissionService
             return;
         }
 
-        // Academy has no case, so its live contract is the trigger. Every
-        // other service waits for the case to reach the completed stage.
+        // Every service line waits for the case to reach the completed stage.
+        // Academy lines are skipped in lineAccruals because counselor
+        // commission is retired; class teachers are paid separately.
         $caseCompleted = $applicant->isCaseCompleted();
         $caseEarnedOn = $this->earnedOn($applicant, $earnedAt);
         $eligibleIds = [];
@@ -105,9 +107,8 @@ class CommissionService
      */
     public function voidForApplicant(Applicant $applicant): void
     {
-        // Academy is sold without a case, so a stage change must never void
-        // its contract-triggered accrual. Case-bearing services follow the
-        // completed case.
+        // A stage change only governs case-bearing services. Historical
+        // Academy accruals are handled by the retired-path commission sync.
         $this->accrualsFor($applicant)
             ->whereNull('commission_settlement_id')
             ->whereHas('applicantContract', fn ($query) => $query
@@ -117,8 +118,9 @@ class CommissionService
 
     /**
      * Re-sync the applicant behind a contract. Kept so contract-side paths
-     * (status changes, manual reconciliation) reach the same rule: the case —
-     * or, for Academy, the live agreement — decides.
+     * (status changes, manual reconciliation) reach the same rule. Academy
+     * contract lines are intentionally non-earning; class teachers accrue
+     * separately from a completed class.
      */
     public function syncForContract(Contract $contract): void
     {
@@ -194,9 +196,16 @@ class CommissionService
 
             $lineService = $line->service ?: $contract->service;
 
-            // Academy earns while its agreement is live. Every case-bearing
-            // service — test offer included — waits for its case to complete.
-            if (! $caseCompleted && $lineService !== BuiltInService::ACADEMY) {
+            // Academy counselor commission is retired. Only completed class
+            // teachers earn Academy commission; never accrue from a contract
+            // line, even when the agreement is live.
+            if ($lineService === BuiltInService::ACADEMY) {
+                continue;
+            }
+
+            // Every case-bearing service — test offer included — waits for its
+            // case to complete.
+            if (! $caseCompleted) {
                 continue;
             }
 
@@ -336,8 +345,14 @@ class CommissionService
             return;
         }
 
-        $class->loadMissing('teachers.serviceCommissions');
+        $class->loadMissing(['teachers.position', 'teachers.serviceCommissions']);
         foreach ($class->teachers as $employee) {
+            // Academy commission is limited to teacher-position employees; a
+            // class assignment alone does not make another role commissionable.
+            if ($employee->position?->system_key !== 'teacher') {
+                continue;
+            }
+
             if (! $employee->is_commission_based) {
                 continue;
             }

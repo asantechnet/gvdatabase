@@ -149,13 +149,20 @@ const destinationLabel = (row: Applicant) => {
 const countryLabel = (row: Applicant) => row.details?.country?.name ?? '—'
 const universityLabel = (row: Applicant) => row.details?.university?.name ?? '—'
 const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : t('educational.noServiceLines')
+const employeeLabel = (row: Applicant) => {
+  if (row.service === 'academy')
+    return '—'
+  const assigned = row.responsible_employees?.map(employee => employee.name).filter(Boolean) ?? []
+
+  return assigned.length ? assigned.join(', ') : (row.responsible_employee?.name ?? t('educational.unassigned'))
+}
 // The API returns the same stage it filters by: the service line's under a
 // service filter, the applicant mirror otherwise.
 const stageOf = (row: Applicant) => row.display_stage ?? row.current_stage
 const reportRow = (row: Applicant) => [
   `#${row.id}`,
   row.name,
-  row.service === 'academy' ? '—' : (row.responsible_employee?.name ?? t('educational.unassigned')),
+  employeeLabel(row),
   serviceLabel(row),
   countryLabel(row),
   universityLabel(row),
@@ -637,7 +644,7 @@ onMounted(async () => {
       </template>
       <template #item.id="{ item }">#{{ item.id }}</template>
       <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
-      <template #item.employee="{ item }">{{ item.service === 'academy' ? '—' : (item.responsible_employee?.name ?? $t('educational.unassigned')) }}</template>
+      <template #item.employee="{ item }">{{ employeeLabel(item) }}</template>
       <template #item.service="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip></template>
       <template #item.country="{ item }"><span class="text-medium-emphasis">{{ countryLabel(item) }}</span></template>
       <template #item.university="{ item }"><span class="text-medium-emphasis">{{ universityLabel(item) }}</span></template>
@@ -1012,12 +1019,6 @@ onMounted(async () => {
 .applications-filter-dialog__apply:hover,
 .visitor-form-dialog .visitor-dialog-submit:hover {
   filter: brightness(0.9);
-}
-
-.v-overlay:has(.applications-filter-dialog) .v-overlay__scrim,
-.v-overlay:has(.visitor-form-dialog) .v-overlay__scrim {
-  backdrop-filter: blur(4px);
-  background-color: rgba(var(--v-theme-on-surface), 0.24);
 }
 
 @media (max-width: 959px) {

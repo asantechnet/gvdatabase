@@ -43,7 +43,13 @@ class CommentController extends Controller
         abort_unless($comment->task_id === $task->id, 404);
         Gate::authorize('view', $task);
         Gate::authorize('update', $comment);
-        $editWindow->enforce($request->user(), $comment);
+        // No override applies to comments: the creator may edit only during
+        // the first 30 minutes, and nobody else may edit at all.
+        abort_unless(
+            $editWindow->isOpen($comment, EditWindow::COMMENT_MINUTES),
+            422,
+            'business.comment_edit_window_expired',
+        );
 
         $data = $request->validate([
             'content' => ['required', 'string', 'max:2000'],

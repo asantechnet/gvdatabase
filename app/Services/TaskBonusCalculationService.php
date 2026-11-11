@@ -261,7 +261,7 @@ class TaskBonusCalculationService
 
     private function notifyReviewers(WorthyEmployee $nomination, string $month): void
     {
-        $reviewers = User::query()->get()->filter(fn (User $user) => $user->hasPermission('grant_bonuses'))->pluck('id');
+        $reviewers = User::query()->where('acc_status', 'active')->get()->filter(fn (User $user) => $user->hasPermission('grant_bonuses'))->pluck('id');
         if ($reviewers->isEmpty()) {
             return;
         }

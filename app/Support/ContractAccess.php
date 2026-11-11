@@ -83,13 +83,18 @@ class ContractAccess
             $query->where(function (Builder $owned) use ($employeeIds): void {
                 $owned->whereIn('employee_id', $employeeIds)
                     ->orWhereIn('sold_by_employee_id', $employeeIds)
-                    ->orWhereHas('applicant', fn ($applicant) => $applicant->whereIn('responsible_employee_id', $employeeIds));
+                    ->orWhereHas('applicant', fn ($applicant) => $applicant
+                        ->where(fn ($assigned) => $assigned
+                            ->whereIn('responsible_employee_id', $employeeIds)
+                            ->orWhereHas('responsibleEmployees', fn ($employees) => $employees->whereIn('employees.id', $employeeIds))));
             })->orWhere(function (Builder $ownerless): void {
                 $ownerless->whereNull('employee_id')
                     ->whereNull('sold_by_employee_id')
                     ->where(fn (Builder $inner) => $inner
                         ->whereNull('applicant_id')
-                        ->orWhereHas('applicant', fn ($applicant) => $applicant->whereNull('responsible_employee_id')));
+                        ->orWhereHas('applicant', fn ($applicant) => $applicant
+                            ->whereNull('responsible_employee_id')
+                            ->whereDoesntHave('responsibleEmployees')));
             });
         });
     }

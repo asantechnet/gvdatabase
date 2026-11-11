@@ -25,6 +25,7 @@ class LeaveRequest extends Model
     protected $fillable = [
         'employee_id', 'date', 'year', 'duration_days', 'off_day_days', 'off_day_override',
         'reason', 'approval_note', 'is_granted', 'requested_by', 'granted_by', 'granted_at',
+        'rejected_at', 'rejected_by', 'rejection_note',
     ];
 
     protected function casts(): array
@@ -37,6 +38,7 @@ class LeaveRequest extends Model
             'is_granted' => 'boolean',
             'off_day_override' => 'boolean',
             'granted_at' => 'immutable_datetime',
+            'rejected_at' => 'immutable_datetime',
         ];
     }
 
@@ -53,5 +55,10 @@ class LeaveRequest extends Model
     public function grantor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'granted_by');
+    }
+
+    public function rejector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 }

@@ -53,6 +53,16 @@ export interface ApplicantStage {
   is_active?: boolean
 }
 
+export interface AttachedService {
+  id: number
+  service: BuiltInService | null
+  service_label: string
+  contract_number: string | null
+  contract_status: string | null
+  contract_role: string | null
+  stage: { id: number; key: string; name: string; is_terminal?: boolean } | null
+}
+
 export interface Applicant {
   id: number
   created_at?: string
@@ -73,7 +83,6 @@ export interface Applicant {
   contact?: string | null
   email?: string | null
   address?: string | null
-  tax_number?: string | null
   attachments_count?: number
   /** @deprecated The singular admission field is retired. */
   admission_employee_id?: number | null
@@ -99,6 +108,7 @@ export interface Applicant {
   stage_history?: Array<{ id: number; changed_at: string; note?: string; changed_by?: number | null; applicant_contract_id?: number | null; contract_number?: string | null; contract_role?: 'primary' | 'extension' | null; parent_contract_number?: string | null; is_case_level?: boolean; changer?: { id: number; name: string } | null; new_stage?: { name: string }; old_stage?: { name: string } }>
   incomes?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null; status?: 'draft' | 'approved' | 'rejected'; rejection_reason?: string | null }>
   expenses?: Array<{ id: number; amount: number | string; date?: string | null; description?: string | null; status?: 'draft' | 'approved' | 'rejected'; rejection_reason?: string | null }>
+  attached_services?: AttachedService[]
   services?: Array<{ application_fee?: number | string | null; application_fee_min?: number | string | null; application_fee_max?: number | string | null; visa_fee?: number | string | null; booking_fee?: number | string | null; service_fee?: number | string | null; remote_fee?: number | string | null; payable_total?: number | string | null; amount_paid?: number | string | null; remaining_total?: number | string | null; payment_status?: string | null; payment_status_label?: string | null; contract_role?: 'primary' | 'extension' | null; parent_contract_number?: string | null; is_extension?: boolean; currency_rate?: number | string | null; current_stage_id?: number | null; current_stage?: { id: number; key: string; name: string; is_terminal?: boolean; allowed_next_keys?: string[] } | null; id: number; service?: BuiltInService | null; type: string; category?: string; employee_id?: number | null; contract_id?: number | null; contract_number?: string | null; currency_id: number; country_id?: number | null; education_level_id?: number | null; language_id?: number | null; fee: number | string; date?: string | null; status?: 'active' | 'paused' | 'completed' | 'cancelled'; currency?: { id: number; code: string } | null; bonus_source?: { bonus_amount: number | string; rule_source?: string | null } | null }>
   universities?: Array<{ id: number; university_id: number; semester_id?: number | null; status: string; intake?: string | null; notes?: string | null; university?: { id: number; name: string } | null; semester?: { id: number; name: string; code?: string } | null }>
 }

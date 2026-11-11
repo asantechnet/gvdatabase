@@ -14,6 +14,8 @@ use App\Models\ContractType;
 use App\Models\Currency;
 use App\Models\Employee;
 use App\Models\Language;
+use App\Models\Position;
+use App\Models\Setting;
 use App\Services\AcademySlipService;
 use App\Services\ContractDocumentDesignService;
 use App\Services\Contracts\ContentSanitizer;
@@ -34,7 +36,7 @@ class ContractController extends Controller
     use PaginatesLists;
     private const RELATIONS = [
         'template.contractType', 'templateVersion.country', 'templateVersion.language',
-        'contractCountry', 'contractLanguage',        'contractType', 'parentContract:id,contract_number', 'applicantContracts.currency',
+        'contractCountry', 'contractLanguage',        'contractType', 'parentContract:id,contract_number', 'liveExtension:id,parent_contract_id,status,is_cancelled', 'applicantContracts.currency',
         'employee.position', 'employee.office', 'employee.user',
         'applicant.scholarshipDetail.educationLevel', 'applicant.scholarshipDetail.semester',
         'applicant.responsibleEmployees:id,name',
@@ -160,7 +162,7 @@ class ContractController extends Controller
             // service contracts do: a new record linked to a live primary
             // parent. Extensions are always issued as drafts so the terms can
             // be reviewed before the agreement becomes active.
-            $parent = $this->extensionParent($request, $template, $data['parent_contract_id'] ?? null);
+            $parent = $this->extensionParent($request, $template, $data['parent_contract_id'] ?? null, $data);
             $contract = Contract::create([
                 'template_id' => $template->id, 'contract_type_id' => $template->contract_type_id,
                 'name' => $template->name, 'content' => '', 'counterparty' => '',
@@ -194,7 +196,7 @@ class ContractController extends Controller
      * so a cancelled agreement, a finished one, or another extension is never
      * extended in place.
      */
-    private function extensionParent(Request $request, ContractTemplate $template, ?int $parentId): ?Contract
+    private function extensionParent(Request $request, ContractTemplate $template, ?int $parentId, array $data): ?Contract
     {
         if (! $parentId) {
             return null;
@@ -210,6 +212,15 @@ class ContractController extends Controller
             422,
             'business.contract_extension_invalid',
         );
+        // Locking the parent makes this check serial under competing creates.
+        abort_if($parent->liveExtension()->exists(), 422, 'business.contract_renewal_exists');
+
+        // Other contracts may legitimately carry no party; whichever party the
+        // parent carries must be repeated exactly, and a missing party is a
+        // mismatch rather than a reason to change the parent's identity.
+        $sameParty = (int) ($data['employee_id'] ?? 0) === (int) ($parent->employee_id ?? 0)
+            && (int) ($data['applicant_id'] ?? 0) === (int) ($parent->applicant_id ?? 0);
+        abort_unless($sameParty, 422, 'business.contract_extension_party_mismatch');
 
         return $parent;
     }
@@ -236,8 +247,9 @@ class ContractController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => [
-            // Every currency is offered; the base one stays first for the pickers.
-            'currencies' => Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'rate']),
+            // Inactive currencies stay out of every ordinary picker; only the
+            // currency-management page opts into the complete catalogue.
+            'currencies' => Currency::query()->where('is_active', true)->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'rate']),
             'languages' => Language::query()->where('is_active', true)->get(['id', 'name']),
             'employees' => $employees->get(['id', 'name']),
             'responsible_employees' => $request->user()->hasPermission('assign_responsible_employees')
@@ -247,6 +259,45 @@ class ContractController extends Controller
             'template' => ($template = ContractTemplate::with(['versions' => fn ($query) => $query->where('status', 'active')->orderByDesc('is_current')->orderByDesc('version_number')->with(['country', 'language', 'test'])])->where('service', $service)->first())
                 ? new ContractTemplateResource($template) : null,
         ]]);
+    }
+
+    /** The positions whose employees may be assigned to applicant cases. */
+    public function responsibleRoles(): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => $this->responsibleRolesData()]);
+    }
+
+    public function updateResponsibleRoles(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'position_ids' => ['present', 'array', 'max:100'],
+            'position_ids.*' => ['integer', 'distinct', Rule::exists('positions', 'id')
+                ->whereNull('deleted_at')->where('status', 'active')],
+        ]);
+
+        Setting::query()->latest('id')->firstOrFail()->update([
+            'responsible_position_ids' => array_values(array_map('intval', $data['position_ids'])),
+        ]);
+
+        return response()->json(['success' => true, 'data' => $this->responsibleRolesData()]);
+    }
+
+    /** @return array{positions: array<int, array{id: int, title: string}>, selected_ids: array<int, int>} */
+    private function responsibleRolesData(): array
+    {
+        $positions = Position::query()
+            ->where('status', 'active')
+            ->orderBy('title')
+            ->get(['id', 'title'])
+            ->map(fn (Position $position) => ['id' => (int) $position->id, 'title' => $position->title])
+            ->values()
+            ->all();
+        $activeIds = array_map(fn (array $position) => $position['id'], $positions);
+
+        return [
+            'positions' => $positions,
+            'selected_ids' => array_values(array_intersect(AgencyStaffAssignment::responsiblePositionIds(), $activeIds)),
+        ];
     }
 
     /** Compact list for the contract register filter; contract viewers do not
@@ -290,6 +341,9 @@ class ContractController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $data = $this->validatedData($request, partial: true);
+        // The parent is establishable only at creation. Ignore it on update
+        // even from older clients; the model also rejects a direct reparent.
+        unset($data['parent_contract_id']);
         $contract = DB::transaction(function () use ($request, $id, $data): Contract {
             $contract = Contract::query()->lockForUpdate()->findOrFail($id);
             abort_unless(ContractAccess::canManage($request->user(), $contract), 403, 'auth.forbidden');
@@ -303,7 +357,22 @@ class ContractController extends Controller
                 'counterparty_email', 'counterparty_contact', 'counterparty_address',
             ];
             if (array_intersect(array_keys($data), $renderInputs) !== []) {
-                $data = [...$data, ...$this->documentAttributes($contract, $data)];
+                $attributes = $this->documentAttributes($contract, $data);
+                // Rebuilding the document must not erase the extension origin.
+                // Keep the stored snapshot value, falling back to the parent's
+                // number only for a valid linked row.
+                if ($contract->isExtension()) {
+                    $extensionOf = $contract->snapshot_data['extension_of']
+                        ?? $contract->parentContract?->contract_number;
+
+                    if ($extensionOf !== null) {
+                        $attributes['snapshot_data'] = [
+                            ...($attributes['snapshot_data'] ?? []),
+                            'extension_of' => $extensionOf,
+                        ];
+                    }
+                }
+                $data = [...$data, ...$attributes];
             }
             $contract->update($data);
             abort_unless(ContractAccess::canManage($request->user(), $contract->fresh()), 403, 'auth.forbidden');

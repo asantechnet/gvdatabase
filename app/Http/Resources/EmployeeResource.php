@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\PresentsAttachments;
+use App\Support\EditWindow;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,6 +16,8 @@ class EmployeeResource extends JsonResource
         $departmentNames = $this->relationLoaded('departments')
             ? $this->departments->pluck('name')->filter()->values()
             : $this->departments()->pluck('departments.name');
+        $editWindow = app(EditWindow::class);
+        $user = $request->user();
 
         return [
             'id' => $this->id,
@@ -63,6 +66,12 @@ class EmployeeResource extends JsonResource
             'join_date' => $this->join_date->format('Y-m-d'),
             'contract_duration' => $this->contract_duration,
             'off_day_allowance_days' => $this->off_day_allowance_days !== null ? (float) $this->off_day_allowance_days : null,
+            // Server-derived editability for the requesting actor. The UI uses
+            // this state for display only; the update route remains the guard.
+            'editable_until' => $this->created_at !== null
+                ? $editWindow->editableUntil($this->resource)->toISOString()
+                : null,
+            'can_edit' => $user !== null && $editWindow->canEdit($user, $this->resource),
         ];
     }
 }

@@ -95,6 +95,8 @@ export interface Contract {
   contract_role?: 'primary' | 'extension'
   parent_contract_id?: number | null
   parent_contract_number?: string | null
+  /** True when this primary agreement already has a draft or active renewal. */
+  has_live_extension?: boolean
   /** Derived presentation state: a future-dated extension is `scheduled`. */
   display_status?: string | null
   is_scheduled?: boolean
@@ -175,7 +177,7 @@ export interface ContractCreateData {
   company_signatory_name?: string | null
 }
 
-export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'status'>> {
+export interface ContractUpdateData extends Partial<Omit<ContractCreateData, 'status' | 'parent_contract_id'>> {
   status?: ContractStatus
 }
 
@@ -303,7 +305,6 @@ export interface ServiceContractCreateData {
   contact?: string | null
   email?: string | null
   address?: string | null
-  tax_number?: string | null
   responsible_employee_ids?: number[]
   responsible_employee_id?: number | null
   application_fee?: number

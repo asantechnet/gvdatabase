@@ -59,7 +59,7 @@ class ReportService
             'applicants' => $user->hasPermission('view_applicants') || $user->hasPermission('view_financial_reports')
                 ? Applicant::query()->orderBy('name')->get(['id', 'name'])->all() : [],
             'currencies' => $user->hasPermission('view_currencies') || $user->hasPermission('view_financial_reports')
-                ? Currency::query()->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'symbol', 'decimal_places', 'is_base'])->all() : [],
+                ? Currency::query()->where('is_active', true)->orderByDesc('is_base')->orderBy('code')->get(['id', 'code', 'symbol', 'decimal_places', 'is_base'])->all() : [],
             'boards' => $user->hasPermission('view_all_tasks') ? Board::query()->orderBy('title')->get(['id', 'title'])->all() : [],
             'contract_types' => $user->hasPermission('view_contracts')
                 ? ContractTemplate::query()->distinct()->orderBy('type')->pluck('type')->filter()->values()->all() : [],

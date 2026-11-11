@@ -467,7 +467,7 @@ const parentApplicantPayload = (contract: Contract): ApplicantPayload => {
   const applicant = contract.applicant
   const details = applicant?.details ?? {}
   const identity: Record<string, unknown> = { service: service.value }
-  for (const field of ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'notes', 'responsible_employee_id', 'responsible_employee_ids'] as const)
+  for (const field of ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'notes', 'responsible_employee_id', 'responsible_employee_ids'] as const)
     identity[field] = applicant?.[field] ?? null
 
   return {

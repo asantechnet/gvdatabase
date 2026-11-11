@@ -4,9 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ContractTemplatesView from './policies.vue'
 import PolicyLibraryView from './policy_library.vue'
+import ContractResponsibleRolesView from './responsible_roles.vue'
 import { canAccess } from '@/utils/authorization'
 
-type ContractDocsSection = 'templates' | 'policies'
+type ContractDocsSection = 'templates' | 'policies' | 'responsible'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,10 +17,12 @@ const canViewPolicies = computed(() => canAccess('view_contract_policies'))
 const availableSections = computed<ContractDocsSection[]>(() => [
   ...(canViewTemplates.value ? ['templates' as const] : []),
   ...(canViewPolicies.value ? ['policies' as const] : []),
+  ...(canViewTemplates.value ? ['responsible' as const] : []),
 ])
 const labels = computed<Record<ContractDocsSection, string>>(() => ({
   templates: t('pages.settings.policies.policies.contractTemplates'),
   policies: t('pages.settings.policies.policies.policyLibrary.title'),
+  responsible: t('contractSettings.title'),
 }))
 const breadcrumbs = computed(() => [
   { title: t('erp.home'), to: { name: 'home' } },
@@ -33,6 +36,8 @@ function sectionFromQuery(): ContractDocsSection {
   const tab = String(route.query.tab ?? '')
   if (tab === 'policies' && canViewPolicies.value)
     return 'policies'
+  if (tab === 'responsible' && canViewTemplates.value)
+    return 'responsible'
   if (tab === 'templates' && canViewTemplates.value)
     return 'templates'
   return availableSections.value[0] ?? 'templates'
@@ -79,6 +84,16 @@ onMounted(() => {
               <VDivider />
             </template>
           </PolicyLibraryView>
+        </VWindowItem>
+        <VWindowItem v-if="canViewTemplates" value="responsible">
+          <ContractResponsibleRolesView>
+            <template #tabs>
+              <VTabs v-model="section" show-arrows class="contract-docs__tabs px-4">
+                <VTab v-for="key in availableSections" :key="key" :value="key">{{ labels[key] }}</VTab>
+              </VTabs>
+              <VDivider />
+            </template>
+          </ContractResponsibleRolesView>
         </VWindowItem>
       </VWindow>
     </VCard>

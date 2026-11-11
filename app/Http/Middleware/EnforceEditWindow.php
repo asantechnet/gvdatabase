@@ -9,40 +9,20 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Restricts non-super-admin users to editing a record only during the first
- * hour after it was created.
+ * Restricts employee profile edits to the first hour after the record was
+ * created. Super administrators and holders of `override_edit_window` (who are
+ * audited) are exempt.
  *
- * The window is enforced app-wide for every PUT/PATCH request that targets a
- * bound Eloquent record. Super administrators (and holders of the
- * `override_edit_window` permission, who are audited) are exempt, and requests
- * that do not target a timestamped record are left untouched.
+ * The middleware is mounted only on the employee update route. Tasks,
+ * contracts, comments, subtasks, finance and master data keep their own
+ * behavior; the employee-only scope is an explicit product decision (EW-001).
  */
 class EnforceEditWindow
 {
-    /**
-     * Controllers that enforce the window themselves with finer-grained rules
-     * (a subtask may still be completed after the window) are left to them so
-     * the app-wide default never overrides their intentional carve-outs.
-     */
-    private const SELF_ENFORCED_ACTIONS = [
-        'App\Http\Controllers\SubtaskController@update',
-        'App\Http\Controllers\CommentController@update',
-        // Approving or rejecting a draft is a workflow transition, not an edit
-        // of the record's content, so the one-hour edit window does not apply.
-        'App\Http\Controllers\IncomeController@approve',
-        'App\Http\Controllers\IncomeController@reject',
-        'App\Http\Controllers\ExpenseController@approve',
-        'App\Http\Controllers\ExpenseController@reject',
-    ];
 
     public function handle(Request $request, Closure $next): Response
     {
         if (! $request->isMethod('PUT') && ! $request->isMethod('PATCH')) {
-            return $next($request);
-        }
-
-        $action = $request->route()?->getActionName();
-        if (is_string($action) && in_array($action, self::SELF_ENFORCED_ACTIONS, true)) {
             return $next($request);
         }
 

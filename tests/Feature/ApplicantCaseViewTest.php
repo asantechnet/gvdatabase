@@ -59,6 +59,26 @@ class ApplicantCaseViewTest extends TestCase
         $this->assertSame('Called the family; documents promised Friday', $updated['notes']);
     }
 
+    public function test_applicant_list_includes_attached_services_for_finance_viewers(): void
+    {
+        $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);
+        $contract = $this->createBuiltInContract('scholarship', [
+            'name' => 'List service case',
+            'fee' => 400,
+            'currency_id' => $currency->id,
+        ]);
+
+        $rows = $this->getJson('/api/applicants?per_page=100')
+            ->assertOk()
+            ->json('data.data');
+        $row = collect($rows)->firstWhere('id', $contract['applicant_id']);
+
+        $this->assertNotNull($row);
+        $this->assertNotEmpty($row['attached_services']);
+        $this->assertSame('scholarship', $row['attached_services'][0]['service']);
+        $this->assertArrayNotHasKey('fee', $row['attached_services'][0]);
+    }
+
     public function test_case_view_lists_sold_services(): void
     {
         $currency = Currency::factory()->create(['is_base' => true, 'rate' => 1]);

@@ -41,6 +41,10 @@ export interface Employee {
   work_end_time: string | null
   created_at: string | null
   updated_at: string | null
+  /** Server-derived end of the employee edit window. */
+  editable_until: string | null
+  /** Whether the requesting actor may save this employee now. */
+  can_edit: boolean
   avatar?: string | null
   document?: { name: string; mimeType: string; size: number; downloadUrl: string } | null
   attachments?: Attachment[]

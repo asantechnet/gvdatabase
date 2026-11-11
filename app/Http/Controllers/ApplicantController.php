@@ -30,7 +30,15 @@ class ApplicantController extends Controller
     {
         $canSeeFinancials = $request->user()->hasPermission('view_applicant_financials');
         $service = $this->requestedService($request);
-        $query = Applicant::with($this->relations())->withCount('attachments');
+        $query = Applicant::with($this->relations())->withCount('attachments')
+            // Safe line identities for the Applicants register. Financial
+            // fields remain behind their own permission and are never loaded
+            // into this relation.
+            ->with([
+                'services' => fn ($query) => $query->select(['id', 'applicant_id', 'service', 'contract_id', 'current_stage_id', 'created_at']),
+                'services.contract:id,contract_number,status,contract_role,parent_contract_id',
+                'services.currentStage:id,key,name,is_terminal',
+            ]);
         if (! BuiltInService::isEnabled(BuiltInService::ACADEMY)) {
             $query->where('service', '!=', BuiltInService::ACADEMY);
         }
@@ -44,8 +52,11 @@ class ApplicantController extends Controller
         $sortable = ['created_at', 'id'];
         $query->orderBy(in_array($sort, $sortable, true) ? $sort : 'created_at', $dir);
 
+        // Build the safe line summary while `services` still contains the
+        // loaded ApplicantContract models. `aliasDetails()` replaces that
+        // relation with presented arrays for finance viewers.
         $page = $query->paginate($request->integer('per_page', 25))
-            ->through(fn (Applicant $applicant) => $this->aliasDetails($applicant));
+            ->through(fn (Applicant $applicant) => $this->aliasDetails($this->withAttachedServices($applicant)));
 
         // The list shows one stage per row. Under a service filter that stage is
         // the service line's, so the stage filter and the stage column cannot
@@ -59,6 +70,27 @@ class ApplicantController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $page->appends($request->query())]);
+    }
+
+    /**
+     * The safe service-line summary shown by the Applicants register. The
+     * relation is removed after mapping so raw serialization cannot expose
+     * fees or payment data from the eager-loaded line models.
+     */
+    private function withAttachedServices(Applicant $applicant): Applicant
+    {
+        $applicant->setAttribute('attached_services', $applicant->services->map(fn (ApplicantContract $line) => [
+            'id' => $line->id,
+            'service' => $line->service,
+            'service_label' => $line->serviceLabel(),
+            'contract_number' => $line->contract?->contract_number,
+            'contract_status' => $line->contract?->status,
+            'contract_role' => $line->contract?->contract_role,
+            'stage' => $line->currentStage?->only(['id', 'key', 'name', 'is_terminal']),
+        ])->values()->all());
+        $applicant->unsetRelation('services');
+
+        return $applicant;
     }
 
     /**
@@ -191,7 +223,7 @@ class ApplicantController extends Controller
     private function pipelineApplicantRelations(): array
     {
         return [
-            'responsibleEmployee:id,name',
+            'responsibleEmployee:id,name', 'responsibleEmployees:id,name',
             'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name',
             'privateDetail.country:id,name', 'privateDetail.university:id,name',
         ];
@@ -205,6 +237,7 @@ class ApplicantController extends Controller
         // presented at its fallback placement so it can be moved from there.
         $stageId = $this->placementStageId($stages, $line->currentStage);
         $stage = $stages->firstWhere('id', $stageId);
+        $responsibleEmployee = $applicant?->responsibleEmployees?->first() ?? $applicant?->responsibleEmployee;
 
         return [
             'id' => 'line:'.$line->id,
@@ -218,8 +251,8 @@ class ApplicantController extends Controller
             'status' => $stage?->is_terminal ? 'closed' : 'active',
             'current_stage_id' => $stageId,
             'current_stage' => $this->pipelineStage($stage),
-            'responsible_employee' => $applicant?->responsibleEmployee
-                ? ['id' => $applicant->responsibleEmployee->id, 'name' => $applicant->responsibleEmployee->name]
+            'responsible_employee' => $responsibleEmployee
+                ? ['id' => $responsibleEmployee->id, 'name' => $responsibleEmployee->name]
                 : null,
             'country' => $detail?->country?->name,
             'university' => $detail?->university?->name,
@@ -379,7 +412,6 @@ class ApplicantController extends Controller
             'contact' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
-            'tax_number' => ['nullable', 'string', 'max:255'],
             'admission_employee_id' => ['prohibited'],
             // Responsibility is plural and belongs only to case-bearing
             // services. An applicant intake record with no contract may still
@@ -477,7 +509,11 @@ class ApplicantController extends Controller
             }
             $applicant->fill($data)->save();
             if (array_key_exists('responsible_employee_ids', $data)) {
-                $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
+                $this->syncResponsibleEmployees(
+                    $applicant,
+                    $data['responsible_employee_ids'] ?? [],
+                    array_key_exists('responsible_employee_id', $data) && $data['responsible_employee_id'] !== null,
+                );
             }
             $details = app(ApplicantServiceDetails::class);
             if (! $updating) {
@@ -494,7 +530,10 @@ class ApplicantController extends Controller
                 ApplicantStageHistory::create(['applicant_id' => $applicant->id, 'new_stage_id' => $applicant->current_stage_id, 'changed_by' => $request->user()?->id, 'changed_at' => now(), 'note' => 'Case created']);
             }
 
-            return $this->aliasDetails($applicant->fresh()->load($this->relations()));
+            return $this->aliasDetails(
+                $applicant->fresh()->load($this->relations()),
+                ! (array_key_exists('responsible_employee_ids', $data) && empty($data['responsible_employee_ids'])),
+            );
         });
     }
 
@@ -505,7 +544,7 @@ class ApplicantController extends Controller
      * applicant's service, so the response aliases it as `details` — the same
      * shape the frontend uses for every service.
      */
-    private function aliasDetails(Applicant $applicant): Applicant
+    private function aliasDetails(Applicant $applicant, bool $includeLegacyFallback = true): Applicant
     {
         if ($applicant->relationLoaded('applicantContracts')) {
             $applicant->setRelation('services', $applicant->applicantContracts->map(fn ($line) => $this->presentService($line)));
@@ -513,9 +552,15 @@ class ApplicantController extends Controller
         $applicant->setRelation('details', $applicant->getRelationValue($applicant->detailRelationName()));
         // Responsibility is plural. The controller serializes the model
         // directly, so these derived fields must be explicit here as well as
-        // in ApplicantResource.
-        $applicant->setAttribute('responsible_employee_ids', $applicant->responsibleEmployees->pluck('id')->all());
-        $applicant->setAttribute('responsible_employees', $applicant->responsibleEmployees
+        // in ApplicantResource. A legacy singular-only row is presented as a
+        // one-member assignment so both payload shapes agree.
+        $assignments = $this->assignmentEmployees($applicant, $includeLegacyFallback);
+        $primary = $assignments->first();
+        $applicant->setRelation('responsibleEmployees', $assignments);
+        $applicant->setRelation('responsibleEmployee', $primary);
+        $applicant->setAttribute('responsible_employee_id', $primary?->id);
+        $applicant->setAttribute('responsible_employee_ids', $assignments->pluck('id')->all());
+        $applicant->setAttribute('responsible_employees', $assignments
             ->map(fn (Employee $employee) => $employee->only(['id', 'name']))->values()->all());
         $applicant->setAttribute('portal_access_status', $applicant->user?->acc_status);
         $applicant->unsetRelation('user');
@@ -616,7 +661,9 @@ class ApplicantController extends Controller
         } elseif (in_array($request->input('focus'), ['admitted', 'awaiting_decision'], true)) {
             $query->whereHas('universities', fn ($q) => $q->where('status', $request->input('focus') === 'admitted' ? 'admitted' : 'applied'));
         } elseif ($request->input('focus') === 'unassigned') {
-            $query->where('status', 'active')->whereNull('responsible_employee_id');
+            $query->where('status', 'active')
+                ->whereNull('responsible_employee_id')
+                ->whereDoesntHave('responsibleEmployees');
         }
         $request->validate(['date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', $request->filled('date_from') ? 'after_or_equal:date_from' : 'nullable'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'], 'payment_status' => ['nullable', Rule::in(PaymentStatus::ALL)]]);
         // The case's payment state is the aggregate of its service lines, the
@@ -670,7 +717,10 @@ class ApplicantController extends Controller
             };
         }
         if ($request->filled('responsible_employee_id')) {
-            $query->where('responsible_employee_id', $request->integer('responsible_employee_id'));
+            $employeeId = $request->integer('responsible_employee_id');
+            $query->where(fn ($assigned) => $assigned
+                ->where('responsible_employee_id', $employeeId)
+                ->orWhereHas('responsibleEmployees', fn ($employees) => $employees->where('employees.id', $employeeId)));
         }
         foreach (['country_id', 'university_id', 'education_level_id', 'semester_id'] as $field) {
             if ($request->filled($field)) {
@@ -704,7 +754,7 @@ class ApplicantController extends Controller
         if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
             return;
         }
-        abort_unless(app(EmployeeScope::class)->canViewOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
+        abort_unless(array_intersect($this->responsibleEmployeeIds($applicant), app(EmployeeScope::class)->visibleEmployeeIds($user)) !== [], 403, 'auth.forbidden');
     }
 
     /** Change access: own cases, or a subordinate's case with the manage scope. */
@@ -715,7 +765,7 @@ class ApplicantController extends Controller
         if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
             return;
         }
-        abort_unless(app(EmployeeScope::class)->canManageOwnedBy($user, $applicant->responsible_employee_id), 403, 'auth.forbidden');
+        abort_unless(array_intersect($this->responsibleEmployeeIds($applicant), app(EmployeeScope::class)->manageableEmployeeIds($user)) !== [], 403, 'auth.forbidden');
     }
 
     private function scopeCasesToActor($query, Request $request): void
@@ -725,7 +775,56 @@ class ApplicantController extends Controller
         if ($user->isSuperAdmin() || $user->hasPermission('view_all_applicants')) {
             return;
         }
-        $query->whereIn('responsible_employee_id', app(EmployeeScope::class)->visibleEmployeeIds($user));
+        $visible = app(EmployeeScope::class)->visibleEmployeeIds($user);
+        $query->where(fn ($assigned) => $assigned
+            ->whereIn('responsible_employee_id', $visible)
+            ->orWhereHas('responsibleEmployees', fn ($employees) => $employees->whereIn('employees.id', $visible)));
+    }
+
+    /** @return array<int, int> */
+    private function responsibleEmployeeIds(Applicant $applicant): array
+    {
+        $ids = $applicant->responsibleEmployees()->pluck('employees.id')->map(fn ($id) => (int) $id)->all();
+        if ($applicant->responsible_employee_id !== null) {
+            $ids[] = (int) $applicant->responsible_employee_id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /** The loaded assignment set, with a legacy singular-only fallback. */
+    private function assignmentEmployees(Applicant $applicant, bool $includeLegacyFallback = true)
+    {
+        if ($applicant->relationLoaded('responsibleEmployees') && $applicant->responsibleEmployees->isNotEmpty()) {
+            return $applicant->responsibleEmployees;
+        }
+        if ($includeLegacyFallback && $applicant->relationLoaded('responsibleEmployee') && $applicant->responsibleEmployee) {
+            return collect([$applicant->responsibleEmployee]);
+        }
+
+        return collect();
+    }
+
+    /** Keep the plural pivot and its deterministic singular compatibility mirror together. */
+    private function syncResponsibleEmployees(Applicant $applicant, array $ids, bool $explicitPrimary = false): void
+    {
+        $ids = collect($ids)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+        $applicant->responsibleEmployees()->sync($ids);
+
+        if ($ids === []) {
+            // A legacy singular owner is intentionally retained when the plural
+            // assignment is cleared; it remains the compatibility fallback.
+            return;
+        }
+
+        $current = $applicant->responsible_employee_id !== null ? (int) $applicant->responsible_employee_id : null;
+        $primary = $explicitPrimary
+            ? $current
+            : ($current !== null && in_array($current, $ids, true) ? $current : $ids[0]);
+
+        if ($primary !== null && (int) $applicant->responsible_employee_id !== $primary) {
+            $applicant->forceFill(['responsible_employee_id' => $primary])->save();
+        }
     }
 
     /**

@@ -87,6 +87,18 @@ defineExpose({
       class="erp-field-control"
     >
       <slot />
+      <template
+        v-if="$slots.selection"
+        #selection="slotProps"
+      >
+        <slot name="selection" v-bind="slotProps" />
+      </template>
+      <template
+        v-if="$slots.item"
+        #item="slotProps"
+      >
+        <slot name="item" v-bind="slotProps" />
+      </template>
     </component>
   </div>
 </template>

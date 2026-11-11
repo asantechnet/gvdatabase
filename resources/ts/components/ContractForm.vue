@@ -482,9 +482,8 @@ const submit = async () => {
     ? (form.value.applicant_id ?? props.applicantId ?? null)
     : null
 
-  emit('submit', {
+  const payload: ContractFormPayload = {
     ...form.value,
-    parent_contract_id: props.extensionMode ? (props.parentContract?.id ?? null) : null,
     company_signatory_name: !isSuperAdmin.value && currentEmployeeName.value
       ? currentEmployeeName.value
       : (form.value.company_signatory_name?.trim() || currentEmployeeName.value),
@@ -496,7 +495,14 @@ const submit = async () => {
 
     // Template contracts take their content from the selected template.
     content: undefined,
-  })
+  }
+
+  // A parent is establishable only while creating an extension. Edit payloads
+  // must omit the key entirely so a save cannot clear or reparent the origin.
+  if (props.extensionMode && props.parentContract)
+    payload.parent_contract_id = props.parentContract.id
+
+  emit('submit', payload)
 }
 
 defineExpose({ submit })

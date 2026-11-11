@@ -59,6 +59,9 @@ class RolePermissionSeeder extends Seeder
                 'view_users', 'create_users', 'edit_users', 'delete_users', 'manage_user_status', 'assign_user_roles',
                 'view_roles', 'manage_role_permissions', 'manage_role_hierarchy', 'view_permissions',
                 'view_audit_logs', 'view_deleted_records', 'review_audit_logs', 'revert_audit_changes', 'manage_audit_scope',
+                // Country embassy contacts are opt-in for case workers;
+                // super administrators receive them through the policy bypass.
+                'view_case_country_contacts',
             ])),
 
             // Supervises operational work and all task work. Destructive financial and system actions remain excluded.
@@ -69,7 +72,7 @@ class RolePermissionSeeder extends Seeder
                 'request_own_leave',
                 'request_account_deactivation', 'cancel_own_deactivation_request',
                 'view_account_deactivation_requests', 'review_account_deactivation_requests', 'reactivate_user_accounts',
-                'view_employees', 'view_leave_requests', 'create_leave_requests', 'edit_leave_requests', 'delete_leave_requests',
+                'view_employees', 'edit_employees', 'view_leave_requests', 'create_leave_requests', 'edit_leave_requests', 'delete_leave_requests',
                 'grant_leave_requests', 'print_leave_requests',
                 'view_attendance', 'record_attendance', 'view_unmarked_attendance_staff',
                 'view_bonuses', 'nominate_bonus_candidates', 'edit_bonus_nominations',

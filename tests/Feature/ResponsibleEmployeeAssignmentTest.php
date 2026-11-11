@@ -53,7 +53,7 @@ class ResponsibleEmployeeAssignmentTest extends TestCase
         return $user;
     }
 
-    public function test_two_responsible_employees_are_synced_once_and_never_written_to_the_legacy_column(): void
+    public function test_two_responsible_employees_are_synced_once_and_mirrored_to_the_primary(): void
     {
         Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
         $first = $this->admissionEmployee();
@@ -67,11 +67,80 @@ class ResponsibleEmployeeAssignmentTest extends TestCase
 
         $this->assertNull($applicant->admission_employee_id);
         $this->assertSame(2, DB::table('applicant_responsible_employees')->where('applicant_id', $applicant->id)->count());
+        $this->assertSame($first->id, (int) $applicant->fresh()->responsible_employee_id);
 
         $this->putJson("/api/contracts/scholarship/{$id}", $payload)->assertOk();
 
         $this->assertSame(2, DB::table('applicant_responsible_employees')->where('applicant_id', $applicant->id)->count());
+        $this->assertSame($first->id, (int) $applicant->fresh()->responsible_employee_id);
         $this->assertNull($applicant->fresh()->admission_employee_id);
+    }
+
+    public function test_removing_a_responsible_employee_updates_the_pivot_and_primary_mirror(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        $first = $this->admissionEmployee();
+        $second = $this->admissionEmployee();
+        $payload = $this->builtInContractPayload('scholarship', [
+            'responsible_employee_ids' => [$first->id, $second->id],
+        ]);
+        $id = $this->postJson('/api/contracts/scholarship', $payload)->assertCreated()->json('data.id');
+        $applicant = Applicant::findOrFail(Contract::findOrFail($id)->applicant_id);
+
+        $this->putJson("/api/contracts/scholarship/{$id}", $this->builtInContractPayload('scholarship', [
+            'responsible_employee_ids' => [$second->id],
+        ]))->assertOk();
+
+        $this->assertDatabaseMissing('applicant_responsible_employees', [
+            'applicant_id' => $applicant->id,
+            'employee_id' => $first->id,
+        ]);
+        $this->assertDatabaseHas('applicant_responsible_employees', [
+            'applicant_id' => $applicant->id,
+            'employee_id' => $second->id,
+        ]);
+        $this->assertSame($second->id, (int) $applicant->fresh()->responsible_employee_id);
+    }
+
+    public function test_responsible_roles_are_configured_by_position_and_drive_the_assignment_pool(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['roles' => ['super_admin']]), ['access']);
+        Setting::create([
+            'website_title' => 'Responsible Roles Test',
+            'timezone' => 'Asia/Kabul',
+            'phone' => '0000000000',
+            'physical_address' => 'Test address',
+            'short_company_name' => 'Responsible Roles',
+            'original_company_name' => 'Responsible Roles Test',
+            'off_day_allowance_days_per_year' => 20,
+        ]);
+
+        $admission = $this->admissionEmployee();
+        $caseManagerPosition = Position::factory()->create([
+            'title' => 'Case Manager',
+            'description' => 'Owns active cases',
+            'salary' => 50000,
+            'status' => 'active',
+        ]);
+        $caseManager = Employee::factory()->create([
+            'position_id' => $caseManagerPosition->id,
+            'status' => Employee::STATUS_ACTIVE,
+        ]);
+
+        $this->getJson('/api/contract-settings/responsible-roles')->assertOk()
+            ->assertJsonPath('data.selected_ids', [$admission->position_id]);
+
+        $this->putJson('/api/contract-settings/responsible-roles', [
+            'position_ids' => [$caseManagerPosition->id],
+        ])->assertOk()->assertJsonPath('data.selected_ids', [$caseManagerPosition->id]);
+
+        $this->postJson('/api/contracts/scholarship', $this->builtInContractPayload('scholarship', [
+            'responsible_employee_ids' => [$caseManager->id],
+        ]))->assertCreated();
+
+        $this->postJson('/api/contracts/scholarship', $this->builtInContractPayload('scholarship', [
+            'responsible_employee_ids' => [$admission->id],
+        ]))->assertUnprocessable()->assertJsonValidationErrors('responsible_employee_ids.0');
     }
 
     public function test_permission_is_required_before_any_write(): void

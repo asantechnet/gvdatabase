@@ -16,8 +16,9 @@ class CommentPolicy
 
     public function update(User $user, Comment $comment): bool
     {
-        return $user->hasPermission('edit_all_comments')
-            || ($user->hasPermission('edit_own_comments') && $comment->user_id === $user->id);
+        // Editing is personal: no role or blanket permission can edit someone
+        // else's comment, even when that role can delete it.
+        return $user->hasPermission('edit_own_comments') && $comment->user_id === $user->id;
     }
 
     public function delete(User $user, Comment $comment): bool

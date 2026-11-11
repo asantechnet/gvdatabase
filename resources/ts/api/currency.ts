@@ -33,6 +33,7 @@ const CurrencyApi = {
   getAll: async (params?: {
     page?: number
     perPage?: number
+    include_inactive?: boolean
   }): Promise<ApiResponse<Currency[]>> => {
     const response = await api.get('/currencies', { params })
 

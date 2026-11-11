@@ -31,10 +31,10 @@ class LeaveRequestController extends Controller
         $data = $request->validate([
             'year' => ['nullable', 'integer', 'between:2000,3000'],
             // The same treatment the ledger shows in its status column.
-            'status' => ['nullable', Rule::in(['pending', 'off_day', 'partial', 'absent'])],
+            'status' => ['nullable', Rule::in(['pending', 'rejected', 'off_day', 'partial', 'absent'])],
         ]);
         $year = $data['year'] ?? now()->year;
-        $query = LeaveRequest::with(['employee.position', 'employee.office', 'grantor'])
+        $query = LeaveRequest::with(['employee.position', 'employee.office', 'grantor', 'rejector'])
             ->where('year', $year)->latest('date')->latest('id');
         $this->applyTreatmentFilter($query, $data['status'] ?? null);
 
@@ -79,7 +79,13 @@ class LeaveRequestController extends Controller
         }
 
         if ($status === 'pending') {
-            $query->where('is_granted', false);
+            $query->where('is_granted', false)->whereNull('rejected_at');
+
+            return;
+        }
+
+        if ($status === 'rejected') {
+            $query->whereNotNull('rejected_at');
 
             return;
         }
@@ -147,19 +153,41 @@ class LeaveRequestController extends Controller
 
         $created = DB::transaction(function () use ($employee, $request, $dates, $data, $start) {
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
-            $existing = $employee->leaveRequests()->whereIn('date', $dates->map->toDateString())->pluck('date');
-            if ($existing->isNotEmpty()) {
+            $existing = $employee->leaveRequests()
+                ->whereIn('date', $dates->map->toDateString())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy(fn (LeaveRequest $leave) => $leave->date->format('Y-m-d'));
+            if ($existing->contains(fn (LeaveRequest $leave) => $leave->rejected_at === null)) {
                 $this->failDateExists();
             }
 
-            return $dates->map(fn (Carbon $date) => $employee->leaveRequests()->create([
-                'date' => $date->toDateString(),
-                'year' => $start->year,
-                'reason' => $data['reason'],
-                'duration_days' => $dates->count() === 1 ? ($data['duration_days'] ?? 1) : 1,
-                'requested_by' => $request->user()->id,
-                'is_granted' => false,
-            ]));
+            return $dates->map(function (Carbon $date) use ($employee, $request, $existing, $data, $start, $dates) {
+                $attributes = [
+                    'date' => $date->toDateString(),
+                    'year' => $start->year,
+                    'reason' => $data['reason'],
+                    'duration_days' => $dates->count() === 1 ? ($data['duration_days'] ?? 1) : 1,
+                    'requested_by' => $request->user()->id,
+                    'is_granted' => false,
+                    'off_day_days' => 0,
+                    'off_day_override' => false,
+                    'approval_note' => null,
+                    'granted_by' => null,
+                    'granted_at' => null,
+                    'rejected_at' => null,
+                    'rejected_by' => null,
+                    'rejection_note' => null,
+                ];
+                $leave = $existing->get($date->toDateString());
+                if ($leave) {
+                    $leave->update($attributes);
+
+                    return $leave;
+                }
+
+                return $employee->leaveRequests()->create($attributes);
+            });
         });
 
         return response()->json([
@@ -209,6 +237,9 @@ class LeaveRequestController extends Controller
                 if ($row->is_granted) {
                     continue;
                 }
+                if ($row->rejected_at !== null) {
+                    throw ValidationException::withMessages(['ids' => ['business.request_rejected']]);
+                }
                 if ($row->date->isFriday()) {
                     throw ValidationException::withMessages(['ids' => ['business.leave_date_is_weekly_day_off']]);
                 }
@@ -249,6 +280,46 @@ class LeaveRequestController extends Controller
         ]);
     }
 
+    /** Reject pending requests without touching attendance or allowance. */
+    public function reject(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct', 'exists:leaves,id'],
+            'rejection_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $rows = DB::transaction(function () use ($data, $request) {
+            $rows = LeaveRequest::query()
+                ->whereIn('id', $data['ids'])
+                ->orderBy('date')
+                ->lockForUpdate()
+                ->get();
+            if ($rows->count() !== count($data['ids'])) {
+                throw ValidationException::withMessages(['ids' => ['business.request_rejected']]);
+            }
+
+            foreach ($rows as $row) {
+                if ($row->is_granted) {
+                    throw ValidationException::withMessages(['ids' => ['business.request_rejected']]);
+                }
+                $row->update([
+                    'rejected_at' => now(),
+                    'rejected_by' => $request->user()->id,
+                    'rejection_note' => $data['rejection_note'] ?? null,
+                ]);
+            }
+
+            return LeaveRequest::with(['employee.position', 'rejector'])
+                ->whereIn('id', $rows->pluck('id'))->orderBy('date')->get();
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => LeaveRequestResource::collection($rows)->resolve(),
+        ]);
+    }
+
     public function index(Request $request, Employee $employee): JsonResponse
     {
         $this->ensureSelectableEmployee($employee);
@@ -279,7 +350,7 @@ class LeaveRequestController extends Controller
                 ->first();
 
             if ($leave) {
-                if (! $leave->trashed()) {
+                if (! $leave->trashed() && $leave->rejected_at === null) {
                     throw ValidationException::withMessages(['date' => ['business.leave_request_date_exists']]);
                 }
                 $leave->fill([
@@ -293,8 +364,11 @@ class LeaveRequestController extends Controller
                     'requested_by' => $request->user()->id,
                     'granted_by' => null,
                     'granted_at' => null,
+                    'rejected_at' => null,
+                    'rejected_by' => null,
+                    'rejection_note' => null,
                 ]);
-                $leave->restore();
+                $leave->trashed() ? $leave->restore() : $leave->save();
             } else {
                 $leave = LeaveRequest::create([
                     'employee_id' => $employee->id,
@@ -338,6 +412,9 @@ class LeaveRequestController extends Controller
                 'approval_note' => null,
                 'granted_by' => null,
                 'granted_at' => null,
+                'rejected_at' => null,
+                'rejected_by' => null,
+                'rejection_note' => null,
             ]);
             $this->ledger->release($locked, $previousDate);
             $this->ledger->recalculate($locked);
@@ -381,20 +458,43 @@ class LeaveRequestController extends Controller
         $dates = collect($this->ledger->rangeDates($start->toDateString(), $end->toDateString()));
         abort_if($dates->isEmpty(), 422, 'business.leave_range_contains_no_workdays');
 
-        $created = DB::transaction(function () use ($employee, $dates, $data, $start) {
+        $created = DB::transaction(function () use ($employee, $request, $dates, $data, $start) {
             Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
-            $existing = $employee->leaveRequests()->whereIn('date', $dates->map->toDateString())->pluck('date');
-            if ($existing->isNotEmpty()) {
+            $existing = $employee->leaveRequests()
+                ->whereIn('date', $dates->map->toDateString())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy(fn (LeaveRequest $leave) => $leave->date->format('Y-m-d'));
+            if ($existing->contains(fn (LeaveRequest $leave) => $leave->rejected_at === null)) {
                 $this->failDateExists();
             }
 
-            return $dates->map(fn (Carbon $date) => $employee->leaveRequests()->create([
-                'date' => $date->toDateString(),
-                'year' => $start->year,
-                'reason' => $data['reason'],
-                'duration_days' => $dates->count() === 1 ? ($data['duration_days'] ?? 1) : 1,
-                'is_granted' => false,
-            ]));
+            return $dates->map(function (Carbon $date) use ($employee, $request, $existing, $data, $start, $dates) {
+                $attributes = [
+                    'date' => $date->toDateString(),
+                    'year' => $start->year,
+                    'reason' => $data['reason'],
+                    'duration_days' => $dates->count() === 1 ? ($data['duration_days'] ?? 1) : 1,
+                    'is_granted' => false,
+                    'off_day_days' => 0,
+                    'off_day_override' => false,
+                    'approval_note' => null,
+                    'requested_by' => $request->user()->id,
+                    'granted_by' => null,
+                    'granted_at' => null,
+                    'rejected_at' => null,
+                    'rejected_by' => null,
+                    'rejection_note' => null,
+                ];
+                $leave = $existing->get($date->toDateString());
+                if ($leave) {
+                    $leave->update($attributes);
+
+                    return $leave;
+                }
+
+                return $employee->leaveRequests()->create($attributes);
+            });
         });
 
         return response()->json([
@@ -459,7 +559,7 @@ class LeaveRequestController extends Controller
     /** @return array{success: bool, data: mixed, allowance: float, used: float, remaining: float, pending: int, year: int} */
     private function ledgerPayload(Employee $employee, int $year): array
     {
-        $rows = $employee->leaveRequests()->where('year', $year)->latest('date')->get();
+        $rows = $employee->leaveRequests()->with('rejector')->where('year', $year)->latest('date')->get();
         $allowance = $this->allowanceFor($employee);
         $used = (float) $rows->where('is_granted', true)->sum('off_day_days');
 
@@ -469,7 +569,7 @@ class LeaveRequestController extends Controller
             'allowance' => $allowance,
             'used' => $used,
             'remaining' => max(0, $allowance - $used),
-            'pending' => $rows->where('is_granted', false)->count(),
+            'pending' => $rows->where('is_granted', false)->whereNull('rejected_at')->count(),
             'year' => $year,
         ];
     }

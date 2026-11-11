@@ -63,7 +63,7 @@ class ContractGenerationService
                 // but the parent's per-case detail row is never overwritten by
                 // the new course. The new enrollment carries its own term.
                 if ($service === BuiltInService::ACADEMY) {
-                    $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
+                    $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'responsible_employee_id', 'notes']));
 
                     $applicant->refresh();
                 }
@@ -272,7 +272,7 @@ class ContractGenerationService
 
             $applicant = Applicant::query()->lockForUpdate()->findOrFail($contract->applicant_id);
             $this->authorizeApplicantAssignment($request, $data, $applicant);
-            $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']));
+            $applicant->update(Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'responsible_employee_id', 'notes']));
 
             $this->details->sync($applicant, [...$data, 'service' => $service]);
             $this->syncResponsibleEmployees($applicant, $data);
@@ -321,12 +321,9 @@ class ContractGenerationService
             ? $this->newStage($service, $data['country_id'] ?? null, null)
             : null;
         $applicant = Applicant::create([
-            ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'tax_number', 'responsible_employee_id', 'notes']),
+            ...Arr::only($data, ['name', 'father_name', 'father_phone', 'backup_phone', 'contact', 'email', 'address', 'responsible_employee_id', 'notes']),
             'service' => $service, 'current_stage_id' => $stage?->id, 'status' => 'active',
         ]);
-        if (array_key_exists('responsible_employee_ids', $data)) {
-            $applicant->responsibleEmployees()->sync($data['responsible_employee_ids'] ?? []);
-        }
         $this->details->sync($applicant, [...$data, 'service' => $service]);
         $applicant->{$applicant->detailRelationName()}()->firstOrCreate([]);
         if ($stage) {
@@ -343,7 +340,7 @@ class ContractGenerationService
             return;
         }
 
-        $ids = collect($data['responsible_employee_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+        $ids = collect($data['responsible_employee_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->sort()->values();
         DB::table('applicant_responsible_employees')
             ->where('applicant_id', $applicant->id)
             ->whereNotIn('employee_id', $ids->all())
@@ -355,6 +352,22 @@ class ContractGenerationService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+
+        if ($ids->isEmpty()) {
+            // A legacy singular owner is intentionally retained when the plural
+            // assignment is cleared; it remains the compatibility fallback.
+            return;
+        }
+
+        $current = $applicant->responsible_employee_id !== null ? (int) $applicant->responsible_employee_id : null;
+        $explicitPrimary = array_key_exists('responsible_employee_id', $data) && $data['responsible_employee_id'] !== null;
+        $primary = $explicitPrimary
+            ? $current
+            : ($current !== null && $ids->contains($current) ? $current : $ids->first());
+
+        if ($primary !== null && (int) $applicant->responsible_employee_id !== $primary) {
+            $applicant->forceFill(['responsible_employee_id' => $primary])->save();
         }
     }
 

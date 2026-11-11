@@ -109,7 +109,6 @@ class StoreServiceContractRequest extends FormRequest
             'contact' => $requiredIdentity('max:255'),
             'email' => [$identity, 'email', 'max:255'],
             'address' => [$identity, 'string', 'max:1000'],
-            'tax_number' => [$identity, 'string', 'max:255'],
             'responsible_employee_id' => [$identity, 'integer', Rule::exists('employees', 'id')->whereNull('deleted_at')->where('status', 'active')],
             // The singular admission field is retired. Responsibility is a
             // plural assignment accepted only on case-bearing services.

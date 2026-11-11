@@ -50,7 +50,6 @@ class Applicant extends Model
         'contact',
         'email',
         'address',
-        'tax_number',
         'responsible_employee_id',
         'current_stage_id',
         'status',

@@ -129,7 +129,6 @@ class PlaceholderResolver
                 'customer.phone' => $applicant->contact,
                 'customer.email' => $applicant->email,
                 'customer.address' => $applicant->address,
-                'customer.tax_number' => $applicant->tax_number,
             ];
         }
         if ($line = $context['built_in_line'] ?? null) {

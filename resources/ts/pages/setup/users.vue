@@ -33,7 +33,7 @@ const initialForm = ref('')
 const minimumPasswordLength = 8
 const emptyForm = (): UserCreatePayload => ({ name: '', email: '', phone: '', address: '', roles: ['staff'], acc_status: 'active', password: '', password_confirmation: '' })
 const form = ref<UserCreatePayload>(emptyForm())
-const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'team_lead', 'senior_counselor', 'finance_officer', 'counselor', 'case_officer', 'staff', 'document_officer', 'viewer', 'applicant']
+const roles: UserRole[] = ['super_admin', 'admin', 'manager', 'team_lead', 'senior_counselor', 'finance_officer', 'counselor', 'case_officer', 'staff', 'teacher', 'document_officer', 'viewer', 'applicant']
 const statuses: UserStatus[] = ['active', 'inactive', 'deactivated']
 const editableStatuses: UserStatus[] = ['active', 'inactive']
 const roleOptions = computed(() => roles.map(value => ({ value, title: t(`pages.settings.users.roleOptions.${value}`) })))

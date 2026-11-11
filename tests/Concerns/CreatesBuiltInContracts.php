@@ -93,7 +93,7 @@ trait CreatesBuiltInContracts
         $payload += $details;
 
         if (! empty($payload['parent_contract_id']) && $service !== 'academy') {
-            foreach (['name', 'contact', 'father_name', 'father_phone', 'backup_phone', 'email', 'address', 'tax_number',
+            foreach (['name', 'contact', 'father_name', 'father_phone', 'backup_phone', 'email', 'address',
                 'admission_employee_id', 'responsible_employee_id', 'passport_id', 'grade_score', 'country_id',
                 'contract_type_id', 'education_level_id', 'semester_id', 'university_id', 'university_fee',
                 'favorite_subject_ids', 'scholarship_id', 'test_id', 'skill_ids', 'student_id', 'program_id',

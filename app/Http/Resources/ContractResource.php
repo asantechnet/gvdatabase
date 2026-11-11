@@ -19,6 +19,7 @@ class ContractResource extends JsonResource
             'contract_role' => $this->contract_role,
             'parent_contract_id' => $this->parent_contract_id,
             'parent_contract_number' => $this->whenLoaded('parentContract', fn () => $this->parentContract?->contract_number),
+            'has_live_extension' => $this->whenLoaded('liveExtension', fn () => $this->liveExtension !== null),
             // Derived presentation only: the stored status is never relabelled.
             'is_scheduled' => $this->isScheduled(),
             'display_status' => $this->isScheduled() ? 'scheduled' : $this->status,

@@ -35,7 +35,7 @@ class RecurringEventService
                 while ($catchUpLimit-- > 0 && $this->notifyDueEvent($event)) {
                     $processed++;
                     $event->refresh();
-                    if ($event->status !== 'active' || $event->next_occurrence_date->gt(now($this->company->timezone())->startOfDay())) {
+                    if ($event->status !== 'active' || ! $this->isDue($event)) {
                         break;
                     }
                 }
@@ -48,7 +48,7 @@ class RecurringEventService
     {
         return DB::transaction(function () use ($event): bool {
             $event = RecurringEvent::query()->lockForUpdate()->findOrFail($event->id);
-            if ($event->status !== 'active' || $event->next_occurrence_date->gt(now($this->company->timezone())->startOfDay())) {
+            if ($event->status !== 'active' || ! $this->isDue($event)) {
                 return false;
             }
             $date = $event->next_occurrence_date->toDateString();
@@ -118,6 +118,17 @@ class RecurringEventService
 
             return $occurrence->fresh(['recurringEvent', 'result']);
         });
+    }
+
+    /**
+     * Occurrence dates are stored as calendar days. Comparing the parsed Carbon
+     * against a start-of-day in another timezone shifted the boundary, so an
+     * event due today was treated as future until the next day.
+     */
+    private function isDue(RecurringEvent $event): bool
+    {
+        return $event->next_occurrence_date->toDateString()
+            <= now($this->company->timezone())->toDateString();
     }
 
     public function nextDate(RecurringEvent $event, Carbon $from): Carbon

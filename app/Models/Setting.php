@@ -21,6 +21,7 @@ class Setting extends Model
         'academy_enabled' => 'boolean',
         'missing_attendance_status' => 'string',
         'audit_coloring_enabled' => 'boolean',
+        'responsible_position_ids' => 'array',
         'email_delivery_enabled' => 'boolean',
         'receipt_letterhead_safe_x' => 'float',
         'receipt_letterhead_safe_y' => 'float',
@@ -91,5 +92,6 @@ class Setting extends Model
         'academy_enabled',
         'missing_attendance_status',
         'audit_coloring_enabled',
+        'responsible_position_ids',
     ];
 }

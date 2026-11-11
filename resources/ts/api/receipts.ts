@@ -30,7 +30,6 @@ export interface ReceiptApplicant {
   father_phone: string | null
   email: string | null
   address: string | null
-  tax_number: string | null
   country: string | null
   education_level: string | null
   created_at: string | null

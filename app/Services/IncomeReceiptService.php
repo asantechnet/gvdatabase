@@ -182,7 +182,6 @@ class IncomeReceiptService
             'father_phone' => $applicant->father_phone,
             'email' => $applicant->email,
             'address' => $applicant->address,
-            'tax_number' => $applicant->tax_number,
             'country' => $applicant->scholarshipDetail?->country?->name,
             'education_level' => $applicant->scholarshipDetail?->educationLevel?->name,
             'created_at' => $applicant->created_at?->toDateString(),

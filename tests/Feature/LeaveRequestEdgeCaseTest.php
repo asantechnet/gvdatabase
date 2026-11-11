@@ -7,12 +7,25 @@ use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class LeaveRequestEdgeCaseTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Carbon::setTestNow(Carbon::parse('2026-11-04 09:00:00', 'UTC'));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
     private function admin(): User
     {
@@ -126,13 +139,61 @@ class LeaveRequestEdgeCaseTest extends TestCase
         $this->actingAsStaff($late);
 
         $this->postJson('/api/my-leave-requests', [
-            'start_date' => '2026-11-02',
-            'end_date' => '2026-11-03',
+            'start_date' => '2026-11-20',
+            'end_date' => '2026-11-21',
             'reason' => 'Before employment',
         ])->assertStatus(422)
             ->assertJsonPath('code', 'business.leave_before_employment');
 
         $this->assertDatabaseCount('leaves', 0);
+    }
+
+    public function test_a_rejected_request_stays_visible_blocks_approval_and_can_be_requested_again(): void
+    {
+        $this->admin();
+        $employee = $this->employee();
+        $leave = LeaveRequest::create([
+            'employee_id' => $employee->id,
+            'date' => '2026-11-10',
+            'year' => 2026,
+            'duration_days' => 1,
+            'reason' => 'Family visit',
+            'requested_by' => User::query()->value('id'),
+        ]);
+
+        $this->patchJson('/api/leave-requests/reject', [
+            'ids' => [$leave->id],
+            'rejection_note' => 'No cover available for this date.',
+        ])->assertOk()
+            ->assertJsonPath('data.0.status', 'rejected')
+            ->assertJsonPath('data.0.rejection_note', 'No cover available for this date.');
+
+        $this->assertDatabaseHas('leaves', [
+            'id' => $leave->id,
+            'rejection_note' => 'No cover available for this date.',
+            'is_granted' => false,
+        ]);
+        $this->assertDatabaseCount('attendances', 0);
+
+        $this->patchJson('/api/leave-requests/grant', ['ids' => [$leave->id]])
+            ->assertStatus(422)
+            ->assertJsonStructure(['errors' => ['ids']]);
+
+        $this->actingAsStaff($employee);
+        $this->postJson('/api/my-leave-requests', [
+            'start_date' => '2026-11-10',
+            'end_date' => '2026-11-10',
+            'reason' => 'Family visit, re-requested',
+        ])->assertCreated()->assertJsonPath('stored', 1);
+
+        $this->assertDatabaseCount('leaves', 1);
+        $this->assertDatabaseHas('leaves', [
+            'id' => $leave->id,
+            'is_granted' => false,
+            'rejected_at' => null,
+            'rejected_by' => null,
+            'rejection_note' => null,
+        ]);
     }
 
     public function test_approving_the_same_request_twice_deducts_allowance_once(): void

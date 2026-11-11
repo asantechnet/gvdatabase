@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IncomePayerOption } from '@/api/incomes'
+import ErpField from '@/components/erp/ErpField.vue'
 
 defineProps<{
   modelValue: string | null | undefined
@@ -11,12 +12,14 @@ const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
 </script>
 
 <template>
-  <VAutocomplete
+  <ErpField
+    kind="autocomplete"
     :model-value="modelValue"
     :items="payers"
     item-title="name"
     item-value="key"
     :label="$t('common.fields.applicantOrStudent')"
+    :placeholder="$t('common.fields.applicantOrStudent')"
     prepend-inner-icon="tabler-users"
     :disabled="disabled"
     clearable
@@ -54,7 +57,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>()
         </template>
       </VListItem>
     </template>
-  </VAutocomplete>
+  </ErpField>
 </template>
 
 <style scoped>

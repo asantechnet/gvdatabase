@@ -17,6 +17,41 @@ class TaskCommentMentionTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_only_the_creator_can_edit_a_comment_and_only_within_thirty_minutes(): void
+    {
+        $this->seed([PermissionSeeder::class, RolePermissionSeeder::class]);
+
+        $creator = User::factory()->create(['roles' => ['staff'], 'acc_status' => 'active']);
+        $peer = User::factory()->create(['roles' => ['staff'], 'acc_status' => 'active']);
+        $task = Task::factory()->create([
+            'board_id' => ServiceBoard::personalFor($creator)->id,
+            'created_by' => $creator->id,
+            'title' => 'Comment edit coverage',
+        ]);
+        $task->users()->attach([$creator->id, $peer->id]);
+
+        Sanctum::actingAs($creator, ['access']);
+        $commentId = $this->postJson("/api/tasks/{$task->id}/comments", [
+            'content' => 'Original comment.',
+        ])->assertCreated()->json('data.id');
+
+        Sanctum::actingAs($peer, ['access']);
+        $this->putJson("/api/tasks/{$task->id}/comments/{$commentId}", [
+            'content' => 'Peer edit attempt.',
+        ])->assertForbidden();
+
+        Sanctum::actingAs($creator, ['access']);
+        $this->putJson("/api/tasks/{$task->id}/comments/{$commentId}", [
+            'content' => 'Creator edit inside the window.',
+        ])->assertOk();
+
+        Comment::findOrFail($commentId)->forceFill(['created_at' => now()->subMinutes(31)])->save();
+        $this->putJson("/api/tasks/{$task->id}/comments/{$commentId}", [
+            'content' => 'Late edit attempt.',
+        ])->assertStatus(422)
+            ->assertJsonPath('code', 'business.comment_edit_window_expired');
+    }
+
     public function test_task_comments_notify_assignees_and_only_eligible_mentions(): void
     {
         $this->seed([PermissionSeeder::class, RolePermissionSeeder::class]);

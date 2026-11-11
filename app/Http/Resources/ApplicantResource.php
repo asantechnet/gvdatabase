@@ -21,6 +21,11 @@ class ApplicantResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $assignments = $this->assignmentEmployees();
+        $primary = $assignments->first();
+        $assignmentLoaded = $this->resource->relationLoaded('responsibleEmployees')
+            || $this->resource->relationLoaded('responsibleEmployee');
+
         return [
             'id' => $this->id,
             // Party identity, absorbed from `customers`.
@@ -31,9 +36,8 @@ class ApplicantResource extends JsonResource
             'contact' => $this->contact,
             'email' => $this->email,
             'address' => $this->address,
-            'tax_number' => $this->tax_number,
-            'responsible_employee_ids' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->pluck('id')->all()),
-            'responsible_employees' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->map(fn ($employee) => $employee->only(['id', 'name']))),
+            'responsible_employee_ids' => $this->when($assignmentLoaded, fn () => $assignments->pluck('id')->all()),
+            'responsible_employees' => $this->when($assignmentLoaded, fn () => $assignments->map(fn ($employee) => $employee->only(['id', 'name']))->values()->all()),
             'notes' => $this->notes,
             'consultant_review' => $this->consultant_review,
             // Which built-in service this applicant belongs to, and that
@@ -59,7 +63,7 @@ class ApplicantResource extends JsonResource
             // Case.
             'parent_applicant_id' => $this->parent_applicant_id,
             'status' => $this->status,
-            'responsible_employee_id' => $this->responsible_employee_id,
+            'responsible_employee_id' => $primary?->id ?? $this->responsible_employee_id,
             'current_stage_id' => $this->current_stage_id,
             // The stage the applications list displays for this row: the
             // service line's under a service filter, the mirror otherwise.
@@ -73,9 +77,9 @@ class ApplicantResource extends JsonResource
                 'name' => $this->currentStage->name,
                 'key' => $this->currentStage->key,
             ] : null),
-            'responsible_employee' => $this->whenLoaded('responsibleEmployee', fn () => $this->responsibleEmployee ? [
-                'id' => $this->responsibleEmployee->id,
-                'name' => $this->responsibleEmployee->name,
+            'responsible_employee' => $this->when($assignmentLoaded, fn () => $primary ? [
+                'id' => $primary->id,
+                'name' => $primary->name,
             ] : null),
             'attachment_count' => $this->whenCounted('attachments'),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => ['id' => $a->id, 'label' => $a->label, 'category' => $a->category, 'name' => $a->original_name, 'mime_type' => $a->mime_type, 'size' => $a->size, 'uploaded_at' => $a->created_at?->toISOString(), 'download_url' => "/api/applicants/{$this->id}/attachments/{$a->id}/download"])),
@@ -98,5 +102,19 @@ class ApplicantResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+    }
+
+    /** The loaded plural assignment, with a legacy singular-only fallback. */
+    private function assignmentEmployees()
+    {
+        $resource = $this->resource;
+        if ($resource->relationLoaded('responsibleEmployees') && $resource->responsibleEmployees->isNotEmpty()) {
+            return $resource->responsibleEmployees;
+        }
+        if ($resource->relationLoaded('responsibleEmployee') && $resource->responsibleEmployee) {
+            return collect([$resource->responsibleEmployee]);
+        }
+
+        return collect();
     }
 }

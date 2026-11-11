@@ -16,12 +16,17 @@ class CurrencyController extends Controller
 {
     public function __construct(private CurrencyRateService $rates) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $includeInactive = $request->boolean('include_inactive')
+            && $request->user()?->hasPermission('view_currencies');
+
         return response()->json([
             'success' => true,
             'data' => CurrencyResource::collection(
-                Currency::query()->orderByDesc('is_base')->orderBy('code')->get(),
+                Currency::query()
+                    ->when(! $includeInactive, fn ($query) => $query->where('is_active', true))
+                    ->orderByDesc('is_base')->orderBy('code')->get(),
             ),
         ]);
     }

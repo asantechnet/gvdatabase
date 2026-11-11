@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\EmailDeliveryNotConfiguredException;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
@@ -44,7 +45,7 @@ class SettingsEmailAndFileRemovalTest extends TestCase
         $this->assertNull($setting->mail_host);
     }
 
-    public function test_disabling_email_delivery_ignores_the_company_mailer(): void
+    public function test_disabling_email_delivery_blocks_the_company_mailer(): void
     {
         Setting::create([
             ...$this->basePayload(),
@@ -60,9 +61,10 @@ class SettingsEmailAndFileRemovalTest extends TestCase
         $profile = new CompanyProfile;
 
         $this->assertFalse($profile->emailDeliveryEnabled());
-        $this->assertNull($profile->configureMailer());
         $this->assertNull($profile->mailFrom());
         $this->assertNull($profile->replyTo());
+        $this->expectException(EmailDeliveryNotConfiguredException::class);
+        $profile->configureMailer();
     }
 
     public function test_email_delivery_is_opt_in_for_the_model_database_and_missing_profile(): void

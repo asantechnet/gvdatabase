@@ -20,7 +20,6 @@ class ApplicantFactory extends Factory
             'contact' => fake()->phoneNumber(),
             'email' => fake()->unique()->safeEmail(),
             'address' => fake()->address(),
-            'tax_number' => fake()->numerify('TAX-#####'),
             'service' => 'scholarship',
         ];
     }
