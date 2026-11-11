@@ -1,0 +1,1 @@
+function d(i,e){const n=i.findIndex(t=>t.id===e.id);return n>=0&&i.splice(n,1),i.unshift(e),i}function f(i,e){const n=i.findIndex(t=>t.id===e);return n>0&&i.unshift(...i.splice(n,1)),i}export{f as a,d as m};
