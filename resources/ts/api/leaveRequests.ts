@@ -23,7 +23,7 @@ export interface LeaveRequest {
   granted_at: string | null
   approved_by?: number | null
   approvedBy?: { id: number; name: string } | null
-  employee?: { id: number; name: string; position: string | null }
+  employee?: { id: number; name: string; avatar?: string | null; position: string | null }
 }
 
 export interface LeaveRequestLedger {

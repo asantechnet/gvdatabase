@@ -12,6 +12,7 @@ import MasterDataApi, { type MasterDataRecord } from '@/api/educationalMasterDat
 import EmployeeApi, { type Employee } from '@/api/employee'
 import { canAccess } from '@/utils/authorization'
 import { translateApplicantStage, translateBackendValue } from '@/utils/localization'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -323,7 +324,8 @@ onMounted(async () => {
                 <div class="text-caption text-medium-emphasis">#{{ card.applicant_id }} · {{ translateBackendValue(card.status) }}<span v-if="card.contract_number"> · {{ card.contract_number }}</span></div>
                 <div v-if="card.contract_role === 'extension'" class="text-caption text-warning">{{ $t('educational.extensionOf', { number: card.parent_contract_number ?? '—' }) }}</div>
                 <div class="text-caption">{{ serviceOptions.find(option => option.value === card.service)?.title }}<span v-if="card.country">{{ ` · ${card.country}` }}</span><span v-if="card.university">{{ ` · ${card.university}` }}</span></div>
-                <div class="text-caption text-medium-emphasis">{{ card.responsible_employee?.name ?? $t('educational.unassigned') }}</div>
+                <div v-if="card.responsible_employee" class="d-flex align-center ga-1 text-caption text-medium-emphasis"><EmployeeAvatar :name="card.responsible_employee.name" :src="card.responsible_employee.avatar" size="22" /><span>{{ card.responsible_employee.name }}</span></div>
+                <div v-else class="text-caption text-medium-emphasis">{{ $t('educational.unassigned') }}</div>
                 <div class="d-flex gap-1 mt-2">
                   <VBtn size="x-small" variant="text" @click="openCase(card.line_id)">{{ $t('educational.openCase') }}</VBtn>
                   <VMenu v-if="canMove && allowedTargets(card).length">

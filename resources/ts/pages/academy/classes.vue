@@ -13,6 +13,7 @@ import ResponsiveDataTable from '@/components/responsive-data-table/ResponsiveDa
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import { AcademyClassesApi, type AcademyClassRecord, type AcademyOption } from '@/api/academyClasses'
 import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import MasterDataApi from '@/api/educationalMasterData'
 import { canAccess } from '@/utils/authorization'
 import { formatActiveDate, formatActiveMoney } from '@/utils/localization'
@@ -228,7 +229,7 @@ onMounted(load)
           <VCol cols="12" md="6" lg="5">
             <ErpSearchField v-model="search" :placeholder="t('academy.classes.title')" />
           </VCol>
-          <VCol cols="12" md="6" lg="7" class="academy-classes-toolbar__actions d-flex flex-nowrap justify-end ga-2">
+          <VCol cols="12" md="6" lg="7" class="academy-classes-toolbar__actions d-flex flex-wrap justify-end ga-2">
             <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" :show-reset="false">
               <ErpField v-model="filterDraft.programId" kind="select" :items="programs" item-title="name" item-value="id" :label="t('academy.fields.program')" clearable />
               <ErpField v-model="filterDraft.teacherId" kind="select" :items="teachers" item-title="name" item-value="id" :label="t('academy.fields.teacher')" clearable />
@@ -266,7 +267,7 @@ onMounted(load)
         <template #item.name="{ item }"><div class="academy-classes-table__name">{{ item.name }}</div><div class="text-caption text-medium-emphasis">{{ formatActiveMoney(item.fee) }}</div></template>
         <template #item.program="{ item }">{{ item.program?.name ?? '—' }}</template>
         <template #item.seats="{ item }">{{ seats(item) }}</template>
-        <template #item.teachers="{ item }"><span class="academy-classes-table__teachers">{{ teachersText(item) }}</span></template>
+        <template #item.teachers="{ item }"><div class="academy-classes-table__teachers d-flex flex-wrap ga-2"><span v-for="teacher in item.teachers" :key="teacher.id" class="d-inline-flex align-center ga-1"><EmployeeAvatar :name="teacher.name" :src="teacher.avatar" size="24" />{{ teacher.name }}</span><span v-if="!item.teachers.length">—</span></div></template>
         <template #item.status="{ item }"><VChip :color="statusColor(item)" size="small" variant="tonal">{{ statusLabel(item) }}</VChip></template>
         <template #item.actions="{ item }">
           <div class="d-flex justify-end" @click.stop>
@@ -312,7 +313,7 @@ onMounted(load)
               <div class="academy-class-details__tile"><VIcon icon="tabler-calendar-event" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.term') }}</span><strong>{{ formatActiveDate(selectedClass.starts_on) }} — {{ formatActiveDate(selectedClass.ends_on) }}</strong></div></div>
               <div class="academy-class-details__tile"><VIcon icon="tabler-users-group" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.seats') }}</span><strong>{{ seats(selectedClass) }}</strong></div></div>
               <div class="academy-class-details__tile"><VIcon icon="tabler-cash" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.fee') }}</span><strong>{{ formatActiveMoney(selectedClass.fee) }}</strong></div></div>
-              <div class="academy-class-details__tile academy-class-details__tile--wide"><VIcon icon="tabler-user-star" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.teachers') }}</span><strong>{{ teachersText(selectedClass) }}</strong></div></div>
+              <div class="academy-class-details__tile academy-class-details__tile--wide"><VIcon icon="tabler-user-star" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.teachers') }}</span><div class="d-flex flex-wrap ga-2 mt-1"><span v-for="teacher in selectedClass.teachers" :key="teacher.id" class="d-inline-flex align-center ga-1"><EmployeeAvatar :name="teacher.name" :src="teacher.avatar" size="24" /><strong>{{ teacher.name }}</strong></span><strong v-if="!selectedClass.teachers.length">—</strong></div></div></div>
               <div class="academy-class-details__tile academy-class-details__tile--wide"><VIcon icon="tabler-notes" class="academy-class-details__icon" /><div><span>{{ t('academy.fields.description') }}</span><strong>{{ selectedClass.description || '—' }}</strong></div></div>
             </div>
             <VDivider class="my-6" />
@@ -339,9 +340,9 @@ onMounted(load)
 
 <style scoped lang="scss">
 .academy-classes-toolbar__actions { align-items: center; }
-.academy-classes-toolbar__icon { flex: none; }
+.academy-classes-toolbar__icon { flex: none; min-inline-size: 2.25rem !important; inline-size: 2.25rem !important; padding-inline: 0 !important; border-radius: 999px !important; font-size: .75rem !important; }
 .academy-classes-table :deep(.v-table__wrapper > table) { min-inline-size: 780px; }
-.academy-classes-table :deep(.v-table__wrapper > table > thead > tr > th) { background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, rgb(var(--v-theme-surface)) 92%); color: rgb(var(--v-theme-on-surface)); font-size: .75rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
+.academy-classes-table :deep(.v-table__wrapper > table > thead > tr > th) { background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, rgb(var(--v-theme-surface)) 92%) !important; color: rgb(var(--v-theme-on-surface)) !important; font-size: .75rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
 .academy-classes-table :deep(.v-table__wrapper > table > thead > tr > th), .academy-classes-table :deep(.v-table__wrapper > table > tbody > tr > td) { white-space: nowrap; }
 .academy-classes-table :deep(.v-table__wrapper > table > thead > tr > th:nth-child(1)), .academy-classes-table :deep(.v-table__wrapper > table > tbody > tr > td:nth-child(1)) { min-inline-size: 12rem; }
 .academy-classes-table :deep(.v-table__wrapper > table > thead > tr > th:nth-child(4)), .academy-classes-table :deep(.v-table__wrapper > table > tbody > tr > td:nth-child(4)) { min-inline-size: 14rem; }

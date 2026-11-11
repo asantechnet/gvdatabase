@@ -6,8 +6,8 @@ const props = withDefaults(defineProps<{
   columns?: number
   cardsPerColumn?: number
 }>(), {
-  columns: 4,
-  cardsPerColumn: 3,
+  columns: 7,
+  cardsPerColumn: 5,
 })
 
 const { t } = useI18n()
@@ -31,6 +31,7 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
               <span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--name" />
               <span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--meta" />
               <span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--meta applicant-pipeline-skeleton__line--short" />
+              <span class="applicant-pipeline-skeleton__employee"><span class="applicant-pipeline-skeleton__avatar" /><span class="applicant-pipeline-skeleton__line applicant-pipeline-skeleton__line--employee" /></span>
               <span class="applicant-pipeline-skeleton__actions"><span /><span /></span>
             </VCardText>
           </VCard>
@@ -78,6 +79,10 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
 .applicant-pipeline-skeleton__line--name { block-size: 0.9rem; inline-size: 66%; }
 .applicant-pipeline-skeleton__line--meta { block-size: 0.65rem; inline-size: 88%; margin-block-start: 0.6rem; }
 .applicant-pipeline-skeleton__line--short { inline-size: 56%; }
+.applicant-pipeline-skeleton__employee { align-items: center; display: flex; gap: 0.4rem; margin-block-start: 0.75rem; }
+.applicant-pipeline-skeleton__avatar { background: rgb(var(--v-theme-on-surface) / 0.08); block-size: 1.35rem; border-radius: 50%; inline-size: 1.35rem; position: relative; overflow: hidden; }
+.applicant-pipeline-skeleton__avatar::after { animation: applicant-pipeline-skeleton-shimmer 1.5s ease-in-out infinite; background: linear-gradient(90deg, transparent, rgb(var(--v-theme-on-surface) / 0.1), transparent); content: ''; inset: 0; position: absolute; transform: translateX(-100%); }
+.applicant-pipeline-skeleton__line--employee { block-size: 0.6rem; inline-size: 44%; }
 
 .applicant-pipeline-skeleton__actions { display: flex; gap: 0.5rem; margin-block-start: 0.85rem; }
 .applicant-pipeline-skeleton__actions span { block-size: 0.65rem; inline-size: 2.75rem; }
@@ -90,6 +95,7 @@ const cardIndexes = computed(() => Array.from({ length: Math.max(1, props.cardsP
   .applicant-pipeline-skeleton__line,
   .applicant-pipeline-skeleton__chip,
   .applicant-pipeline-skeleton__actions span,
+  .applicant-pipeline-skeleton__avatar::after,
   .applicant-pipeline-skeleton__line::after,
   .applicant-pipeline-skeleton__chip::after,
   .applicant-pipeline-skeleton__actions span::after { animation: none; }

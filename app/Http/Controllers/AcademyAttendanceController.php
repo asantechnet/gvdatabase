@@ -46,6 +46,7 @@ class AcademyAttendanceController extends Controller
                 foreach ($attendance as $key => $row) {
                     if (str_starts_with($key, $enrollment->id.'|')) {
                         $cells[$row->date->toDateString()] = [
+                            'id' => $row->id,
                             'status' => $row->status,
                             'check_in_time' => $row->check_in_time,
                             'check_out_time' => $row->check_out_time,
@@ -89,6 +90,13 @@ class AcademyAttendanceController extends Controller
         });
 
         return response()->json(['success' => true, 'data' => ['saved' => count($rows)]]);
+    }
+
+    public function destroy(AcademyAttendance $academyAttendance): JsonResponse
+    {
+        $academyAttendance->delete();
+
+        return response()->json(['success' => true, 'data' => null]);
     }
 
 }

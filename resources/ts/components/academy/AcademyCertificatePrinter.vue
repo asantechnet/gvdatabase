@@ -89,11 +89,11 @@ async function print() {
 </script>
 
 <template>
-  <VDialog v-model="visible" max-width="960" scrollable>
-    <VCard>
-      <VCardTitle class="d-flex align-center justify-space-between ga-3">
+  <VDialog v-model="visible" max-width="960" scrollable content-class="academy-certificate-preview-dialog">
+    <VCard class="academy-certificate-preview-card">
+      <VCardTitle class="academy-certificate-preview__header d-flex align-center justify-space-between ga-3 px-5 py-4">
         <span>{{ t('academy.certificates.preview') }}</span>
-        <VBtn icon="tabler-x" variant="text" :aria-label="t('common.actions.close')" @click="visible = false" />
+        <VBtn icon="tabler-x" variant="tonal" color="error" class="academy-certificate-preview__close" :aria-label="t('common.actions.close')" @click="visible = false" />
       </VCardTitle>
       <VCardText class="preview-shell">
         <div v-if="certificate" ref="previewShell" class="certificate-preview">
@@ -110,10 +110,10 @@ async function print() {
           </div>
         </div>
       </VCardText>
-      <VCardActions>
+      <VCardActions class="academy-certificate-preview__footer px-5 py-4">
         <VSpacer />
-        <VBtn variant="text" @click="visible = false">{{ t('common.actions.close') }}</VBtn>
-        <VBtn color="primary" prepend-icon="tabler-printer" :loading="printing" :disabled="certificate?.status === 'revoked'" @click="print">
+        <VBtn class="academy-certificate-preview__cancel" @click="visible = false">{{ t('common.actions.cancel') }}</VBtn>
+        <VBtn color="primary" variant="flat" class="academy-certificate-preview__print" prepend-icon="tabler-printer" :loading="printing" :disabled="certificate?.status === 'revoked'" @click="print">
           {{ t('academy.certificates.print') }}
         </VBtn>
       </VCardActions>
@@ -122,9 +122,19 @@ async function print() {
 </template>
 
 <style scoped>
+.academy-certificate-preview-card { overflow: hidden; }
+.academy-certificate-preview__header, .academy-certificate-preview__footer { background: color-mix(in srgb, rgb(var(--v-theme-surface)) 94%, rgb(var(--v-theme-on-surface)) 6%); }
+.academy-certificate-preview__header { border-block-end: 1px solid rgba(var(--v-border-color), .48); }
+.academy-certificate-preview__footer { display: flex; align-items: center; border-block-start: 1px solid rgba(var(--v-border-color), .48); }
+.academy-certificate-preview__close { border: 1px solid rgba(var(--v-theme-error), .38) !important; border-radius: 999px !important; color: rgb(var(--v-theme-error)) !important; }
+.academy-certificate-preview__close:hover { background: rgba(var(--v-theme-error), .18) !important; }
+.academy-certificate-preview__cancel { border: 1px solid rgba(var(--v-theme-secondary), .45) !important; background: rgba(var(--v-theme-secondary), .12) !important; color: rgb(var(--v-theme-secondary)) !important; }
+.academy-certificate-preview__cancel:hover { background: rgb(var(--v-theme-secondary)) !important; color: rgb(var(--v-theme-on-secondary)) !important; }
+.academy-certificate-preview__print { color: rgb(var(--v-theme-on-primary)) !important; }
 .preview-shell { background: #eef1f5; }
 .certificate-preview { inline-size: 100%; overflow: hidden; }
 .certificate-stage { position: relative; direction: ltr; margin-inline: auto; }
 .certificate-transform { position: absolute; inset-block-start: 0; left: 0; transform-origin: top left; }
 .certificate-transform :deep(.academy-certificate) { margin: 0; }
+:global(.v-overlay:has(.academy-certificate-preview-dialog) .v-overlay__scrim) { background: rgba(var(--v-theme-on-surface), .28) !important; backdrop-filter: blur(7px); opacity: 1 !important; }
 </style>

@@ -10,6 +10,7 @@ import { printDocument } from '@/utils/printDocument'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 const { t: $t } = useI18n()
@@ -266,6 +267,7 @@ onMounted(load)
           { title: $t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' },
         ]"
       >
+        <template #item.employee.name="{ item }"><div v-if="item.employee" class="d-flex align-center ga-2"><EmployeeAvatar :name="item.employee.name" :src="item.employee.avatar" size="28" /><span>{{ item.employee.name }}</span></div><span v-else>—</span></template>
         <template #item.duration_days="{ item }">
           {{ item.duration_days === 0.5 ? $t('pages.leaveRequests.halfDay') : $t('pages.leaveRequests.fullDay') }}
         </template>

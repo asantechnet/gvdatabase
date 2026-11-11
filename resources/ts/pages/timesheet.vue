@@ -18,6 +18,7 @@ import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpDateRange from '@/components/erp/ErpDateRange.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 // Operational Date Range States (For Filter & Printing)
 const startDate = ref<string>(new Date().toISOString().substring(0, 10))
@@ -83,12 +84,6 @@ const timesheetLoadingHeaders = computed(() => [
   { title: t('pages.attendance.timesheet.timesheet.worked'), key: 'worked' },
   { title: t('pages.attendance.timesheet.timesheet.overtime'), key: 'overtime' },
   { title: t('pages.attendance.timesheet.timesheet.action'), key: 'actions', sortable: false, align: 'end' as const },
-])
-
-const attendanceRosterLoadingHeaders = computed(() => [
-  { title: t('common.fields.employee'), key: 'employee' },
-  { title: t('common.fields.status'), key: 'status' },
-  { title: t('common.messages.actions'), key: 'actions', sortable: false, align: 'end' as const },
 ])
 
 const attendanceDialogOpen = ref(false)
@@ -787,6 +782,12 @@ watch(logDate, async () => {
               :disabled="isFriday(logDate) || isCompanyOffDay"
               :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'"
             >
+              <template #selection="{ item }">
+                <div class="d-flex align-center ga-2">
+                  <EmployeeAvatar :name="item.raw.name" :src="employeeFor(item.raw.id)?.avatar" size="28" />
+                  <span>{{ item.raw.name }}</span>
+                </div>
+              </template>
               <template #item="{ props, item }">
                 <VListItem
                   v-bind="props"
@@ -794,14 +795,7 @@ watch(logDate, async () => {
                   :subtitle="item.raw.position"
                 >
                   <template #prepend>
-                    <VAvatar
-                      color="primary"
-                      variant="tonal"
-                      size="32"
-                      class="text-body-2 font-weight-bold"
-                    >
-                      {{ item.raw.name.charAt(0) }}
-                    </VAvatar>
+                    <EmployeeAvatar :name="item.raw.name" :src="employeeFor(item.raw.id)?.avatar" size="32" />
                   </template>
                 </VListItem>
               </template>
@@ -1056,14 +1050,7 @@ watch(logDate, async () => {
                     <!-- Employee Name -->
                     <td class="py-3 px-4 font-weight-semibold text-body-1">
                       <div class="d-flex align-center">
-                        <VAvatar
-                          color="primary"
-                          variant="tonal"
-                          size="28"
-                          class="mr-3 font-weight-bold text-caption"
-                        >
-                          {{ record.name.charAt(0) }}
-                        </VAvatar>
+                        <EmployeeAvatar :name="record.name" :src="employeeFor(record.staff_id)?.avatar" size="28" class="mr-3" />
                         <span>{{ record.name }}</span>
                       </div>
                     </td>
@@ -1300,18 +1287,27 @@ watch(logDate, async () => {
             class="mb-4"
             :placeholder="$t('pages.attendance.timesheet.timesheet.searchStaff')"
           />
-          <ResponsiveDataTable
-            v-if="rosterLoading"
-            :headers="attendanceRosterLoadingHeaders"
-            :items="[]"
-            :loading="true"
-            :skeleton-rows="4"
-            :sticky-key-column="false"
-            :sticky-action-column="false"
-            mobile-cards
-            mobile-title-key="employee"
-            :mobile-fields="['status']"
-          />
+          <div v-if="rosterLoading" class="attendance-draft-list" aria-busy="true">
+            <article v-for="index in 4" :key="index" class="attendance-draft attendance-draft--skeleton">
+              <div class="attendance-draft__top">
+                <div class="attendance-draft__identity">
+                  <VSkeletonLoader type="avatar" />
+                  <div class="attendance-draft__skeleton-copy">
+                    <VSkeletonLoader type="heading" width="10rem" />
+                    <VSkeletonLoader type="text" width="6rem" />
+                  </div>
+                </div>
+                <div class="attendance-draft__skeleton-statuses">
+                  <VSkeletonLoader v-for="status in 3" :key="status" type="button" />
+                </div>
+              </div>
+              <VRow class="mt-1">
+                <VCol cols="12" sm="4"><VSkeletonLoader type="list-item-two-line" /></VCol>
+                <VCol cols="12" sm="4"><VSkeletonLoader type="list-item-two-line" /></VCol>
+                <VCol cols="12" sm="4"><VSkeletonLoader type="list-item-two-line" /></VCol>
+              </VRow>
+            </article>
+          </div>
           <section v-else-if="!attendanceDrafts.length" class="attendance-complete-state">
             <div class="attendance-complete-state__icon"><VIcon icon="tabler-circle-check" size="30" /></div>
             <h3>{{ $t('pages.attendance.timesheet.timesheet.attendanceCompleteTitle') }}</h3>
@@ -1327,9 +1323,7 @@ watch(logDate, async () => {
             <article v-for="draft in visibleAttendanceDrafts" :key="draft.staff.id" class="attendance-draft">
               <div class="attendance-draft__top">
                 <div class="attendance-draft__identity">
-                  <VAvatar color="primary" variant="tonal" size="44" :image="employeeFor(draft.staff.id)?.avatar || undefined">
-                    <span v-if="!employeeFor(draft.staff.id)?.avatar">{{ draft.staff.name.charAt(0) }}</span>
-                  </VAvatar>
+                  <EmployeeAvatar :name="draft.staff.name" :src="employeeFor(draft.staff.id)?.avatar" size="44" />
                   <div>
                     <strong>{{ draft.staff.name }}</strong>
                     <span>{{ draft.staff.position }}</span>
@@ -1614,6 +1608,16 @@ watch(logDate, async () => {
   background: rgb(var(--v-theme-surface));
   transition: border-color .2s ease, box-shadow .2s ease;
 }
+
+.attendance-draft--skeleton { pointer-events: none; }
+.attendance-draft--skeleton :deep(.v-skeleton-loader__bone) {
+  animation: attendance-skeleton-wave 1.45s ease-in-out infinite;
+  background: linear-gradient(100deg, rgba(var(--v-theme-on-surface), .055) 25%, rgba(var(--v-theme-on-surface), .11) 45%, rgba(var(--v-theme-on-surface), .055) 65%);
+  background-size: 240% 100%;
+}
+.attendance-draft__skeleton-copy { display: grid; gap: .25rem; }
+.attendance-draft__skeleton-statuses { display: flex; flex-wrap: wrap; gap: .4rem; }
+@keyframes attendance-skeleton-wave { to { background-position: -160% 0; } }
 
 .attendance-draft:focus-within {
   border-color: rgba(var(--v-theme-primary), .65);

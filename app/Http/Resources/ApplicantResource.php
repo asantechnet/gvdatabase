@@ -33,7 +33,7 @@ class ApplicantResource extends JsonResource
             'address' => $this->address,
             'tax_number' => $this->tax_number,
             'responsible_employee_ids' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->pluck('id')->all()),
-            'responsible_employees' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->map(fn ($employee) => $employee->only(['id', 'name']))),
+            'responsible_employees' => $this->whenLoaded('responsibleEmployees', fn () => $this->responsibleEmployees->map(fn ($employee) => $employee->only(['id', 'name', 'avatar']))),
             'notes' => $this->notes,
             'consultant_review' => $this->consultant_review,
             // Which built-in service this applicant belongs to, and that
@@ -76,6 +76,7 @@ class ApplicantResource extends JsonResource
             'responsible_employee' => $this->whenLoaded('responsibleEmployee', fn () => $this->responsibleEmployee ? [
                 'id' => $this->responsibleEmployee->id,
                 'name' => $this->responsibleEmployee->name,
+                'avatar' => $this->responsibleEmployee->avatar,
             ] : null),
             'attachment_count' => $this->whenCounted('attachments'),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => ['id' => $a->id, 'label' => $a->label, 'category' => $a->category, 'name' => $a->original_name, 'mime_type' => $a->mime_type, 'size' => $a->size, 'uploaded_at' => $a->created_at?->toISOString(), 'download_url' => "/api/applicants/{$this->id}/attachments/{$a->id}/download"])),

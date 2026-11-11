@@ -12,7 +12,7 @@ export interface OffDay {
   reason: string
   status: OffDayStatus
   approved_by: number | null
-  approvedBy: { id: number; name: string } | null
+  approvedBy: { id: number; name: string; avatar?: string | null } | null
   approved_at: string | null
   createdBy: { id: number; name: string } | null
   created_at: string | null

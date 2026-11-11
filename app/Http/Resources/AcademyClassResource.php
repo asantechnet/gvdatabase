@@ -22,7 +22,7 @@ class AcademyClassResource extends JsonResource
                 'id' => $this->program->id, 'name' => $this->program->name,
             ] : null),
             'teachers' => $this->whenLoaded('teachers', fn () => $this->teachers->map(fn ($teacher) => [
-                'id' => $teacher->id, 'name' => $teacher->name,
+                'id' => $teacher->id, 'name' => $teacher->name, 'avatar' => $teacher->avatar,
             ])->values()->all()),
             'starts_on' => $this->starts_on?->toDateString(),
             'ends_on' => $this->ends_on?->toDateString(),

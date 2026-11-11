@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import TaskCompletionChip from '../TaskCompletionChip.vue'
 import { useTaskStore } from '@/stores/useTaskStore'
@@ -32,8 +33,6 @@ const completedSubtasks = computed(() => subtasks.value.filter(subtask => subtas
 // Descriptions were historically stored as HTML by the rich-text editor.
 // Render the readable text without injecting markup into the read-only view.
 const descriptionText = computed(() => task.value?.description.replace(/<[^>]*>?/g, '').trim() ?? '')
-
-const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
 
 const formatFileSize = (size: number) => size < 1024 * 1024
   ? `${Math.ceil(size / 1024)} KB`
@@ -154,21 +153,7 @@ const downloadAttachment = async (attachment: TaskAttachment) => {
                 :key="assignee.id"
                 class="task-view-assignee"
               >
-                <VAvatar
-                  size="36"
-                  color="primary"
-                  variant="tonal"
-                >
-                  <VImg
-                    v-if="assignee.avatar"
-                    :src="assignee.avatar"
-                    :alt="assignee.name"
-                  />
-                  <span
-                    v-else
-                    class="text-caption font-weight-medium"
-                  >{{ initials(assignee.name) }}</span>
-                </VAvatar>
+                <EmployeeAvatar :name="assignee.name" :src="assignee.avatar" size="36" />
                 <div class="d-flex flex-column">
                   <span class="text-body-2 font-weight-medium">{{ assignee.name }}</span>
                   <span

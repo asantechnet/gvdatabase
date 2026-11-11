@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { VForm } from 'vuetify/components/VForm'
 import { requiredValidator } from '@core/utils/validators'
 import ErpField from '@/components/erp/ErpField.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const props = defineProps<{
   item: any
@@ -30,7 +31,6 @@ const config = { enableTime: false, dateFormat: 'Y-m-d', static: false, onOpen: 
 
 watch(() => props.item, item => { draft.value = { ...item, labels: [...(item?.labels ?? [])], members: [...(item?.members ?? [])] } }, { deep: true, immediate: true })
 
-const getEmployeeInitial = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
 const priorityOptions = computed(() => ['low', 'medium', 'high', 'urgent'].map(value => ({
   value,
   title: translateBackendValue(value),
@@ -119,20 +119,7 @@ async function submit() {
             <template #item="{ props: itemProps, item }">
               <VListItem v-bind="itemProps">
                 <template #prepend>
-                  <VAvatar
-                    size="32"
-                    color="primary"
-                    variant="tonal"
-                  >
-                    <VImg
-                      v-if="item.raw.avatar"
-                      :src="item.raw.avatar"
-                      :alt="item.raw.name"
-                    /><span
-                      v-else
-                      class="text-caption font-weight-medium"
-                    >{{ getEmployeeInitial(item.raw.name) }}</span>
-                  </VAvatar>
+                  <EmployeeAvatar :name="item.raw.name" :src="item.raw.avatar" size="32" />
                 </template>
               </VListItem>
             </template>

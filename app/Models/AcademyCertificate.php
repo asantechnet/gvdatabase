@@ -47,6 +47,16 @@ class AcademyCertificate extends Model
         return 'CERT';
     }
 
+    protected function documentNumberFormat(): string
+    {
+        return '%s-%s-%03d';
+    }
+
+    protected function documentNumberYearFormat(): string
+    {
+        return 'y';
+    }
+
     public function enrollment(): BelongsTo
     {
         return $this->belongsTo(AcademyEnrollment::class, 'academy_enrollment_id');

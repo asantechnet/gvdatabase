@@ -6394,6 +6394,8 @@
       "printSubtitle": "Academy monthly attendance",
       "printFooter": "Academy attendance record",
       "saved": "Attendance saved.",
+      "alreadyRecorded": "Attendance has already been recorded for this class and date. You can review or update it below.",
+      "lateMinutes": "Late minutes",
       "empty": "No attendance rows for this selection.",
       "emptyCell": "Not recorded",
       "loadFailed": "Could not load Academy attendance.",

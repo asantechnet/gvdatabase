@@ -87,6 +87,8 @@ export const permissionsForApiRequest = (method: string | undefined, url: string
     'GET /kanban': ['view_all_boards', 'view_assigned_boards', 'create_personal_tasks'],
     'GET /boards': ['view_all_boards', 'view_assigned_boards', 'create_personal_tasks'],
     'GET /task-assignees': ['assign_task_members'],
+    'POST /employees/:id/avatar': ['edit_employees'],
+    'DELETE /employees/:id/avatar': ['edit_employees'],
     'POST /tasks': ['create_tasks', 'create_personal_tasks'],
     'PUT /tasks/:id': ['edit_all_tasks', 'edit_assigned_tasks', 'create_personal_tasks'],
     'DELETE /tasks/:id': ['delete_all_tasks', 'delete_assigned_tasks', 'create_personal_tasks'],

@@ -52,9 +52,8 @@ class StoreAcademyAttendanceRequest extends FormRequest
                     && (! $enrollment->ends_on || $date->toDateString() <= $enrollment->ends_on->toDateString())
                     && (! $class?->starts_on || $date->toDateString() >= $class->starts_on->toDateString())
                     && (! $class?->ends_on || $date->toDateString() <= $class->ends_on->toDateString());
-                $meets = $class && in_array($date->isoWeekday(), $class->weekdays ?? [], true);
-                if (! $within || ! $meets) {
-                    $validator->errors()->add("rows.$index.date", 'This date is outside the enrollment term or class weekday.');
+                if (! $within) {
+                    $validator->errors()->add("rows.$index.date", 'This date is outside the enrollment term.');
                 }
                 if (($row['status'] ?? null) !== 'present' && (! empty($row['check_in_time']) || ! empty($row['check_out_time']))) {
                     $validator->errors()->add("rows.$index.check_in_time", 'Absent and leave rows cannot contain attendance times.');

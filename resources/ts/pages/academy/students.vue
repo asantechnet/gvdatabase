@@ -16,6 +16,7 @@ import AcademySlipApi, { type AcademySlipPayload } from '@/api/academySlip'
 import { AcademyClassesApi, type AcademyClassRecord } from '@/api/academyClasses'
 import { AcademyEnrollmentsApi, type AcademyEnrollmentRecord, type AcademyEnrollmentStatus } from '@/api/academyEnrollments'
 import { AcademyTeachersApi, type AcademyTeacher } from '@/api/academyTeachers'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import { canAccess } from '@/utils/authorization'
 import { formatActiveDate, formatActiveMoney } from '@/utils/localization'
 
@@ -234,7 +235,7 @@ onMounted(async () => {
       <VCardText>
         <VRow align="center" class="academy-students-toolbar">
           <VCol cols="12" md="6" lg="5"><ErpSearchField v-model="search" :placeholder="t('academy.students.title')" @input="debouncedSearch" /></VCol>
-          <VCol cols="12" md="6" lg="7" class="academy-students-toolbar__actions d-flex flex-nowrap justify-end ga-2">
+          <VCol cols="12" md="6" lg="7" class="academy-students-toolbar__actions d-flex flex-wrap justify-end ga-2">
             <DataTableFilterMenu v-model="filterMenuOpen" :active="hasActiveFilters" :show-reset="false">
               <ErpField v-model="filterDraft.classId" kind="select" :items="classes" item-title="name" item-value="id" :label="t('academy.fields.class')" clearable />
               <ErpField v-model="filterDraft.teacherId" kind="select" :items="teachers" item-title="name" item-value="id" :label="t('academy.fields.teacher')" clearable />
@@ -274,11 +275,11 @@ onMounted(async () => {
         @update:options="updateTableOptions"
       >
         <template #item.student_number="{ item }"><span class="academy-students-table__id">{{ studentNumber(item) }}</span></template>
-        <template #item.student_name="{ item }"><button class="academy-students-table__student" type="button" @click="openCard(item)">{{ studentName(item) }}</button></template>
+        <template #item.student_name="{ item }"><button class="academy-students-table__student d-inline-flex align-center ga-2" type="button" @click="openCard(item)"><EmployeeAvatar :name="studentName(item)" size="28" />{{ studentName(item) }}</button></template>
         <template #item.contact="{ item }"><span dir="ltr">{{ item.student?.contact ?? item.applicant?.contact ?? '—' }}</span></template>
         <template #item.class_name="{ item }">{{ item.class?.name ?? '—' }}</template>
         <template #item.joining_date="{ item }">{{ formatActiveDate(item.started_on) }}</template>
-        <template #item.teachers="{ item }"><span class="academy-students-table__teachers">{{ teacherNames(item) }}</span></template>
+        <template #item.teachers="{ item }"><div class="academy-students-table__teachers d-flex flex-wrap ga-2"><span v-for="teacher in item.class?.teachers ?? []" :key="teacher.id" class="d-inline-flex align-center ga-1"><EmployeeAvatar :name="teacher.name" :src="teacher.avatar" size="24" />{{ teacher.name }}</span><span v-if="!(item.class?.teachers?.length)">—</span></div></template>
         <template #item.status="{ item }"><VChip size="small" :color="statusColor(item.status)" variant="tonal">{{ t(`academy.status.${item.status}`) }}</VChip></template>
         <template #item.fee="{ item }">{{ fee(item) }}</template>
         <template #item.balance="{ item }">{{ balance(item) }}</template>
@@ -297,14 +298,14 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .academy-students-toolbar__actions { align-items: center; }
-.academy-students-toolbar__icon { flex: none; }
+.academy-students-toolbar__icon { flex: none; min-inline-size: 2.25rem !important; inline-size: 2.25rem !important; padding-inline: 0 !important; border-radius: 999px !important; font-size: .75rem !important; }
 .academy-students-table :deep(.v-table__wrapper > table) { min-inline-size: 1060px; }
-.academy-students-table :deep(.v-table__wrapper > table > thead > tr > th) { background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, rgb(var(--v-theme-surface)) 92%); color: rgb(var(--v-theme-on-surface)); font-size: .75rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
+.academy-students-table :deep(.v-table__wrapper > table > thead > tr > th) { background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, rgb(var(--v-theme-surface)) 92%) !important; color: rgb(var(--v-theme-on-surface)) !important; font-size: .75rem; font-weight: 800; letter-spacing: .035em; text-transform: uppercase; }
 .academy-students-table :deep(.v-table__wrapper > table > thead > tr > th), .academy-students-table :deep(.v-table__wrapper > table > tbody > tr > td) { white-space: nowrap; }
 .academy-students-table__id { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .academy-students-table__student { padding: 0; border: 0; background: none; color: rgb(var(--v-theme-primary)); cursor: pointer; font: inherit; font-weight: 700; text-align: start; }
 .academy-students-table__student:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
-.academy-students-table__teachers { display: block; max-inline-size: 13rem; overflow: hidden; text-overflow: ellipsis; }
+.academy-students-table__teachers { max-inline-size: 13rem; overflow: hidden; }
 .academy-students-table__actions-trigger { border-radius: 999px !important; background: rgba(var(--v-theme-on-surface), .04) !important; color: rgba(var(--v-theme-on-surface), .72) !important; }
 .academy-students-table__actions-trigger:hover { background: rgba(var(--v-theme-on-surface), .08) !important; }
 .academy-students-filter-reset { background: rgba(var(--v-theme-primary), .12) !important; color: rgb(var(--v-theme-primary)) !important; }

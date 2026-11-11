@@ -23,6 +23,7 @@ export interface CommissionAccrual {
   applicant_contract_id: number | null
   employee_id: number
   employee: string
+  employee_avatar: string | null
   service: string | null
   base_currency_id: number
   base_currency: CommissionCurrency
@@ -42,6 +43,7 @@ export interface CommissionSettlement {
   settlement_number: string
   employee_id: number
   employee: string
+  employee_avatar: string | null
   base_currency_id: number
   base_currency: CommissionCurrency
   period_start: string

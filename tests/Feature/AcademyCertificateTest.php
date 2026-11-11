@@ -63,7 +63,7 @@ class AcademyCertificateTest extends AcademyTestCase
             ->assertJsonPath('data.snapshot.award.student_name', $enrollment->student->name)
             ->assertJsonPath('data.snapshot.template.signatory_title', 'Director');
         $number = $response->json('data.certificate_number');
-        $this->assertMatchesRegularExpression('/^CERT-\d{4}-\d{6}$/', $number);
+        $this->assertMatchesRegularExpression('/^CERT-\d{2}-\d{3}$/', $number);
         $this->assertDatabaseCount('academy_certificates', 1);
 
         $this->postJson('/api/academy/certificates', ['academy_enrollment_id' => $enrollment->id])

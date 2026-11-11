@@ -3,6 +3,7 @@ import api from './axios'
 export interface AcademyOption {
   id: number
   name: string
+  avatar?: string | null
 }
 
 export interface AcademyClassRecord {
