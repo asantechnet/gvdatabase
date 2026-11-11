@@ -6,6 +6,7 @@ export interface Attendance {
   id: number
   staff_id: number
   name: string
+  avatar?: string | null
   role: string
   office_id: number | null
   office: string | null

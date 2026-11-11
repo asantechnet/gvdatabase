@@ -783,21 +783,14 @@ watch(logDate, async () => {
               :no-data-text="stats.pendingOnLogDate === 0 ? '🎉 All staff filled for this date!' : 'Select an employee'"
             >
               <template #selection="{ item }">
-                <div class="d-flex align-center ga-2">
-                  <EmployeeAvatar :name="item.raw.name" :src="employeeFor(item.raw.id)?.avatar" size="28" />
-                  <span>{{ item.raw.name }}</span>
-                </div>
+                <span>{{ item.raw.name }}</span>
               </template>
               <template #item="{ props, item }">
                 <VListItem
                   v-bind="props"
                   :title="item.raw.name"
                   :subtitle="item.raw.position"
-                >
-                  <template #prepend>
-                    <EmployeeAvatar :name="item.raw.name" :src="employeeFor(item.raw.id)?.avatar" size="32" />
-                  </template>
-                </VListItem>
+                />
               </template>
             </VSelect>
 
@@ -1050,7 +1043,7 @@ watch(logDate, async () => {
                     <!-- Employee Name -->
                     <td class="py-3 px-4 font-weight-semibold text-body-1">
                       <div class="d-flex align-center">
-                        <EmployeeAvatar :name="record.name" :src="employeeFor(record.staff_id)?.avatar" size="28" class="mr-3" />
+                        <EmployeeAvatar :name="record.name" :src="record.avatar ?? employeeFor(record.staff_id)?.avatar" size="28" class="mr-3" />
                         <span>{{ record.name }}</span>
                       </div>
                     </td>
@@ -1233,9 +1226,12 @@ watch(logDate, async () => {
                 />
                 <article v-for="record in displayedRecords" :key="`mobile-${record.id}-${record.date}`" class="timesheet-mobile-card">
                   <div class="timesheet-mobile-card__header">
-                    <div>
-                      <strong>{{ record.name }}</strong>
-                      <span>{{ record.role || record.office || '—' }}</span>
+                    <div class="timesheet-mobile-card__identity">
+                      <EmployeeAvatar :name="record.name" :src="record.avatar ?? employeeFor(record.staff_id)?.avatar" size="36" class="flex-shrink-0" />
+                      <div>
+                        <strong>{{ record.name }}</strong>
+                        <span>{{ record.role || record.office || '—' }}</span>
+                      </div>
                     </div>
                     <VChip :color="record.is_off_day ? 'info' : statusColor(record.status)" variant="tonal" size="small">
                       {{ record.is_off_day ? $t('pages.attendance.timesheet.timesheet.offDay') : translateBackendValue(record.status) }}
@@ -1291,7 +1287,6 @@ watch(logDate, async () => {
             <article v-for="index in 4" :key="index" class="attendance-draft attendance-draft--skeleton">
               <div class="attendance-draft__top">
                 <div class="attendance-draft__identity">
-                  <VSkeletonLoader type="avatar" />
                   <div class="attendance-draft__skeleton-copy">
                     <VSkeletonLoader type="heading" width="10rem" />
                     <VSkeletonLoader type="text" width="6rem" />
@@ -1323,7 +1318,6 @@ watch(logDate, async () => {
             <article v-for="draft in visibleAttendanceDrafts" :key="draft.staff.id" class="attendance-draft">
               <div class="attendance-draft__top">
                 <div class="attendance-draft__identity">
-                  <EmployeeAvatar :name="draft.staff.name" :src="employeeFor(draft.staff.id)?.avatar" size="44" />
                   <div>
                     <strong>{{ draft.staff.name }}</strong>
                     <span>{{ draft.staff.position }}</span>
@@ -1941,9 +1935,10 @@ watch(logDate, async () => {
   .timesheet-mobile-cards { display: grid; gap: .75rem; padding: .75rem; }
   .timesheet-mobile-card { padding: 1rem; border: 1px solid rgba(var(--v-border-color), .48); border-radius: .85rem; background: rgb(var(--v-theme-surface)); }
   .timesheet-mobile-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
-  .timesheet-mobile-card__header > div { display: grid; min-inline-size: 0; gap: .15rem; }
+  .timesheet-mobile-card__identity { display: flex; align-items: center; gap: .65rem; min-inline-size: 0; }
+  .timesheet-mobile-card__identity > div { display: grid; min-inline-size: 0; gap: .15rem; }
   .timesheet-mobile-card__header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .timesheet-mobile-card__header span,
+  .timesheet-mobile-card__identity > div span,
   .timesheet-mobile-card__fields span { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); font-size: .76rem; }
   .timesheet-mobile-card__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-block-start: 1rem; }
   .timesheet-mobile-card__fields > div { display: grid; gap: .15rem; min-inline-size: 0; }

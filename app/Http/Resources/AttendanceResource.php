@@ -16,6 +16,7 @@ class AttendanceResource extends JsonResource
             'id' => $this->id,
             'staff_id' => $this->employee_id,
             'name' => $this->staff?->name ?? 'N/A',
+            'avatar' => $this->staff?->avatar,
             'role' => $this->staff?->position?->title ?? 'N/A',
             'office_id' => $this->office_id,
             'office' => $this->office?->name,
