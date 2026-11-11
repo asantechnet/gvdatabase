@@ -3,13 +3,13 @@ import api from './axios'
 export interface AcademyOption {
   id: number
   name: string
+  avatar?: string | null
 }
 
 export interface AcademyClassRecord {
   id: number
   name: string
   description: string | null
-  sort_order: number
   is_active: boolean
   program: AcademyOption | null
   teachers: AcademyOption[]
@@ -69,7 +69,6 @@ export interface AcademyClassPayload {
   capacity?: number | null
   fee?: number | null
   is_active: boolean
-  sort_order?: number
 }
 
 const data = <T>(response: { data: { data: T } }): T => response.data.data

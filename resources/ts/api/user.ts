@@ -9,6 +9,7 @@ export interface ManagedUser {
   is_self: boolean
   name: string
   email: string
+  avatar: string | null
   phone: string | null
   address: string | null
   roles: UserRole[]

@@ -342,6 +342,7 @@ class EmployeeController extends Controller
             if ($Employee->document_path) {
                 Storage::disk('local')->delete($Employee->document_path);
             }
+            $this->deleteAvatarFile($Employee->avatar);
             $Employee->delete();
             $Employee->user?->update(['acc_status' => 'inactive']);
             $Employee->user?->tokens()->delete();
@@ -385,6 +386,30 @@ class EmployeeController extends Controller
         return new EmployeeResource($employee->fresh(['position', 'office', 'user']));
     }
 
+    /** HR-managed profile photo upload; account owners retain their self-service endpoint. */
+    public function uploadAvatar(Request $request, Employee $employee): EmployeeResource
+    {
+        $this->authorizeEmployeeManage($request, $employee);
+        $request->validate(['avatar' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:800']]);
+
+        $file = $request->file('avatar');
+        $path = 'avatars/'.Str::uuid().'.'.$file->extension();
+        Storage::disk('public')->putFileAs('avatars', $file, basename($path));
+        $this->deleteAvatarFile($employee->avatar);
+        $employee->update(['avatar' => Storage::disk('public')->url($path)]);
+
+        return new EmployeeResource($employee->fresh(['position', 'office', 'user', 'departments', 'serviceCommissions']));
+    }
+
+    public function removeAvatar(Request $request, Employee $employee): EmployeeResource
+    {
+        $this->authorizeEmployeeManage($request, $employee);
+        $this->deleteAvatarFile($employee->avatar);
+        $employee->update(['avatar' => null]);
+
+        return new EmployeeResource($employee->fresh(['position', 'office', 'user', 'departments', 'serviceCommissions']));
+    }
+
     /**
      * Only a user with `manage_departments` may change an employee's department
      * memberships. Everyone else can edit the rest of the profile without
@@ -392,6 +417,21 @@ class EmployeeController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
+    private function deleteAvatarFile(?string $url): void
+    {
+        $path = parse_url((string) $url, PHP_URL_PATH) ?: $url;
+        if (! is_string($path) || ! str_starts_with($path, '/storage/avatars/')) {
+            return;
+        }
+
+        $storagePath = Str::after($path, '/storage/');
+        if (str_contains($storagePath, '..') || str_contains($storagePath, '\\')) {
+            return;
+        }
+
+        Storage::disk('public')->delete($storagePath);
+    }
+
     private function guardDepartmentFields(Request $request, array &$data): void
     {
         if (! array_key_exists('department_ids', $data)) {

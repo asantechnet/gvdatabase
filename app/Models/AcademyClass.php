@@ -17,13 +17,12 @@ class AcademyClass extends Model
     protected $table = 'academy_classes';
 
     protected $fillable = [
-        'name', 'description', 'sort_order', 'is_active',
+        'name', 'description', 'is_active',
         'program_id', 'starts_on', 'ends_on', 'completed_at',
         'weekdays', 'starts_at', 'ends_at', 'capacity', 'fee',
     ];
 
     protected $casts = [
-        'sort_order' => 'integer',
         'is_active' => 'boolean',
         'weekdays' => 'array',
         'starts_on' => 'date:Y-m-d',

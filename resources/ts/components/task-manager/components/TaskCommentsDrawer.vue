@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { canAccess } from '@/utils/authorization'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -23,10 +24,8 @@ const mentionQuery = ref('')
 const mentionStart = ref(-1)
 const userData = useCookie<{ id?: string | number } | null>('userData')
 const { t, locale } = useI18n()
-const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() || '?'
-
-const canManageComment = (comment: { senderId: string }) => canAccess('edit_own_comments')
-  && comment.senderId === String(userData.value?.id ?? '')
+const canManageComment = (comment: { senderId: string }) => canAccess('edit_all_comments')
+  || (canAccess('edit_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
 
 const canDeleteComment = (comment: { senderId: string }) => canAccess('delete_all_comments')
   || (canAccess('delete_own_comments') && comment.senderId === String(userData.value?.id ?? ''))
@@ -261,22 +260,7 @@ watch(() => store.selectedTaskId, () => {
             class="comment mb-4"
           >
             <div class="d-flex">
-              <VAvatar
-                size="32"
-                class="mr-3"
-                color="primary"
-                variant="tonal"
-              >
-                <VImg
-                  v-if="comment.senderAvatar"
-                  :src="comment.senderAvatar"
-                  :alt="comment.senderName"
-                />
-                <span
-                  v-else
-                  class="text-caption font-weight-medium"
-                >{{ initials(comment.senderName) }}</span>
-              </VAvatar>
+              <EmployeeAvatar :name="comment.senderName" :src="comment.senderAvatar" size="32" class="mr-3" />
               <div class="flex-grow-1">
                 <div class="d-flex justify-space-between align-center mb-1">
                   <span class="font-weight-medium">{{ comment.senderName }}</span>
@@ -364,13 +348,7 @@ watch(() => store.selectedTaskId, () => {
               @click="insertMention(user)"
             >
               <template #prepend>
-                <VAvatar
-                  size="26"
-                  color="primary"
-                  variant="tonal"
-                >
-                  <span class="text-caption font-weight-medium">{{ initials(user.name) }}</span>
-                </VAvatar>
+                <EmployeeAvatar :name="user.name" :src="user.avatar" size="26" />
               </template>
             </VListItem>
           </VList>

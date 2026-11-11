@@ -18,7 +18,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
-        $users = User::query()->orderBy('name')->get();
+        $users = User::query()->with('employee:id,user_id,name,avatar')->orderBy('name')->get();
 
         return response()->json(['success' => true, 'data' => UserResource::collection($users)]);
     }
@@ -53,14 +53,14 @@ class UserController extends Controller
             $user->sendEmailVerificationNotification();
         }
 
-        return response()->json(['success' => true, 'data' => new UserResource($user->fresh())], 201);
+        return response()->json(['success' => true, 'data' => new UserResource($user->fresh('employee'))], 201);
     }
 
     public function show(Request $request, User $user): JsonResponse
     {
         $this->authorizePermission($request, 'view_users');
 
-        return response()->json(['success' => true, 'data' => new UserResource($user)]);
+        return response()->json(['success' => true, 'data' => new UserResource($user->loadMissing('employee'))]);
     }
 
     public function update(Request $request, User $user): JsonResponse
@@ -97,7 +97,7 @@ class UserController extends Controller
             $user->sendEmailVerificationNotification();
         }
 
-        return response()->json(['success' => true, 'data' => new UserResource($user->fresh())]);
+        return response()->json(['success' => true, 'data' => new UserResource($user->fresh('employee'))]);
     }
 
     public function destroy(Request $request, User $user): JsonResponse
@@ -135,7 +135,7 @@ class UserController extends Controller
         });
         $user->refresh();
 
-        return response()->json(['success' => true, 'data' => new UserResource($user)]);
+        return response()->json(['success' => true, 'data' => new UserResource($user->loadMissing('employee'))]);
     }
 
     private function validated(Request $request, ?User $user = null): array

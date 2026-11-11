@@ -84,7 +84,7 @@ const revoked = computed(() => props.certificate.status === 'revoked')
 .certificate-inner::before { content: ''; position: absolute; inset: 2.5mm; border: .35mm solid var(--certificate-line); pointer-events: none; }
 .certificate-ornament { position: absolute; inset: 6mm; border: .2mm solid var(--certificate-line); opacity: .5; }
 .certificate-header { display: flex; flex-direction: column; align-items: center; gap: 2mm; z-index: 1; }
-.certificate-header img { max-inline-size: 34mm; max-block-size: 15mm; object-fit: contain; }
+.certificate-header img { max-inline-size: 52mm; max-block-size: 24mm; object-fit: contain; }
 .company-name { font-size: 10pt; letter-spacing: .16em; text-transform: uppercase; color: #5d4a24; }
 .certificate-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 3mm; z-index: 1; }
 .eyebrow { margin: 0; font: 700 8pt/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .22em; text-transform: uppercase; color: var(--certificate-accent); }

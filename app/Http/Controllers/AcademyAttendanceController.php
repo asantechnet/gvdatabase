@@ -7,8 +7,6 @@ use App\Http\Resources\AcademyAttendanceResource;
 use App\Models\AcademyAttendance;
 use App\Models\AcademyClass;
 use App\Models\AcademyEnrollment;
-use App\Models\AcademyTeacherTimesheet;
-use App\Models\Employee;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,9 +46,10 @@ class AcademyAttendanceController extends Controller
                 foreach ($attendance as $key => $row) {
                     if (str_starts_with($key, $enrollment->id.'|')) {
                         $cells[$row->date->toDateString()] = [
+                            'id' => $row->id,
                             'status' => $row->status,
-                            'minutes' => $row->minutes,
-                            'note' => $row->note,
+                            'check_in_time' => $row->check_in_time,
+                            'check_out_time' => $row->check_out_time,
                         ];
                     }
                 }
@@ -82,8 +81,8 @@ class AcademyAttendanceController extends Controller
                     [
                         'class_id' => $enrollment->class_id,
                         'status' => $row['status'],
-                        'minutes' => $row['minutes'] ?? null,
-                        'note' => $row['note'] ?? null,
+                        'check_in_time' => $row['status'] === 'present' ? ($row['check_in_time'] ?? $enrollment->academyClass?->starts_at) : null,
+                        'check_out_time' => $row['status'] === 'present' ? ($row['check_out_time'] ?? $enrollment->academyClass?->ends_at) : null,
                         'recorded_by' => $request->user()->id,
                     ],
                 );
@@ -93,62 +92,11 @@ class AcademyAttendanceController extends Controller
         return response()->json(['success' => true, 'data' => ['saved' => count($rows)]]);
     }
 
-    public function teacherMonth(Request $request): JsonResponse
+    public function destroy(AcademyAttendance $academyAttendance): JsonResponse
     {
-        $data = $request->validate([
-            'teacher_id' => ['required', 'integer', 'exists:employees,id'],
-            'month' => ['required', 'date_format:Y-m'],
-        ]);
-        $teacher = Employee::query()->findOrFail($data['teacher_id']);
-        $start = CarbonImmutable::createFromFormat('Y-m-d', $data['month'].'-01')->startOfMonth();
-        $end = $start->endOfMonth();
-        $rows = AcademyTeacherTimesheet::with('academyClass')
-            ->where('teacher_id', $teacher->id)
-            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
-            ->orderBy('date')->orderBy('class_id')->get();
+        $academyAttendance->delete();
 
-        return response()->json(['success' => true, 'data' => [
-            'teacher' => ['id' => $teacher->id, 'name' => $teacher->name],
-            'month' => $start->format('Y-m'),
-            'dates' => collect(range(1, $start->daysInMonth))->map(fn (int $day) => $start->setDay($day)->toDateString())->all(),
-            'rows' => $rows->map(fn (AcademyTeacherTimesheet $row) => [
-                'id' => $row->id,
-                'teacher_id' => $row->teacher_id,
-                'class_id' => $row->class_id,
-                'class_name' => $row->academyClass?->name,
-                'date' => $row->date->toDateString(),
-                'status' => $row->status,
-                'starts_at' => $row->starts_at,
-                'ends_at' => $row->ends_at,
-                'minutes' => $row->minutes,
-                'note' => $row->note,
-            ])->all(),
-        ]]);
+        return response()->json(['success' => true, 'data' => null]);
     }
 
-    public function saveTeacher(StoreAcademyAttendanceRequest $request): JsonResponse
-    {
-        $rows = $request->validated()['teacher_rows'];
-        DB::transaction(function () use ($rows, $request): void {
-            foreach ($rows as $row) {
-                $minutes = $row['minutes'] ?? null;
-                if ($minutes === null && ! empty($row['starts_at']) && ! empty($row['ends_at'])) {
-                    $minutes = max(0, CarbonImmutable::parse($row['starts_at'])->diffInMinutes(CarbonImmutable::parse($row['ends_at'])));
-                }
-                AcademyTeacherTimesheet::updateOrCreate(
-                    ['teacher_id' => $row['teacher_id'], 'class_id' => $row['class_id'], 'date' => $row['date']],
-                    [
-                        'status' => $row['status'],
-                        'starts_at' => $row['starts_at'] ?? null,
-                        'ends_at' => $row['ends_at'] ?? null,
-                        'minutes' => $minutes,
-                        'note' => $row['note'] ?? null,
-                        'recorded_by' => $request->user()->id,
-                    ],
-                );
-            }
-        });
-
-        return response()->json(['success' => true, 'data' => ['saved' => count($rows)]]);
-    }
 }

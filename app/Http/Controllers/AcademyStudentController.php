@@ -33,7 +33,10 @@ class AcademyStudentController extends Controller
             }
 
             $startedOn = $data['started_on'] ?? now()->toDateString();
-            $endsOn = $data['ends_on'] ?? $class->ends_on?->toDateString();
+            // The class owns the end date. Enrollment stores the derived value
+            // as an immutable historical snapshot for attendance, certificates
+            // and slips, never as a direct-student form field.
+            $endsOn = $class->ends_on?->toDateString();
             if ($endsOn !== null && $endsOn < $startedOn) {
                 abort(422, 'business.academy_term_undefined');
             }
@@ -48,9 +51,7 @@ class AcademyStudentController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'is_active' => true,
             ]);
-            $student->update([
-                'student_number' => 'STU-'.str_pad((string) $student->id, 6, '0', STR_PAD_LEFT),
-            ]);
+            $student->update(['student_number' => $this->generatedStudentNumber($student)]);
 
             return AcademyEnrollment::query()->create([
                 'student_id' => $student->id,
@@ -151,5 +152,19 @@ class AcademyStudentController extends Controller
                 ])->values(),
             ],
         ]);
+    }
+
+    private function generatedStudentNumber(Student $student): string
+    {
+        $year = ($student->created_at ?? now())->format('y');
+        $base = sprintf('STU-%s-%03d', $year, $student->id % 1000);
+        $number = $base;
+        $suffix = 1;
+
+        while (Student::withTrashed()->where('student_number', $number)->whereKeyNot($student->id)->exists()) {
+            $number = $base.'-'.(++$suffix);
+        }
+
+        return $number;
     }
 }

@@ -19,7 +19,7 @@ class AcademyTeacherController extends Controller
                     ->orWhereHas('user.roles', fn ($role) => $role->where('name', 'teacher'));
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'contact', 'position_id', 'user_id', 'is_commission_based']);
+            ->get(['id', 'name', 'contact', 'avatar', 'position_id', 'user_id', 'is_commission_based']);
 
         return response()->json([
             'success' => true,
@@ -27,6 +27,7 @@ class AcademyTeacherController extends Controller
                 'id' => $employee->id,
                 'name' => $employee->name,
                 'contact' => $employee->contact,
+                'avatar' => $employee->avatar,
                 'position' => $employee->position?->title,
                 'is_commission_based' => (bool) $employee->is_commission_based,
             ])->values()->all(),

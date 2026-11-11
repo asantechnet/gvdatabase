@@ -28,7 +28,7 @@ export interface LeaveRequest {
   rejected_by: number | null
   rejection_note: string | null
   rejectedBy?: { id: number; name: string } | null
-  employee?: { id: number; name: string; position: string | null }
+  employee?: { id: number; name: string; avatar?: string | null; position: string | null }
 }
 
 export interface LeaveRequestLedger {

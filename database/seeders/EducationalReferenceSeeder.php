@@ -39,10 +39,10 @@ class EducationalReferenceSeeder extends Seeder
         )]);
 
         // Academy catalogue.
-        AcademyClass::withTrashed()->updateOrCreate(['name' => 'General English'], ['sort_order' => 10, 'is_active' => true, 'deleted_at' => null]);
-        AcademyClass::withTrashed()->updateOrCreate(['name' => 'IELTS Intensive'], ['sort_order' => 20, 'is_active' => true, 'deleted_at' => null]);
-        foreach (['English Language' => 10, 'IELTS Preparation' => 20] as $name => $order) {
-            Program::withTrashed()->updateOrCreate(['name' => $name], ['sort_order' => $order, 'is_active' => true, 'deleted_at' => null]);
+        AcademyClass::withTrashed()->updateOrCreate(['name' => 'General English'], ['is_active' => true, 'deleted_at' => null]);
+        AcademyClass::withTrashed()->updateOrCreate(['name' => 'IELTS Intensive'], ['is_active' => true, 'deleted_at' => null]);
+        foreach (['English Language', 'IELTS Preparation'] as $name) {
+            Program::withTrashed()->updateOrCreate(['name' => $name], ['is_active' => true, 'deleted_at' => null]);
         }
 
         // Test-offer catalogue. Test-offer contracts are versioned per test, so

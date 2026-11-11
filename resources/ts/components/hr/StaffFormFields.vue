@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import ErpField from '@/components/erp/ErpField.vue'
 import StaffCommissionFields from '@/components/StaffCommissionFields.vue'
+import StaffProfileImageUpload from './StaffProfileImageUpload.vue'
 import type { Department } from '@/api/department'
 import type { EmployeeAccount } from '@/api/employee'
 import type { Office } from '@/api/office'
@@ -32,6 +33,7 @@ export interface StaffFormData {
   off_day_allowance_days: number | null
   is_commission_based: boolean
   service_commissions?: Array<{ service: string; percentage: number }>
+  avatar?: string | null
 }
 
 const model = defineModel<StaffFormData>({ required: true })
@@ -49,6 +51,8 @@ const props = defineProps<{
   canAssignDepartments: boolean
   commissionOptions: Array<{ value: string; title: string }>
   commissionRate: (service: string) => number | null
+  avatarFile: File | null
+  avatarRemoved: boolean
 }>()
 
 const emit = defineEmits<{
@@ -56,6 +60,8 @@ const emit = defineEmits<{
   accountChange: [value: number | null]
   commissionEnabled: [value: boolean]
   commissionRateChange: [service: string, value: unknown]
+  avatarSelect: [file: File]
+  avatarRemove: []
 }>()
 
 const departmentOptions = () => props.departments.map(department => ({
@@ -122,17 +128,17 @@ function dockDatePickerCalendar(_: unknown, __: unknown, instance: any) {
       <VCol cols="12" md="4">
         <ErpField v-model="model.office_id" kind="select" :items="props.offices" item-title="name" item-value="id" :label="t('common.fields.office')" placeholder="Select office" clearable />
       </VCol>
-      <VCol cols="12" md="4">
+      <VCol cols="12" md="6">
         <ErpField v-model="model.salary" type="number" min="0" :label="t('common.messages.salary')" placeholder="Monthly base salary" :error-messages="props.errors.salary" required :show-required-rule="false" />
       </VCol>
-      <VCol cols="12" md="4">
+      <VCol cols="12" md="6">
         <ErpField v-model="model.department_ids" kind="autocomplete" :items="departmentOptions()" item-title="title" item-value="value" :label="t('common.fields.departments')" placeholder="Select departments" :disabled="!props.canAssignDepartments" :error-messages="props.errors.department_ids" multiple chips closable-chips clearable />
       </VCol>
 
-      <VCol cols="12" md="4">
+      <VCol cols="12" md="6">
         <ErpField v-model="model.off_day_allowance_days" type="number" min="0" step="0.5" :label="t('pages.settings.staffList.staffList.offDayAllowanceDays')" placeholder="Annual days" />
       </VCol>
-      <VCol cols="12" md="4">
+      <VCol cols="12" md="6">
         <ErpField v-model="model.status" kind="select" :items="[{ title: t('common.statuses.active'), value: 'active' }, { title: t('common.statuses.inactive'), value: 'inactive' }]" :label="t('common.fields.status')" />
       </VCol>
       <StaffCommissionFields :enabled="model.is_commission_based" :options="props.commissionOptions" :rate="props.commissionRate" @update:enabled="emit('commissionEnabled', $event)" @update:rate="(service, value) => emit('commissionRateChange', service, value)" />
@@ -159,6 +165,15 @@ function dockDatePickerCalendar(_: unknown, __: unknown, instance: any) {
       </VCol>
       <VCol cols="12">
         <ErpField v-model="model.guarantor_address" :label="t('common.messages.guarantorAddress')" placeholder="Guarantor address" />
+      </VCol>
+      <VCol cols="12">
+        <StaffProfileImageUpload
+          :name="model.name"
+          :avatar="props.avatarRemoved ? null : model.avatar"
+          :file="props.avatarFile"
+          @select="emit('avatarSelect', $event)"
+          @remove="emit('avatarRemove')"
+        />
       </VCol>
     </template>
   </VRow>

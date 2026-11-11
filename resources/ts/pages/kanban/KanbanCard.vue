@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { EditKanbanItem, KanbanId, KanbanItem } from '@/types/legacyKanban'
 import { canAccess, canDeleteTaskOnBoard, canEditTaskOnBoard } from '@/utils/authorization'
 import { formatActiveDate } from '@/utils/localization'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const props = defineProps<{
   item: KanbanItem | undefined
@@ -244,26 +245,17 @@ const actionPayload = (): EditKanbanItem => ({
           v-if="item.members && item.members.length"
           class="v-avatar-group"
         >
-          <VAvatar
+          <EmployeeAvatar
             v-for="avatar in item.members"
             :key="avatar.name"
+            :name="avatar.name"
+            :src="avatar.img"
             size="30"
-            color="primary"
-            variant="tonal"
           >
-            <VImg
-              v-if="avatar.img"
-              :src="avatar.img"
-              :alt="avatar.name"
-            />
-            <span
-              v-else
-              class="text-caption font-weight-medium"
-            >{{ avatar.name.split(/\s+/).filter(Boolean).map(part => part[0]).slice(0, 2).join('').toUpperCase() }}</span>
             <VTooltip activator="parent">
               {{ avatar.name }}
             </VTooltip>
-          </VAvatar>
+          </EmployeeAvatar>
         </div>
       </div>
     </VCardText>

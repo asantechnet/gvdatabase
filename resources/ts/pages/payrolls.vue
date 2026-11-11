@@ -38,6 +38,7 @@ import ErpField from "@/components/erp/ErpField.vue";
 import ErpSearchField from "@/components/erp/ErpSearchField.vue";
 import TableEmptyState from "@/components/TableEmptyState.vue";
 import ConfirmDialog from "@/components/dialogs/ConfirmDialog.vue";
+import EmployeeAvatar from "@/components/hr/EmployeeAvatar.vue";
 
 const toast = useToast();
 const { t: $t, locale } = useI18n();
@@ -47,6 +48,7 @@ interface PayrollRow {
   id: number;
   employeeId: number;
   name: string;
+  avatar: string | null;
   position: string;
   base: number;
   workedDays: number | null;
@@ -198,6 +200,7 @@ const toPayrollRows = (register: PayrollRegisterRow[]): PayrollRow[] =>
       id: employee.id,
       employeeId: employee.id,
       name: employee.name,
+      avatar: employee.avatar ?? null,
       position: typeof employee.position === "string" ? employee.position : "",
       base,
       workedDays: salary ? Number(salary.workedDays ?? 0) : null,
@@ -971,12 +974,15 @@ onMounted(load);
               ]"
             >
               <template #item.name="{ item }">
-                <div>
+                <div class="d-flex align-center ga-3">
+                  <EmployeeAvatar :name="item.name" :src="item.avatar" size="34" />
+                  <div>
                   <div class="font-weight-medium">
                     {{ item.name }}
                   </div>
                   <div class="payroll-legacy-position text-caption text-medium-emphasis">
                     {{ item.position || "—" }}
+                  </div>
                   </div>
                 </div>
               </template>

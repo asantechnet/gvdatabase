@@ -195,10 +195,11 @@ class AcademyEnrollmentService
         return $student->refresh();
     }
 
-    /** The student row id is unique, so it is the safe generated-number base. */
+    /** The generated number is compact, date-scoped and still collision-safe. */
     private function generatedStudentNumber(Student $student): string
     {
-        $base = 'STU-'.str_pad((string) $student->id, 6, '0', STR_PAD_LEFT);
+        $year = ($student->created_at ?? now())->format('y');
+        $base = sprintf('STU-%s-%03d', $year, $student->id % 1000);
         $number = $base;
         $suffix = 1;
 

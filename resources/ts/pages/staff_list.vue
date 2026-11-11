@@ -21,7 +21,9 @@ import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import StaffFormFields from '@/components/hr/StaffFormFields.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import EmployeePaidTimeOffDialog from '@/components/paid-time-off/EmployeePaidTimeOffDialog.vue'
+import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
 
@@ -94,6 +96,9 @@ const selfProfileForm = ref({
 });
 const selfProfileId = ref<number | null>(null);
 const selectedStaff = ref<Staff | null>(null);
+const staffAvatarFile = ref<File | null>(null)
+const staffAvatarRemoved = ref(false)
+const avatarRemovalDialog = ref(false)
 const staffForm = computed<Staff>(() => selectedStaff.value as Staff);
 const searchQuery = ref("");
 const filterPosition = ref<string | null>(null);
@@ -193,7 +198,7 @@ const avatarText = (name: string) =>
     .toUpperCase();
 
 const staffHeaders = computed(() => [
-  { title: translate('common.messages.id'), key: 'id' },
+  { title: translate('common.messages.id'), key: 'id', width: '4rem' },
   { title: translate('common.fields.name'), key: 'name' },
   { title: translate('common.messages.contact'), key: 'contact' },
   { title: translate('common.messages.position'), key: 'position' },
@@ -352,9 +357,10 @@ const staffWizardSteps = computed(() => [
   { number: 3 as const, title: 'Address & guarantor' },
 ])
 const cloneStaffForm = (staff: Staff): Staff => JSON.parse(JSON.stringify(staff)) as Staff
-const staffFormIsDirty = computed(() => selectedStaff.value !== null
+const staffFormIsDirty = computed(() => (staffAvatarFile.value !== null || staffAvatarRemoved.value)
+  || (selectedStaff.value !== null
   && staffInitialForm.value !== null
-  && JSON.stringify(selectedStaff.value) !== JSON.stringify(staffInitialForm.value))
+  && JSON.stringify(selectedStaff.value) !== JSON.stringify(staffInitialForm.value)))
 
 const finishStaffForm = (mode: StaffFormMode) => {
   if (mode === 'add')
@@ -363,6 +369,8 @@ const finishStaffForm = (mode: StaffFormMode) => {
     isEditStaffDialogVisible.value = false
 
   staffInitialForm.value = null
+  staffAvatarFile.value = null
+  staffAvatarRemoved.value = false
   staffWizardStep.value = 1
   formSubmissionError.value = ''
 }
@@ -418,6 +426,8 @@ const submitStaffWizard = (mode: StaffFormMode) => {
 }
 
 const openAddStaffDialog = () => {
+  staffAvatarFile.value = null
+  staffAvatarRemoved.value = false
   selectedStaff.value = {
     id: 0,
     user_id: null,
@@ -461,6 +471,38 @@ const openAddStaffDialog = () => {
 
 const canManageEmployees = computed(() => canAccess('edit_employees'))
 const canAssignDepartments = computed(() => canAccess('manage_departments'))
+
+const selectStaffAvatar = (file: File) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowedTypes.includes(file.type) || file.size > 800 * 1024) {
+    toast.error('Choose a JPG, PNG, GIF, or WebP image smaller than 800 KB.')
+    return
+  }
+
+  staffAvatarFile.value = file
+  staffAvatarRemoved.value = false
+}
+
+const requestStaffAvatarRemoval = () => {
+  avatarRemovalDialog.value = true
+}
+
+const removeStaffAvatar = (confirmed: boolean) => {
+  if (!confirmed)
+    return
+
+  staffAvatarFile.value = null
+  staffAvatarRemoved.value = true
+}
+
+const persistStaffAvatar = async (employee: Employee): Promise<Employee> => {
+  if (staffAvatarFile.value)
+    return EmployeeApi.uploadAvatar(employee.id, staffAvatarFile.value)
+  if (staffAvatarRemoved.value && employee.avatar)
+    return EmployeeApi.removeAvatar(employee.id)
+
+  return employee
+}
 
 const departmentSelectOptions = computed(() => departments.value.map(department => ({
   title: department.name,
@@ -529,6 +571,8 @@ const openEditStaffDialog = (staff: Staff) => {
   }
 
   // Keep edits local until Save.
+  staffAvatarFile.value = null
+  staffAvatarRemoved.value = false
   selectedStaff.value = {
     ...staff,
     department_ids: staff.department_ids ?? [],
@@ -878,15 +922,16 @@ const addStaff = async () => {
 
     const response = await EmployeeApi.create(data);
     if (response.data && response.data.data) {
+      const savedEmployee = await persistStaffAvatar(response.data.data)
       staffList.value.unshift({
-        ...response.data.data,
-        email: response.data.data.email ?? "",
-        salary: response.data.data.salary ?? 0,
-        join_date: response.data.data.join_date ?? "",
+        ...savedEmployee,
+        email: savedEmployee.email ?? "",
+        salary: savedEmployee.salary ?? 0,
+        join_date: savedEmployee.join_date ?? "",
         position:
-          response.data.data.position ||
-          positionOptions.value[response.data.data.position_id - 1] ||
-          response.data.data.position_id.toString(),
+          savedEmployee.position ||
+          positionOptions.value[savedEmployee.position_id - 1] ||
+          savedEmployee.position_id.toString(),
       });
     }
     finishStaffForm('add');
@@ -938,19 +983,20 @@ const updateStaff = async () => {
 
     const response = await EmployeeApi.update(selectedStaff.value.id, data);
     if (response.data && response.data.data) {
+      const savedEmployee = await persistStaffAvatar(response.data.data)
       const index = staffList.value.findIndex(
         (s) => s.id === selectedStaff.value?.id,
       );
       if (index !== -1) {
         staffList.value[index] = {
-          ...response.data.data,
-          email: response.data.data.email ?? "",
-          salary: response.data.data.salary ?? 0,
-          join_date: response.data.data.join_date ?? "",
+          ...savedEmployee,
+          email: savedEmployee.email ?? "",
+          salary: savedEmployee.salary ?? 0,
+          join_date: savedEmployee.join_date ?? "",
           position:
-            response.data.data.position ||
-            positionOptions.value[response.data.data.position_id - 1] ||
-            response.data.data.position_id.toString(),
+            savedEmployee.position ||
+            positionOptions.value[savedEmployee.position_id - 1] ||
+            savedEmployee.position_id.toString(),
         };
       }
     }
@@ -1188,15 +1234,7 @@ onMounted(async () => {
 
           <template #item.name="{ item }">
             <div class="d-flex align-center gap-3">
-              <VAvatar
-                size="34"
-                class="mx-2"
-                :variant="item.avatar ? undefined : 'tonal'"
-                :color="item.avatar ? undefined : 'primary'"
-              >
-                <VImg v-if="item.avatar" :src="item.avatar" :alt="item.name" />
-                <span v-else>{{ avatarText(item.name) }}</span>
-              </VAvatar>
+              <EmployeeAvatar :name="item.name" :src="item.avatar" size="34" class="mx-2" />
               <span>{{ item.name }}</span>
             </div>
           </template>
@@ -1315,10 +1353,14 @@ onMounted(async () => {
                 :can-assign-departments="canAssignDepartments"
                 :commission-options="commissionServiceOptions"
                 :commission-rate="commissionRate"
+                :avatar-file="staffAvatarFile"
+                :avatar-removed="staffAvatarRemoved"
                 @position-change="applyPositionSalary"
                 @account-change="updateSelectedAccountEmail"
                 @commission-enabled="setCommissionEnabled"
                 @commission-rate-change="(service, value) => setCommissionRate(service, value)"
+                @avatar-select="selectStaffAvatar"
+                @avatar-remove="requestStaffAvatarRemoval"
               />
             </Transition>
           </VCardText>
@@ -1372,10 +1414,14 @@ onMounted(async () => {
                 :can-assign-departments="canAssignDepartments"
                 :commission-options="commissionServiceOptions"
                 :commission-rate="commissionRate"
+                :avatar-file="staffAvatarFile"
+                :avatar-removed="staffAvatarRemoved"
                 @position-change="applyPositionSalary"
                 @account-change="updateSelectedAccountEmail"
                 @commission-enabled="setCommissionEnabled"
                 @commission-rate-change="(service, value) => setCommissionRate(service, value)"
+                @avatar-select="selectStaffAvatar"
+                @avatar-remove="requestStaffAvatarRemoval"
               />
             </Transition>
           </VCardText>
@@ -1399,7 +1445,7 @@ onMounted(async () => {
             <div class="staff-details-grid"><VSkeletonLoader v-for="index in 10" :key="index" type="list-item-two-line" class="staff-detail-tile staff-detail-tile--skeleton" /></div>
           </div>
           <template v-else>
-            <div class="staff-details-summary mb-5"><VAvatar size="56" :image="staffDetails?.avatar || undefined" color="primary" variant="tonal">{{ staffDetails ? avatarText(staffDetails.name) : '' }}</VAvatar><div><div class="text-h6 font-weight-bold">{{ staffDetails?.position || '—' }}</div><div class="text-body-2 text-medium-emphasis">{{ staffDetails?.office?.name || $t('common.fields.office') }} · {{ staffDetails?.status === 'inactive' ? $t('common.statuses.inactive') : $t('common.statuses.active') }}</div></div></div>
+            <div class="staff-details-summary mb-5"><EmployeeAvatar :name="staffDetails?.name ?? ''" :src="staffDetails?.avatar" size="56" /><div><div class="text-h6 font-weight-bold">{{ staffDetails?.position || '—' }}</div><div class="text-body-2 text-medium-emphasis">{{ staffDetails?.office?.name || $t('common.fields.office') }} · {{ staffDetails?.status === 'inactive' ? $t('common.statuses.inactive') : $t('common.statuses.active') }}</div></div></div>
             <div class="staff-details-grid"><div v-for="field in staffDetailTiles" :key="field.key" class="staff-detail-tile"><VIcon :icon="field.icon" size="19" class="staff-detail-tile__icon" /><div class="staff-detail-tile__content"><span class="staff-detail-tile__label">{{ field.label }}</span><div v-if="field.key === 'contact' && staffDetails?.contact" dir="ltr" class="staff-contact-value"><ContactActionMenu kind="phone" :value="staffDetails.contact" audience="employee" :context="staffDetails" /></div><div v-else-if="field.key === 'email' && staffDetails?.email" dir="ltr" class="staff-contact-value"><ContactActionMenu kind="email" :value="staffDetails.email" :context="staffDetails" /></div><span v-else class="staff-detail-tile__value">{{ field.value || '—' }}</span></div></div><div v-if="staffCommissionSummary" class="staff-detail-tile staff-detail-tile--wide"><VIcon icon="tabler-percentage" size="19" class="staff-detail-tile__icon" /><div class="staff-detail-tile__content"><span class="staff-detail-tile__label">{{ $t('pages.settings.staffList.staffList.commissionPerService') }}</span><span class="staff-detail-tile__value">{{ staffCommissionSummary }}</span></div></div></div>
           </template>
         </VCardText>
@@ -1411,6 +1457,20 @@ onMounted(async () => {
     </VDialog>
 
     <EmployeePaidTimeOffDialog v-model="isLeaveDialogVisible" :employee="leaveStaff" />
+    <ConfirmDialog
+      v-model:is-dialog-visible="avatarRemovalDialog"
+      tone="error"
+      icon="tabler-trash"
+      :confirmation-question="$t('common.messages.confirmDelete')"
+      :confirmation-message="$t('components.account.accountsettingsaccount.profilePhotoRemoved')"
+      :confirm-text="$t('common.actions.delete')"
+      :cancel-text="$t('common.actions.cancel')"
+      :confirm-title="$t('common.actions.delete')"
+      confirm-msg=""
+      :cancel-title="$t('common.actions.cancel')"
+      cancel-msg=""
+      @confirm="removeStaffAvatar"
+    />
 
     <!-- Add Staff Dialog -->
     <VDialog v-if="false" v-model="isAddStaffDialogVisible" max-width="1100px" scrollable>
@@ -2457,14 +2517,14 @@ onMounted(async () => {
 </style>
 
 <style lang="scss">
-.staff-responsive-table tbody td { padding-block: .875rem; }
+.staff-responsive-table tbody td { padding-block: 4px; }
 .staff-responsive-table .v-table__wrapper { overflow-x: auto !important; overflow-y: hidden; scrollbar-width: none; }
 .staff-responsive-table .v-table__wrapper::-webkit-scrollbar { display: none; }
 .staff-responsive-table .v-table__wrapper > table { inline-size: max-content !important; min-inline-size: 86rem; table-layout: auto !important; }
 .staff-responsive-table .v-table__wrapper > table > thead > tr > th,
 .staff-responsive-table .v-table__wrapper > table > tbody > tr > td { min-inline-size: 10rem; white-space: nowrap; }
 .staff-responsive-table .v-table__wrapper > table > thead > tr > :first-child,
-.staff-responsive-table .v-table__wrapper > table > tbody > tr > :first-child { min-inline-size: 16rem; }
+.staff-responsive-table .v-table__wrapper > table > tbody > tr > :first-child { min-inline-size: 4rem; }
 .staff-responsive-table .v-table__wrapper > table > thead > tr > :last-child,
 .staff-responsive-table .v-table__wrapper > table > tbody > tr > :last-child { min-inline-size: 7rem; }
 /* Separate directory rows just enough to scan people and their status without

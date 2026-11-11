@@ -13,6 +13,7 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import ConfirmDialog from '@/components/dialogs/ConfirmDialog.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import ResponsiveDataTable from '@/components/responsive-data-table/ResponsiveDataTable.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 
@@ -365,15 +366,6 @@ const formatCurrentBaseAmount = (amount: number) => {
   return `${currency?.symbol ?? ''}${formatted}${currency?.code ? ` ${currency.code}` : ''}`.trim()
 }
 
-const getAvatarInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
 const getReasonColor = (reason: BonusType) => {
   switch (reason) {
     case 'Performance': return 'primary'
@@ -579,14 +571,7 @@ const getStatusColor = (isGranted: boolean) => {
             <!-- Employee Column -->
             <td class="py-4">
               <div class="d-flex align-center gap-3">
-                <VAvatar
-                  color="primary"
-                  variant="tonal"
-                  size="40"
-                  class="font-weight-bold"
-                >
-                  <span>{{ getAvatarInitials(employee.employeeName) }}</span>
-                </VAvatar>
+                <EmployeeAvatar :name="employee.employeeName" :src="employees.find(item => item.id === Number(employee.employeeId))?.avatar" size="40" />
                 <div>
                   <div class="font-weight-medium text-body-1">
                     {{ employee.employeeName }}
@@ -749,7 +734,7 @@ const getStatusColor = (isGranted: boolean) => {
         <article v-for="employee in filteredEmployees" :key="employee.id" class="bonus-mobile-card">
           <div class="bonus-mobile-card__header">
             <div class="d-flex align-center gap-3 min-w-0">
-              <VAvatar color="primary" variant="tonal" size="40" class="font-weight-bold"><span>{{ getAvatarInitials(employee.employeeName) }}</span></VAvatar>
+              <EmployeeAvatar :name="employee.employeeName" :src="employees.find(item => item.id === Number(employee.employeeId))?.avatar" size="40" />
               <div class="min-w-0">
                 <div class="font-weight-medium text-body-1 text-truncate">{{ employee.employeeName }}</div>
                 <div class="text-caption text-medium-emphasis text-truncate">{{ employee.department || 'No Department' }} · {{ employee.employeeEmail }}</div>

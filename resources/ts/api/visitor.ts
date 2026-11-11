@@ -5,6 +5,7 @@ import { cleanListParams, readPage, type ListPage, type ListPageParams } from '.
 export interface VisitorPerson {
   id: number
   name: string
+  avatar?: string | null
 }
 
 export interface Visitor {

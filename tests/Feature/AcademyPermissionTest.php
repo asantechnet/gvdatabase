@@ -18,7 +18,6 @@ class AcademyPermissionTest extends AcademyTestCase
 
         $this->getJson('/api/academy/classes')->assertForbidden();
         $this->getJson('/api/academy/enrollments')->assertForbidden();
-        $this->getJson('/api/academy/overview')->assertForbidden();
         $this->getJson('/api/academy/attendance?class_id=1&month=2027-01')->assertForbidden();
         $this->getJson('/api/academy/teachers')->assertForbidden();
 

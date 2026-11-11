@@ -14,6 +14,7 @@ import FullDetailsButton from '@/components/FullDetailsButton.vue'
 import PrintableListReport from '@/components/PrintableListReport.vue'
 import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import { useContracts } from '@/composables/useContracts'
 import { apiErrorMessage } from '@/utils/apiErrors'
 import { printDocument } from '@/utils/printDocument'
@@ -675,7 +676,14 @@ onMounted(async () => {
         v-if="!isOtherAudience"
         #item.counterparty="{ item }"
       >
-        {{ item.counterparty || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}
+        <div class="d-flex align-center ga-2">
+          <EmployeeAvatar
+            :name="String(item.employee?.name ?? item.counterparty ?? $t('pages.contracts.allContracts.allContracts.unknownCounterparty'))"
+            :src="typeof item.employee?.avatar === 'string' ? item.employee.avatar : null"
+            size="28"
+          />
+          <span>{{ (item.employee?.name ?? item.counterparty) || $t('pages.contracts.allContracts.allContracts.unknownCounterparty') }}</span>
+        </div>
       </template>
       <template #item.start_date="{ item }">
         {{ formatLocalizedDate(item.start_date) }}

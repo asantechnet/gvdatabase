@@ -89,14 +89,14 @@ export interface Applicant {
   /** @deprecated The singular admission field is retired. */
   admission_employee?: { id: number; name: string } | null
   responsible_employee_ids?: number[]
-  responsible_employees?: Array<{ id: number; name: string }>
+  responsible_employees?: Array<{ id: number; name: string; avatar?: string | null }>
   responsible_employee_id?: number | null
   current_stage_id?: number | null
   status: string
   payment_status?: 'paid' | 'unpaid' | 'partially_paid' | null
   notes?: string | null
   consultant_review?: ConsultantReview | null
-  responsible_employee?: { id: number; name: string } | null
+  responsible_employee?: { id: number; name: string; avatar?: string | null } | null
   // A case's stage decides the workflow: terminal stages close the case, and
   // `completed` is the terminal stage that also releases commission.
   current_stage?: { id: number; name: string; key: string; is_terminal?: boolean; allowed_next_keys?: string[] }
@@ -182,7 +182,7 @@ export interface PipelineCard {
   status: string
   current_stage_id: number
   current_stage: { id: number, key: string, name: string, is_terminal: boolean, allowed_next_keys: string[] }
-  responsible_employee?: { id: number, name: string } | null
+  responsible_employee?: { id: number, name: string, avatar?: string | null } | null
   country?: string | null
   university?: string | null
   contract_number?: string | null

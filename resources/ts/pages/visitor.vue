@@ -21,6 +21,7 @@ import CrmRelationshipDetails from '@/components/crm/CrmRelationshipDetails.vue'
 import { useCookie } from '@core/composable/useCookie'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const { enabled: academyEnabled } = useAcademyEnabled()
 const visitors = ref<Visitor[]>([])
@@ -717,6 +718,7 @@ onMounted(async () => {
     </VCardText>
 
     <ResponsiveDataTableServer
+      :audit-trail="!isFollowUpList"
       :headers="headers"
       :items="visitors"
       :items-length="total"
@@ -782,16 +784,7 @@ onMounted(async () => {
 
       <template #item.consultant="{ item }">
         <div class="d-flex align-center ga-2">
-          <VAvatar
-            size="28"
-            color="primary"
-            variant="tonal"
-          >
-            <VIcon
-              icon="tabler-user-star"
-              size="16"
-            />
-          </VAvatar>
+          <EmployeeAvatar :name="consultantLabel(item)" :src="item.consultant?.avatar" size="28" />
           <span>{{ consultantLabel(item) }}</span>
         </div>
       </template>

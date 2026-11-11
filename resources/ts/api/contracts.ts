@@ -146,7 +146,7 @@ export interface Contract {
     renewal?: { source_contract_id: number; source_contract_number?: string | null }
   } | null
   parties?: ContractPartySnapshot | null
-  employee?: Record<string, unknown> | null
+  employee?: { id?: number; name?: string | null; avatar?: string | null; position?: string | null; [key: string]: unknown } | null
   applicant?: Applicant | null
   contract_type?: ContractType | null
   contract_template?: {

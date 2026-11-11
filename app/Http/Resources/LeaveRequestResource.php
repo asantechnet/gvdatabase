@@ -48,6 +48,7 @@ class LeaveRequestResource extends JsonResource
             'employee' => $this->whenLoaded('employee', fn () => [
                 'id' => $this->employee->id,
                 'name' => $this->employee->name,
+                'avatar' => $this->employee->avatar,
                 'position' => $this->employee->position?->title,
             ]),
             'created_at' => $this->created_at?->toISOString(),

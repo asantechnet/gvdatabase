@@ -223,7 +223,7 @@ class ApplicantController extends Controller
     private function pipelineApplicantRelations(): array
     {
         return [
-            'responsibleEmployee:id,name', 'responsibleEmployees:id,name',
+            'responsibleEmployee:id,name,avatar', 'responsibleEmployees:id,name,avatar',
             'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name',
             'privateDetail.country:id,name', 'privateDetail.university:id,name',
         ];
@@ -252,7 +252,7 @@ class ApplicantController extends Controller
             'current_stage_id' => $stageId,
             'current_stage' => $this->pipelineStage($stage),
             'responsible_employee' => $responsibleEmployee
-                ? ['id' => $responsibleEmployee->id, 'name' => $responsibleEmployee->name]
+                ? ['id' => $responsibleEmployee->id, 'name' => $responsibleEmployee->name, 'avatar' => $responsibleEmployee->avatar]
                 : null,
             'country' => $detail?->country?->name,
             'university' => $detail?->university?->name,
@@ -561,7 +561,7 @@ class ApplicantController extends Controller
         $applicant->setAttribute('responsible_employee_id', $primary?->id);
         $applicant->setAttribute('responsible_employee_ids', $assignments->pluck('id')->all());
         $applicant->setAttribute('responsible_employees', $assignments
-            ->map(fn (Employee $employee) => $employee->only(['id', 'name']))->values()->all());
+            ->map(fn (Employee $employee) => $employee->only(['id', 'name', 'avatar']))->values()->all());
         $applicant->setAttribute('portal_access_status', $applicant->user?->acc_status);
         $applicant->unsetRelation('user');
         foreach (['favoriteSubjects' => 'favorite_subject_ids', 'skills' => 'skill_ids', 'teachers' => 'teacher_ids'] as $relation => $key) {

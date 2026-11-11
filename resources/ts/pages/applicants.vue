@@ -20,6 +20,7 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import TableLoadingSkeleton from '@/components/TableLoadingSkeleton.vue'
 import ApplicantPipeline from '@/pages/applicant-pipeline.vue'
 import { useAcademyEnabled } from '@/composables/useAcademyEnabled'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 const toast = useToast()
 const router = useRouter()
@@ -149,12 +150,15 @@ const destinationLabel = (row: Applicant) => {
 const countryLabel = (row: Applicant) => row.details?.country?.name ?? '—'
 const universityLabel = (row: Applicant) => row.details?.university?.name ?? '—'
 const paymentStatusLabel = (row: Applicant) => row.payment_status ? t(`finance.paymentStatus.${row.payment_status}`) : t('educational.noServiceLines')
+const employeeAssignments = (row: Applicant) => row.responsible_employees?.length
+  ? row.responsible_employees
+  : row.responsible_employee ? [row.responsible_employee] : []
 const employeeLabel = (row: Applicant) => {
   if (row.service === 'academy')
     return '—'
-  const assigned = row.responsible_employees?.map(employee => employee.name).filter(Boolean) ?? []
+  const assigned = employeeAssignments(row).map(employee => employee.name).filter(Boolean)
 
-  return assigned.length ? assigned.join(', ') : (row.responsible_employee?.name ?? t('educational.unassigned'))
+  return assigned.length ? assigned.join(', ') : t('educational.unassigned')
 }
 // The API returns the same stage it filters by: the service line's under a
 // service filter, the applicant mirror otherwise.
@@ -644,7 +648,15 @@ onMounted(async () => {
       </template>
       <template #item.id="{ item }">#{{ item.id }}</template>
       <template #item.name="{ item }"><span class="font-weight-medium">{{ item.name }}</span></template>
-      <template #item.employee="{ item }">{{ employeeLabel(item) }}</template>
+      <template #item.employee="{ item }">
+        <div v-if="item.service !== 'academy' && employeeAssignments(item).length" class="d-flex flex-wrap align-center ga-2">
+          <span v-for="employee in employeeAssignments(item)" :key="employee.id" class="d-inline-flex align-center ga-1">
+            <EmployeeAvatar :name="employee.name" :src="employee.avatar" size="28" />
+            <span>{{ employee.name }}</span>
+          </span>
+        </div>
+        <span v-else>{{ item.service === 'academy' ? '—' : $t('educational.unassigned') }}</span>
+      </template>
       <template #item.service="{ item }"><VChip size="x-small" variant="tonal">{{ serviceLabel(item) }}</VChip></template>
       <template #item.country="{ item }"><span class="text-medium-emphasis">{{ countryLabel(item) }}</span></template>
       <template #item.university="{ item }"><span class="text-medium-emphasis">{{ universityLabel(item) }}</span></template>

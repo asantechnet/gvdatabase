@@ -51,8 +51,7 @@ const sections: Record<HeaderSection, HeaderLink[]> = {
     { name: 'cancelled-contracts', label: 'common.navigation.cancelledContracts', icon: 'tabler-ban', color: 'error', permissions: ['view_private_contracts', 'view_scholarship_contracts', 'view_test_offer_contracts', 'view_academy_contracts', 'view_employment_contracts', 'view_other_contracts'] },
   ],
   academy: [
-    { name: 'academy-overview', label: 'common.navigation.academyOverview', icon: 'tabler-layout-dashboard', color: 'primary', permission: 'view_academy_contracts' },
-    { name: 'academy-classes', label: 'common.navigation.academyClasses', icon: 'tabler-school', color: 'info', permission: 'view_academy_contracts' },
+    { name: 'academy-classes', label: 'common.navigation.academyClasses', icon: 'tabler-school', color: 'primary', permission: 'view_academy_contracts' },
     { name: 'academy-students', label: 'common.navigation.academyStudents', icon: 'tabler-users', color: 'success', permission: 'view_academy_contracts' },
     { name: 'academy-catalog', label: 'common.navigation.academyCatalog', icon: 'tabler-book-2', color: 'secondary', permission: 'view_academy_contracts' },
     { name: 'academy-attendance', label: 'common.navigation.academyAttendance', icon: 'tabler-calendar-check', color: 'warning', permission: 'view_academy_attendance' },

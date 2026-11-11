@@ -8,6 +8,7 @@ import ErpSearchField from '@/components/erp/ErpSearchField.vue'
 import { confirmActionWarning } from '@/composables/useActionWarning'
 import { apiFieldErrors } from '@/utils/apiErrors'
 import { canAccess } from '@/utils/authorization'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 
 // Extend internal type representation to match the new API payload
 export interface AppUser {
@@ -47,16 +48,6 @@ const deletingRole = ref<AppRole | null>(null)
 const initialRoleForm = ref('')
 
 // Avatar generation helpers
-const getInitials = (name: string) => {
-  if (!name)
-    return 'U'
-  const parts = name.split(' ')
-  if (parts.length >= 2)
-    return (parts[0][0] + parts[1][0]).toUpperCase()
-
-  return name.substring(0, 2).toUpperCase()
-}
-
 const avatarColors = ['primary', 'secondary', 'success', 'info', 'warning', 'error']
 
 const getAvatarColor = (name: string) => {
@@ -370,19 +361,7 @@ onMounted(loadAll)
                 v-for="user in (role.users || []).slice(0, 4)"
                 :key="user.id"
               >
-                <VAvatar
-                  v-if="user.employee?.avatar"
-                  size="36"
-                  :image="user.employee.avatar"
-                />
-                <VAvatar
-                  v-else
-                  size="36"
-                  :color="getAvatarColor(user.name)"
-                  variant="tonal"
-                >
-                  <span class="text-sm font-weight-medium">{{ getInitials(user.name) }}</span>
-                </VAvatar>
+                <EmployeeAvatar :name="user.name" :src="user.employee?.avatar" size="36" :color="getAvatarColor(user.name)" />
               </template>
 
               <VAvatar

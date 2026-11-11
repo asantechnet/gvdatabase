@@ -37,7 +37,7 @@ class ApplicantResource extends JsonResource
             'email' => $this->email,
             'address' => $this->address,
             'responsible_employee_ids' => $this->when($assignmentLoaded, fn () => $assignments->pluck('id')->all()),
-            'responsible_employees' => $this->when($assignmentLoaded, fn () => $assignments->map(fn ($employee) => $employee->only(['id', 'name']))->values()->all()),
+            'responsible_employees' => $this->when($assignmentLoaded, fn () => $assignments->map(fn ($employee) => $employee->only(['id', 'name', 'avatar']))->values()->all()),
             'notes' => $this->notes,
             'consultant_review' => $this->consultant_review,
             // Which built-in service this applicant belongs to, and that
@@ -80,6 +80,7 @@ class ApplicantResource extends JsonResource
             'responsible_employee' => $this->when($assignmentLoaded, fn () => $primary ? [
                 'id' => $primary->id,
                 'name' => $primary->name,
+                'avatar' => $primary->avatar,
             ] : null),
             'attachment_count' => $this->whenCounted('attachments'),
             'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => ['id' => $a->id, 'label' => $a->label, 'category' => $a->category, 'name' => $a->original_name, 'mime_type' => $a->mime_type, 'size' => $a->size, 'uploaded_at' => $a->created_at?->toISOString(), 'download_url' => "/api/applicants/{$this->id}/attachments/{$a->id}/download"])),

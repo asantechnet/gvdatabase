@@ -131,6 +131,14 @@ export interface UpdateEmployeeData {
 
 // Employee API endpoints
 const EmployeeApi = {
+  uploadAvatar: async (id: number, avatar: File): Promise<Employee> => {
+    const body = new FormData()
+    body.append('avatar', avatar)
+    return (await api.post<{ data: Employee }>(`/employees/${id}/avatar`, body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })).data.data
+  },
+  removeAvatar: async (id: number): Promise<Employee> => (await api.delete<{ data: Employee }>(`/employees/${id}/avatar`)).data.data,
   uploadDocument: async (id: number, document: File): Promise<Employee> => {
     const body = new FormData()
     body.append('document', document)

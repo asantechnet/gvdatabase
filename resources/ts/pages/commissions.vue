@@ -21,6 +21,7 @@ import ErpField from "@/components/erp/ErpField.vue";
 import ErpPageHeader from "@/components/erp/ErpPageHeader.vue";
 import ErpSearchField from "@/components/erp/ErpSearchField.vue";
 import DataTableFilterMenu from "@/components/responsive-data-table/DataTableFilterMenu.vue";
+import EmployeeAvatar from "@/components/hr/EmployeeAvatar.vue";
 import { moveRowIdFirst } from "@/utils/createdFirst";
 
 const { t } = useI18n();
@@ -548,6 +549,7 @@ onMounted(load);
               />
             </template>
             <template #item.earned_at="{ item }">{{ item.earned_at }}</template>
+            <template #item.employee="{ item }"><div class="d-flex align-center ga-2"><EmployeeAvatar :name="item.employee" :src="item.employee_avatar" size="28" /><span>{{ item.employee }}</span></div></template>
             <template #item.entry_type="{ item }">
               <VChip size="small" variant="tonal" class="ma-1">
                 {{
@@ -672,6 +674,7 @@ onMounted(load);
             <template #item.period="{ item }"
               >{{ item.period_start }} — {{ item.period_end }}</template
             >
+            <template #item.employee="{ item }"><div class="d-flex align-center ga-2"><EmployeeAvatar :name="item.employee" :src="item.employee_avatar" size="28" /><span>{{ item.employee }}</span></div></template>
             <template #item.settlement_number="{ item }"><strong>{{ formatSettlementNumber(item.settlement_number) }}</strong></template>
             <template #item.gross_base_amount="{ item }"
               ><strong>{{

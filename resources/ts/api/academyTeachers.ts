@@ -4,6 +4,7 @@ export interface AcademyTeacher {
   id: number
   name: string
   contact: string | null
+  avatar: string | null
   position: string | null
   is_commission_based: boolean
 }

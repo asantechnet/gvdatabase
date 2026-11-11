@@ -14,6 +14,7 @@ class CommissionSettlementResource extends JsonResource
             'settlement_number' => $this->settlement_number,
             'employee_id' => $this->employee_id,
             'employee' => $this->employee?->name,
+            'employee_avatar' => $this->employee?->avatar,
             'base_currency_id' => $this->base_currency_id,
             'base_currency' => $this->baseCurrency ? [
                 'id' => $this->baseCurrency->id,

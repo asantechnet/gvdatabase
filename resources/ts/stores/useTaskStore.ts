@@ -144,7 +144,7 @@ export const useTaskStore = defineStore('taskManager', () => {
             assigned: task.assignees.map(assignee => ({
               id: assignee.id,
               name: assignee.name,
-              avatar: assignee.avatar || getFallbackAvatar(assignee.id),
+              avatar: assignee.avatar ?? null,
               email: assignee.email,
             })),
             rawTask: task,
@@ -153,13 +153,6 @@ export const useTaskStore = defineStore('taskManager', () => {
 
     return kanbanBoards
   })
-
-  // Generate fallback avatar URL
-  const getFallbackAvatar = (id: string) => {
-    const num = Number.parseInt(id) % 8 + 1
-
-    return `/images/avatars/avatar-${num}.png`
-  }
 
   // Actions
   const fetchBoardData = async () => {
@@ -289,12 +282,14 @@ export const useTaskStore = defineStore('taskManager', () => {
             if (existingAssignee)
               return existingAssignee
 
-            // Create a new assignee object with fallback avatar
+            // The API may omit an assignee from cached board data. Keep the
+            // identity honest: the shared avatar component renders initials
+            // until the next server refresh can supply a real profile image.
             return {
               id: assigneeId,
               name: 'Unknown',
               email: '',
-              avatar: getFallbackAvatar(assigneeId),
+              avatar: null,
             }
           })
         }
