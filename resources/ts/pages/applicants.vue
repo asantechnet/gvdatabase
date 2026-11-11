@@ -1033,6 +1033,12 @@ onMounted(async () => {
   filter: brightness(0.9);
 }
 
+.v-overlay:has(.applications-filter-dialog) .v-overlay__scrim,
+.v-overlay:has(.visitor-form-dialog) .v-overlay__scrim {
+  backdrop-filter: blur(4px);
+  background-color: rgba(var(--v-theme-on-surface), 0.24);
+}
+
 @media (max-width: 959px) {
   .applications-responsive-table.responsive-data-table--mobile-cards .v-table__wrapper > table > tbody > tr:hover > td {
     background-color: transparent !important;

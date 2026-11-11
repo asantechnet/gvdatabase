@@ -395,18 +395,21 @@ onMounted(async () => {
   color: #667085 !important;
 }
 
-:global(.v-theme--dark) .pipeline-case-card {
+/* Keep the whole selector inside :global(). A bare `:global(.v-theme--dark)`
+   parent compiles to an unscoped `.v-theme--dark` rule, which paints every
+   theme-classed element — including full-viewport overlay roots. */
+:global(.v-theme--dark .pipeline-case-card) {
   background: rgb(var(--v-theme-surface)) !important;
   border-color: rgb(var(--v-border-color) / .38);
   color: rgb(var(--v-theme-on-surface));
 }
 
-:global(.v-theme--dark) .pipeline-case-card :deep(.v-card-text) {
+:global(.v-theme--dark .pipeline-case-card .v-card-text) {
   background: rgb(var(--v-theme-surface)) !important;
   color: rgb(var(--v-theme-on-surface));
 }
 
-:global(.v-theme--dark) .pipeline-case-card :deep(.text-medium-emphasis) {
+:global(.v-theme--dark .pipeline-case-card .text-medium-emphasis) {
   color: rgb(var(--v-theme-on-surface) / var(--v-medium-emphasis-opacity)) !important;
 }
 
