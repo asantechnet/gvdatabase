@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import keyboard from '@images/svg/keyboard.svg'
-import paper from '@images/svg/paper-send.svg'
-import rocket from '@images/svg/rocket.svg'
+import keyboard from '@/assets/svg/keyboard.svg'
+import paper from '@/assets/svg/paper-send.svg'
+import rocket from '@/assets/svg/rocket.svg'
 import { themeConfig } from '@themeConfig'
 
 interface Props {

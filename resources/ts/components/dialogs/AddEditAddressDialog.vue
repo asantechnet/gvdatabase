@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { translate } from '@/utils/localization'
-import home from '@images/svg/home.svg'
-import office from '@images/svg/office.svg'
+import home from '@/assets/svg/home.svg'
+import office from '@/assets/svg/office.svg'
 
 interface BillingAddress {
   firstName: string | undefined

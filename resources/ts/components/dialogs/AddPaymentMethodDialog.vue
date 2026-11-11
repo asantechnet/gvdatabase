@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import americanExDark from '@images/icons/payments/img/ae-dark.png'
-import americanExLight from '@images/icons/payments/img/american-express.png'
-import dcDark from '@images/icons/payments/img/dc-dark.png'
-import dcLight from '@images/icons/payments/img/dc-light.png'
-import jcbDark from '@images/icons/payments/img/jcb-dark.png'
-import jcbLight from '@images/icons/payments/img/jcb-light.png'
-import masterCardDark from '@images/icons/payments/img/master-dark.png'
-import masterCardLight from '@images/icons/payments/img/mastercard.png'
-import visaDark from '@images/icons/payments/img/visa-dark.png'
-import visaLight from '@images/icons/payments/img/visa-light.png'
+import americanExDark from '@/assets/icons/payments/img/ae-dark.png'
+import americanExLight from '@/assets/icons/payments/img/american-express.png'
+import dcDark from '@/assets/icons/payments/img/dc-dark.png'
+import dcLight from '@/assets/icons/payments/img/dc-light.png'
+import jcbDark from '@/assets/icons/payments/img/jcb-dark.png'
+import jcbLight from '@/assets/icons/payments/img/jcb-light.png'
+import masterCardDark from '@/assets/icons/payments/img/master-dark.png'
+import masterCardLight from '@/assets/icons/payments/img/mastercard.png'
+import visaDark from '@/assets/icons/payments/img/visa-dark.png'
+import visaLight from '@/assets/icons/payments/img/visa-light.png'
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emit>()

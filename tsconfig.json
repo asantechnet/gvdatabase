@@ -34,9 +34,6 @@
       "@core": [
         "./resources/ts/@core"
       ],
-      "@images/*": [
-        "./resources/images/*"
-      ],
       "@styles/*": [
         "./resources/styles/*"
       ],

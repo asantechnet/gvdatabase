@@ -455,7 +455,7 @@ onMounted(loadAll)
             >
               <img
                 width="85"
-                src="@images/illustrations/sitting-girl-with-laptop.png"
+                src="@/assets/illustrations/sitting-girl-with-laptop.png"
                 alt="add-role"
               >
             </VCol>

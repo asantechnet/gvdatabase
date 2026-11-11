@@ -159,7 +159,6 @@ export default defineConfig({
       '@layouts': fileURLToPath(
         new URL('./resources/ts/@layouts', import.meta.url),
       ),
-      '@images': fileURLToPath(new URL('./resources/images/', import.meta.url)),
       '@styles': fileURLToPath(new URL('./resources/styles/', import.meta.url)),
       '@configured-variables': fileURLToPath(
         new URL('./resources/styles/variables/_template.scss', import.meta.url),

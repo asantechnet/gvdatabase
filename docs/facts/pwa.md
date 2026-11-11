@@ -1,7 +1,7 @@
 # PWA, caching and application updates
 
 - Maintained reference, reviewed 2026-10-19.
-- Applies to the source implementation accompanying [the reliability task](../ai/pwa-update-reliability-and-facts.md).
+- Applies to the current service-worker registration, release identity and update flow.
 - Validation: 17 deterministic frontend lifecycle tests and 4 PHP PWA tests passed. Production typecheck/build, generated artifact refresh and real-browser two-release testing remain blocked in the current Windows/Linux dependency environment. The checked-in generated bundle still has the previous behavior until a successful build is performed. This document describes the updated source behavior, not an assertion about a live deployment.
 
 ## Behavior that must be preserved

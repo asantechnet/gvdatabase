@@ -1,6 +1,6 @@
 # vue
 
-Project documentation: [index](docs/README.md), [maintained feature facts](docs/facts/README.md), [PWA behavior and manual release updates](docs/facts/pwa.md), and [implementation plans/progress](docs/ai/README.md). The remaining setup notes below originated in the template; use project instructions and maintained facts for application behavior.
+Project documentation: [maintained feature facts](docs/facts/README.md) and [PWA behavior and manual release updates](docs/facts/pwa.md). The remaining setup notes below originated in the template; use project instructions and maintained facts for application behavior.
 
 This template should help get you started developing with Vue 3 in Vite.
 

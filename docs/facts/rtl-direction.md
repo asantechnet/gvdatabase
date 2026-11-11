@@ -37,7 +37,7 @@ Fix: keep the **entire** selector inside `:global(...)`.
 :global([dir='rtl'] .table-scroll-affordance__control .v-icon) { transform: scaleX(-1); }
 ```
 
-This is the same failure mode documented in [the 2026-10-19 RTL selector task](../ai/fix-rtl-global-selector-scope-leaks.md); it reappeared in newer components, so treat it as a live risk rather than history.
+This is a recurring failure mode: it reappeared in newer components, so treat it as a live risk rather than history.
 
 ## Diagnose a mirrored UI in under five minutes
 

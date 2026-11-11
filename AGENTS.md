@@ -117,7 +117,7 @@ Rules:
 
 ## PWA and offline caching
 
-- Read `docs/facts/pwa.md` before changing PWA, caching, release identity or update behavior. It is the maintained behavior reference; `docs/ai` contains historical implementation records. Update facts and lifecycle regression tests with behavior changes.
+- Read `docs/facts/pwa.md` before changing PWA, caching, release identity or update behavior. It is the maintained behavior reference. Update facts and lifecycle regression tests with behavior changes.
 - Update readiness requires a completed waiting (or already controlling) worker identifying the server-reported release, different from the running bundle. A version mismatch or waiting event alone must never raise the toast. Check both API metadata and worker at launch, every 15 visible minutes and on visibility return; keep checks coalesced.
 - Activation/reload consent is per tab: wait for the accepted worker to be activated and control that tab, then purge API data and reload once. Never restore an unconditional controllerchange reload or a timer that forces reload. A 30-second activation timeout reports failure and allows retry. Use GET_VERSION messaging to reject same-version, stale or unidentified workers.
 - Static icon output currently lives at the public root (`icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `icon-64.png`, `favicon.ico`), generated from `public/favicon.svg` by `npm run pwa:assets`; older `public/icons/` references are historical.

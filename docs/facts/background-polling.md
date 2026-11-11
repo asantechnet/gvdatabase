@@ -1,8 +1,7 @@
 # Background polling, activity and error feedback
 
 - Maintained source behavior, reviewed 2026-10-19.
-- Implementation/progress: [background-polling-error-storm](../ai/background-polling-error-storm.md).
-- Validation: 16 deterministic polling/API/interceptor tests and the 17 PWA regression tests pass. Production typecheck/build and real-browser acceptance are blocked by the current Linux-installed dependencies being inaccessible from Windows; WSL escalation failed to launch. Existing generated production files have not been rebuilt. This reference describes the source changes, not a verified live deployment.
+- Validation: 16 deterministic polling/API/interceptor tests and the 17 PWA regression tests pass. Production typecheck/build and real-browser acceptance remain environment-dependent; this reference describes source behavior, not a verified live deployment.
 
 ## Required behavior
 

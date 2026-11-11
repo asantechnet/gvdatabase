@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import laptopGirl from '@images/illustrations/laptop-girl.png'
+import laptopGirl from '@/assets/illustrations/laptop-girl.png'
 
 const props = defineProps<{
   isDialogVisible: boolean
