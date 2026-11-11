@@ -843,25 +843,6 @@ onMounted(async () => {
               :title="$t('common.actions.viewFullDetails')"
               @click="openVisitorDetails(item)"
             />
-            <template v-if="isFollowUpList && ability.can('read', 'create_contracts') && ability.can('read', 'view_contracts')">
-              <VDivider class="my-1" />
-              <VMenu location="end top">
-                <template #activator="{ props: contractProps }">
-                  <VListItem
-                    v-bind="contractProps"
-                    prepend-icon="tabler-file-plus"
-                    append-icon="tabler-chevron-right"
-                    :title="$t('serviceContracts.create')"
-                  />
-                </template>
-                <VList class="visitor-contract-menu" density="compact" min-width="220">
-                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.scholarship')" :to="{ name: 'scholarship-contracts', query: { visitor: item.id } }" />
-                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.testOffer')" :to="{ name: 'test-offer-contracts', query: { visitor: item.id } }" />
-                  <VListItem prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.private')" :to="{ name: 'private-contracts', query: { visitor: item.id } }" />
-                  <VListItem v-if="academyEnabled" prepend-icon="tabler-file-plus" :title="$t('educational.builtInServices.academy')" :to="{ name: 'academy-students', query: { visitor: item.id } }" />
-                </VList>
-              </VMenu>
-            </template>
             <VDivider class="my-1" />
             <VListItem
               v-if="canReview"

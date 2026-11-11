@@ -6,7 +6,9 @@ import { setupGuards } from './guards'
 import { explicitRoutes } from './routes'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  // Vite compiles assets into /build, but the SPA is served from the origin
+  // root. Using BASE_URL here would mount the router at /build in production.
+  history: createWebHistory('/'),
   routes: [...redirects, ...explicitRoutes],
   scrollBehavior(to) {
     if (to.hash)

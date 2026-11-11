@@ -873,27 +873,47 @@ onMounted(async () => {
 }
 
 .applications-responsive-table .v-table__wrapper > table {
-  min-inline-size: 1400px;
+  min-inline-size: 1700px;
 }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th,
 .applications-responsive-table .v-table__wrapper > table > tbody > tr > td {
+  min-inline-size: 9rem;
+  padding-inline: 1.25rem;
   white-space: nowrap;
 }
 
-/* Keep the profile and destination data readable instead of compressing the
-   middle of this intentionally scrollable operational table. */
+/* Give every column room for longer names and destinations instead of
+   compressing the intentionally scrollable operational table. */
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(1),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(1) { min-inline-size: 5.5rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(2),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 12rem; }
+
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(3),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 11rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 13rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 9rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 10rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(5),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 10rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 11rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(6),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 13rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(6) { min-inline-size: 15rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(7),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(7) { min-inline-size: 10rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(8),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(8) { min-inline-size: 9.5rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(9),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(9) { min-inline-size: 11rem; }
+
+.applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(10),
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(10) { min-inline-size: 5.5rem; }
 
 .applications-responsive-table .v-table__wrapper > table > tbody > tr:hover > td {
   background-color: rgba(var(--v-theme-on-surface), 0.035) !important;

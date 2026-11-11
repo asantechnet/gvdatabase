@@ -40,7 +40,7 @@ const printRows = computed(() => filteredRows.value.map(row => [row.name, row.de
 async function load() {
   loading.value = true; failed.value = false
   try { rows.value = await MasterDataApi.list('programs') }
-  catch { failed.value = true }
+  catch { failed.value = !rows.value.length }
   finally { loading.value = false }
 }
 function open(row?: MasterDataRecord) {
@@ -79,7 +79,7 @@ onMounted(load)
         </VRow>
       </VCardText>
       <VAlert v-if="failed" type="error" variant="tonal" class="ma-4 mt-0">{{ t('academy.catalog.loadFailed') }}</VAlert>
-      <ResponsiveDataTable v-else :headers="headers" :items="filteredRows" :loading="loading" :skeleton-rows="5" item-value="id" class="programs-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :mobile-fields="['description', 'status']" :sticky-key-column="false" :sticky-action-column="false" :show-scroll-affordance="false">
+      <ResponsiveDataTable :headers="headers" :items="filteredRows" :loading="loading" :skeleton-rows="5" item-value="id" class="programs-table" mobile-cards mobile-expand-all mobile-actions-as-menu mobile-title-key="name" mobile-action-key="actions" :mobile-fields="['description', 'status']" :sticky-key-column="false" :sticky-action-column="false" :show-scroll-affordance="false">
         <template #item.name="{ item }"><strong>{{ item.name }}</strong></template>
         <template #item.description="{ item }">{{ item.description || '—' }}</template>
         <template #item.status="{ item }"><VChip size="small" variant="tonal" :color="item.is_active ? 'success' : 'secondary'">{{ t(item.is_active ? 'common.statuses.active' : 'common.statuses.inactive') }}</VChip></template>

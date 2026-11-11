@@ -24,7 +24,7 @@ const props = defineProps<{
 }>()
 const { t } = useI18n()
 const toast = useToast()
-const { enabled: academyEnabled } = useAcademyEnabled()
+const { enabled: academyEnabled, load: loadAcademyEnabled } = useAcademyEnabled()
 const loading = ref(false)
 const catalogs = ref<Partial<Record<EducationalCatalog, MasterDataRecord[]>>>({})
 const contractTypes = ref<ContractType[]>([])
@@ -60,10 +60,13 @@ const visibleOnStep = (...steps: Array<1 | 2 | 3>) => !props.contractStep || ste
 
 onMounted(async () => {
   loading.value = true
+  // Academy's whole API tree is unavailable when the module is off, so its
+  // teacher list must not be requested for the other service forms.
+  const academyOn = academyEnabled.value ?? await loadAcademyEnabled()
   const names: EducationalCatalog[] = ['countries', 'education-levels', 'semesters', 'subjects', 'tests', 'skills', 'programs', 'classes']
   const results = await Promise.allSettled([
     ...names.map(async name => { catalogs.value[name] = await MasterDataApi.list(name) }),
-    AcademyTeachersApi.list().then(rows => { teachers.value = rows }),
+    ...(academyOn ? [AcademyTeachersApi.list().then(rows => { teachers.value = rows })] : []),
     ContractTypeApi.getAll().then(rows => { contractTypes.value = rows }),
   ])
   loading.value = false

@@ -104,7 +104,8 @@ async function load() {
     teachers.value = teacherRows
   }
   catch {
-    failed.value = true
+    // Keep the rows already on screen; only an empty first load is a hard failure.
+    failed.value = !classes.value.length
   }
   finally {
     loading.value = false
@@ -251,7 +252,6 @@ onMounted(load)
 
       <VAlert v-if="failed" type="error" variant="tonal" class="ma-4 mt-0">{{ t('academy.classes.loadFailed') }}</VAlert>
       <ResponsiveDataTable
-        v-else
         :headers="headers"
         :items="filteredClasses"
         :loading="loading"

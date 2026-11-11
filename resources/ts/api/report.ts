@@ -41,7 +41,7 @@ export interface GeneratedReport {
 
 export interface ReportCatalog {
   types: Array<{ value: ReportType; category: string; title: string }>
-  employees: Array<{ id: number; name: string; office_id: number | null }>
+  employees: Array<{ id: number; name: string; avatar: string | null; office_id: number | null }>
   offices: Array<{ id: number; name: string; code: string }>
   applicants: Array<{ id: number; name: string }>
   currencies: Array<{ id: number; code: string; symbol: string; decimal_places: number; is_base: boolean }>

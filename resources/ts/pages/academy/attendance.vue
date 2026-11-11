@@ -149,7 +149,8 @@ async function load() {
       attendanceDate.value.slice(0, 7),
     );
   } catch {
-    failed.value = true;
+    // Keep the month already on screen when a refresh fails.
+    failed.value = !data.value;
   } finally {
     loading.value = false;
   }
@@ -431,7 +432,6 @@ onMounted(async () => {
         t("academy.attendance.loadFailed")
       }}</VAlert
       ><ResponsiveDataTable
-        v-else
         :headers="headers"
         :items="ledgerRows"
         :loading="loading"

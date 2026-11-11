@@ -53,7 +53,7 @@ class ReportService
 
         return [
             'types' => $types->map(fn (string $type) => ['value' => $type, 'category' => self::CATEGORIES[$type], 'title' => "reports.types.{$type}"])->all(),
-            'employees' => $this->canSeeEmployees($user) ? Employee::selectable()->active()->orderBy('name')->get(['id', 'name', 'office_id'])->all() : [],
+            'employees' => $this->canSeeEmployees($user) ? Employee::selectable()->active()->orderBy('name')->get(['id', 'name', 'avatar', 'office_id'])->all() : [],
             'offices' => $user->hasPermission('view_offices') || $user->hasPermission('view_attendance')
                 ? Office::query()->orderBy('name')->get(['id', 'name', 'code'])->all() : [],
             'applicants' => $user->hasPermission('view_applicants') || $user->hasPermission('view_financial_reports')

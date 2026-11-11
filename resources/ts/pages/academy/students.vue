@@ -98,7 +98,8 @@ async function load() {
     meta.value = response.meta
   }
   catch {
-    failed.value = true
+    // Keep the rows already on screen; only an empty first load is a hard failure.
+    failed.value = !enrollments.value.length
   }
   finally {
     loading.value = false
@@ -251,7 +252,6 @@ onMounted(async () => {
 
       <VAlert v-if="failed" type="error" variant="tonal" class="ma-4 mt-0">{{ t('academy.students.loadFailed') }}</VAlert>
       <ResponsiveDataTableServer
-        v-else
         :headers="headers"
         :items="tableEnrollments"
         :items-length="meta.total"

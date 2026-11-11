@@ -48,7 +48,7 @@ class EducationalMasterDataController extends Controller
     /** Sorted catalogues whose rows carry a display order. */
     private const SORTED_CATALOGS = [
         'education-levels', 'semesters', 'subjects', 'tests', 'skills',
-        'scholarships', 'classes',
+        'scholarships',
         'provinces', 'english-levels', 'acquisition-routes',
     ];
 
@@ -133,8 +133,9 @@ class EducationalMasterDataController extends Controller
             'semesters' => ['name' => [$required, 'string', 'max:255', $unique('semesters')], 'code' => [$required, 'string', 'max:30', $unique('semesters', 'code')], 'sort_order' => ['sometimes', 'integer', 'min:0'], 'is_active' => ['sometimes', 'boolean']],
             'universities' => ['name' => [$required, 'string', 'max:255', Rule::unique('universities', 'name')->where(fn ($query) => $query->where('country_id', $request->input('country_id', $record?->country_id))->when($creating, fn ($query) => $query->whereNull('deleted_at')))->ignore($record?->id)], 'country_id' => [$required, 'integer', 'exists:countries,id'], 'city' => ['nullable', 'string', 'max:255'], 'website' => ['nullable', 'url', 'max:255'], 'phone' => ['nullable', 'string', 'max:50'], 'email' => ['nullable', 'email', 'max:255'], 'portal_url' => ['nullable', 'string'], 'description' => ['nullable', 'string'], 'is_active' => ['sometimes', 'boolean']],
             'programs' => ['name' => [$required, 'string', 'max:255', $unique('programs')], 'description' => ['nullable', 'string'], 'is_active' => ['sometimes', 'boolean']],
-            'subjects', 'tests', 'skills', 'scholarships', 'classes', 'provinces', 'english-levels', 'acquisition-routes' => ['name' => [$required, 'string', 'max:255', $unique(match ($catalog) {
-                'classes' => 'academy_classes', 'scholarships' => 'educational_scholarships',
+            'classes' => ['name' => [$required, 'string', 'max:255', $unique('academy_classes')], 'description' => ['nullable', 'string'], 'is_active' => ['sometimes', 'boolean']],
+            'subjects', 'tests', 'skills', 'scholarships', 'provinces', 'english-levels', 'acquisition-routes' => ['name' => [$required, 'string', 'max:255', $unique(match ($catalog) {
+                'scholarships' => 'educational_scholarships',
                 'english-levels' => 'english_levels', 'acquisition-routes' => 'acquisition_routes', default => $catalog
             })], 'description' => ['nullable', 'string'], 'sort_order' => ['sometimes', 'integer', 'min:0'], 'is_active' => ['sometimes', 'boolean']],
         };

@@ -586,6 +586,10 @@ onBeforeUnmount(() => {
 
 .report-table { inline-size: max-content; min-inline-size: max(100%, 1180px); table-layout: auto; }
 .report-table :is(th, td) { min-inline-size: 9rem; padding: .8rem 1rem !important; overflow-wrap: normal; vertical-align: middle; white-space: nowrap; }
+/* Employee performance is a compact comparison table: fit the card width
+   instead of inheriting the wide fixed minimum used by the case reports. */
+.education-workspace--hrm .report-table { inline-size: 100%; min-inline-size: 100%; max-inline-size: 100%; }
+.education-workspace--hrm .report-table :is(th, td) { min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
 .report-table :is(th, td):first-child { min-inline-size: 5.5rem; }
 .report-table :is(th, td):nth-child(2),
 .report-table :is(th, td):nth-child(3) { min-inline-size: 11rem; }

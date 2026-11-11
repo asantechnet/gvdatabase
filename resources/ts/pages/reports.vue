@@ -9,6 +9,7 @@ import TableEmptyState from '@/components/TableEmptyState.vue'
 import ErpField from '@/components/erp/ErpField.vue'
 import ErpPageHeader from '@/components/erp/ErpPageHeader.vue'
 import ErpSearchField from '@/components/erp/ErpSearchField.vue'
+import EmployeeAvatar from '@/components/hr/EmployeeAvatar.vue'
 import { canAccess } from '@/utils/authorization'
 import { apiErrorMessage } from '@/utils/apiErrors'
 
@@ -154,6 +155,8 @@ const tableValue = (value: unknown) => {
 
   return String(value)
 }
+const isEmployeeColumn = (column: string) => column === 'employee' || column === 'name'
+const employeeAvatar = (value: unknown) => catalog.value?.employees.find(employee => employee.name === String(value))?.avatar ?? null
 const loadingHeaders = Array.from({ length: 6 }, (_, index) => ({ title: '', key: `loading-${index}` }))
 const activeSection = computed(() => {
   const preferred: Record<ReportType, string> = { financial: 'income', payroll: 'salary_payments', attendance: 'attendance', educational: 'applicants', crm: 'visitors' }
@@ -430,7 +433,13 @@ onMounted(async () => {
           :class="['report-data-table', `report-data-table--${type}`, loading && 'report-data-table--loading']"
         >
           <template #no-data><TableEmptyState icon="tabler-report-off" :title="$t('common.messages.noRecordsFound')" :description="$t('common.messages.noMatchingRecords')" /></template>
-          <template v-for="column in activeSection.columns" :key="column" #[`item.${column}`]="{ item }">{{ tableValue(item[column]) }}</template>
+          <template v-for="column in activeSection.columns" :key="column" #[`item.${column}`]="{ item }">
+            <div v-if="isEmployeeColumn(column) && tableValue(item[column]) !== '—'" class="d-flex align-center ga-2">
+              <EmployeeAvatar :name="String(tableValue(item[column]))" :src="employeeAvatar(item[column])" size="28" />
+              <span>{{ tableValue(item[column]) }}</span>
+            </div>
+            <template v-else>{{ tableValue(item[column]) }}</template>
+          </template>
         </ResponsiveDataTable>
       </section>
     </VCard>

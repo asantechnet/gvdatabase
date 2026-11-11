@@ -77,7 +77,8 @@ async function load() {
     certificates.value = response.data;
     meta.value = response.meta;
   } catch {
-    failed.value = true;
+    // Keep the rows already on screen; only an empty first load is a hard failure.
+    failed.value = !certificates.value.length;
   } finally {
     loading.value = false;
   }
@@ -226,7 +227,6 @@ onMounted(async () => {
         t("academy.certificates.loadFailed")
       }}</VAlert>
       <ResponsiveDataTable
-        v-else
         :headers="headers"
         :items="certificates"
         :loading="loading"
