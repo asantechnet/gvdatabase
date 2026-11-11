@@ -1,0 +1,1 @@
+import{ac as e}from"./main-BIF-moWU.js";const n={async list(a={}){const t=await e.get("/academy/enrollments",{params:a});return{data:Array.isArray(t.data.data)?t.data.data:[],meta:t.data.meta}},async get(a){return(await e.get(`/academy/enrollments/${a}`)).data.data},async update(a,t){return(await e.patch(`/academy/enrollments/${a}`,t)).data.data}};export{n as A};
