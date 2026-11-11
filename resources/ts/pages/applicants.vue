@@ -130,9 +130,9 @@ const hasActiveFilters = computed(() => Boolean(
 ))
 const headers = computed(() => [
   { title: t('educational.id'), key: 'id', sortable: false },
-  { title: t('educational.applicant'), key: 'name', sortable: false },
+  { title: t('educational.applicant'), key: 'name', sortable: false, width: '20rem' },
   { title: t('educational.employee'), key: 'employee', sortable: false },
-  { title: t('educational.service'), key: 'service', sortable: false },
+  { title: t('educational.service'), key: 'service', sortable: false, width: '21rem' },
   { title: t('educational.country'), key: 'country', sortable: false },
   { title: t('educational.university'), key: 'university', sortable: false },
   { title: t('educational.stage'), key: 'stage', sortable: false },
@@ -889,13 +889,13 @@ onMounted(async () => {
 .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(1) { min-inline-size: 5.5rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(2),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 12rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) { min-inline-size: 16rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(3),
 .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(3) { min-inline-size: 13rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
-.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 10rem; }
+.applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) { min-inline-size: 13rem; }
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(5),
 .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(5) { min-inline-size: 11rem; }
@@ -914,6 +914,21 @@ onMounted(async () => {
 
 .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(10),
 .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(10) { min-inline-size: 5.5rem; }
+
+@media (min-width: 960px) {
+  /* Override the table's width distribution for the two long-text columns. */
+  .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(2),
+  .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(2) {
+    inline-size: 20rem !important;
+    min-inline-size: 20rem !important;
+  }
+
+  .applications-responsive-table .v-table__wrapper > table > thead > tr > th:nth-child(4),
+  .applications-responsive-table .v-table__wrapper > table > tbody > tr > td:nth-child(4) {
+    inline-size: 21rem !important;
+    min-inline-size: 21rem !important;
+  }
+}
 
 .applications-responsive-table .v-table__wrapper > table > tbody > tr:hover > td {
   background-color: rgba(var(--v-theme-on-surface), 0.035) !important;
