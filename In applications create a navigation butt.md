@@ -83,4 +83,3 @@ also put /docs into .gitignore
 
 
 check if this is code error or any migration command to run:
-SQLSTATE[23000]: Integrity constraint violation: 1052 Column 'service' in where clause is ambiguous (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: educational_office_main, SQL: select detail.country_id, applicants.current_stage_id, COUNT(*) as total from `applicants` inner join ((select `applicant_id`, `country_id`, 'scholarship' as service from `scholarship_applicant_details` where `deleted_at` is null) union all (select `applicant_id`, `country_id`, 'private' as service from `private_applicant_details` where `deleted_at` is null)) as `detail` on `detail`.`applicant_id` = `applicants`.`id` and `detail`.`service` = `applicants`.`service` where `service` != academy and `detail`.`country_id` is not null and `applicants`.`deleted_at` is null group by `detail`.`country_id`, `applicants`.`current_stage_id`)

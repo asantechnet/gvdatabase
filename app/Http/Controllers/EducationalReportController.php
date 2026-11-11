@@ -125,7 +125,7 @@ class EducationalReportController extends Controller
     {
         $query = Applicant::query()->with(['responsibleEmployee:id,name', 'privateDetail.country:id,name', 'privateDetail.university:id,name', 'privateDetail.educationLevel:id,name', 'scholarshipDetail.country:id,name', 'scholarshipDetail.university:id,name', 'scholarshipDetail.educationLevel:id,name', 'currentStage:id,name,key']);
         if (! BuiltInService::isEnabled(BuiltInService::ACADEMY)) {
-            $query->where('service', '!=', BuiltInService::ACADEMY);
+            $query->where('applicants.service', '!=', BuiltInService::ACADEMY);
         }
         foreach (['country_id', 'university_id', 'education_level_id'] as $field) {
             if (! empty($filters[$field])) {
@@ -138,7 +138,7 @@ class EducationalReportController extends Controller
         if (! empty($filters['service'])) {
             // A case belongs to a service when it is its own service or when
             // it bought that service as a contract line.
-            $query->where(fn ($q) => $q->where('service', $filters['service'])
+            $query->where(fn ($q) => $q->where('applicants.service', $filters['service'])
                 ->orWhereHas('services', fn ($line) => $line->where('service', $filters['service'])));
             // The report shows the stage of the selected service's line.
             $query->with(['services' => fn ($line) => $line->where('service', $filters['service'])->with('currentStage:id,name,key')]);

@@ -7,6 +7,7 @@ use App\Models\ApplicantStage;
 use App\Models\Country;
 use App\Models\Employee;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -88,6 +89,24 @@ class EducationalReportTest extends TestCase
         $this->assertSame(1, $row['completed']);
         $this->assertSame(1, $row['total']);
         $this->assertSame(100.0, (float) $row['success_rate_pct']);
+    }
+
+    public function test_visa_outcomes_works_when_academy_is_disabled(): void
+    {
+        Setting::create([
+            'academy_enabled' => false,
+            'website_title' => 'Report Company',
+            'phone' => '0000000000',
+            'physical_address' => 'Test address',
+            'short_company_name' => 'Report Co',
+            'original_company_name' => 'Report Company',
+        ]);
+        $iran = Country::create(['name' => 'Iran', 'code' => 'IRN', 'is_active' => true]);
+        $this->postJson('/api/applicants', ['name' => 'Academy-off case', 'country_id' => $iran->id])->assertCreated();
+
+        $report = $this->getJson('/api/educational-reports/visa-outcomes')->assertOk()->json('data');
+        $row = collect($report['rows'])->firstWhere('country', 'Iran');
+        $this->assertSame(1, $row['total']);
     }
 
     public function test_export_downloads_csv_and_permissions_hold(): void
